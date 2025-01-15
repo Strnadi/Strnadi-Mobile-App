@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:strnadi/AudioEditor/audioRecorder.dart';
+import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
 import 'package:strnadi/bottomBar.dart';
 
-class editor extends StatelessWidget {
+class Spectogram extends StatelessWidget {
   final String audioFilePath;
 
-  const editor({
+  const Spectogram({
     Key? key,
     required this.audioFilePath,
   }) : super(key: key);

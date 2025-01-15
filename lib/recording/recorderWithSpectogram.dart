@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:record/record.dart';
 import 'package:strnadi/bottomBar.dart';
-import 'package:strnadi/AudioEditor/editor.dart';
+import 'package:strnadi/AudioSpectogram/editor.dart';
 
 String? recordedFilePath;
 final RecorderController recorderController = RecorderController();
@@ -48,7 +48,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                 onPressed: () async {
                   if (recorderController.isRecording) {
                     recordedFilePath = await recorderController.stop();
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => editor(audioFilePath: recordedFilePath!)));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => Spectogram(audioFilePath: recordedFilePath!)));
                   }
                 },
                 child: Text('Stop'),

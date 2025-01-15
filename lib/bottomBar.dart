@@ -79,7 +79,7 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => MapyCzApiExample(),
+                    builder: (_) => OSMmap(),
                     settings: const RouteSettings(name: '/map'),
                   ),
                 );

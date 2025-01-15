@@ -10,7 +10,7 @@ import 'package:strnadi/recording/recorderLib.dart';
 import 'package:strnadi/recording/recorderBtn.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-import '../AudioEditor/editor.dart';
+import '../AudioSpectogram/editor.dart';
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
@@ -89,7 +89,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
       // play the audio
       // reset the recording so the user can record again
 
-      Navigator.push(context, MaterialPageRoute(builder: (_) => editor(audioFilePath: _audioPath!)));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => Spectogram(audioFilePath: _audioPath!)));
       return;
 
 
