@@ -4,25 +4,10 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="added some small auth changes">
-      <change afterPath="$PROJECT_DIR$/lib/PostRecordingForm/audiometadataForm.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config_subset" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config_subset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.flutter-plugins" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins" afterDir="false" />
+    <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="add of the map">
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/AudioEditor/audioRecorder.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/AudioSpectogram/audioRecorder.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/AudioEditor/editor.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/AudioSpectogram/editor.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/bottomBar.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/bottomBar.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/map/map.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/map/map.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/recording/recorder.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/recording/recorder.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -132,11 +117,20 @@
       <option name="project" value="LOCAL" />
       <updated>1736874753076</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="add of the map">
+      <option name="closed" value="true" />
+      <created>1736972882170</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1736972882170</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="added some small auth changes" />
-    <option name="LAST_COMMIT_MESSAGE" value="added some small auth changes" />
+    <MESSAGE value="add of the map" />
+    <option name="LAST_COMMIT_MESSAGE" value="add of the map" />
   </component>
 </project>
