@@ -60,10 +60,10 @@ class ReusableBottomAppBar extends StatelessWidget {
             onPressed: () {
               // Avoid navigating to HomePage if already there
               if (ModalRoute.of(context)?.settings.name != '/home') {
-                Navigator.pushReplacement(
+                Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const HomePage(),
+                    builder: (_) => HomePage(),
                     settings: const RouteSettings(name: '/home'),
                   ),
                 );
@@ -76,7 +76,7 @@ class ReusableBottomAppBar extends StatelessWidget {
             onPressed: () {
 
               if (ModalRoute.of(context)?.settings.name != '/map') {
-                Navigator.pushReplacement(
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => OSMmap(),
