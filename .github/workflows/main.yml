@@ -19,7 +19,7 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.10.5' # Specify a stable Flutter version explicitly
+        flutter-version: '3.13.0' # Update to a version with Dart 3.6.0 or higher
 
     # Install Flutter dependencies
     - name: Get Flutter dependencies
