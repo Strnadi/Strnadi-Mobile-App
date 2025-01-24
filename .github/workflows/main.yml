@@ -1,0 +1,59 @@
+name: iOS Build Automation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ios-build:
+    name: Build iOS App
+    runs-on: macos-latest
+
+    steps:
+    # Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Set up Flutter
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: stable
+
+    # Install Flutter dependencies
+    - name: Get Flutter dependencies
+      run: flutter pub get
+
+    # Clean Flutter build artifacts
+    - name: Clean Flutter project
+      run: flutter clean
+
+    # Ensure CocoaPods is up to date
+    - name: Install CocoaPods
+      run: sudo gem install cocoapods
+
+    # Install iOS dependencies
+    - name: Install Pods
+      working-directory: ios
+      run: pod install
+
+    # Build iOS app
+    - name: Build iOS Release
+      run: flutter build ios --release
+
+    # Verify Generated.xcconfig exists
+    - name: Verify Generated.xcconfig
+      run: |
+        if [ ! -f ios/Flutter/Generated.xcconfig ]; then
+          echo "Error: Generated.xcconfig not found!"
+          exit 1
+        fi
+
+    # Upload build artifacts (Optional)
+    - name: Upload Artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: ios-build-artifacts
+        path: build/ios/ipa/
