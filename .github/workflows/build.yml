@@ -1,0 +1,55 @@
+name: Build and Deploy to TestFlight
+
+on:
+  push:
+    branches:
+      - main
+  # optionally, you can also trigger on pull_request if you want
+  # pull_request:
+  #   branches:
+  #     - main
+
+jobs:
+  build_and_deploy_ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'  # or whichever Ruby version you prefer
+
+      - name: Install Bundler
+        run: gem install bundler
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Install Fastlane
+        working-directory: ios
+        run: bundle install --path vendor/bundle
+
+      # If using Apple ID & password approach (less secure):
+      # - name: Set up Apple credentials
+      #   run: |
+      #     bundle exec fastlane credentials add --username ${{ secrets.APP_STORE_CONNECT_USER }} --password ${{ secrets.APP_STORE_CONNECT_PASSWORD }}
+
+      - name: Run Fastlane Beta
+        working-directory: ios
+        env:
+          # If using App Store Connect API key approach:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          # If using Apple ID credentials approach:
+          # APP_STORE_CONNECT_USER: ${{ secrets.APP_STORE_CONNECT_USER }}
+          # APP_STORE_CONNECT_PASSWORD: ${{ secrets.APP_STORE_CONNECT_PASSWORD }}
+        run: |
+          bundle exec fastlane beta
