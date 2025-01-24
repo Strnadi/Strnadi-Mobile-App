@@ -15,11 +15,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    # Set up Dart SDK (for projects requiring specific Dart versions)
+    - name: Setup Dart
+      uses: dart-lang/setup-dart@v2
+      with:
+        sdk: '3.6.0' # Specify the required Dart SDK version
+
     # Set up Flutter
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.13.0' # Update to a version with Dart 3.6.0 or higher
+        flutter-version: '3.13.0' # Use Flutter version that supports Dart 3.6.0
 
     # Install Flutter dependencies
     - name: Get Flutter dependencies
