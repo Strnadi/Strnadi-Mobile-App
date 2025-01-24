@@ -17,7 +17,7 @@ jobs:
 
     # Set up Dart SDK (for projects requiring specific Dart versions)
     - name: Setup Dart
-      uses: dart-lang/setup-dart
+      uses: dart-lang/setup-dart@v1
       with:
         sdk: '3.6.0' # Specify the required Dart SDK version
 
