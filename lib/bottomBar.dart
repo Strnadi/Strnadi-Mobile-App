@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/home.dart';
 import 'package:strnadi/map/map.dart';
-import 'package:strnadi/recording/recorder.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 class ScaffoldWithBottomBar extends StatelessWidget {

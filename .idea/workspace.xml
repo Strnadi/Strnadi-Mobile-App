@@ -4,12 +4,21 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="Improvement on the map">
+    <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="improvement on the recorder ui">
+      <change afterPath="$PROJECT_DIR$/lib/map/dummy.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lib/map/squareNet.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config_subset" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config_subset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.flutter-plugins" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/bottomBar.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/bottomBar.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/map/map.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/map/map.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/recording/recorder.dart" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/recording/recorderBtn.dart" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/recording/recorderLib.dart" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/recording/spectogramRecord.dart" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -135,13 +144,33 @@
       <option name="project" value="LOCAL" />
       <updated>1737617822929</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="improvement on the recorder ui">
+      <option name="closed" value="true" />
+      <created>1737639662865</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1737639662866</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="added some small auth changes" />
     <MESSAGE value="add of the map" />
     <MESSAGE value="Improvement on the map" />
-    <option name="LAST_COMMIT_MESSAGE" value="Improvement on the map" />
+    <MESSAGE value="improvement on the recorder ui" />
+    <option name="LAST_COMMIT_MESSAGE" value="improvement on the recorder ui" />
   </component>
 </project>
