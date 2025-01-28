@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/home.dart';
 
 enum AuthType { login, register }
 
@@ -18,6 +20,18 @@ class Authorizator extends StatefulWidget {
 
 class _AuthState extends State<Authorizator> {
   AuthType authType = AuthType.login;
+
+  void isLoggedIn() {
+    // Check if user is logged in
+    final secureStorage = FlutterSecureStorage();
+    final token = secureStorage.read(key: 'jwt');
+    if (token != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => HomePage()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

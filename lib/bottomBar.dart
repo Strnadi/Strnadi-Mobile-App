@@ -19,7 +19,12 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       appBar: AppBar(
         title: Text(appBarTitle),
       ),
-      body: content,
+      body: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
+        ),
+        child: content,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (appBarTitle == 'Recording Screen') {
@@ -57,7 +62,6 @@ class ReusableBottomAppBar extends StatelessWidget {
             icon: const Icon(Icons.home),
             iconSize: 30.0,
             onPressed: () {
-              // Avoid navigating to HomePage if already there
               if (ModalRoute.of(context)?.settings.name != '/home') {
                 Navigator.push(
                   context,
@@ -73,7 +77,6 @@ class ReusableBottomAppBar extends StatelessWidget {
             icon: const Icon(Icons.map),
             iconSize: 30.0,
             onPressed: () {
-
               if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.push(
                   context,

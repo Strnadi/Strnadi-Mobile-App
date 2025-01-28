@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
+import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/bottomBar.dart';
 
 class Spectogram extends StatelessWidget {
@@ -10,18 +11,18 @@ class Spectogram extends StatelessWidget {
     required this.audioFilePath,
   }) : super(key: key);
 
-
   @override
   Widget build(BuildContext context) {
-    return ScaffoldWithBottomBar(
-      appBarTitle: 'Editor',
-      content: Center(
+    return Scaffold(
+      appBar: AppBar(title: Text('Submit'),),
+      body: SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
+          children: [
+            Container(
+              height: 300, // Specify a height for the spectrogram viewer
               child: SpectrogramViewer(audioFilePath: audioFilePath),
             ),
+            RecordingForm(filepath: audioFilePath),
           ],
         ),
       ),

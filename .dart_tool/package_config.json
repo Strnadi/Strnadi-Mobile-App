@@ -176,6 +176,42 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "flutter_secure_storage",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/flutter_secure_storage-8.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "flutter_secure_storage_linux",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/flutter_secure_storage_linux-1.2.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "flutter_secure_storage_macos",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/flutter_secure_storage_macos-3.1.3",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "flutter_secure_storage_platform_interface",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/flutter_secure_storage_platform_interface-1.1.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "flutter_secure_storage_web",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/flutter_secure_storage_web-1.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "flutter_secure_storage_windows",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/flutter_secure_storage_windows-2.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "flutter_test",
       "rootUri": "file:///home/zlatovlas/development/flutter/packages/flutter_test",
       "packageUri": "lib/",
@@ -246,6 +282,12 @@
       "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/intl-0.20.1",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "js",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/js-0.6.7",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
     },
     {
       "name": "json_annotation",
@@ -596,7 +638,7 @@
       "languageVersion": "3.6"
     }
   ],
-  "generated": "2025-01-27T08:29:59.380745Z",
+  "generated": "2025-01-27T17:07:58.399618Z",
   "generator": "pub",
   "generatorVersion": "3.6.1",
   "flutterRoot": "file:///home/zlatovlas/development/flutter",
