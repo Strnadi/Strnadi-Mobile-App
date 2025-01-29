@@ -8,7 +8,9 @@ import '../AudioSpectogram/editor.dart';
 class RecordingForm extends StatefulWidget {
   final String filepath;
 
-  const RecordingForm({Key? key, required this.filepath}) : super(key: key);
+  final LatLng? currentPosition;
+
+  const RecordingForm({Key? key, required this.filepath, required this.currentPosition}) : super(key: key);
 
   @override
   _RecordingFormState createState() => _RecordingFormState();
@@ -31,15 +33,15 @@ class _RecordingFormState extends State<RecordingForm> {
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              //Spectogram(audioFilePath: widget.filepath),
-              const SizedBox(height: 50),
+              const SizedBox(height: 100),
               Form(
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       TextFormField(
                         controller: _recordingNameController,

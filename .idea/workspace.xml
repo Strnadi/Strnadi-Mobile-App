@@ -5,24 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="work on the square net (it works) but the net is kinda broken where the squares lean into each other like why bruv why?">
-      <change afterPath="$PROJECT_DIR$/config.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/PostRecordingForm/RecordingForm.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/map/GridLayer.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config_subset" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config_subset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.flutter-plugins" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/AudioSpectogram/editor.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/AudioSpectogram/editor.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/auth/authorizator.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/auth/authorizator.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/PostRecordingForm/RecordingForm.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/PostRecordingForm/RecordingForm.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/PostRecordingForm/audiometadataForm.dart" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/auth/login.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/auth/login.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/auth/register.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/auth/register.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/bottomBar.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/bottomBar.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/map/dummy.json" beforeDir="false" afterPath="$PROJECT_DIR$/lib/map/dummy.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/map/map.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/map/map.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,6 +43,9 @@
     &quot;accountId&quot;: &quot;bef97f42-d3b0-49c1-8da0-4607a366e4ca&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="ProjectErrors" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
 }</component>

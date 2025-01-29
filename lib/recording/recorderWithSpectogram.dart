@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/AudioSpectogram/editor.dart';
 
 String? recordedFilePath;
+LatLng? _currentPosition;
 final RecorderController recorderController = RecorderController();
 
 class RecorderWithSpectogram extends StatefulWidget {
@@ -18,6 +21,16 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   void initState() {
     super.initState();
     recorderController.checkPermission();
+    _getCurrentLocation();
+  }
+
+  void _getCurrentLocation(){
+    Geolocator.getCurrentPosition().then((position) {
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
+    });
+    print("locaiton is $_currentPosition");
   }
 
   var _isRecording = false;
@@ -99,7 +112,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                       context,
                       MaterialPageRoute(
                           builder: (_) =>
-                              Spectogram(audioFilePath: recordedFilePath!)));
+                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition,)));
                 },
                 child: Text(
                   'Stop',
