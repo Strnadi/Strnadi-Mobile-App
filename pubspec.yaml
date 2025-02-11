@@ -21,6 +21,7 @@ version: 1.0.0+1
 environment:
   sdk: ^3.6.0
 
+license: "GPL-3.0-or-later"
 
 flutter_icons:
   image_path: "images/icon.png"
@@ -36,7 +37,6 @@ flutter_icons:
 dependencies:
   flutter:
     sdk: flutter
-
 
 
   audioplayers: ^6.1.0
