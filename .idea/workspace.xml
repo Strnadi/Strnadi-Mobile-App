@@ -4,14 +4,17 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="work on the square net (it works) but the net is kinda broken where the squares lean into each other like why bruv why?">
+    <list default="true" id="e5a597cc-24fb-4a02-891e-254e41c7d3ef" name="Changes" comment="i dont even know what i did but there are some modifications here so i guess push">
+      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config_subset" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config_subset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.flutter-plugins" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/AudioSpectogram/editor.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/AudioSpectogram/editor.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config.json" beforeDir="false" afterPath="$PROJECT_DIR$/config.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/PostRecordingForm/RecordingForm.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/PostRecordingForm/RecordingForm.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/PostRecordingForm/audiometadataForm.dart" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/auth/login.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/auth/login.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/recording/recorderWithSpectogram.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -164,7 +167,15 @@
       <option name="project" value="LOCAL" />
       <updated>1737967735156</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="i dont even know what i did but there are some modifications here so i guess push">
+      <option name="closed" value="true" />
+      <created>1738137810480</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1738137810480</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -185,6 +196,7 @@
     <MESSAGE value="improvement on the recorder ui" />
     <MESSAGE value="implementation on the sqare net and broke the map again so wtf" />
     <MESSAGE value="work on the square net (it works) but the net is kinda broken where the squares lean into each other like why bruv why?" />
-    <option name="LAST_COMMIT_MESSAGE" value="work on the square net (it works) but the net is kinda broken where the squares lean into each other like why bruv why?" />
+    <MESSAGE value="i dont even know what i did but there are some modifications here so i guess push" />
+    <option name="LAST_COMMIT_MESSAGE" value="i dont even know what i did but there are some modifications here so i guess push" />
   </component>
 </project>
