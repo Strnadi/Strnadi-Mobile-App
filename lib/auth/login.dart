@@ -1,7 +1,6 @@
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -31,7 +30,9 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    final url = Uri.parse('https://stradiapi.slavetraders.tech/users/login');
+    final url = Uri.parse('https://strnadiapi.slavetraders.tech/users/login');
+
+
     try {
       final response = await http.post(
         url,
@@ -46,10 +47,9 @@ class _LoginState extends State<Login> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Login successful: ${data['token']}');
         final secureStorage = FlutterSecureStorage();
 
-        secureStorage.write(key: 'jwt', value: data);
+        secureStorage.write(key: 'token', value: data.toString());
 
         Navigator.push(
           context,
