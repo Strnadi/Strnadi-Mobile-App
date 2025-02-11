@@ -1,4 +1,6 @@
-/*
+#!/bin/bash
+
+LICENSE_HEADER="/*
  * Copyright (C) 2024 [Your Name]
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,25 +14,15 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:strnadi/bottomBar.dart';
+ */"
 
+# Find all .dart files and add the header if not already present
+find . -type f -name "*.dart" | while read file; do
+  if ! grep -q "GNU General Public License" "$file"; then
+    echo "$LICENSE_HEADER" | cat - "$file" > temp && mv temp "$file"
+    echo "Added license to: $file"
+  fi
+done
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+echo "License added to all Dart files."
 
-  @override
-  Widget build(BuildContext context) {
-    return ScaffoldWithBottomBar(
-      appBarTitle: 'Welcome to Flutter',
-      content: const Center(
-        child: Text(
-          'This is the main page content!',
-          style: TextStyle(fontSize: 18),
-        ),
-      ),
-    );
-  }
-}

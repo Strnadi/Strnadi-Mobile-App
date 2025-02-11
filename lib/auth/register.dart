@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2024 [Your Name]
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +33,8 @@ class _RegisterState extends State<Register> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _NickController = TextEditingController();
+  final TextEditingController _NameController = TextEditingController();
+  final TextEditingController _SurnameController = TextEditingController();
 
   late bool _termsAgreement = false;
 
@@ -31,8 +48,6 @@ class _RegisterState extends State<Register> {
     } else {
       Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
     }
-
-
   }
 
   void _showMessage(String message) {
@@ -51,150 +66,131 @@ class _RegisterState extends State<Register> {
     );
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
-
     return Center(
       child: Form(
         key: _GlobalKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Register',
-              style: TextStyle(fontSize: 20),
-
-            ),
-            TextFormField(
-              controller: _NickController,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                labelText: 'username',
-                border: OutlineInputBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                'Navrat Krale',
+                style: TextStyle(fontSize: 60),
               ),
-              keyboardType: TextInputType.name,
-
-              // The validator receiv          es the text that the user has entered.
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-                return null;
-              },
-            ),
-            Text(
-              'Name',
-              style: TextStyle(fontSize: 20),
-
-            ),
-            TextFormField(
-              controller: _NickController,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _NickController,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.name,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.name,
-
-              // The validator receiv          es the text that the user has entered.
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-                return null;
-              },
-            ),
-
-            Text(
-              'Surename',
-              style: TextStyle(fontSize: 20),
-
-            ),
-            TextFormField(
-              controller: _NickController,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                labelText: 'Surename',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _NameController,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.name,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.name,
-
-              // The validator receiv          es the text that the user has entered.
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-                return null;
-              },
-            ),
-            Text(
-              'Email',
-              style: TextStyle(fontSize: 20),
-
-            ),
-            TextFormField(
-              controller: _emailController,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _SurnameController,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  labelText: 'Surname',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.name,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.emailAddress,
-
-              // The validator receiv          es the text that the user has entered.
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-                return null;
-              },
-            ),
-
-            Text('Password',
-
-              style: TextStyle(fontSize: 20),
-            ),
-
-            TextFormField(
-              textAlign: TextAlign.center,
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'password',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _emailController,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.visiblePassword,
-              // The validator receiv          es the text that the user has entered.
-              validator:(value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-                return null;
-              },
-            ),
-            CheckboxListTile(
-              title: const Text('I agree to the terms and conditions'),
-              value: _termsAgreement,
-              onChanged: (value) {
-                setState(() {
-                  _termsAgreement = value!;
-                });
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: ElevatedButton(
-                onPressed: login,
-                // Validate returns true if the form is valid, or false otherwise.
-                child: const Text('Submit'),
+              const SizedBox(height: 20),
+              TextFormField(
+                textAlign: TextAlign.center,
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.visiblePassword,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  return null;
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              CheckboxListTile(
+                title: const Text('I agree to the terms and conditions'),
+                value: _termsAgreement,
+                onChanged: (value) {
+                  setState(() {
+                    _termsAgreement = value!;
+                  });
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ButtonStyle(
+                      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                      ),
+                    ),
+                    onPressed: login,
+                    child: const Text('Submit'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
-
   }
 }

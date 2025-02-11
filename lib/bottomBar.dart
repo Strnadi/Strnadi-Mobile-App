@@ -1,7 +1,21 @@
+/*
+ * Copyright (C) 2024 [Your Name]
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'package:flutter/material.dart';
 import 'package:strnadi/home.dart';
 import 'package:strnadi/map/map.dart';
-import 'package:strnadi/recording/recorder.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 class ScaffoldWithBottomBar extends StatelessWidget {
@@ -20,7 +34,12 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       appBar: AppBar(
         title: Text(appBarTitle),
       ),
-      body: content,
+      body: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
+        ),
+        child: content,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (appBarTitle == 'Recording Screen') {
@@ -58,7 +77,6 @@ class ReusableBottomAppBar extends StatelessWidget {
             icon: const Icon(Icons.home),
             iconSize: 30.0,
             onPressed: () {
-              // Avoid navigating to HomePage if already there
               if (ModalRoute.of(context)?.settings.name != '/home') {
                 Navigator.push(
                   context,
@@ -74,7 +92,6 @@ class ReusableBottomAppBar extends StatelessWidget {
             icon: const Icon(Icons.map),
             iconSize: 30.0,
             onPressed: () {
-
               if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.push(
                   context,
