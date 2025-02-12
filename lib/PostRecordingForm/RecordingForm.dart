@@ -35,6 +35,7 @@ class Recording {
   final String device;
   final bool byApp;
   final String? note;
+  final String userId = '0';
 
   Recording({
     required this.createdAt,
@@ -51,6 +52,7 @@ class Recording {
       "Device": device,
       "ByApp": byApp,
       "Note": note,
+      "userId": userId,
     };
   }
 }
@@ -113,7 +115,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
   void Upload() async {
     final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
+        Uri.parse('http://77.236.222.115:6789/recordings/uploadRec');
     final safeStorage = FlutterSecureStorage();
 
     var platform = await getDeviceModel();
@@ -132,7 +134,11 @@ class _RecordingFormState extends State<RecordingForm> {
     print('token $token');
 
     print(jsonEncode({
+<<<<<<< HEAD
       'token': token,
+=======
+      'jwt': 'test',
+>>>>>>> 00d696e (some small changes)
       'Recording': rec.toJson(),
     }));
 
@@ -143,7 +149,11 @@ class _RecordingFormState extends State<RecordingForm> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
+<<<<<<< HEAD
           'jwt': token,
+=======
+          'jtw': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InN0YXNzdHJvbmcwNkBnbWFpbC5jb20iLCJzdWIiOiIxIiwiaXNzIjoiU3RybmFkaUFQSSBTZXJ2ZXIiLCJhdWQiOiJOYXZyYXQgS3JhbGUgLSBtb2JpbG5pIGFwcGthIGEgV0VCIiwibmJmIjoxNzM5MzExNTc3LCJleHAiOjE3Mzk1NzA3NzcsImlhdCI6MTczOTMxMTU3N30.jMY7O-c8vcAzBYjZLf80CH7Ag9xiIOCYN4zyrGnPhZY',
+>>>>>>> 00d696e (some small changes)
           'Recording': rec.toJson(),
         }),
       );
