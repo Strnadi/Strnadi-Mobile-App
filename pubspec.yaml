@@ -21,6 +21,7 @@ version: 1.0.0+1
 environment:
   sdk: ^3.6.0
 
+license: "GPL-3.0-or-later"
 
 flutter_icons:
   image_path: "images/icon.png"
@@ -38,7 +39,6 @@ dependencies:
     sdk: flutter
 
 
-
   audioplayers: ^6.1.0
   record: any
   path_provider: any
@@ -51,6 +51,7 @@ dependencies:
   http: ^1.0.0
   flutter_secure_storage: ^8.0.0
   device_info_plus: any
+  intl: ^0.18.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2024 [Your Name]
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +35,18 @@ class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  void checkAuth() async {
+    final secureStorage = FlutterSecureStorage();
+    var containsKey = await secureStorage.containsKey(key: 'token');
+
+    if (containsKey) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
+    }
+  }
+
   void login() async{
+
+    final secureStorage = FlutterSecureStorage();
 
     final email = _emailController.text;
     final password = _passwordController.text;
@@ -46,8 +72,7 @@ class _LoginState extends State<Login> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final secureStorage = FlutterSecureStorage();
+        final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());
 
@@ -83,6 +108,7 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
+    checkAuth();
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,6 +173,7 @@ class _LoginState extends State<Login> {
                           ),
                           onPressed: login,
                           child: const Text('Submit'),
+
                         ),
                       ),
                     ),
