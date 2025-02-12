@@ -32,6 +32,9 @@ class RecorderWithSpectogram extends StatefulWidget {
 }
 
 class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
+
+  final recordingPartsTimeList = <int>[];
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +59,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
       setState(() {
         _isRecording = false;
         recorderController.pause();
+        // logging the stops
+        recordingPartsTimeList.add(recorderController.recordedDuration.inMilliseconds);
         _isRecordingPaused = true;
       });
     } else {

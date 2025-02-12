@@ -61,10 +61,8 @@ class _LoginState extends State<Login> {
       );
 
       if (response.statusCode == 200) {
-        final data = response.body;
+        final data = jsonDecode(response.body);
         final secureStorage = FlutterSecureStorage();
-        
-        print(data);
 
         secureStorage.write(key: 'token', value: data.toString());
 
