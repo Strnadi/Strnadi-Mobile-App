@@ -25,7 +25,6 @@ import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:intl/intl.dart';
 
 import '../AudioSpectogram/editor.dart';
 
@@ -75,8 +74,6 @@ class _RecordingFormState extends State<RecordingForm> {
   double _strnadiCountController = 1.0;
   final _photoPathController = TextEditingController();
   int? _recordingId = null;
-
-
 
   Future<String> getDeviceModel() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -128,17 +125,8 @@ class _RecordingFormState extends State<RecordingForm> {
         note: _commentController.text
     );
 
-    var token = await safeStorage.read(key: 'token');
-
-
-    print('token $token');
-
     print(jsonEncode({
-<<<<<<< HEAD
-      'token': token,
-=======
       'jwt': 'test',
->>>>>>> 00d696e (some small changes)
       'Recording': rec.toJson(),
     }));
 
@@ -149,11 +137,7 @@ class _RecordingFormState extends State<RecordingForm> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-<<<<<<< HEAD
-          'jwt': token,
-=======
           'jtw': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InN0YXNzdHJvbmcwNkBnbWFpbC5jb20iLCJzdWIiOiIxIiwiaXNzIjoiU3RybmFkaUFQSSBTZXJ2ZXIiLCJhdWQiOiJOYXZyYXQgS3JhbGUgLSBtb2JpbG5pIGFwcGthIGEgV0VCIiwibmJmIjoxNzM5MzExNTc3LCJleHAiOjE3Mzk1NzA3NzcsImlhdCI6MTczOTMxMTU3N30.jMY7O-c8vcAzBYjZLf80CH7Ag9xiIOCYN4zyrGnPhZY',
->>>>>>> 00d696e (some small changes)
           'Recording': rec.toJson(),
         }),
       );
@@ -163,7 +147,7 @@ class _RecordingFormState extends State<RecordingForm> {
         _recordingId = data['id'];
 
       } else {
-        print('Error: ${response.statusCode} ${response.body}');
+        print('Error: ${response.body}');
       }
     } catch (error) {
       print('An error occurred: $error');
@@ -178,7 +162,7 @@ class _RecordingFormState extends State<RecordingForm> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 50),
+            const SizedBox(height: 100),
             Form(
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
@@ -231,7 +215,6 @@ class _RecordingFormState extends State<RecordingForm> {
                     ),
                     // if location is null request the location from the user
                     SizedBox(
-
                       height: 200,
                       child: FlutterMap(
                         options: MapOptions(
@@ -261,24 +244,8 @@ class _RecordingFormState extends State<RecordingForm> {
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ButtonStyle(
-                            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                            ),
-                          ),
-                          onPressed: Upload,
-                          child: const Text('Submit'),
-
-                        ),
-                      ),
-                    ),
+                    ElevatedButton(
+                        onPressed: () => Upload(), child: Text('Send'))
                   ],
                 ),
               ),
