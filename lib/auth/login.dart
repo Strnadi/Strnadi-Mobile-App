@@ -57,7 +57,7 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/users/login');
+    final url = Uri.parse('http://77.236.222.115:1201/auth/login');
 
 
     try {
