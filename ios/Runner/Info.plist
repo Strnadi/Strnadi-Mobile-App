@@ -50,8 +50,8 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
     <string>We need access to your location to provide a better experience.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>I dont really know why</string>
-    <key>ITSAppUsesNonExcemptEncryption</key>
-    <boolean>NO</boolean>
+    <string>For future use when app will be able to upload photos of birds</string>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 </dict>
 </plist>
