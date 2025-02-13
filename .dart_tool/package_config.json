@@ -291,9 +291,9 @@
     },
     {
       "name": "intl",
-      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/intl-0.18.1",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/intl-0.20.1",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.3"
     },
     {
       "name": "js",
@@ -656,7 +656,7 @@
       "languageVersion": "3.6"
     }
   ],
-  "generated": "2025-02-12T16:10:35.381691Z",
+  "generated": "2025-02-11T21:24:19.537791Z",
   "generator": "pub",
   "generatorVersion": "3.6.1",
   "flutterRoot": "file:///home/zlatovlas/development/flutter",

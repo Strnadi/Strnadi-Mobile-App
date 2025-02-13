@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2024 [Your Name]
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -25,6 +25,7 @@ import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:intl/intl.dart';
 
 import '../AudioSpectogram/editor.dart';
 
@@ -34,7 +35,6 @@ class Recording {
   final String device;
   final bool byApp;
   final String? note;
-  final String userId = '0';
 
   Recording({
     required this.createdAt,
@@ -51,7 +51,6 @@ class Recording {
       "Device": device,
       "ByApp": byApp,
       "Note": note,
-      "userId": userId,
     };
   }
 }
@@ -74,6 +73,8 @@ class _RecordingFormState extends State<RecordingForm> {
   double _strnadiCountController = 1.0;
   final _photoPathController = TextEditingController();
   int? _recordingId = null;
+
+
 
   Future<String> getDeviceModel() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -112,7 +113,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
   void Upload() async {
     final recordingSign =
-        Uri.parse('http://77.236.222.115:6789/recordings/uploadRec');
+        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
     final safeStorage = FlutterSecureStorage();
 
     var platform = await getDeviceModel();
@@ -125,8 +126,13 @@ class _RecordingFormState extends State<RecordingForm> {
         note: _commentController.text
     );
 
+    var token = await safeStorage.read(key: 'token');
+
+
+    print('token $token');
+
     print(jsonEncode({
-      'jwt': 'test',
+      'token': token,
       'Recording': rec.toJson(),
     }));
 
@@ -137,7 +143,7 @@ class _RecordingFormState extends State<RecordingForm> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'jtw': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InN0YXNzdHJvbmcwNkBnbWFpbC5jb20iLCJzdWIiOiIxIiwiaXNzIjoiU3RybmFkaUFQSSBTZXJ2ZXIiLCJhdWQiOiJOYXZyYXQgS3JhbGUgLSBtb2JpbG5pIGFwcGthIGEgV0VCIiwibmJmIjoxNzM5MzExNTc3LCJleHAiOjE3Mzk1NzA3NzcsImlhdCI6MTczOTMxMTU3N30.jMY7O-c8vcAzBYjZLf80CH7Ag9xiIOCYN4zyrGnPhZY',
+          'jwt': token,
           'Recording': rec.toJson(),
         }),
       );
@@ -147,7 +153,7 @@ class _RecordingFormState extends State<RecordingForm> {
         _recordingId = data['id'];
 
       } else {
-        print('Error: ${response.body}');
+        print('Error: ${response.statusCode} ${response.body}');
       }
     } catch (error) {
       print('An error occurred: $error');
@@ -162,7 +168,7 @@ class _RecordingFormState extends State<RecordingForm> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 100),
+            const SizedBox(height: 50),
             Form(
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
@@ -215,6 +221,7 @@ class _RecordingFormState extends State<RecordingForm> {
                     ),
                     // if location is null request the location from the user
                     SizedBox(
+
                       height: 200,
                       child: FlutterMap(
                         options: MapOptions(
@@ -244,8 +251,24 @@ class _RecordingFormState extends State<RecordingForm> {
                         ],
                       ),
                     ),
-                    ElevatedButton(
-                        onPressed: () => Upload(), child: Text('Send'))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ButtonStyle(
+                            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                            ),
+                          ),
+                          onPressed: Upload,
+                          child: const Text('Submit'),
+
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
