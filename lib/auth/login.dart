@@ -71,7 +71,7 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 202) { //202 -- Accepted
         final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());
