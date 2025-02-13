@@ -43,9 +43,7 @@ class _RegisterState extends State<Register> {
   late bool _termsAgreement = false;
 
   void register() async{
-
     final secureStorage = FlutterSecureStorage();
-
     final email = _emailController.text;
     final password = _passwordController.text;
 
