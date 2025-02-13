@@ -66,7 +66,15 @@ class _RegPasswordState extends State<RegPassword> {
     final secureStorage = FlutterSecureStorage();
 
     final url = Uri(scheme: 'http', host: '77.236.222.115' ,port: 12001, path: '/auth/sign-up');
-
+    
+    print(jsonEncode({
+      'email': widget.email,
+      'password': _passwordController.text,
+      'FirstName': widget.name,
+      'LastName': widget.surname,
+      'nickname': widget.nickname == "" ? null : widget.nickname
+    }));
+    
     try {
       final response = await http.post(
         url,
@@ -82,7 +90,9 @@ class _RegPasswordState extends State<RegPassword> {
         }),
       );
 
-      if (response.statusCode == 201) { //201 -- Created
+      print(response.body);
+
+      if (response.statusCode == 201 || response.statusCode == 200 || response.statusCode == 202 ) { //201 -- Created
         final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());
