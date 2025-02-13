@@ -49,5 +49,7 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
     <string>We need access to your location to provide a better experience.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>I dont really know why</string>
 </dict>
 </plist>
