@@ -78,9 +78,19 @@ class _RegNameState extends State<RegName> {
                     TextFormField(
                       controller: _nameController,
                       textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        labelText: 'Jmeno',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        label: RichText(
+                          text: TextSpan(
+                            text: 'Jmeno',
+                            children: const <TextSpan>[
+                              TextSpan(
+                                text: ' *',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
@@ -94,9 +104,19 @@ class _RegNameState extends State<RegName> {
                     TextFormField(
                       controller: _surnameController,
                       textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        labelText: 'Prijmeni',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        label: RichText(
+                          text: TextSpan(
+                            text: 'Prijmeni',
+                            children: const <TextSpan>[
+                              TextSpan(
+                                text: ' *',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {

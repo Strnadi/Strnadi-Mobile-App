@@ -46,9 +46,17 @@ class _RegisterState extends State<Register> {
     final secureStorage = FlutterSecureStorage();
     final email = _emailController.text;
     final password = _passwordController.text;
+    final name = _NameController.text;
+    final surname = _SurnameController.text;
+    final nickname = _NickController.text == "" ? _NickController.text : null;
 
     if (email.isEmpty || password.isEmpty) {
       _showMessage('Please fill in both fields');
+      return;
+    }
+
+    if(!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email)) {
+      _showMessage('Please fill in valid email');
       return;
     }
 
@@ -64,9 +72,9 @@ class _RegisterState extends State<Register> {
         body: jsonEncode({
           'email': email,
           'password': password,
-          //'name': name,
-          //'LastName': surname,
-          //'FirstName': nickname
+          'FirstName': name,
+          'LastName': surname,
+          'nickname': nickname
         }),
       );
 

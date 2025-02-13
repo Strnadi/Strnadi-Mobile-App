@@ -65,7 +65,7 @@ class _RegPasswordState extends State<RegPassword> {
   void register() async{
     final secureStorage = FlutterSecureStorage();
 
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/auth/sign-up');
+    final url = Uri(scheme: 'http', host: '77.236.222.115' ,port: 12001, path: '/auth/sign-up');
 
     try {
       final response = await http.post(
@@ -76,9 +76,9 @@ class _RegPasswordState extends State<RegPassword> {
         body: jsonEncode({
           'email': widget.email,
           'password': _passwordController.text,
-          'firstName': widget.name,
+          'FirstName': widget.name,
           'LastName': widget.surname,
-          'nickname': widget.nickname
+          'nickname': widget.nickname == "" ? null : widget.nickname
         }),
       );
 
@@ -115,18 +115,29 @@ class _RegPasswordState extends State<RegPassword> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 const Text(
-                  'Hesol',
+                  'Heslo',
                   style: TextStyle(fontSize: 40),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
                   textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                    labelText: 'Heslo',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    label: RichText(
+                      text: TextSpan(
+                        text: 'Heslo',
+                        children: const <TextSpan>[
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType: TextInputType.visiblePassword,
+                  obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter some text';
