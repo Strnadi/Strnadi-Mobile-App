@@ -14,11 +14,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/auth/registeration/nameReg.dart';
-import 'package:strnadi/home.dart';
+import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/auth/login.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 class RegPassword extends StatefulWidget {
   final dynamic email;
@@ -39,7 +40,7 @@ class _RegPasswordState extends State<RegPassword> {
 
   final _GlobalKey = GlobalKey<FormState>();
 
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   late bool _termsAgreement = false;
 
@@ -58,6 +59,46 @@ class _RegPasswordState extends State<RegPassword> {
         ],
       ),
     );
+  }
+
+
+  void register() async{
+    final secureStorage = FlutterSecureStorage();
+
+    final url = Uri.parse('https://strnadiapi.slavetraders.tech/auth/sign-up');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': widget.email,
+          'password': _passwordController.text,
+          'firstName': widget.name,
+          'LastName': widget.surname,
+          'nickname': widget.nickname
+        }),
+      );
+
+      if (response.statusCode == 201) { //201 -- Created
+        final data = response.body;
+
+        secureStorage.write(key: 'token', value: data.toString());
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => Login()),
+        );
+
+      } else {
+        print('Sign up failed: ${response.statusCode}');
+        print('Error: ${response.body}');
+      }
+    } catch (error) {
+      print('An error occurred: $error');
+    }
   }
 
   @override
@@ -79,7 +120,7 @@ class _RegPasswordState extends State<RegPassword> {
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
-                  controller: _emailController,
+                  controller: _passwordController,
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(
                     labelText: 'Heslo',
@@ -105,8 +146,8 @@ class _RegPasswordState extends State<RegPassword> {
                           ),
                         ),
                       ),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RegName(email: _emailController.text, consent: _termsAgreement ))),
-                      child: const Text('Submit'),
+                      onPressed: () => register(),
+                      child: Text('data'),
                     ),
                   ),
                 ),

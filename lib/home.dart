@@ -15,7 +15,11 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/main.dart';
+
+import 'auth/login.dart';
 
 
 class HomePage extends StatelessWidget {
@@ -25,12 +29,20 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       appBarTitle: 'Welcome to Flutter',
-      content: const Center(
-        child: Text(
-          'This is the main page content!',
-          style: TextStyle(fontSize: 18),
+      content: Center(
+        child: ElevatedButton(
+          onPressed: ()  =>{
+            Logout(context)
+          },
+          child: const Text('Logout'),
         ),
       ),
     );
+  }
+
+  void Logout(BuildContext context) {
+    final localStorage = const FlutterSecureStorage();
+    localStorage.delete(key: 'token');
+    Navigator.push(context, MaterialPageRoute(builder: (context) => MyApp()));
   }
 }
