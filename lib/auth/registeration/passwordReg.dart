@@ -93,11 +93,10 @@ class _RegPasswordState extends State<RegPassword> {
         );
 
       } else {
-        print('Sign up failed: ${response.statusCode}');
-        print('Error: ${response.body}');
+        _showMessage("server replied with ${response.statusCode}");
       }
     } catch (error) {
-      print('An error occurred: $error');
+      _showMessage("register was not successful");
     }
   }
 
