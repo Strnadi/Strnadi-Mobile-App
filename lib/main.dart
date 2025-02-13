@@ -15,11 +15,9 @@
  */
 import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:strnadi/auth/login.dart';
-import 'package:strnadi/auth/register.dart';
+import 'package:strnadi/auth/registeration/mail.dart';
 
 void main() => runApp(const MyApp());
 
@@ -67,7 +65,7 @@ class MyApp extends StatelessWidget {
         ),
         body: Column(
           children: [
-            Authorizator(login: Login(), register: Register()),
+            Authorizator(login: Login(), register: RegMail()),
           ],
         )
       ),

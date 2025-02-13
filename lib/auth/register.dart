@@ -39,7 +39,7 @@ class _RegisterState extends State<Register> {
 
   late bool _termsAgreement = false;
 
-  void login(){
+  void register(){
 
     final email = _emailController.text;
     final password = _passwordController.text;
