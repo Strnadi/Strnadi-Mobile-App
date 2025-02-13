@@ -48,6 +48,7 @@ class _LoginState extends State<Login> {
 
     final secureStorage = FlutterSecureStorage();
 
+
     final email = _emailController.text;
     final password = _passwordController.text;
 
@@ -56,7 +57,7 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    final url = Uri.parse('http://77.236.222.115:1201/auth/login');
+    final url = Uri.parse('http://77.236.222.115:12001/auth/login');
 
 
     try {
@@ -71,7 +72,7 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      if (response.statusCode == 202) { //202 -- Accepted
+      if (response.statusCode == 202 || response.statusCode == 200) { //202 -- Accepted
         final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());

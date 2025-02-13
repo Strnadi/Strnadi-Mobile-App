@@ -38,8 +38,6 @@ class _RegNameState extends State<RegName> {
   final TextEditingController _surnameController = TextEditingController();
   final TextEditingController _nickController = TextEditingController();
 
-  late bool _termsAgreement;
-
   void _showMessage(String message) {
     showDialog(
       context: context,
@@ -138,7 +136,18 @@ class _RegNameState extends State<RegName> {
                           ),
                         ),
                       ),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RegPassword())),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegPassword(
+                            email: widget.email,
+                            consent: widget.consent,
+                            name: _nameController.text,
+                            surname: _surnameController.text,
+                            nickname: _nickController.text,
+                          ),
+                        ),
+                      ),
                       child: const Text('Submit'),
                     ),
                   ),
