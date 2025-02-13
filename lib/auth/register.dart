@@ -18,6 +18,9 @@ import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 
 class Register extends StatefulWidget {
   const Register({ super.key });
@@ -39,15 +42,50 @@ class _RegisterState extends State<Register> {
 
   late bool _termsAgreement = false;
 
-  void register(){
-
+  void register() async{
+    final secureStorage = FlutterSecureStorage();
     final email = _emailController.text;
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       _showMessage('Please fill in both fields');
-    } else {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
+      return;
+    }
+
+    final url = Uri.parse('https://strnadiapi.slavetraders.tech/users/sign-up');
+
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          //'name': name,
+          //'LastName': surname,
+          //'FirstName': nickname
+        }),
+      );
+
+      if (response.statusCode == 201) { //201 -- Created
+        final data = response.body;
+
+        secureStorage.write(key: 'token', value: data.toString());
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+        );
+
+      } else {
+        print('Sign up failed: ${response.statusCode}');
+        print('Error: ${response.body}');
+      }
+    } catch (error) {
+      print('An error occurred: $error');
     }
   }
 
@@ -183,7 +221,7 @@ class _RegisterState extends State<Register> {
                         ),
                       ),
                     ),
-                    onPressed: login,
+                    onPressed: register,
                     child: const Text('Submit'),
                   ),
                 ),

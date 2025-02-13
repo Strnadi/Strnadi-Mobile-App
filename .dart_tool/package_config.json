@@ -291,9 +291,9 @@
     },
     {
       "name": "intl",
-      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/intl-0.18.1",
+      "rootUri": "file:///home/zlatovlas/.pub-cache/hosted/pub.dev/intl-0.20.1",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.3"
     },
     {
       "name": "js",

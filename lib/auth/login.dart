@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2024 [Your Name]
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,7 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
@@ -72,11 +71,8 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 202) { //202 -- Accepted
         final data = response.body;
-        final secureStorage = FlutterSecureStorage();
-        
-        print(data);
 
         secureStorage.write(key: 'token', value: data.toString());
 
