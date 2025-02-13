@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 [Your Name]
+ * Copyright (C) 2024 Marian Pecqueur
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 import 'package:flutter/material.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:geolocator/geolocator.dart';
@@ -32,6 +33,9 @@ class RecorderWithSpectogram extends StatefulWidget {
 }
 
 class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
+
+  final recordingPartsTimeList = <int>[];
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +60,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
       setState(() {
         _isRecording = false;
         recorderController.pause();
+        // logging the stops
+        recordingPartsTimeList.add(recorderController.recordedDuration.inMilliseconds);
         _isRecordingPaused = true;
       });
     } else {
