@@ -65,8 +65,16 @@ class _RegPasswordState extends State<RegPassword> {
   void register() async{
     final secureStorage = FlutterSecureStorage();
 
-    final url = Uri.parse('http://77.236.222.115:12001/auth/sign-up');
-
+    final url = Uri(scheme: 'http', host: '77.236.222.115' ,port: 12001, path: '/auth/sign-up');
+    
+    print(jsonEncode({
+      'email': widget.email,
+      'password': _passwordController.text,
+      'FirstName': widget.name,
+      'LastName': widget.surname,
+      'nickname': widget.nickname == "" ? null : widget.nickname
+    }));
+    
     try {
       final response = await http.post(
         url,
@@ -76,13 +84,15 @@ class _RegPasswordState extends State<RegPassword> {
         body: jsonEncode({
           'email': widget.email,
           'password': _passwordController.text,
-          'firstName': widget.name,
+          'FirstName': widget.name,
           'LastName': widget.surname,
-          'nickname': widget.nickname
+          'nickname': widget.nickname == "" ? null : widget.nickname
         }),
       );
 
-      if (response.statusCode == 201) { //201 -- Created
+      print(response.body);
+
+      if (response.statusCode == 201 || response.statusCode == 200 || response.statusCode == 202 ) { //201 -- Created
         final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());
@@ -115,18 +125,29 @@ class _RegPasswordState extends State<RegPassword> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 const Text(
-                  'Hesol',
+                  'Heslo',
                   style: TextStyle(fontSize: 40),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
                   textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                    labelText: 'Heslo',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    label: RichText(
+                      text: TextSpan(
+                        text: 'Heslo',
+                        children: const <TextSpan>[
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType: TextInputType.visiblePassword,
+                  obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter some text';

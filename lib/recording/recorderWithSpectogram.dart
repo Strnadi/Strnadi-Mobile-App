@@ -43,13 +43,35 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     _getCurrentLocation();
   }
 
-  void _getCurrentLocation(){
-    Geolocator.getCurrentPosition().then((position) {
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-      });
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print("Location services are not enabled");
+      return;
+    }
+
+    // Check for location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    // Get the current location
+    Position position = await Geolocator.getCurrentPosition();
+    setState(() {
+      _currentPosition = LatLng(position.latitude, position.longitude);
     });
-    print("locaiton is $_currentPosition");
   }
 
   var _isRecording = false;
