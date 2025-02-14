@@ -57,7 +57,7 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    final url = Uri(scheme: 'http', host: '77.236.222.115', port: 12001, path: '/auth/login');
+    final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/login');
 
 
     try {

@@ -65,7 +65,7 @@ class _RegPasswordState extends State<RegPassword> {
   void register() async{
     final secureStorage = FlutterSecureStorage();
 
-    final url = Uri(scheme: 'http', host: '77.236.222.115' ,port: 12001, path: '/auth/sign-up');
+    final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/sign-up');
     
     print(jsonEncode({
       'email': widget.email,
@@ -168,7 +168,7 @@ class _RegPasswordState extends State<RegPassword> {
                         ),
                       ),
                       onPressed: () => register(),
-                      child: Text('data'),
+                      child: Text('Sign Up'),
                     ),
                   ),
                 ),
