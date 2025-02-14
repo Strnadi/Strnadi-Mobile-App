@@ -65,7 +65,7 @@ class _RegPasswordState extends State<RegPassword> {
   void register() async{
     final secureStorage = FlutterSecureStorage();
 
-    final url = Uri(scheme: 'http', host: '77.236.222.115' ,port: 12001, path: '/auth/sign-up');
+    final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/sign-up');
     
     print(jsonEncode({
       'email': widget.email,
@@ -102,11 +102,17 @@ class _RegPasswordState extends State<RegPassword> {
           MaterialPageRoute(builder: (_) => Login()),
         );
 
-      } else {
+      }
+      else if (response.statusCode == 409){
+        _showMessage('Uživatel již existuje');
+      }
+      else {
+        _showMessage('Nastala chyba :( Zkuste to znovu');
         print('Sign up failed: ${response.statusCode}');
         print('Error: ${response.body}');
       }
     } catch (error) {
+      _showMessage('Nastala chyba :( Zkuste to znovu');
       print('An error occurred: $error');
     }
   }
@@ -168,7 +174,7 @@ class _RegPasswordState extends State<RegPassword> {
                         ),
                       ),
                       onPressed: () => register(),
-                      child: Text('data'),
+                      child: Text('Sign Up'),
                     ),
                   ),
                 ),

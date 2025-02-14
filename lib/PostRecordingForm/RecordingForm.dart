@@ -106,7 +106,7 @@ class _RecordingFormState extends State<RecordingForm> {
   Future<void> uploadAudio(File audioFile) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadSound'),
+        Uri(scheme: 'http', host: '77.236.222.115' ,port: 12001, path: '/recordings/upload')
     );
 
     request.files.add(
