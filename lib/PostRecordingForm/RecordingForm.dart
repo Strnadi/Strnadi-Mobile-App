@@ -28,6 +28,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/database/soundDatabase.dart';
 
 import '../AudioSpectogram/editor.dart';
 
@@ -60,9 +62,11 @@ class Recording {
 class RecordingForm extends StatefulWidget {
   final String filepath;
   final LatLng? currentPosition;
+  final List<RecordingParts> recordingParts;
+  final List<int> recordingPartsTimeList;
 
   const RecordingForm(
-      {Key? key, required this.filepath, required this.currentPosition})
+      {Key? key, required this.filepath, required this.currentPosition, required this.recordingParts, required this.recordingPartsTimeList})
       : super(key: key);
 
   @override
@@ -103,22 +107,47 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
 
-  Future<void> uploadAudio(File audioFile) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadSound'),
-    );
+  Future<void> uploadAudio(File audioFile, int id) async {
 
-    request.files.add(
-      await http.MultipartFile.fromPath('recording', audioFile.path),
-    );
+    // extract this to a method and trim it and than in a for call the upload
+    var trimmedAudo = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
 
-    var response = await request.send();
+    final uploadPart =
+    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
 
-    if (response.statusCode == 200) {
-      print('Audio uploaded successfully');
-    } else {
-      print('Upload failed with status: ${response.statusCode}');
+    var safeStorage = FlutterSecureStorage();
+
+    var token = await safeStorage.read(key: "token");
+
+    for (int i = 0; i < trimmedAudo.length; i++) {
+
+      List<int> fileBytes = await audioFile.readAsBytes();
+
+      String base64Audio = base64Encode(fileBytes);
+
+      try {
+        final response = await http.post(
+          uploadPart,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'jwt': token,
+            'RecordingId': id,
+            "data": base64Audio
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          _recordingId = data['id'];
+
+        } else {
+          print('Error: ${response.statusCode} ${response.body}');
+        }
+      } catch (error) {
+        print("An error occurred: $error");
+      }
     }
   }
 
