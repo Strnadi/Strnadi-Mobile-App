@@ -46,3 +46,4 @@ app.*.map.json
 
 # config file
 ./config.json
+ios/Podfile.lock
