@@ -107,6 +107,7 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
 
+
   Future<void> uploadAudio(File audioFile, int id) async {
 
     // extract this to a method and trim it and than in a for call the upload

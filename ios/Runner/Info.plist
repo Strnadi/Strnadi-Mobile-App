@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Strnadi</string>
+	<string>Návrat Krále</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -55,5 +55,7 @@
     <false/>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>We need access to your location to provide a better experience.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Not implemented yet</string>
 </dict>
 </plist>
