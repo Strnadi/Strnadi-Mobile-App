@@ -28,6 +28,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:strnadi/home.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 
@@ -63,10 +64,11 @@ class RecordingForm extends StatefulWidget {
   final String filepath;
   final LatLng? currentPosition;
   final List<RecordingParts> recordingParts;
+  final DateTime StartTime;
   final List<int> recordingPartsTimeList;
 
   const RecordingForm(
-      {Key? key, required this.filepath, required this.currentPosition, required this.recordingParts, required this.recordingPartsTimeList})
+      {Key? key, required this.filepath, required this.StartTime, required this.currentPosition, required this.recordingParts, required this.recordingPartsTimeList})
       : super(key: key);
 
   @override
@@ -77,7 +79,6 @@ class _RecordingFormState extends State<RecordingForm> {
   final _recordingNameController = TextEditingController();
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
-  final _photoPathController = TextEditingController();
   int? _recordingId = null;
 
 
@@ -114,13 +115,13 @@ class _RecordingFormState extends State<RecordingForm> {
     var trimmedAudo = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
 
     final uploadPart =
-    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
+    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
 
     var safeStorage = FlutterSecureStorage();
 
     var token = await safeStorage.read(key: "token");
 
-    for (int i = 0; i < trimmedAudo.length; i++) {
+    for (int i = 0; i < trimmedAudo.length - 1; i++) {
 
       List<int> fileBytes = await audioFile.readAsBytes();
 
@@ -135,19 +136,26 @@ class _RecordingFormState extends State<RecordingForm> {
           body: jsonEncode({
             'jwt': token,
             'RecordingId': id,
+            "Start": widget.StartTime.toIso8601String(),
+            "End": widget.StartTime.add(Duration(seconds: widget.recordingPartsTimeList[i])).toIso8601String(),
+            "LatitudeStart": widget.recordingParts[i].latitude,
+            "LongitudeStart": widget.recordingParts[i].longtitute,
+            "LatitudeEnd": widget.recordingParts[i].latitude,
+            "LongitudeEnd": widget.recordingParts[i].longtitute,
             "data": base64Audio
           }),
         );
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          _recordingId = data['id'];
-
+          print('upload was successful');
+          _showMessage("upload was successful");
+          Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
         } else {
           print('Error: ${response.statusCode} ${response.body}');
+          _showMessage("upload was not successful");
         }
       } catch (error) {
-        print("An error occurred: $error");
+        _showMessage("failed to upload ${error}");
       }
     }
   }
@@ -157,6 +165,8 @@ class _RecordingFormState extends State<RecordingForm> {
   void Upload() async {
 
     var platform = await getDeviceModel();
+
+    print("estimated birds count: ${_strnadiCountController.toInt()}");
     final rec = Recording(
         createdAt: DateTime.timestamp(),
         estimatedBirdsCount: _strnadiCountController.toInt(),
@@ -178,7 +188,7 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
+        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
 
 
@@ -201,13 +211,18 @@ class _RecordingFormState extends State<RecordingForm> {
         },
         body: jsonEncode({
           'jwt': token,
-          'Recording': rec.toJson(),
+          'EstimatedBirdsCount': rec.estimatedBirdsCount,
+          "Device": rec.device,
+          "ByApp": rec.byApp,
+          "Note": rec.note,
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 202) {
         final data = jsonDecode(response.body);
-        _recordingId = data['id'];
+        print(data);
+        _recordingId = data;
+        uploadAudio(File(widget.filepath), _recordingId!);
 
       } else {
         print('Error: ${response.statusCode} ${response.body}');

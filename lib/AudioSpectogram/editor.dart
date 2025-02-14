@@ -25,9 +25,11 @@ class Spectogram extends StatelessWidget {
   final LatLng? currentPosition;
   final List<RecordingParts> recParts;
   final List<int> recTimeStop;
+  final DateTime StartTime;
 
   const Spectogram({
     Key? key,
+    required this.StartTime,
     required this.audioFilePath,
     required this.currentPosition,
     required this.recParts,
@@ -45,7 +47,7 @@ class Spectogram extends StatelessWidget {
               height: 300, // Specify a height for the spectrogram viewer
               child: SpectrogramViewer(audioFilePath: audioFilePath),
             ),
-            RecordingForm(filepath: audioFilePath, currentPosition: currentPosition, recordingParts: recParts, recordingPartsTimeList: recTimeStop),
+            RecordingForm(filepath: audioFilePath, currentPosition: currentPosition, recordingParts: recParts, recordingPartsTimeList: recTimeStop, StartTime: StartTime,),
           ],
         ),
       ),

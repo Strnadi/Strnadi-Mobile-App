@@ -52,6 +52,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
 
   final recordingPartsTimeList = <int>[];
   final recordingPartsList = <RecordingParts>[];
+  DateTime? StartTime = null;
 
   @override
   void initState() {
@@ -109,6 +110,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     } else {
       if (recorderController.hasPermission) {
         setState(() {
+          StartTime = DateTime.now();
           _isRecording = true;
           recorderController.record();
           _isRecordingPaused = false;
@@ -175,7 +177,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                       context,
                       MaterialPageRoute(
                           builder: (_) =>
-                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition, recParts: recordingPartsList, recTimeStop: recordingPartsTimeList)));
+                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition, recParts: recordingPartsList, recTimeStop: recordingPartsTimeList, StartTime: StartTime!,)));
                 },
                 child: Text(
                   'Stop',
