@@ -15,6 +15,8 @@
  */
 import 'dart:io';
 
+import 'package:strnadi/database/soundDatabase.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -75,6 +77,16 @@ class _RecordingFormState extends State<RecordingForm> {
   int? _recordingId = null;
 
 
+  Future<bool> hasInternetAccess() async {
+      try {
+        final result = await InternetAddress.lookup('google.com');
+        return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      } on SocketException catch (_) {
+        return false;
+      }
+  }
+
+
 
   Future<String> getDeviceModel() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -111,13 +123,10 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
 
+
   void Upload() async {
-    final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
-    final safeStorage = FlutterSecureStorage();
 
     var platform = await getDeviceModel();
-
     final rec = Recording(
         createdAt: DateTime.timestamp(),
         estimatedBirdsCount: _strnadiCountController.toInt(),
@@ -125,6 +134,24 @@ class _RecordingFormState extends State<RecordingForm> {
         byApp: true,
         note: _commentController.text
     );
+
+    if (await hasInternetAccess() == false) {
+      _showMessage('No internet connection');
+      insertSound(
+          widget.filepath,
+          rec.estimatedBirdsCount as String,
+          rec.createdAt as double,
+          rec.note as double,
+          widget.currentPosition!.latitude as int,
+          widget.currentPosition!.longitude as String
+      );
+    }
+
+    final recordingSign =
+        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
+    final safeStorage = FlutterSecureStorage();
+
+
 
     var token = await safeStorage.read(key: 'token');
 
@@ -277,5 +304,11 @@ class _RecordingFormState extends State<RecordingForm> {
         ),
       ),
     );
+  }
+
+  void _showMessage(String s) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(s),
+    ));
   }
 }

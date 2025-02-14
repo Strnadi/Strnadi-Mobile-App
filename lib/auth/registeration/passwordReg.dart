@@ -65,7 +65,7 @@ class _RegPasswordState extends State<RegPassword> {
   void register() async{
     final secureStorage = FlutterSecureStorage();
 
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/auth/sign-up');
+    final url = Uri.parse('http://77.236.222.115:12001/auth/sign-up');
 
     try {
       final response = await http.post(
@@ -93,10 +93,11 @@ class _RegPasswordState extends State<RegPassword> {
         );
 
       } else {
-        _showMessage("server replied with ${response.statusCode}");
+        print('Sign up failed: ${response.statusCode}');
+        print('Error: ${response.body}');
       }
     } catch (error) {
-      _showMessage("register was not successful");
+      print('An error occurred: $error');
     }
   }
 

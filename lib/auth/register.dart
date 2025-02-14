@@ -83,9 +83,11 @@ class _RegisterState extends State<Register> {
       } else {
         print('Sign up failed: ${response.statusCode}');
         print('Error: ${response.body}');
+        _showMessage("Sign up failed: ${response.statusCode}");
       }
     } catch (error) {
       print('An error occurred: $error');
+      _showMessage("An error occurred: $error");
     }
   }
 
