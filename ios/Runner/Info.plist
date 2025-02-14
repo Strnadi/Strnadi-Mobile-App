@@ -55,5 +55,7 @@
     <false/>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>We need access to your location to provide a better experience.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Not implemented yet</string>
 </dict>
 </plist>

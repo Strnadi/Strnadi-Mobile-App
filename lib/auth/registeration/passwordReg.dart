@@ -102,11 +102,17 @@ class _RegPasswordState extends State<RegPassword> {
           MaterialPageRoute(builder: (_) => Login()),
         );
 
-      } else {
+      }
+      else if (response.statusCode == 409){
+        _showMessage('Uživatel již existuje');
+      }
+      else {
+        _showMessage('Nastala chyba :( Zkuste to znovu');
         print('Sign up failed: ${response.statusCode}');
         print('Error: ${response.body}');
       }
     } catch (error) {
+      _showMessage('Nastala chyba :( Zkuste to znovu');
       print('An error occurred: $error');
     }
   }
