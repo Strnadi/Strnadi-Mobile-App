@@ -18,11 +18,20 @@ import 'package:strnadi/auth/authorizator.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
+import 'package:strnadi/database/soundDatabase.dart';
 
-void main() => runApp(const MyApp());
+void main() => runApp(
+    const MyApp()
+);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+  void initState() {
+    requestLocationPermission();
+    checkIfDbExists();
+    print("database has been created");
+  }
 
   Future<bool> requestLocationPermission() async {
     LocationPermission permission;
@@ -55,6 +64,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    initState();
     return MaterialApp(
       title: 'Welcome to Flutter',
       theme: ThemeData.dark(),

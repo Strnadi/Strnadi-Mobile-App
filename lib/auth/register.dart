@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Jan Dorbilek && Marian Pecqueur
+ * Copyright (C) 2024 Marian Pecqueur && Jan Dorbilek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -91,9 +91,11 @@ class _RegisterState extends State<Register> {
       } else {
         print('Sign up failed: ${response.statusCode}');
         print('Error: ${response.body}');
+        _showMessage("Sign up failed: ${response.statusCode}");
       }
     } catch (error) {
       print('An error occurred: $error');
+      _showMessage("An error occurred: $error");
     }
   }
 
