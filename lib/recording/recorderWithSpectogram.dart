@@ -21,6 +21,22 @@ import 'package:latlong2/latlong.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/AudioSpectogram/editor.dart';
 
+import '../PostRecordingForm/RecordingForm.dart';
+
+class RecordingParts {
+  String? path;
+  double longtitute;
+  double latitude;
+
+
+  RecordingParts({
+    required this.path,
+    required this.longtitute,
+    required this.latitude,
+  });
+
+}
+
 String? recordedFilePath;
 LatLng? _currentPosition;
 final RecorderController recorderController = RecorderController();
@@ -35,6 +51,7 @@ class RecorderWithSpectogram extends StatefulWidget {
 class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
 
   final recordingPartsTimeList = <int>[];
+  final recordingPartsList = <RecordingParts>[];
 
   @override
   void initState() {
@@ -82,6 +99,9 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
       setState(() {
         _isRecording = false;
         recorderController.pause();
+        
+        recordingPartsList.add(RecordingParts(path: null, longtitute: _currentPosition!.longitude, latitude: _currentPosition!.latitude));
+
         // logging the stops
         recordingPartsTimeList.add(recorderController.recordedDuration.inMilliseconds);
         _isRecordingPaused = true;
@@ -155,7 +175,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                       context,
                       MaterialPageRoute(
                           builder: (_) =>
-                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition,)));
+                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition, recParts: recordingPartsList, recTimeStop: recordingPartsTimeList)));
                 },
                 child: Text(
                   'Stop',

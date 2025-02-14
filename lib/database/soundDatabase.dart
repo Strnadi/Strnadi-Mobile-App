@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 
 void initDb() async {
@@ -51,14 +52,19 @@ void checkIfDbExists() async {
     initDb();
   }
 }
+
 class DatabaseHelper {
   static Database? _database;
 
-  Future<List<Recording>> trimAudio(String audioPath, List<Duration> stopTimes, Recording rec) async {
-    if (stopTimes.isEmpty) return []; // No stop times provided
+  static Future<List<RecordingParts>> trimAudio(
+      String audioPath,
+      List<int> stopTimesInSeconds,
+      List<RecordingParts> recordingParts, // Each trimmed part has a location
+      ) async {
 
-    List<Recording> recordings = [];
     Directory tempDir = await getApplicationDocumentsDirectory();
+
+    List<Duration> stopTimes = stopTimesInSeconds.map((t) => Duration(seconds: t)).toList();
 
     stopTimes.sort((a, b) => a.inMilliseconds.compareTo(b.inMilliseconds));
 
@@ -70,17 +76,16 @@ class DatabaseHelper {
       String command = '-i $audioPath -ss ${start.inSeconds} -to ${end.inSeconds} -c copy $outputPath';
       await FFmpegKit.execute(command);
 
-      if (File(outputPath).existsSync()) {
-        Recording recording = rec;
+      String? savedPath = File(outputPath).existsSync() ? outputPath : null;
 
-        await DatabaseHelper.insertRecording(recording);
-        recordings.add(recording);
-      }
+      var part = recordingParts[i];
+      part.path = savedPath;
 
+      recordingParts.add(part);
       start = end;
     }
 
-    return recordings;
+    return recordingParts;
   }
 
 
