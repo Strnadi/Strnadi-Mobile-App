@@ -13,8 +13,8 @@ Návrat krále is a Flutter-based mobile application designed to record and trac
 ## Installation
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/strand-bird-dialect-tracker.git
-   cd strand-bird-dialect-tracker
+   git clone https://github.com/Strnadi/Strnadi-Mobile-App.git
+   cd Strnadi-Mobile-App
    ```
 2. Install dependencies:
    ```sh
