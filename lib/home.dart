@@ -18,6 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/main.dart';
+import 'package:strnadi/HealthCheck/serverHealth.dart';
 
 import 'auth/login.dart';
 
@@ -30,11 +31,18 @@ class HomePage extends StatelessWidget {
     return ScaffoldWithBottomBar(
       appBarTitle: 'Welcome to Flutter',
       content: Center(
-        child: ElevatedButton(
-          onPressed: ()  =>{
-            Logout(context)
-          },
-          child: const Text('Logout'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ServerHealth(),
+            ElevatedButton(
+              onPressed: ()  =>{
+                Logout(context)
+              },
+              child: const Text('Logout'),
+            ),
+          ],
         ),
       ),
     );
