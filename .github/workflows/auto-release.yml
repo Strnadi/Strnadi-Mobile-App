@@ -1,0 +1,31 @@
+name: Update JSON on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update_json:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Extract Release URL
+        run: echo "RELEASE_URL=${{ github.event.release.html_url }}" >> $GITHUB_ENV
+
+      - name: SSH into Server and Run Script
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          JSON_FILE_PATH: "/path/to/your/json_file.json"  # Update with actual JSON file path
+
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -i private_key -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP << EOF
+            cd /path/to/your/script  # Change to actual script location
+            chmod +x modify_json.sh
+            ./modify_json.sh $JSON_FILE_PATH "$RELEASE_URL"
+          EOF
