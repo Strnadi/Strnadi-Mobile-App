@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2024 Marian && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -21,6 +21,26 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:logger/logger.dart';
+
+void _showMessage(String message) {
+  var context;
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Login'),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
+final logger = new Logger();
 
 class OSMmap extends StatefulWidget {
   const OSMmap({Key? key}) : super(key: key);
@@ -41,34 +61,48 @@ class _OSMmapState extends State<OSMmap> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print("Location services are not enabled");
-      return;
-    }
-
-    // Check for location permissions
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showMessage("Please enable location services");
+        logger.w("Location services are not enabled");
+        print("Location services are not enabled");
+        setState(() {
+          _currentPosition = LatLng(50.1, 14.4);
+        });
         return;
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          logger.w("Location permissions are denied");
+          print("Location permissions are denied");
+          setState(() {
+            _currentPosition = LatLng(50.1, 14.4);
+          });
+          return;
+        }
+      }
 
-    // Get the current location
-    Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _currentPosition = LatLng(position.latitude, position.longitude);
-    });
+      if (permission == LocationPermission.deniedForever) {
+        logger.w("Location permissions are permanently denied");
+        print("Location permissions are permanently denied");
+        setState(() {
+          _currentPosition = LatLng(50.1, 14.4);
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
+    } catch (e) {
+      logger.e(e);
+      print("Error retrieving location: $e");
+    }
   }
 
   Future<void> _loadJson() async {

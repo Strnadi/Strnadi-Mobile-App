@@ -13,12 +13,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:math';
+
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class Login extends StatefulWidget {
   const Login({ super.key });
@@ -54,11 +59,11 @@ class _LoginState extends State<Login> {
 
     if (email.isEmpty || password.isEmpty) {
       _showMessage('Please fill in both fields');
+      logger.i("email/password empty");
       return;
     }
 
     final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/login');
-
 
     try {
       final response = await http.post(
@@ -77,6 +82,8 @@ class _LoginState extends State<Login> {
 
         secureStorage.write(key: 'token', value: data.toString());
 
+        logger.i('logged in successfully');
+
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => HomePage()),
@@ -85,13 +92,16 @@ class _LoginState extends State<Login> {
       }
       else if (response.statusCode == 401){
         _showMessage('Uživatel s daným emailem a heslem neexistuje');
+        logger.w("User already exists");
       }
       else {
         _showMessage('Nastala chyba :( Zkuste to znovu');
+        logger.e(response);
         print('Login failed: ${response.statusCode}');
         print('Error: ${response.body}');
       }
     } catch (error) {
+      logger.e(error);
       _showMessage('Nastala chyba :( Zkuste to znovu');
       print('An error occurred: $error');
     }
@@ -123,7 +133,7 @@ class _LoginState extends State<Login> {
         Column(
           children: [
             const Text(
-              'Navrat Krale',
+              'Strnadi',
               style: TextStyle(fontSize: 60),
             ),
             const SizedBox(height: 20),
