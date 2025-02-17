@@ -15,6 +15,8 @@
  */
 import 'dart:io';
 
+import 'package:strnadi/database/soundDatabase.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -26,6 +28,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:strnadi/home.dart';
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/database/soundDatabase.dart';
 
 import '../AudioSpectogram/editor.dart';
 
@@ -58,9 +63,12 @@ class Recording {
 class RecordingForm extends StatefulWidget {
   final String filepath;
   final LatLng? currentPosition;
+  final List<RecordingParts> recordingParts;
+  final DateTime StartTime;
+  final List<int> recordingPartsTimeList;
 
   const RecordingForm(
-      {Key? key, required this.filepath, required this.currentPosition})
+      {Key? key, required this.filepath, required this.StartTime, required this.currentPosition, required this.recordingParts, required this.recordingPartsTimeList})
       : super(key: key);
 
   @override
@@ -71,8 +79,17 @@ class _RecordingFormState extends State<RecordingForm> {
   final _recordingNameController = TextEditingController();
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
-  final _photoPathController = TextEditingController();
   int? _recordingId = null;
+
+
+  Future<bool> hasInternetAccess() async {
+      try {
+        final result = await InternetAddress.lookup('google.com');
+        return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      } on SocketException catch (_) {
+        return false;
+      }
+  }
 
 
 
@@ -91,33 +108,65 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
 
-  Future<void> uploadAudio(File audioFile) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadSound'),
-    );
 
-    request.files.add(
-      await http.MultipartFile.fromPath('recording', audioFile.path),
-    );
+  Future<void> uploadAudio(File audioFile, int id) async {
 
-    var response = await request.send();
+    // extract this to a method and trim it and than in a for call the upload
+    var trimmedAudo = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
 
-    if (response.statusCode == 200) {
-      print('Audio uploaded successfully');
-    } else {
-      print('Upload failed with status: ${response.statusCode}');
+    final uploadPart =
+    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
+
+    var safeStorage = FlutterSecureStorage();
+
+    var token = await safeStorage.read(key: "token");
+
+    for (int i = 0; i < trimmedAudo.length - 1; i++) {
+
+      List<int> fileBytes = await audioFile.readAsBytes();
+
+      String base64Audio = base64Encode(fileBytes);
+
+      try {
+        final response = await http.post(
+          uploadPart,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'jwt': token,
+            'RecordingId': id,
+            "Start": widget.StartTime.toIso8601String(),
+            "End": widget.StartTime.add(Duration(seconds: widget.recordingPartsTimeList[i])).toIso8601String(),
+            "LatitudeStart": widget.recordingParts[i].latitude,
+            "LongitudeStart": widget.recordingParts[i].longtitute,
+            "LatitudeEnd": widget.recordingParts[i].latitude,
+            "LongitudeEnd": widget.recordingParts[i].longtitute,
+            "data": base64Audio
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          print('upload was successful');
+          _showMessage("upload was successful");
+          Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
+        } else {
+          print('Error: ${response.statusCode} ${response.body}');
+          _showMessage("upload was not successful");
+        }
+      } catch (error) {
+        _showMessage("failed to upload ${error}");
+      }
     }
   }
 
 
+
   void Upload() async {
-    final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/uploadRec');
-    final safeStorage = FlutterSecureStorage();
 
     var platform = await getDeviceModel();
 
+    print("estimated birds count: ${_strnadiCountController.toInt()}");
     final rec = Recording(
         createdAt: DateTime.timestamp(),
         estimatedBirdsCount: _strnadiCountController.toInt(),
@@ -125,6 +174,24 @@ class _RecordingFormState extends State<RecordingForm> {
         byApp: true,
         note: _commentController.text
     );
+
+    if (await hasInternetAccess() == false) {
+      _showMessage('No internet connection');
+      insertSound(
+          widget.filepath,
+          rec.estimatedBirdsCount as String,
+          rec.createdAt as double,
+          rec.note as double,
+          widget.currentPosition!.latitude as int,
+          widget.currentPosition!.longitude as String
+      );
+    }
+
+    final recordingSign =
+        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
+    final safeStorage = FlutterSecureStorage();
+
+
 
     var token = await safeStorage.read(key: 'token');
 
@@ -144,13 +211,18 @@ class _RecordingFormState extends State<RecordingForm> {
         },
         body: jsonEncode({
           'jwt': token,
-          'Recording': rec.toJson(),
+          'EstimatedBirdsCount': rec.estimatedBirdsCount,
+          "Device": rec.device,
+          "ByApp": rec.byApp,
+          "Note": rec.note,
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 202) {
         final data = jsonDecode(response.body);
-        _recordingId = data['id'];
+        print(data);
+        _recordingId = data;
+        uploadAudio(File(widget.filepath), _recordingId!);
 
       } else {
         print('Error: ${response.statusCode} ${response.body}');
@@ -221,7 +293,6 @@ class _RecordingFormState extends State<RecordingForm> {
                     ),
                     // if location is null request the location from the user
                     SizedBox(
-
                       height: 200,
                       child: FlutterMap(
                         options: MapOptions(
@@ -277,5 +348,11 @@ class _RecordingFormState extends State<RecordingForm> {
         ),
       ),
     );
+  }
+
+  void _showMessage(String s) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(s),
+    ));
   }
 }

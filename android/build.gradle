@@ -2,6 +2,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://jitpack.io' } // Přidáno pro případné GitHub knihovny
     }
 }
 
@@ -9,9 +10,8 @@ rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
-subprojects {
-    project.evaluationDependsOn(":app")
-}
+
+// Odebráno evaluationDependsOn, pokud není nutné
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

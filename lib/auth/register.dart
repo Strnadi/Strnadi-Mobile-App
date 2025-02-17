@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 [Your Name]
+ * Copyright (C) 2024 Marian Pecqueur && Jan Dorbilek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,10 +13,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 
 class Register extends StatefulWidget {
   const Register({ super.key });
@@ -38,15 +42,60 @@ class _RegisterState extends State<Register> {
 
   late bool _termsAgreement = false;
 
-  void login(){
-
+  void register() async{
+    final secureStorage = FlutterSecureStorage();
     final email = _emailController.text;
     final password = _passwordController.text;
+    final name = _NameController.text;
+    final surname = _SurnameController.text;
+    final nickname = _NickController.text == "" ? _NickController.text : null;
 
     if (email.isEmpty || password.isEmpty) {
       _showMessage('Please fill in both fields');
-    } else {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
+      return;
+    }
+
+    if(!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email)) {
+      _showMessage('Please fill in valid email');
+      return;
+    }
+
+    final url = Uri.parse('https://strnadiapi.slavetraders.tech/users/sign-up');
+
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'FirstName': name,
+          'LastName': surname,
+          'nickname': nickname
+        }),
+      );
+
+      if (response.statusCode == 201) { //201 -- Created
+        final data = response.body;
+
+        secureStorage.write(key: 'token', value: data.toString());
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+        );
+
+      } else {
+        print('Sign up failed: ${response.statusCode}');
+        print('Error: ${response.body}');
+        _showMessage("Sign up failed: ${response.statusCode}");
+      }
+    } catch (error) {
+      print('An error occurred: $error');
+      _showMessage("An error occurred: $error");
     }
   }
 
@@ -182,7 +231,7 @@ class _RegisterState extends State<Register> {
                         ),
                       ),
                     ),
-                    onPressed: login,
+                    onPressed: register,
                     child: const Text('Submit'),
                   ),
                 ),

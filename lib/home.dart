@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 [Your Name]
+ * Copyright (C) 2024 Marian Pecqueur
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -15,7 +15,12 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/main.dart';
+import 'package:strnadi/HealthCheck/serverHealth.dart';
+
+import 'auth/login.dart';
 
 
 class HomePage extends StatelessWidget {
@@ -25,12 +30,27 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       appBarTitle: 'Welcome to Flutter',
-      content: const Center(
-        child: Text(
-          'This is the main page content!',
-          style: TextStyle(fontSize: 18),
+      content: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ServerHealth(),
+            ElevatedButton(
+              onPressed: ()  =>{
+                Logout(context)
+              },
+              child: const Text('Logout'),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void Logout(BuildContext context) {
+    final localStorage = const FlutterSecureStorage();
+    localStorage.delete(key: 'token');
+    Navigator.push(context, MaterialPageRoute(builder: (context) => MyApp()));
   }
 }

@@ -48,6 +48,7 @@ class _LoginState extends State<Login> {
 
     final secureStorage = FlutterSecureStorage();
 
+
     final email = _emailController.text;
     final password = _passwordController.text;
 
@@ -56,7 +57,7 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/users/login');
+    final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/login');
 
 
     try {
@@ -71,7 +72,7 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 202 || response.statusCode == 200) { //202 -- Accepted
         final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());
@@ -81,11 +82,17 @@ class _LoginState extends State<Login> {
           MaterialPageRoute(builder: (_) => HomePage()),
         );
 
-      } else {
+      }
+      else if (response.statusCode == 401){
+        _showMessage('Uživatel s daným emailem a heslem neexistuje');
+      }
+      else {
+        _showMessage('Nastala chyba :( Zkuste to znovu');
         print('Login failed: ${response.statusCode}');
         print('Error: ${response.body}');
       }
     } catch (error) {
+      _showMessage('Nastala chyba :( Zkuste to znovu');
       print('An error occurred: $error');
     }
   }
@@ -131,14 +138,28 @@ class _LoginState extends State<Login> {
                     TextFormField(
                       controller: _emailController,
                       textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        label: RichText(
+                          text: TextSpan(
+                            text: 'Email',
+                            children: const <TextSpan>[
+                              TextSpan(
+                                text: ' *',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter some text';
+                        }
+                        if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                            .hasMatch(value)) {
+                          return 'Enter valid email';
                         }
                         return null;
                       },
@@ -147,10 +168,21 @@ class _LoginState extends State<Login> {
                     TextFormField(
                       textAlign: TextAlign.center,
                       controller: _passwordController,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        label: RichText(
+                          text: TextSpan(
+                            text: 'Password',
+                            children: const <TextSpan>[
+                              TextSpan(
+                                text: ' *',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
+                      obscureText: true,
                       keyboardType: TextInputType.visiblePassword,
                       validator: (value) {
                         if (value == null || value.isEmpty) {

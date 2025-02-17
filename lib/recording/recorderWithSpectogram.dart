@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 [Your Name]
+ * Copyright (C) 2024 Marian Pecqueur
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,12 +13,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 import 'package:flutter/material.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/AudioSpectogram/editor.dart';
+
+import '../PostRecordingForm/RecordingForm.dart';
+
+class RecordingParts {
+  String? path;
+  double longtitute;
+  double latitude;
+
+
+  RecordingParts({
+    required this.path,
+    required this.longtitute,
+    required this.latitude,
+  });
+
+}
 
 String? recordedFilePath;
 LatLng? _currentPosition;
@@ -34,6 +51,8 @@ class RecorderWithSpectogram extends StatefulWidget {
 class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
 
   final recordingPartsTimeList = <int>[];
+  final recordingPartsList = <RecordingParts>[];
+  DateTime? StartTime = null;
 
   @override
   void initState() {
@@ -42,13 +61,35 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     _getCurrentLocation();
   }
 
-  void _getCurrentLocation(){
-    Geolocator.getCurrentPosition().then((position) {
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-      });
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print("Location services are not enabled");
+      return;
+    }
+
+    // Check for location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    // Get the current location
+    Position position = await Geolocator.getCurrentPosition();
+    setState(() {
+      _currentPosition = LatLng(position.latitude, position.longitude);
     });
-    print("locaiton is $_currentPosition");
   }
 
   var _isRecording = false;
@@ -59,6 +100,9 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
       setState(() {
         _isRecording = false;
         recorderController.pause();
+        
+        recordingPartsList.add(RecordingParts(path: null, longtitute: _currentPosition!.longitude, latitude: _currentPosition!.latitude));
+
         // logging the stops
         recordingPartsTimeList.add(recorderController.recordedDuration.inMilliseconds);
         _isRecordingPaused = true;
@@ -66,6 +110,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     } else {
       if (recorderController.hasPermission) {
         setState(() {
+          StartTime = DateTime.now();
           _isRecording = true;
           recorderController.record();
           _isRecordingPaused = false;
@@ -132,7 +177,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                       context,
                       MaterialPageRoute(
                           builder: (_) =>
-                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition,)));
+                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition, recParts: recordingPartsList, recTimeStop: recordingPartsTimeList, StartTime: StartTime!,)));
                 },
                 child: Text(
                   'Stop',

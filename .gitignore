@@ -45,4 +45,6 @@ app.*.map.json
 /android/app/release
 
 # config file
-./config.json
+ios/Podfile.lock
+
+pubspec.lock
