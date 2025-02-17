@@ -59,6 +59,8 @@ Future<void> main() async {
       options.dsn = 'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'; // Replace with your actual DSN.
       // Enable performance tracing by setting a sample rate (adjust as needed)
       options.tracesSampleRate = 1.0;
+      options.experimental.replay.sessionSampleRate = 1.0;
+      options.experimental.replay.onErrorSampleRate = 1.0;
     },
     appRunner: () => runZonedGuarded(() {
       // Capture Flutter framework errors.

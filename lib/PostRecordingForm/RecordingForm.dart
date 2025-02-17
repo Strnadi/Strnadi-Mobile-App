@@ -23,15 +23,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
 import 'package:strnadi/bottomBar.dart';
-import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:strnadi/home.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import 'package:strnadi/database/soundDatabase.dart';
-
 import '../AudioSpectogram/editor.dart';
 
 class Recording {
@@ -112,7 +109,7 @@ class _RecordingFormState extends State<RecordingForm> {
   Future<void> uploadAudio(File audioFile, int id) async {
 
     // extract this to a method and trim it and than in a for call the upload
-    var trimmedAudo = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
+    var trimmedAudio = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
 
     final uploadPart =
     Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
@@ -121,7 +118,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
     var token = await safeStorage.read(key: "token");
 
-    for (int i = 0; i < trimmedAudo.length - 1; i++) {
+    for (int i = 0; i < trimmedAudio.length; i++) {
 
       List<int> fileBytes = await audioFile.readAsBytes();
 
@@ -149,7 +146,6 @@ class _RecordingFormState extends State<RecordingForm> {
         if (response.statusCode == 200) {
           print('upload was successful');
           _showMessage("upload was successful");
-          Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
         } else {
           print('Error: ${response.statusCode} ${response.body}');
           _showMessage("upload was not successful");
@@ -158,17 +154,18 @@ class _RecordingFormState extends State<RecordingForm> {
         _showMessage("failed to upload ${error}");
       }
     }
+    Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
   }
 
 
 
-  void Upload() async {
+  void upload() async {
 
     var platform = await getDeviceModel();
 
     print("estimated birds count: ${_strnadiCountController.toInt()}");
     final rec = Recording(
-        createdAt: DateTime.timestamp(),
+        createdAt: DateTime.now(),
         estimatedBirdsCount: _strnadiCountController.toInt(),
         device: platform,
         byApp: true,
@@ -177,14 +174,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
     if (await hasInternetAccess() == false) {
       _showMessage('No internet connection');
-      insertSound(
-          widget.filepath,
-          rec.estimatedBirdsCount as String,
-          rec.createdAt as double,
-          rec.note as double,
-          widget.currentPosition!.latitude as int,
-          widget.currentPosition!.longitude as String
-      );
+      return;
     }
 
     final recordingSign =
@@ -230,6 +220,13 @@ class _RecordingFormState extends State<RecordingForm> {
     } catch (error) {
       print('An error occurred: $error');
     }
+  }
+
+  @override
+  void dispose() {
+    _recordingNameController.dispose();
+    _commentController.dispose();
+    super.dispose();
   }
 
   @override
@@ -334,7 +331,7 @@ class _RecordingFormState extends State<RecordingForm> {
                               ),
                             ),
                           ),
-                          onPressed: Upload,
+                          onPressed: upload,
                           child: const Text('Submit'),
 
                         ),
