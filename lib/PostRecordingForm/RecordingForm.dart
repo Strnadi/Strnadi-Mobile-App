@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 [Your Name]
+ * Copyright (C) 2024 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -30,6 +30,9 @@ import 'package:intl/intl.dart';
 import 'package:strnadi/home.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import '../AudioSpectogram/editor.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class Recording {
   final DateTime createdAt;
@@ -144,13 +147,14 @@ class _RecordingFormState extends State<RecordingForm> {
         );
 
         if (response.statusCode == 200) {
-          print('upload was successful');
+          logger.i('upload was successful');
           _showMessage("upload was successful");
         } else {
-          print('Error: ${response.statusCode} ${response.body}');
+          logger.w('Error: ${response.statusCode} ${response.body}');
           _showMessage("upload was not successful");
         }
       } catch (error) {
+        logger.e(error);
         _showMessage("failed to upload ${error}");
       }
     }
@@ -173,6 +177,7 @@ class _RecordingFormState extends State<RecordingForm> {
     );
 
     if (await hasInternetAccess() == false) {
+      logger.w("No internet connection");
       _showMessage('No internet connection');
       return;
     }
@@ -215,9 +220,11 @@ class _RecordingFormState extends State<RecordingForm> {
         uploadAudio(File(widget.filepath), _recordingId!);
 
       } else {
+        logger.w(response);
         print('Error: ${response.statusCode} ${response.body}');
       }
     } catch (error) {
+      logger.e(error);
       print('An error occurred: $error');
     }
   }

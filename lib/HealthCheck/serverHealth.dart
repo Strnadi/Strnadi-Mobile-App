@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2024 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -15,6 +15,9 @@
  */
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class ServerHealth extends StatefulWidget {
   const ServerHealth({Key? key}) : super(key: key);
@@ -37,6 +40,7 @@ class _ServerHealthState extends State<ServerHealth> {
         });
       }
     } catch (e) {
+      logger.e(e);
       print(e);
     }
   }
