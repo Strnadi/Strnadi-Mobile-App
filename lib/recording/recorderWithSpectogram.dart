@@ -168,8 +168,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                   ),
                 ),
                 onPressed: () async {
-                  if (recordedFilePath != null && recordedFilePath!.isNotEmpty && _isRecording) {
-                    recordedFilePath = await recorderController.stop();
+                  recordedFilePath = await recorderController.stop();
+                  if (recordedFilePath != null) {
                     _isRecordingPaused = false;
                     _isRecording = false;
                     Navigator.push(

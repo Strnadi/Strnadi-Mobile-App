@@ -51,6 +51,10 @@ class HomePage extends StatelessWidget {
   void Logout(BuildContext context) {
     final localStorage = const FlutterSecureStorage();
     localStorage.delete(key: 'token');
-    Navigator.push(context, MaterialPageRoute(builder: (context) => MyApp()));
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => MyApp()),
+          (route) => false, // Remove all previous routes
+    );
   }
 }
