@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.strnadi"
+    namespace = "com.delta.strnadi"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
