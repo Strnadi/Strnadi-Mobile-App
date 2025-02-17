@@ -148,55 +148,9 @@ class MyApp extends StatelessWidget {
           children: [
             Authorizator(login: Login(), register: RegMail()),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                // Trigger the traced operation when the button is pressed.
-                await executeTracedOperation();
-              },
-              child: const Text('Execute Traced Operation'),
-            ),
           ],
         ),
       ),
     );
-  }
-}
-
-/// Starts a Sentry transaction and calls a traced function.
-Future<void> executeTracedOperation() async {
-  // Start a Sentry transaction named "processOrderBatch()" with the operation type "task".
-  final transaction = Sentry.startTransaction('processOrderBatch()', 'task');
-
-  try {
-    // Process the order batch within the transaction.
-    await processOrderBatch(transaction);
-  } catch (exception, stackTrace) {
-    // Record the exception on the transaction and mark it with an error status.
-    transaction.throwable = exception;
-    transaction.status = const SpanStatus.internalError();
-    Sentry.captureException(exception, stackTrace: stackTrace);
-  } finally {
-    // Ensure the transaction is finished.
-    await transaction.finish();
-  }
-}
-
-/// Processes an order batch using a child span for detailed tracing.
-Future<void> processOrderBatch(ISentrySpan span) async {
-  // Start a child span with a description of the operation.
-  final innerSpan = span.startChild('task', description: 'operation');
-
-  try {
-    // Simulate some work, e.g., processing orders.
-    await Future.delayed(const Duration(seconds: 2));
-    // Insert your operation logic here.
-  } catch (exception, stackTrace) {
-    // Record the exception on the inner span and mark it with an error status.
-    innerSpan.throwable = exception;
-    innerSpan.status = const SpanStatus.notFound();
-    Sentry.captureException(exception, stackTrace: stackTrace);
-  } finally {
-    // Finish the child span.
-    await innerSpan.finish();
   }
 }
