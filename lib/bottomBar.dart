@@ -43,7 +43,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (appBarTitle == 'Recording Screen') {
+          if (appBarTitle == 'Recorder') {
             return;
           }
           Navigator.push(
@@ -75,21 +75,6 @@ class ReusableBottomAppBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.home),
-            iconSize: 30.0,
-            onPressed: () {
-              if (ModalRoute.of(context)?.settings.name != '/home') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HomePage(),
-                    settings: const RouteSettings(name: '/home'),
-                  ),
-                );
-              }
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.map),
             iconSize: 30.0,
             onPressed: () {
@@ -99,6 +84,22 @@ class ReusableBottomAppBar extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (_) => OSMmap(),
                     settings: const RouteSettings(name: '/map'),
+                  ),
+                );
+              }
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.home),
+            iconSize: 30.0,
+            onPressed: () {
+              if (ModalRoute.of(context)?.settings.name != '/home') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HomePage(),
+                    settings: const RouteSettings(name: '/home'),
                   ),
                 );
               }

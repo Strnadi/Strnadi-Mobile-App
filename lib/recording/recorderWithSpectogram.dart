@@ -28,13 +28,11 @@ class RecordingParts {
   double longtitute;
   double latitude;
 
-
   RecordingParts({
     required this.path,
     required this.longtitute,
     required this.latitude,
   });
-
 }
 
 String? recordedFilePath;
@@ -49,7 +47,6 @@ class RecorderWithSpectogram extends StatefulWidget {
 }
 
 class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
-
   final recordingPartsTimeList = <int>[];
   final recordingPartsList = <RecordingParts>[];
   DateTime? StartTime = null;
@@ -100,11 +97,15 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
       setState(() {
         _isRecording = false;
         recorderController.pause();
-        
-        recordingPartsList.add(RecordingParts(path: null, longtitute: _currentPosition!.longitude, latitude: _currentPosition!.latitude));
+
+        recordingPartsList.add(RecordingParts(
+            path: null,
+            longtitute: _currentPosition!.longitude,
+            latitude: _currentPosition!.latitude));
 
         // logging the stops
-        recordingPartsTimeList.add(recorderController.recordedDuration.inMilliseconds);
+        recordingPartsTimeList
+            .add(recorderController.recordedDuration.inMilliseconds);
         _isRecordingPaused = true;
       });
     } else {
@@ -167,17 +168,21 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                   ),
                 ),
                 onPressed: () async {
-                  recordedFilePath = await recorderController.stop();
-                  if (recordedFilePath == null) {
-                    return;
+                  if (recordedFilePath != null && recordedFilePath!.isNotEmpty && _isRecording) {
+                    recordedFilePath = await recorderController.stop();
+                    _isRecordingPaused = false;
+                    _isRecording = false;
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => Spectogram(
+                                  audioFilePath: recordedFilePath!,
+                                  currentPosition: _currentPosition,
+                                  recParts: recordingPartsList,
+                                  recTimeStop: recordingPartsTimeList,
+                                  StartTime: StartTime!,
+                                )));
                   }
-                  _isRecordingPaused = false;
-                  _isRecording = false;
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              Spectogram(audioFilePath: recordedFilePath!, currentPosition: _currentPosition, recParts: recordingPartsList, recTimeStop: recordingPartsTimeList, StartTime: StartTime!,)));
                 },
                 child: Text(
                   'Stop',
