@@ -55,6 +55,8 @@ dependencies:
   sqflite: any
   connectivity_plus: any
   ffmpeg_kit_flutter: ^6.0.3
+  logger: ^1.1.0
+  sentry_flutter: ^8.13.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

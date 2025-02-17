@@ -293,7 +293,6 @@ class _RecordingFormState extends State<RecordingForm> {
                     ),
                     // if location is null request the location from the user
                     SizedBox(
-
                       height: 200,
                       child: FlutterMap(
                         options: MapOptions(

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Návrat Krále</string>
+	<string>Strnadi</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -57,5 +57,19 @@
     <string>We need access to your location to provide a better experience.</string>
     <key>NSCameraUsageDescription</key>
     <string>Not implemented yet</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>strnadiapi.slavetraders.tech</key>
+            <dict>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <false/>
+                <!-- Adjust settings if your server doesn't meet ATS requirements -->
+            </dict>
+        </dict>
+    </dict>
 </dict>
 </plist>
