@@ -17,7 +17,6 @@
 
 import 'dart:io';
 
-import 'package:logger/logger.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +29,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:strnadi/home.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import '../AudioSpectogram/editor.dart';
 import 'package:logger/logger.dart';
@@ -120,15 +120,8 @@ class _RecordingFormState extends State<RecordingForm> {
       widget.recordingParts,
     );
 
-
-    print(widget.filepath);
-
-    // extract this to a method and trim it and than in a for call the upload
-    var trimmedAudio = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
-
-    final uploadPart =
-    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
-
+    final uploadPart = Uri.parse(
+        'https://strnadiapi.slavetraders.tech/recordings/upload-part');
 
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
@@ -187,9 +180,10 @@ class _RecordingFormState extends State<RecordingForm> {
         _showMessage("Failed to upload segment $i: $error");
       }
     }
-
-    Navigator.push(context, MaterialPageRoute(builder: (context) => RecorderWithSpectogram()));
-
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage()),
+    );
   }
 
   void upload() async {
@@ -214,10 +208,7 @@ class _RecordingFormState extends State<RecordingForm> {
         'https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
 
-
-    var token = await safeStorage.read(key: 'token');
-
-
+    final token = await safeStorage.read(key: 'token');
 
     print('token $token');
 
@@ -242,9 +233,9 @@ class _RecordingFormState extends State<RecordingForm> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 202) {
-        final data = response.body;
-        _showMessage("Recording was uploaded");
-        _recordingId = int.parse(data);
+        final data = jsonDecode(response.body);
+        print(data);
+        _recordingId = data;
         uploadAudio(File(widget.filepath), _recordingId!);
         logger.i(widget.filepath);
       } else {
