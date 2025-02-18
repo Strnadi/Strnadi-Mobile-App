@@ -15,7 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/home.dart';
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 enum AuthType { login, register }
 
@@ -43,7 +43,7 @@ class _AuthState extends State<Authorizator> {
     if (token != null) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => HomePage()),
+        MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
       );
     }
   }

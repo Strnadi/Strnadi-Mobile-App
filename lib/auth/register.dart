@@ -15,12 +15,13 @@
  */
 
 import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
+
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 class Register extends StatefulWidget {
   const Register({ super.key });
@@ -85,7 +86,7 @@ class _RegisterState extends State<Register> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => HomePage()),
+          MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
         );
 
       } else {

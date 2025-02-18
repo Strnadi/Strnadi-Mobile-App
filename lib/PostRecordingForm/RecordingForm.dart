@@ -15,6 +15,7 @@
  */
 import 'dart:io';
 
+import 'package:logger/logger.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +28,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
-import 'package:strnadi/home.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import '../AudioSpectogram/editor.dart';
 import 'package:logger/logger.dart';
@@ -111,6 +111,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   Future<void> uploadAudio(File audioFile, int id) async {
 
+    print(widget.filepath);
+
     // extract this to a method and trim it and than in a for call the upload
     var trimmedAudio = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
 
@@ -158,7 +160,7 @@ class _RecordingFormState extends State<RecordingForm> {
         _showMessage("failed to upload ${error}");
       }
     }
-    Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
+    Navigator.push(context, MaterialPageRoute(builder: (context) => RecorderWithSpectogram()));
   }
 
 
@@ -186,8 +188,6 @@ class _RecordingFormState extends State<RecordingForm> {
         Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
 
-
-
     var token = await safeStorage.read(key: 'token');
 
 
@@ -214,9 +214,9 @@ class _RecordingFormState extends State<RecordingForm> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 202) {
-        final data = jsonDecode(response.body);
-        print(data);
-        _recordingId = data;
+        final data = response.body;
+        _showMessage("Recording was uploaded");
+        _recordingId = int.parse(data);
         uploadAudio(File(widget.filepath), _recordingId!);
 
       } else {
