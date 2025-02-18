@@ -8,3 +8,8 @@ fix the audio trim to stop the recording
 Add the scrollable elemnt to the login
 
 Email the testflight link to do the external testing
+
+remake the spectogram recorder (paper notebook) 
+
+offline database model to store the data locally till internet conn. available
+
