@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur && Jan Drobílek
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
+
 import 'dart:io';
 
 import 'package:logger/logger.dart';
@@ -46,7 +48,7 @@ class Recording {
     required this.estimatedBirdsCount,
     required this.device,
     required this.byApp,
-    this.note,
+    this.note = null,
   });
 
   Map<String, dynamic> toJson() {
@@ -67,9 +69,14 @@ class RecordingForm extends StatefulWidget {
   final DateTime StartTime;
   final List<int> recordingPartsTimeList;
 
-  const RecordingForm(
-      {Key? key, required this.filepath, required this.StartTime, required this.currentPosition, required this.recordingParts, required this.recordingPartsTimeList})
-      : super(key: key);
+  const RecordingForm({
+    Key? key,
+    required this.filepath,
+    required this.StartTime,
+    required this.currentPosition,
+    required this.recordingParts,
+    required this.recordingPartsTimeList,
+  }) : super(key: key);
 
   @override
   _RecordingFormState createState() => _RecordingFormState();
@@ -81,35 +88,39 @@ class _RecordingFormState extends State<RecordingForm> {
   double _strnadiCountController = 1.0;
   int? _recordingId = null;
 
-
   Future<bool> hasInternetAccess() async {
-      try {
-        final result = await InternetAddress.lookup('google.com');
-        return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-      } on SocketException catch (_) {
-        return false;
-      }
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
   }
-
-
 
   Future<String> getDeviceModel() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
 
     if (Platform.isAndroid) {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      final androidInfo = await deviceInfo.androidInfo;
       return androidInfo.model; // e.g., "Pixel 6"
     } else if (Platform.isIOS) {
-      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+      final iosInfo = await deviceInfo.iosInfo;
       return iosInfo.utsname.machine; // e.g., "iPhone14,2"
     } else {
       return "Unknown Device";
     }
   }
 
-
-
   Future<void> uploadAudio(File audioFile, int id) async {
+    // Trim the audio into segments.
+    // DatabaseHelper.trimAudio returns a List<RecordingParts>.
+    List<RecordingParts> trimmedAudioParts = await DatabaseHelper.trimAudio(
+      widget.filepath,
+      widget.recordingPartsTimeList,
+      widget.recordingParts,
+    );Open a pull request
+Create a new pull request by comparing changes across two branches. If you need to, you can also
+
 
     print(widget.filepath);
 
@@ -119,15 +130,32 @@ class _RecordingFormState extends State<RecordingForm> {
     final uploadPart =
     Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
 
-    var safeStorage = FlutterSecureStorage();
 
-    var token = await safeStorage.read(key: "token");
+    final safeStorage = FlutterSecureStorage();
+    final token = await safeStorage.read(key: "token");
 
-    for (int i = 0; i < trimmedAudio.length; i++) {
+    int cumulativeSeconds = 0;
 
-      List<int> fileBytes = await audioFile.readAsBytes();
+    for (int i = 0; i < trimmedAudioParts.length; i++) {
+      // Check if the trimmed segment's path is valid (not null and not empty)
+      String? segmentPath = trimmedAudioParts[i].path;
+      if (segmentPath == null || segmentPath.isEmpty) {
+        logger.e(
+            "Trimmed audio segment $i has an invalid (null or empty) path; skipping upload for this segment.");
+        continue;
+      }
 
-      String base64Audio = base64Encode(fileBytes);
+      final segmentFile = File(segmentPath);
+      final fileBytes = await segmentFile.readAsBytes();
+      final base64Audio = base64Encode(fileBytes);
+
+      // Calculate start and end times for this segment based on cumulative offset.
+      int segmentDuration = widget.recordingPartsTimeList[i];
+      final segmentStart =
+      widget.StartTime.add(Duration(seconds: cumulativeSeconds));
+      final segmentEnd =
+      segmentStart.add(Duration(seconds: segmentDuration));
+      cumulativeSeconds += segmentDuration;
 
       try {
         final response = await http.post(
@@ -138,44 +166,43 @@ class _RecordingFormState extends State<RecordingForm> {
           body: jsonEncode({
             'jwt': token,
             'RecordingId': id,
-            "Start": widget.StartTime.toIso8601String(),
-            "End": widget.StartTime.add(Duration(seconds: widget.recordingPartsTimeList[i])).toIso8601String(),
-            "LatitudeStart": widget.recordingParts[i].latitude,
-            "LongitudeStart": widget.recordingParts[i].longtitute,
-            "LatitudeEnd": widget.recordingParts[i].latitude,
-            "LongitudeEnd": widget.recordingParts[i].longtitute,
-            "data": base64Audio
+            "Start": segmentStart.toIso8601String(),
+            "End": segmentEnd.toIso8601String(),
+            "LatitudeStart": trimmedAudioParts[i].latitude,
+            "LongitudeStart": trimmedAudioParts[i].longitude,
+            "LatitudeEnd": trimmedAudioParts[i].latitude,
+            "LongitudeEnd": trimmedAudioParts[i].longitude,
+            "data": base64Audio,
           }),
         );
 
         if (response.statusCode == 200) {
-          logger.i('upload was successful');
-          _showMessage("upload was successful");
+          logger.i('Upload was successful for segment $i');
+          _showMessage("Upload was successful for segment $i");
         } else {
           logger.w('Error: ${response.statusCode} ${response.body}');
-          _showMessage("upload was not successful");
+          _showMessage("Upload was not successful for segment $i");
         }
       } catch (error) {
         logger.e(error);
-        _showMessage("failed to upload ${error}");
+        _showMessage("Failed to upload segment $i: $error");
       }
     }
+
     Navigator.push(context, MaterialPageRoute(builder: (context) => RecorderWithSpectogram()));
+
   }
 
-
-
   void upload() async {
+    final platform = await getDeviceModel();
 
-    var platform = await getDeviceModel();
-
-    print("estimated birds count: ${_strnadiCountController.toInt()}");
+    print("Estimated birds count: ${_strnadiCountController.toInt()}");
     final rec = Recording(
-        createdAt: DateTime.now(),
-        estimatedBirdsCount: _strnadiCountController.toInt(),
-        device: platform,
-        byApp: true,
-        note: _commentController.text
+      createdAt: DateTime.now(),
+      estimatedBirdsCount: _strnadiCountController.toInt(),
+      device: platform,
+      byApp: true,
+      note: _commentController.text,
     );
 
     if (await hasInternetAccess() == false) {
@@ -184,11 +211,13 @@ class _RecordingFormState extends State<RecordingForm> {
       return;
     }
 
-    final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
+    final recordingSign = Uri.parse(
+        'https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
 
+
     var token = await safeStorage.read(key: 'token');
+
 
 
     print('token $token');
@@ -218,7 +247,7 @@ class _RecordingFormState extends State<RecordingForm> {
         _showMessage("Recording was uploaded");
         _recordingId = int.parse(data);
         uploadAudio(File(widget.filepath), _recordingId!);
-
+        logger.i(widget.filepath);
       } else {
         logger.w(response);
         print('Error: ${response.statusCode} ${response.body}');
@@ -238,6 +267,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
+    // Provide a fallback coordinate if currentPosition is null.
+    final fallbackPosition = widget.currentPosition ?? LatLng(50.1, 14.4);
     return SingleChildScrollView(
       child: Center(
         child: Column(
@@ -295,27 +326,27 @@ class _RecordingFormState extends State<RecordingForm> {
                         });
                       },
                     ),
-                    // if location is null request the location from the user
+                    // If location is null, we use fallbackPosition.
                     SizedBox(
                       height: 200,
                       child: FlutterMap(
                         options: MapOptions(
-                          center: widget.currentPosition,
+                          center: fallbackPosition,
                           zoom: 13.0,
                         ),
                         children: [
                           TileLayer(
                             urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.navratKrale.app',
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.strnadi.cz',
                           ),
                           MarkerLayer(
                             markers: [
                               Marker(
                                 width: 20.0,
                                 height: 20.0,
-                                point: widget.currentPosition!,
-                                builder: (ctx) => Icon(
+                                point: fallbackPosition,
+                                builder: (ctx) => const Icon(
                                   Icons.my_location,
                                   color: Colors.blue,
                                   size: 30.0,
@@ -332,7 +363,8 @@ class _RecordingFormState extends State<RecordingForm> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ButtonStyle(
-                            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                            shape: MaterialStateProperty.all<
+                                RoundedRectangleBorder>(
                               RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10.0),
                               ),
@@ -340,7 +372,6 @@ class _RecordingFormState extends State<RecordingForm> {
                           ),
                           onPressed: upload,
                           child: const Text('Submit'),
-
                         ),
                       ),
                     ),
@@ -355,8 +386,10 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void _showMessage(String s) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(s),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(s),
+      ),
+    );
   }
 }
