@@ -28,8 +28,7 @@ import 'package:sentry_logging/sentry_logging.dart';
 // Create a global logger instance.
 final logger = Logger();
 
-void _showMessage(String message) {
-  var context;
+void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
@@ -65,6 +64,9 @@ Future<void> main() async {
       options.experimental.replay.onErrorSampleRate = 1.0;
     },
     appRunner: () => runZonedGuarded(() {
+      // Initialize the Flutter bindings within the same zone.
+      WidgetsFlutterBinding.ensureInitialized();
+
       // Capture Flutter framework errors.
       FlutterError.onError = (FlutterErrorDetails details) {
         logger.e("Flutter error caught", details.exception, details.stack);
@@ -79,13 +81,13 @@ Future<void> main() async {
   );
 }
 
-void checkInternetConnection() async {
+void checkInternetConnection(BuildContext context) async {
   if (await hasInternetAccess()){
     logger.i("Has Internet access");
   }
   else {
     logger.e("Does not have internet access");
-    _showMessage("Nemáte připojení k internetu aplikace nebude fungovat");
+    _showMessage(context, "Nemáte připojení k internetu aplikace nebude fungovat");
   }
 }
 
@@ -94,9 +96,9 @@ class MyApp extends StatelessWidget {
 
   /// Initialization method for side effects.
   /// For proper lifecycle management, consider using a StatefulWidget.
-  void initialize() {
+  void initialize(BuildContext context) {
     requestLocationPermission();
-    checkInternetConnection();
+    checkInternetConnection(context);
     checkIfDbExists();
     logger.i("Database has been created.");
   }
@@ -135,7 +137,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Note: Calling initialization here is for demonstration.
     // For proper lifecycle management, use a StatefulWidget.
-    initialize();
+    initialize(context);
 
     return MaterialApp(
       title: 'Welcome to Flutter',
