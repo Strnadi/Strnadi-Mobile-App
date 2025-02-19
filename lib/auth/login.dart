@@ -16,12 +16,12 @@
 import 'dart:math';
 
 import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 final logger = Logger();
 
@@ -45,7 +45,7 @@ class _LoginState extends State<Login> {
     var containsKey = await secureStorage.containsKey(key: 'token');
 
     if (containsKey) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RecorderWithSpectogram()));
     }
   }
 
@@ -86,7 +86,7 @@ class _LoginState extends State<Login> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => HomePage()),
+          MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
         );
 
       }
