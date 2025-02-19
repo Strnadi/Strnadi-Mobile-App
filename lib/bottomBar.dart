@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/user/userPage.dart';
 
 class ScaffoldWithBottomBar extends StatelessWidget {
@@ -96,7 +97,7 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OSMmap(),
+                    builder: (_) => LiveRec(),
                     settings: const RouteSettings(name: '/map'),
                   ),
                 );

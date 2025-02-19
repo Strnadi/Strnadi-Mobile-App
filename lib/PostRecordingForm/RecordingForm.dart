@@ -119,8 +119,15 @@ class _RecordingFormState extends State<RecordingForm> {
       widget.recordingPartsTimeList,
       widget.recordingParts,
     );
-    final uploadPart = Uri.parse(
-        'https://strnadiapi.slavetraders.tech/recordings/upload-part');
+
+
+    print(widget.filepath);
+
+    // extract this to a method and trim it and than in a for call the upload
+    var trimmedAudio = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
+
+    final uploadPart =
+    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
 
 
     final safeStorage = FlutterSecureStorage();
@@ -136,6 +143,7 @@ class _RecordingFormState extends State<RecordingForm> {
             "Trimmed audio segment $i has an invalid (null or empty) path; skipping upload for this segment.");
         continue;
       }
+
       final segmentFile = File(segmentPath);
       final fileBytes = await segmentFile.readAsBytes();
       final base64Audio = base64Encode(fileBytes);
@@ -179,9 +187,11 @@ class _RecordingFormState extends State<RecordingForm> {
         _showMessage("Failed to upload segment $i: $error");
       }
     }
+
     Navigator.push(context, MaterialPageRoute(builder: (context) => RecorderWithSpectogram()));
 
   }
+
   void upload() async {
     final platform = await getDeviceModel();
 
@@ -204,7 +214,9 @@ class _RecordingFormState extends State<RecordingForm> {
         'https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
 
+
     var token = await safeStorage.read(key: 'token');
+
 
 
     print('token $token');
