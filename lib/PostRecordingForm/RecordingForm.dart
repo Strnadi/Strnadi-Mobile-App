@@ -18,20 +18,14 @@
 import 'dart:io';
 
 import 'package:strnadi/database/soundDatabase.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
-import 'package:strnadi/bottomBar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:intl/intl.dart';
-import 'package:strnadi/home.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import '../AudioSpectogram/editor.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();
@@ -129,9 +123,6 @@ class _RecordingFormState extends State<RecordingForm> {
     Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
 
 
-    final uploadPart = Uri.parse(
-        'https://strnadiapi.slavetraders.tech/recordings/upload-part');
-
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
 
@@ -191,7 +182,7 @@ class _RecordingFormState extends State<RecordingForm> {
     }
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => HomePage()),
+      MaterialPageRoute(builder: (context) => RecorderWithSpectogram()),
     );
   }
 
