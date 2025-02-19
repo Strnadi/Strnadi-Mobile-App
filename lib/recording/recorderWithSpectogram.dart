@@ -24,6 +24,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:strnadi/AudioSpectogram/editor.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter/return_code.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 
 final logger = Logger();
@@ -290,44 +292,36 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   /// Merges multiple WAV files (segments) into a single WAV file.
   /// This basic implementation assumes each segment has a 44-byte header
   /// and uses PCM encoding.
-  Future<String> mergeWavFiles(
-      List<String> segmentPaths, String outputPath) async {
+  Future<String> mergeWavFiles(List<String> segmentPaths, String outputPath) async {
     if (segmentPaths.isEmpty) return "";
-    // Read the first segment entirely.
-    File firstFile = File(segmentPaths[0]);
-    List<int> firstBytes = await firstFile.readAsBytes();
-    // The WAV header is assumed to be 44 bytes.
-    List<int> header = firstBytes.sublist(0, 44);
-    List<int> mergedData = [];
-    mergedData.addAll(firstBytes.sublist(44));
 
-    // Append data (skipping header) from subsequent segments.
-    for (int i = 1; i < segmentPaths.length; i++) {
-      File file = File(segmentPaths[i]);
-      List<int> bytes = await file.readAsBytes();
-      if (bytes.length > 44) {
-        mergedData.addAll(bytes.sublist(44));
-      }
+    // Get the application documents directory.
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    String fileListPath = '${appDocDir.path}/filelist.txt';
+    File fileList = File(fileListPath);
+
+    // Build the file list content in the format:
+    // file '/path/to/segment1.wav'
+    // file '/path/to/segment2.wav'
+    String fileListContent = segmentPaths.map((path) => "file '$path'").join('\n');
+    await fileList.writeAsString(fileListContent);
+
+    // Construct the FFmpeg command.
+    // Quoting file paths to handle spaces in directory/file names.
+    String command = "-f concat -safe 0 -i \"$fileListPath\" -c copy \"$outputPath\"";
+
+    // Execute the FFmpeg command.
+    final session = await FFmpegKit.execute(command);
+    final returnCode = await session.getReturnCode();
+
+    // Clean up the temporary file list.
+    await fileList.delete();
+
+    if (ReturnCode.isSuccess(returnCode)) {
+      return outputPath;
+    } else {
+      throw Exception("FFmpeg merge failed with return code: ${returnCode?.getValue()}");
     }
-
-    int mergedDataSize = mergedData.length;
-    int mergedFileSize = mergedDataSize + 36; // Total file size minus 8
-
-    // Update header with the new file size and data chunk size.
-    ByteData bd = ByteData.sublistView(Uint8List.fromList(header));
-    bd.setUint32(4, mergedFileSize, Endian.little); // File size (minus 8)
-    bd.setUint32(40, mergedDataSize, Endian.little); // Data chunk size
-
-    List<int> updatedHeader = bd.buffer.asUint8List();
-
-    // Concatenate updated header and merged data.
-    List<int> mergedBytes = [];
-    mergedBytes.addAll(updatedHeader);
-    mergedBytes.addAll(mergedData);
-
-    File mergedFile = File(outputPath);
-    await mergedFile.writeAsBytes(mergedBytes);
-    return mergedFile.path;
   }
 
   @override
