@@ -11,6 +11,9 @@ subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 
+ext.kotlin_version = '2.1.10'
+ext.gradle_version = '3.1.3'
+
 // Odebráno evaluationDependsOn, pokud není nutné
 
 tasks.register("clean", Delete) {

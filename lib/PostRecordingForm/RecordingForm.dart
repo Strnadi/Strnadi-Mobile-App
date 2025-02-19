@@ -118,8 +118,7 @@ class _RecordingFormState extends State<RecordingForm> {
       widget.filepath,
       widget.recordingPartsTimeList,
       widget.recordingParts,
-    );Open a pull request
-Create a new pull request by comparing changes across two branches. If you need to, you can also
+    );
 
 
     print(widget.filepath);
