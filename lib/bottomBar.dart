@@ -15,46 +15,43 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:strnadi/home.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/user/userPage.dart';
 
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
   final Widget content;
+  final bool? logout;
 
   const ScaffoldWithBottomBar({
     Key? key,
     required this.appBarTitle,
     required this.content,
+    this.logout,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(appBarTitle),
+        title: Center(child: Text(appBarTitle)),
+        actions: [
+          if (logout != null)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () {
+                logout!;
+              },
+            ),
+        ],
+        automaticallyImplyLeading: false,
       ),
       body: Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
         ),
         child: content,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (appBarTitle == 'Recorder') {
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
-          );
-        },
-        child: const Icon(
-          Icons.mic,
-          size: 30,
-        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: const ReusableBottomAppBar(),
@@ -91,15 +88,65 @@ class ReusableBottomAppBar extends StatelessWidget {
           ),
 
           IconButton(
-            icon: const Icon(Icons.home),
+            icon: const Icon(Icons.menu),
             iconSize: 30.0,
             onPressed: () {
-              if (ModalRoute.of(context)?.settings.name != '/home') {
+              // todo add the correct route
+              if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => HomePage(),
-                    settings: const RouteSettings(name: '/home'),
+                    builder: (_) => OSMmap(),
+                    settings: const RouteSettings(name: '/map'),
+                  ),
+                );
+              }
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.mic),
+            iconSize: 30.0,
+            onPressed: () {
+              if (ModalRoute.of(context)?.settings.name != '/Recorder') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecorderWithSpectogram(),
+                    settings: const RouteSettings(name: '/Recorder'),
+                  ),
+                );
+              }
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.inbox_outlined),
+            iconSize: 30.0,
+            onPressed: () {
+              // todo add the correct route
+              if (ModalRoute.of(context)?.settings.name != '/map') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OSMmap(),
+                    settings: const RouteSettings(name: '/map'),
+                  ),
+                );
+              }
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            iconSize: 30.0,
+            onPressed: () {
+              if (ModalRoute.of(context)?.settings.name != '/user') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserPage(),
+                    settings: const RouteSettings(name: '/user'),
                   ),
                 );
               }

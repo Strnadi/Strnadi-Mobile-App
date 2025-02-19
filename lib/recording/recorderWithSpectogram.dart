@@ -316,6 +316,12 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   }
 
   @override
+  void dispose() {
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       appBarTitle: 'Recorder',

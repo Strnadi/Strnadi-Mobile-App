@@ -16,7 +16,6 @@
 
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
-import 'package:strnadi/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
