@@ -61,7 +61,7 @@ class _RegisterState extends State<Register> {
       return;
     }
 
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/users/sign-up');
+    final url = Uri.parse('https://strnadiapi.slavetraders.tech/auth/sign-up');
 
 
     try {
