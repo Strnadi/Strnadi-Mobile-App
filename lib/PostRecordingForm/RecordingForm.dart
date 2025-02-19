@@ -119,6 +119,15 @@ class _RecordingFormState extends State<RecordingForm> {
       widget.recordingPartsTimeList,
       widget.recordingParts,
     );
+    
+    print(widget.filepath);
+
+    // extract this to a method and trim it and than in a for call the upload
+    var trimmedAudio = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
+
+    final uploadPart =
+    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
+
 
     final uploadPart = Uri.parse(
         'https://strnadiapi.slavetraders.tech/recordings/upload-part');
