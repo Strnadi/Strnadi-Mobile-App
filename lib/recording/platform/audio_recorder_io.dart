@@ -24,27 +24,19 @@ import 'package:record/record.dart';
 
 mixin AudioRecorderMixin {
 
-
-  Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
-    final path = await _getPath();
-
-    await recorder.start(config, path: path);
-  }
-
-  Future<String> recordStream(AudioRecorder recorder, RecordConfig config) async {
-    final path = await _getPath();
-    final file = File(path);
+  Future<String> recordStream(AudioRecorder recorder, RecordConfig config, String filepath) async {
+    final file = File(filepath);
     final stream = await recorder.startStream(config);
 
     final completer = Completer<String>();
 
     stream.listen(
           (data) {
-        file.writeAsBytesSync(data, mode: FileMode.append);
+            file.writeAsBytes(data, mode: FileMode.append);
       },
       onDone: () {
-        print('End of stream. File written to $path.');
-        completer.complete(path);
+        print('End of stream. File written to $filepath.');
+        completer.complete(filepath);
       },
       onError: (error) {
         completer.completeError(error);
@@ -54,11 +46,5 @@ mixin AudioRecorderMixin {
     return completer.future;
   }
 
-  Future<String> _getPath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return p.join(
-      dir.path,
-      'audio_${DateTime.now().millisecondsSinceEpoch}.wav',
-    );
-  }
+
 }

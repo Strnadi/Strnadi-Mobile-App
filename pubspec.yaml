@@ -26,7 +26,7 @@ environment:
 license: "GPL-3.0-or-later"
 
 flutter_icons:
-  image_path: "images/icon.png"
+  image_path: "images/icon.webp"
   android: true
   ios: true
 

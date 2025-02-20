@@ -25,6 +25,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:intl/intl.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 
@@ -116,12 +117,8 @@ class _RecordingFormState extends State<RecordingForm> {
     
     print(widget.filepath);
 
-    // extract this to a method and trim it and than in a for call the upload
-    var trimmedAudio = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
-
     final uploadPart =
     Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
-
 
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
