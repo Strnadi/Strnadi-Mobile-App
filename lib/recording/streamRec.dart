@@ -23,6 +23,8 @@ import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/recording/platform/audio_recorder_io.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
+import '../bottomBar.dart';
+
 
 class LiveRec extends StatefulWidget {
 
@@ -34,6 +36,7 @@ class LiveRec extends StatefulWidget {
 
 class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
   int _recordDuration = 0;
+  var filepath = "";
   Timer? _timer;
   late final AudioRecorder _audioRecorder;
   StreamSubscription<RecordState>? _recordSub;
@@ -89,10 +92,8 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
 
     final path = await _audioRecorder.stop();
 
-    if (path != null) {
-      onStop(path);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => RecordingForm(filepath: path, StartTime: overallStartTime!, currentPosition: currentPosition, recordingParts: recordingPartsList, recordingPartsTimeList: recordingPartsTimeList)));
-    }
+    onStop(filepath);
+    Navigator.push(context, MaterialPageRoute(builder: (context) => RecordingForm(filepath: filepath, StartTime: overallStartTime!, currentPosition: currentPosition, recordingParts: recordingPartsList, recordingPartsTimeList: recordingPartsTimeList)));
   }
 
   Future<void> _start() async {
@@ -110,7 +111,10 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
         //await recordFile(_audioRecorder, config);
 
         // Record to stream
-        await recordStream(_audioRecorder, config);
+        var path = await recordStream(_audioRecorder, config);
+        setState(() {
+          filepath = path;
+        });
 
         _recordDuration = 0;
 
@@ -183,9 +187,9 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Column(
+    return ScaffoldWithBottomBar(
+      appBarTitle: "Nigga what",
+      content: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
@@ -205,8 +209,7 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
             ],
           ],
         ),
-      ),
-    );
+      );
   }
 
   @override
@@ -233,7 +236,7 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
 
     return ClipOval(
       child: Material(
-        color: color,
+        color: Colors.red,
         child: InkWell(
           child: SizedBox(width: 56, height: 56, child: icon),
           onTap: () {
