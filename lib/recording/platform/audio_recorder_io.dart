@@ -13,40 +13,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 mixin AudioRecorderMixin {
+
+
   Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
     final path = await _getPath();
 
     await recorder.start(config, path: path);
   }
 
-  Future<void> recordStream(AudioRecorder recorder, RecordConfig config) async {
+  Future<String> recordStream(AudioRecorder recorder, RecordConfig config) async {
     final path = await _getPath();
-
     final file = File(path);
-
     final stream = await recorder.startStream(config);
+
+    final completer = Completer<String>();
 
     stream.listen(
           (data) {
-        // print(
-        //   recorder.convertBytesToInt16(Uint8List.fromList(data)),
-        // );
         file.writeAsBytesSync(data, mode: FileMode.append);
       },
       onDone: () {
         print('End of stream. File written to $path.');
+        completer.complete(path);
+      },
+      onError: (error) {
+        completer.completeError(error);
       },
     );
-  }
 
+    return completer.future;
+  }
 
   Future<String> _getPath() async {
     final dir = await getApplicationDocumentsDirectory();
