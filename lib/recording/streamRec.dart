@@ -14,6 +14,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -22,8 +24,14 @@ import 'package:record/record.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/recording/platform/audio_recorder_io.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:logger/logger.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
 
 import '../bottomBar.dart';
+
+final logger = Logger();
 
 
 class LiveRec extends StatefulWidget {
@@ -32,6 +40,10 @@ class LiveRec extends StatefulWidget {
 
   @override
   State<LiveRec> createState() => _LiveRecState();
+}
+
+int calcBitRate(int sampleRate, int bitDepth) {
+  return sampleRate * bitDepth;
 }
 
 class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
@@ -44,6 +56,8 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
   StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
 
+  int sampleRate = 44100;
+  int bitRate = calcBitRate(44100, 16);
 
   final recordingPartsTimeList = <int>[];
   final recordingPartsList = <RecordingParts>[];
@@ -92,8 +106,30 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
 
     final path = await _audioRecorder.stop();
 
-    onStop(filepath);
-    Navigator.push(context, MaterialPageRoute(builder: (context) => RecordingForm(filepath: filepath, StartTime: overallStartTime!, currentPosition: currentPosition, recordingParts: recordingPartsList, recordingPartsTimeList: recordingPartsTimeList)));
+    await onStop(filepath);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text("Recording Form")),
+          body: RecordingForm(
+            filepath: filepath,
+            StartTime: overallStartTime!,
+            currentPosition: currentPosition,
+            recordingParts: recordingPartsList,
+            recordingPartsTimeList: recordingPartsTimeList,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String> _getPath() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return p.join(
+      dir.path,
+      'audio_${DateTime.now().millisecondsSinceEpoch}.wav',
+    );
   }
 
   Future<void> _start() async {
@@ -105,13 +141,14 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
           return;
         }
 
-        const config = RecordConfig(encoder: encoder, numChannels: 1);
+        final config = RecordConfig(encoder: encoder, numChannels: 1, sampleRate: sampleRate, bitRate: bitRate);
 
         // Record to file
         //await recordFile(_audioRecorder, config);
 
         // Record to stream
-        var path = await recordStream(_audioRecorder, config);
+        filepath = await _getPath();
+        var path = await recordStream(_audioRecorder, config, filepath);
         setState(() {
           filepath = path;
         });
@@ -188,7 +225,7 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: "Nigga what",
+      appBarTitle: "Live Recorder",
       content: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -312,9 +349,63 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
     });
   }
 
-  void onStop(String path) {
+  Future<void> onStop(String path) async {
+
+    Uint8List data = await File(path).readAsBytes();
+
+    Uint8List header = createHeader(data.length, sampleRate, bitRate);
+
+    final file = header + data;
+
+    await File(path).delete();
+    final newFile = await File(path).create();
+    await newFile.writeAsBytes(file);
+
+    logger.i('Recording saved to: $path');
+
     setState(() {
       recordedFilePath = path;
     });
+  }
+
+  Uint8List createHeader(int dataSize, int sampleRate, int bitRate) {
+    // For mono PCM audio with 16-bit depth:
+    int channels = 1;
+    int bitDepth = 16;
+    int byteRate = sampleRate * channels * bitDepth ~/ 8;
+    int blockAlign = channels * bitDepth ~/ 8;
+    int chunkSize = 36 + dataSize; // Correct chunk size: file size minus 8 bytes
+
+    // Create a 44-byte header buffer.
+    Uint8List header = Uint8List(44);
+    ByteData bd = ByteData.sublistView(header);
+
+    // 'RIFF'
+    header.setRange(0, 4, [82, 73, 70, 70]); // ASCII: R I F F
+    bd.setUint32(4, chunkSize, Endian.little);
+    // 'WAVE'
+    header.setRange(8, 12, [87, 65, 86, 69]); // ASCII: W A V E
+    // 'fmt ' (note the trailing space)
+    header.setRange(12, 16, [102, 109, 116, 32]); // ASCII: f m t ' '
+    // Format Chunk Size: 16 for PCM
+    bd.setUint32(16, 16, Endian.little);
+    // Audio Format: 1 (PCM)
+    bd.setUint16(20, 1, Endian.little);
+    // Number of channels: 1 (mono)
+    bd.setUint16(22, channels, Endian.little);
+    // Sample rate
+    bd.setUint32(24, sampleRate, Endian.little);
+    // Byte rate
+    bd.setUint32(28, byteRate, Endian.little);
+    // Block Align
+    bd.setUint16(32, blockAlign, Endian.little);
+    // Bits per sample
+    bd.setUint16(34, bitDepth, Endian.little);
+    // 'data'
+    header.setRange(36, 40, [100, 97, 116, 97]); // ASCII: d a t a
+    // Data Size (audio_data_len)
+    bd.setUint32(40, dataSize, Endian.little);
+
+    return header;
   }
 }
