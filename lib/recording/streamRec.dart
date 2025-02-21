@@ -56,6 +56,8 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
   StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
 
+  List<List<double>> spectrogramData = [];
+
   int sampleRate = 44100;
   int bitRate = calcBitRate(44100, 16);
 
@@ -83,6 +85,7 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
       _updateRecordState(recordState);
     });
 
+
     _amplitudeSub = _audioRecorder
         .onAmplitudeChanged(const Duration(milliseconds: 300))
         .listen((amp) {
@@ -104,7 +107,7 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
 
     recordingPartsTimeList.add(_recordDuration);
 
-    final path = await _audioRecorder.stop();
+    await _audioRecorder.stop();
 
     await onStop(filepath);
     Navigator.push(

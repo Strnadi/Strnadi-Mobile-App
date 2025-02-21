@@ -28,6 +28,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/widgets/spectogram_painter.dart';
 
 final logger = Logger();
 
@@ -262,6 +263,13 @@ class _RecordingFormState extends State<RecordingForm> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            SizedBox(
+              height: 100,
+              width: MediaQuery.of(context).size.width * 0.70,
+              child: SpectrogramWidget(
+                filePath: widget.filepath!,
+              ),
+            ),
             const SizedBox(height: 50),
             Form(
               child: Padding(
