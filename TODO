@@ -13,3 +13,4 @@ remake the spectogram recorder (paper notebook)
 
 offline database model to store the data locally till internet conn. available
 
+change the jwt token to be in the header as bearer
