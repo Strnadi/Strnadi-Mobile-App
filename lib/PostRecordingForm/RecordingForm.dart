@@ -220,6 +220,7 @@ class _RecordingFormState extends State<RecordingForm> {
         recordingSign,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token}'
         },
         body: jsonEncode({
           'jwt': token,
@@ -267,7 +268,7 @@ class _RecordingFormState extends State<RecordingForm> {
               height: 100,
               width: MediaQuery.of(context).size.width * 0.70,
               child: SpectrogramWidget(
-                filePath: widget.filepath!,
+                filePath: widget.filepath,
               ),
             ),
             const SizedBox(height: 50),

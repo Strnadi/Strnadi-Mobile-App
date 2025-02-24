@@ -26,6 +26,7 @@ import 'package:strnadi/AudioSpectogram/editor.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
+import 'package:audio_waveforms/audio_waveforms.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 
 final logger = Logger();

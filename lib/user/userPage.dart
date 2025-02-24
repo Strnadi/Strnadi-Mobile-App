@@ -74,6 +74,7 @@ class _UserPageState extends State<UserPage> {
         url,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization' : 'Bearer $jwt'
         },
       );
 
