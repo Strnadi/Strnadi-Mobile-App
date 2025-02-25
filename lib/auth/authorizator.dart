@@ -16,6 +16,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 enum AuthType { login, register }
 
@@ -36,11 +39,33 @@ class Authorizator extends StatefulWidget {
 class _AuthState extends State<Authorizator> {
   AuthType authType = AuthType.login;
 
-  void isLoggedIn() {
+  void isLoggedIn() async{
     // Check if user is logged in
     final secureStorage = FlutterSecureStorage();
     final token = secureStorage.read(key: 'jwt');
+    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users').replace(queryParameters: {
+      'jwt': token,
+    });
     if (token != null) {
+      try {
+        final response = await http.get(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization' : 'Bearer $token'
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = jsonDecode(response.body);
+          secureStorage.write(key: 'user', value: data['firstName']);
+          secureStorage.write(key: "lastname", value: data['lastName']);
+        } else {
+        }
+      } catch (error) {
+        Sentry.captureException(error);
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
