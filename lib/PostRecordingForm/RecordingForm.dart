@@ -166,7 +166,7 @@ class _RecordingFormState extends State<RecordingForm> {
           }),
         );
 
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
           logger.i('Upload was successful for segment $i');
           _showMessage("Upload was successful for segment $i");
         } else {
