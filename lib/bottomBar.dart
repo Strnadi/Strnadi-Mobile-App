@@ -15,11 +15,14 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/user/userPage.dart';
+
+import 'main.dart';
 
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
@@ -33,6 +36,17 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.logout,
   }) : super(key: key);
 
+
+  void Logout(BuildContext context) {
+    final localStorage = const FlutterSecureStorage();
+    localStorage.delete(key: 'token');
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => MyApp()),
+          (route) => false, // Remove all previous routes
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,8 +57,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () {
-                // todo add the correct logout method
-                logout!;
+                Logout(context);
               },
             ),
         ],
