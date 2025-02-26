@@ -21,16 +21,17 @@ import 'package:fftea/fftea.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:wav/wav.dart';
 
-class SpectrogramWidget extends StatefulWidget {
-  final String filePath;
+class LiveSpectogram extends StatefulWidget {
+  final List<double> data;
+  final String? filepath;
 
-  const SpectrogramWidget({Key? key, required this.filePath}) : super(key: key);
+  const LiveSpectogram.SpectogramLive({Key? key, required this.data, this.filepath}) : super(key: key);
 
   @override
-  _SpectrogramWidgetState createState() => _SpectrogramWidgetState();
+  _LiveSpectogramState createState() => _LiveSpectogramState();
 }
 
-class _SpectrogramWidgetState extends State<SpectrogramWidget> {
+class _LiveSpectogramState extends State<LiveSpectogram> {
   List<List<double>>? spectrogramData;
 
   @override
@@ -40,10 +41,16 @@ class _SpectrogramWidgetState extends State<SpectrogramWidget> {
   }
 
   Future<void> _processAudio() async {
-    final wav = await Wav.readFile(widget.filePath);
-    final audio = _normalizeRmsVolume(wav.toMono(), 0.3);
+    List<double> audio = [];
+    if (widget.filepath != null) {
+      final wav = await Wav.readFile(widget.filepath!);
+      audio = _normalizeRmsVolume(wav.toMono(), 0.3);
+    }
+    else {
+      audio = widget.data;
+    }
 
-    const chunkSize = 2048;
+    const chunkSize = 1024;
     final stft = STFT(chunkSize, Window.hanning(chunkSize));
     const buckets = 120;
 
@@ -96,7 +103,7 @@ class _SpectrogramWidgetState extends State<SpectrogramWidget> {
     return spectrogramData == null
         ? Center(child: CircularProgressIndicator())
         : CustomPaint(
-      size: Size(double.infinity, double.infinity),
+      size: Size(100, 100),
       painter: SpectrogramPainter(spectrogramData!),
     );
   }
@@ -125,7 +132,7 @@ class SpectrogramPainter extends CustomPainter {
   }
 
   Color _getColor(double power) {
-    const scale = 1;
+    const scale = 2;
     final int red = (255 * math.min(1, power * scale)).toInt();
     final int green = (255 * math.min(1, power * scale / 2)).toInt();
     final int blue = (255 * math.min(1, power * scale / 4)).toInt();

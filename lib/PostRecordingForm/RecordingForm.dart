@@ -266,8 +266,9 @@ class _RecordingFormState extends State<RecordingForm> {
             SizedBox(
               height: 100,
               width: MediaQuery.of(context).size.width * 0.70,
-              child: SpectrogramWidget(
-                filePath: widget.filepath!,
+              child: LiveSpectogram.SpectogramLive(
+                data: [],
+                filepath: widget.filepath,
               ),
             ),
             const SizedBox(height: 50),

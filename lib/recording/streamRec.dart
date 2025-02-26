@@ -16,17 +16,16 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:record/record.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
-import 'package:strnadi/recording/platform/audio_recorder_io.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:strnadi/widgets/spectogram_painter.dart';
 
 
 import '../bottomBar.dart';
@@ -46,7 +45,7 @@ int calcBitRate(int sampleRate, int bitDepth) {
   return sampleRate * bitDepth;
 }
 
-class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
+class _LiveRecState extends State<LiveRec> {
   int _recordDuration = 0;
   var filepath = "";
   Timer? _timer;
@@ -63,6 +62,8 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
 
   final recordingPartsTimeList = <int>[];
   final recordingPartsList = <RecordingParts>[];
+
+  Uint8List _stream = Uint8List(0);
 
   // overallStartTime is the time when the very first segment started.
   DateTime? overallStartTime;
@@ -176,6 +177,32 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
     }
   }
 
+
+  Future<String> recordStream(AudioRecorder recorder, RecordConfig config, String filepath) async {
+    final file = File(filepath);
+    final stream = await recorder.startStream(config);
+
+    final completer = Completer<String>();
+
+    stream.listen(
+          (data) {
+        file.writeAsBytes(data, mode: FileMode.append);
+        _stream = data;
+      },
+      onDone: () {
+        print('End of stream. File written to $filepath.');
+        completer.complete(filepath);
+      },
+      onError: (error) {
+        completer.completeError(error);
+      },
+    );
+
+    return completer.future;
+  }
+
+
+
   Future<void> _pause() async {
     _audioRecorder.pause();
 
@@ -230,26 +257,27 @@ class _LiveRecState extends State<LiveRec> with AudioRecorderMixin {
     return ScaffoldWithBottomBar(
       appBarTitle: "Live Recorder",
       content: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                _buildRecordStopControl(),
-                const SizedBox(width: 20),
-                _buildPauseResumeControl(),
-                const SizedBox(width: 20),
-                _buildText(),
-              ],
-            ),
-            if (_amplitude != null) ...[
-              const SizedBox(height: 40),
-              Text('Current: ${_amplitude?.current ?? 0.0}'),
-              Text('Max: ${_amplitude?.max ?? 0.0}'),
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // SizedBox(height: 100, width: 100, child: LiveSpectogram.SpectogramLive(data: _stream.toList().map((e) => e.toDouble()).toList())),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              _buildRecordStopControl(),
+              const SizedBox(width: 20),
+              _buildPauseResumeControl(),
+              const SizedBox(width: 20),
+              _buildText(),
             ],
+          ),
+          if (_amplitude != null) ...[
+            const SizedBox(height: 40),
+            Text('Current: ${_amplitude?.current ?? 0.0}'),
+            Text('Max: ${_amplitude?.max ?? 0.0}'),
           ],
-        ),
-      );
+        ],
+      ),
+    );
   }
 
   @override
