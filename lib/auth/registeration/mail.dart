@@ -54,80 +54,85 @@ class _RegMailState extends State<RegMail> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Form(
-        key: _GlobalKey,
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              const Text(
-                'Zadejte Vas Email',
-                style: TextStyle(fontSize: 40),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _emailController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  label: RichText(
-                    text: TextSpan(
-                      text: 'Email',
-                      children: const <TextSpan>[
-                        TextSpan(
-                          text: ' *',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ],
-                    ),
-                  ),
-                  border: const OutlineInputBorder(),
+    return Scaffold(
+        appBar: AppBar(
+        title: const Text('Registrace')
+    ),
+      body: Center(
+        child: Form(
+          key: _GlobalKey,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                const Text(
+                  'Zadejte Vas Email',
+                  style: TextStyle(fontSize: 40),
                 ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                      .hasMatch(value)) {
-                    return 'Enter valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              CheckboxListTile(
-                title: const Text('I agree to the terms and conditions'),
-                value: _termsAgreement,
-                onChanged: (value) {
-                  setState(() {
-                    _termsAgreement = value!;
-                  });
-                },
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ButtonStyle(
-                      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _emailController,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    label: RichText(
+                      text: TextSpan(
+                        text: 'Email',
+                        children: const <TextSpan>[
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                     ),
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RegName(email: _emailController.text, consent: _termsAgreement ))),
-                    child: const Text('Submit'),
+                    border: const OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter some text';
+                    }
+                    if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                        .hasMatch(value)) {
+                      return 'Enter valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                CheckboxListTile(
+                  title: const Text('I agree to the terms and conditions'),
+                  value: _termsAgreement,
+                  onChanged: (value) {
+                    setState(() {
+                      _termsAgreement = value!;
+                    });
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ButtonStyle(
+                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                        ),
+                      ),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RegName(email: _emailController.text, consent: _termsAgreement ))),
+                      child: const Text('Submit'),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+      )
     );
   }
 }
