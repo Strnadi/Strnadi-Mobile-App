@@ -36,10 +36,22 @@ class Authorizator extends StatefulWidget {
   State<Authorizator> createState() => _AuthState();
 }
 
+
 class _AuthState extends State<Authorizator> {
-  AuthType authType = AuthType.login;
+  @override
+  void initState() {
+    super.initState();
+    isLoggedIn(); // token check if needed
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Return the complete login screen without extra wrapping.
+    return widget.login;
+  }
 
   void _showMessage(String message) {
+    // This will work fine now as long as it's called from a valid Material context.
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -55,69 +67,38 @@ class _AuthState extends State<Authorizator> {
     );
   }
 
-  void isLoggedIn() async{
-    // Check if user is logged in
+  void isLoggedIn() async {
     final secureStorage = FlutterSecureStorage();
-    final token = secureStorage.read(key: 'jwt');
-    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users').replace(queryParameters: {
-      'jwt': token,
-    });
+    final token = await secureStorage.read(key: 'token');
     if (token != null) {
+      final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users')
+          .replace(queryParameters: {'jwt': token});
       try {
         final response = await http.get(
           url,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization' : 'Bearer $token'
+            'Authorization': 'Bearer $token',
           },
         );
-
         if (response.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(response.body);
           secureStorage.write(key: 'user', value: data['firstName']);
-          secureStorage.write(key: "lastname", value: data['lastName']);
+          secureStorage.write(key: 'lastname', value: data['lastName']);
         } else {
           _showMessage("Byli jste odhlášeni");
-          secureStorage.delete(key: 'jwt');
+          secureStorage.delete(key: 'token');
+          secureStorage.delete(key: 'user');
+          secureStorage.delete(key: 'lastname');
         }
       } catch (error) {
         Sentry.captureException(error);
       }
-
+      // If you plan to navigate here, consider scheduling it in a post-frame callback.
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
       );
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      spacing: 20,
-      children: [
-        SegmentedButton<AuthType>(
-          segments: const <ButtonSegment<AuthType>>[
-            ButtonSegment<AuthType>(
-                value: AuthType.login,
-                label: Text('Login'),
-                icon: Icon(Icons.key)),
-            ButtonSegment<AuthType>(
-                value: AuthType.register,
-                label: Text('Register'),
-                icon: Icon(Icons.account_circle_rounded)),
-          ],
-          selected: <AuthType>{authType},
-          onSelectionChanged: (Set<AuthType> newSelection) {
-            setState(() {
-              authType = newSelection.first;
-            });
-          },
-        ),
-        Center(
-          child: authType == AuthType.login ? widget.login : widget.register,
-        )
-      ],
-    );
   }
 }

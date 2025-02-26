@@ -15,30 +15,51 @@
  */
 import 'dart:math';
 
+import 'package:flutter/gestures.dart';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/auth/register.dart';
+import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 final logger = Logger();
 
 class Login extends StatefulWidget {
-  const Login({ super.key });
+  const Login({super.key});
 
   @override
   State<Login> createState() => _LoginState();
-
 }
 
 class _LoginState extends State<Login> {
-
-  final _GlobalKey = GlobalKey<FormState>();
-
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  late TapGestureRecognizer _registerTapRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _registerTapRecognizer = TapGestureRecognizer()
+      ..onTap = () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const RegMail()),
+        );
+      };
+  }
+
+  @override
+  void dispose() {
+    _registerTapRecognizer.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void checkAuth() async {
     final secureStorage = FlutterSecureStorage();
@@ -125,89 +146,93 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
-    checkAuth();
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Column(
-          children: [
-            const Text(
-              'Strnadi',
-              style: TextStyle(fontSize: 60),
-            ),
-            const SizedBox(height: 20),
-            Form(
-              key: _GlobalKey,
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextFormField(
-                      controller: _emailController,
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        label: RichText(
-                          text: TextSpan(
-                            text: 'Email',
-                            children: const <TextSpan>[
-                              TextSpan(
-                                text: ' *',
-                                style: TextStyle(color: Colors.red),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Přihlášení')),
+      body: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height -
+                kToolbarHeight -
+                MediaQuery.of(context).padding.top,
+          ),
+          child: IntrinsicHeight(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                // Center the content vertically if possible.
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Strnadi',
+                    style: TextStyle(fontSize: 60),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _emailController,
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            label: RichText(
+                              text: TextSpan(
+                                text: 'Email',
+                                children: const <TextSpan>[
+                                  TextSpan(
+                                    text: ' *',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter some text';
+                            }
+                            if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                                .hasMatch(value)) {
+                              return 'Enter valid email';
+                            }
+                            return null;
+                          },
                         ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                            .hasMatch(value)) {
-                          return 'Enter valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      textAlign: TextAlign.center,
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        label: RichText(
-                          text: TextSpan(
-                            text: 'Password',
-                            children: const <TextSpan>[
-                              TextSpan(
-                                text: ' *',
-                                style: TextStyle(color: Colors.red),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                          controller: _passwordController,
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            label: RichText(
+                              text: TextSpan(
+                                text: 'Password',
+                                children: const <TextSpan>[
+                                  TextSpan(
+                                    text: ' *',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
+                          obscureText: true,
+                          keyboardType: TextInputType.visiblePassword,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter some text';
+                            }
+                            return null;
+                          },
                         ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      obscureText: true,
-                      keyboardType: TextInputType.visiblePassword,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
+                        const SizedBox(height: 20),
+                        ElevatedButton(
                           style: ButtonStyle(
-                            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                               RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10.0),
                               ),
@@ -215,17 +240,33 @@ class _LoginState extends State<Login> {
                           ),
                           onPressed: login,
                           child: const Text('Submit'),
-
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        RichText(
+                          text: TextSpan(
+                            text: "Nemáte účet? ",
+                            style: const TextStyle(color: Colors.white),
+                            children: <TextSpan>[
+                              TextSpan(
+                                text: "Zaregistrovat se",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                ),
+                                recognizer: _registerTapRecognizer,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }
