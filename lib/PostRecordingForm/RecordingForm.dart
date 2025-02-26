@@ -220,6 +220,7 @@ class _RecordingFormState extends State<RecordingForm> {
         recordingSign,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token}'
         },
         body: jsonEncode({
           'jwt': token,
@@ -269,6 +270,7 @@ class _RecordingFormState extends State<RecordingForm> {
               child: LiveSpectogram.SpectogramLive(
                 data: [],
                 filepath: widget.filepath,
+
               ),
             ),
             const SizedBox(height: 50),
