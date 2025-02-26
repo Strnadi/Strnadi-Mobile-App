@@ -152,9 +152,9 @@ class _RecordingFormState extends State<RecordingForm> {
           uploadPart,
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${token}',
           },
           body: jsonEncode({
-            'jwt': token,
             'RecordingId': id,
             "Start": segmentStart.toIso8601String(),
             "End": segmentEnd.toIso8601String(),

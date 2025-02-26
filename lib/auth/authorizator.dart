@@ -39,6 +39,22 @@ class Authorizator extends StatefulWidget {
 class _AuthState extends State<Authorizator> {
   AuthType authType = AuthType.login;
 
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void isLoggedIn() async{
     // Check if user is logged in
     final secureStorage = FlutterSecureStorage();
@@ -61,6 +77,8 @@ class _AuthState extends State<Authorizator> {
           secureStorage.write(key: 'user', value: data['firstName']);
           secureStorage.write(key: "lastname", value: data['lastName']);
         } else {
+          _showMessage("Byli jste odhlášeni");
+          secureStorage.delete(key: 'jwt');
         }
       } catch (error) {
         Sentry.captureException(error);
