@@ -15,6 +15,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:strnadi/recording/streamRec.dart';
@@ -42,6 +43,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () {
+                // todo add the correct logout method
                 logout!;
               },
             ),
@@ -93,12 +95,12 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               // todo add the correct route
-              if (ModalRoute.of(context)?.settings.name != '/map') {
+              if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => LiveRec(),
-                    settings: const RouteSettings(name: '/map'),
+                    builder: (_) => RecordsScreen(),
+                    settings: const RouteSettings(name: '/list'),
                   ),
                 );
               }
@@ -113,7 +115,7 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => RecorderWithSpectogram(),
+                    builder: (_) => LiveRec(),
                     settings: const RouteSettings(name: '/Recorder'),
                   ),
                 );
