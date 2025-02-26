@@ -124,6 +124,8 @@ class _RecordingFormState extends State<RecordingForm> {
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
 
+    print("token $token");
+
     int cumulativeSeconds = 0;
 
     for (int i = 0; i < trimmedAudioParts.length; i++) {
