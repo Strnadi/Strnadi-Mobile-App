@@ -41,6 +41,7 @@ dependencies:
     sdk: flutter
 
 
+  ffi: ^2.0.0
   audioplayers: ^6.1.0
   record: ^5.2.0
   path_provider: any
@@ -88,6 +89,7 @@ flutter:
   assets:
     - lib/map/dummy.json
     - assets/images/default.jpg
+    - assets/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
