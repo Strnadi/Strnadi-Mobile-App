@@ -1,3 +1,4 @@
+// lib/bottomBar.dart
 /*
  * Copyright (C) 2024 Marian Pecqueur
  * This program is free software: you can redistribute it and/or modify
@@ -6,7 +7,6 @@
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
@@ -19,7 +19,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRec
 import 'package:strnadi/user/userPage.dart';
 
 import 'main.dart';
@@ -27,7 +27,7 @@ import 'main.dart';
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
   final Widget content;
-  final bool? logout;
+  final VoidCallback? logout;
 
   const ScaffoldWithBottomBar({
     Key? key,
@@ -48,7 +48,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildConte TapGestureRecognizer _registerTapRecognizer;xt context) {
     return Scaffold(
       appBar: AppBar(
         title: Center(child: Text(appBarTitle)),
@@ -59,14 +59,13 @@ class ScaffoldWithBottomBar extends StatelessWidget {
               onPressed: () {
                 Logout(context);
               },
+
             ),
         ],
         automaticallyImplyLeading: false,
       ),
-      body: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
-        ),
+      body: SizedBox(
+        height: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
         child: content,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -102,7 +101,6 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
-
           IconButton(
             icon: const Icon(Icons.menu),
             iconSize: 30.0,
@@ -119,7 +117,6 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
-
           IconButton(
             icon: const Icon(Icons.mic),
             iconSize: 30.0,
@@ -135,7 +132,6 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
-
           IconButton(
             icon: const Icon(Icons.inbox_outlined),
             iconSize: 30.0,
@@ -152,7 +148,6 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
-
           IconButton(
             icon: const Icon(Icons.account_circle),
             iconSize: 30.0,

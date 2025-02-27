@@ -94,67 +94,42 @@ void checkInternetConnection(BuildContext context) async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  /// Initialization method for side effects.
-  /// For proper lifecycle management, consider using a StatefulWidget.
-  void initialize(BuildContext context) {
-    requestLocationPermission();
-    checkInternetConnection(context);
-    checkIfDbExists();
-    logger.i("Database has been created.");
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Welcome to Flutter',
+      theme: ThemeData.dark(),
+      home: const HomeScreen(),
+    );
   }
+}
 
-  /// Request location permissions and log the process.
-  Future<bool> requestLocationPermission() async {
-    LocationPermission permission;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
-    // Check if location services are enabled.
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      logger.w('Location services are disabled.');
-      return false;
-    }
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
 
-    // Check current permission status.
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      // Request permission if denied.
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        logger.w('Location permission denied.');
-        return false;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      logger.w('Location permissions are permanently denied.');
-      return false;
-    }
-
-    logger.i("Location permission granted.");
-    return true;
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Defer the check until after the first frame is rendered.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkInternetConnection(context);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Note: Calling initialization here is for demonstration.
-    // For proper lifecycle management, use a StatefulWidget.
-    initialize(context);
-
-    return MaterialApp(
-      title: 'Welcome to Flutter',
-      theme: ThemeData.dark(),
-      home: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          shape: const ContinuousRectangleBorder(),
-        ),
-        body: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Authorizator(login: Login(), register: RegMail()),
-            const SizedBox(height: 20),
-          ],
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Welcome'),
       ),
+      // Directly include Authorizator which now returns a complete screen.
+      body: Authorizator(login: const Login(), register: const RegMail()),
     );
   }
 }
+
