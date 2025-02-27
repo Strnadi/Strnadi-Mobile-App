@@ -13,8 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
-
 import 'dart:io';
 
 import 'package:strnadi/database/soundDatabase.dart';
@@ -123,6 +121,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
+
+    print("token $token");
 
     int cumulativeSeconds = 0;
 

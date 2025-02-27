@@ -25,6 +25,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/register.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/recording/streamRec.dart';
 
 final logger = Logger();
 
@@ -66,7 +67,7 @@ class _LoginState extends State<Login> {
     var containsKey = await secureStorage.containsKey(key: 'token');
 
     if (containsKey) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => RecorderWithSpectogram()));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => LiveRec()));
     }
   }
 
