@@ -89,6 +89,7 @@ flutter:
   assets:
     - lib/map/dummy.json
     - assets/images/default.jpg
+    - assets/databaseScheme.sql
     - assets/
 
   # The following line ensures that the Material Icons font is

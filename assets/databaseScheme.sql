@@ -1,5 +1,6 @@
 CREATE TABLE recordings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
     created_at TEXT NOT NULL,
     estimated_birds_count INTEGER NOT NULL,
     device TEXT NOT NULL,
@@ -10,14 +11,3 @@ CREATE TABLE recordings (
     longitude REAL,
     upload_status INTEGER DEFAULT 0 -- 0 = pending, 1 = uploaded
 );
-
-CREATE TABLE recording_parts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recording_id INTEGER NOT NULL,
-    start_time TEXT NOT NULL,
-    end_time TEXT NOT NULL,
-    latitude REAL,
-    longitude REAL,
-    FOREIGN KEY (recording_id) REFERENCES recordings(id) ON DELETE CASCADE
-);
-

@@ -54,6 +54,7 @@ Future<bool> hasInternetAccess() async {
 }
 
 Future<void> main() async {
+  initDb();
   await SentryFlutter.init(
         (options) {
       options.dsn = 'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'; // Replace with your actual DSN.

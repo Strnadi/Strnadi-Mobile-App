@@ -27,6 +27,7 @@ import 'package:intl/intl.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
+import 'package:strnadi/localRecordings/recordingsDb.dart';
 
 final logger = Logger();
 
@@ -44,6 +45,18 @@ class Recording {
     required this.byApp,
     this.note = null,
   });
+
+  factory Recording.fromJson(Map<String, dynamic> json) {
+    return Recording(
+      createdAt: DateTime.parse(json['CreatedAt']),
+      estimatedBirdsCount: json['EstimatedBirdsCount'],
+      device: json['Device'],
+      byApp: json['ByApp'],
+      note: json['Note'],
+    );
+  }
+
+
 
   Map<String, dynamic> toJson() {
     return {
@@ -187,7 +200,7 @@ class _RecordingFormState extends State<RecordingForm> {
   void upload() async {
     final platform = await getDeviceModel();
 
-    print("Estimated birds count: ${_strnadiCountController.toInt()}");
+    //print("Estimated birds count: ${_strnadiCountController.toInt()}");
     final rec = Recording(
       createdAt: DateTime.now(),
       estimatedBirdsCount: _strnadiCountController.toInt(),
@@ -197,6 +210,15 @@ class _RecordingFormState extends State<RecordingForm> {
     );
 
     if (await hasInternetAccess() == false) {
+      LocalDb.insertRecording(
+        rec,
+        _recordingNameController.text,
+        0,
+        widget.filepath,
+        widget.currentPosition?.latitude ?? 0,
+        widget.currentPosition?.longitude ?? 0,
+      );
+      logger.i("inserted into local db");
       logger.w("No internet connection");
       _showMessage('No internet connection');
       return;
