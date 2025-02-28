@@ -97,7 +97,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Welcome to Flutter',
       theme: ThemeData.dark(),
       home: const HomeScreen(),
     );
@@ -125,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Welcome'),
       ),
       // Directly include Authorizator which now returns a complete screen.
       body: Authorizator(login: const Login(), register: const RegMail()),
