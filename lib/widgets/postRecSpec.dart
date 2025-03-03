@@ -50,7 +50,7 @@ void preprocessAudio(List<String> argv) async {
   stft.run(
     audio,
     // This callback is called for each FFT'd chunk.
-        (Float64x2List chunk) {
+    (Float64x2List chunk) {
       // FFTs of real valued data contain a lot of redundant frequency data that
       // we don't want to see in our spectrogram, so discard it. See
       // [ComplexArray.discardConjugates] for more info. We also don't care

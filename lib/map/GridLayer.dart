@@ -21,7 +21,7 @@ import 'package:latlong2/latlong.dart';
 
 class GridLayer extends StatelessWidget {
   final LatLngBounds bounds; // Visible map bounds
-  final double gridSizeKm;   // Grid size in kilometers
+  final double gridSizeKm; // Grid size in kilometers
 
   GridLayer({required this.bounds, this.gridSizeKm = 10.0});
 
@@ -47,20 +47,23 @@ class GridPainter extends CustomPainter {
       ..strokeWidth = 1.0;
 
     final double latitudeInterval = gridSizeKm / 111.0;
-    final double longitudeInterval = gridSizeKm / (111.0 * cos(bounds.south * pi / 180));
+    final double longitudeInterval =
+        gridSizeKm / (111.0 * cos(bounds.south * pi / 180));
 
     // Iterate over lat/lon and draw lines
-    for (double lat = (bounds.south / latitudeInterval).floor() * latitudeInterval;
-    lat <= bounds.north;
-    lat += latitudeInterval) {
+    for (double lat =
+            (bounds.south / latitudeInterval).floor() * latitudeInterval;
+        lat <= bounds.north;
+        lat += latitudeInterval) {
       final start = Offset(0, _latToY(lat, bounds, size));
       final end = Offset(size.width, _latToY(lat, bounds, size));
       canvas.drawLine(start, end, paint);
     }
 
-    for (double lon = (bounds.west / longitudeInterval).floor() * longitudeInterval;
-    lon <= bounds.east;
-    lon += longitudeInterval) {
+    for (double lon =
+            (bounds.west / longitudeInterval).floor() * longitudeInterval;
+        lon <= bounds.east;
+        lon += longitudeInterval) {
       final start = Offset(_lonToX(lon, bounds, size), 0);
       final end = Offset(_lonToX(lon, bounds, size), size.height);
       canvas.drawLine(start, end, paint);
@@ -71,7 +74,8 @@ class GridPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) => true;
 
   double _latToY(double lat, LatLngBounds bounds, Size size) {
-    return (1 - (lat - bounds.south) / (bounds.north - bounds.south)) * size.height;
+    return (1 - (lat - bounds.south) / (bounds.north - bounds.south)) *
+        size.height;
   }
 
   double _lonToX(double lon, LatLngBounds bounds, Size size) {

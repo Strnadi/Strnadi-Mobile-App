@@ -20,7 +20,8 @@ import 'package:audio_waveforms/audio_waveforms.dart';
 class SpectrogramViewer extends StatefulWidget {
   final String audioFilePath;
 
-  const SpectrogramViewer({Key? key, required this.audioFilePath}) : super(key: key);
+  const SpectrogramViewer({Key? key, required this.audioFilePath})
+      : super(key: key);
 
   @override
   _SpectrogramViewerState createState() => _SpectrogramViewerState();

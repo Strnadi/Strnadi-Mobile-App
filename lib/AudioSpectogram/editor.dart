@@ -27,19 +27,21 @@ class Spectogram extends StatelessWidget {
   final List<int> recTimeStop;
   final DateTime StartTime;
 
-  const Spectogram({
-    Key? key,
-    required this.StartTime,
-    required this.audioFilePath,
-    required this.currentPosition,
-    required this.recParts,
-    required this.recTimeStop
-  }) : super(key: key);
+  const Spectogram(
+      {Key? key,
+      required this.StartTime,
+      required this.audioFilePath,
+      required this.currentPosition,
+      required this.recParts,
+      required this.recTimeStop})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Submit'),),
+      appBar: AppBar(
+        title: Text('Submit'),
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
