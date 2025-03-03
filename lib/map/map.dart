@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -117,8 +118,6 @@ class _OSMmapState extends State<OSMmap> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
@@ -134,7 +133,8 @@ class _OSMmapState extends State<OSMmap> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate:
+                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.navratKrale.app',
               ),
               MarkerLayer(
@@ -177,3 +177,4 @@ class _OSMmapState extends State<OSMmap> {
     );
   }
 }
+ */

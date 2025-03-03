@@ -118,7 +118,7 @@ class _LiveRecState extends State<LiveRec> {
           appBar: AppBar(title: const Text("Recording Form")),
           body: RecordingForm(
             filepath: filepath,
-            StartTime: overallStartTime!,
+            startTime: overallStartTime!,
             currentPosition: currentPosition,
             recordingParts: recordingPartsList,
             recordingPartsTimeList: recordingPartsTimeList,
