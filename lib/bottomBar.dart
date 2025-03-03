@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
+import 'package:strnadi/notificationPage/notifList.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/user/userPage.dart';
 
@@ -136,12 +137,12 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               // todo add the correct route
-              if (ModalRoute.of(context)?.settings.name != '/map') {
+              if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OSMmap(),
-                    settings: const RouteSettings(name: '/map'),
+                    builder: (_) => NotificationScreen(),
+                    settings: const RouteSettings(name: '/notification'),
                   ),
                 );
               }
