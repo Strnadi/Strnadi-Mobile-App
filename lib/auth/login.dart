@@ -71,10 +71,8 @@ class _LoginState extends State<Login> {
     }
   }
 
-  void login() async{
-
+  void login() async {
     final secureStorage = FlutterSecureStorage();
-
 
     final email = _emailController.text;
     final password = _passwordController.text;
@@ -85,7 +83,10 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/login');
+    final url = Uri(
+        scheme: 'https',
+        host: 'strnadiapi.slavetraders.tech',
+        path: '/auth/login');
 
     try {
       final response = await http.post(
@@ -99,7 +100,8 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      if (response.statusCode == 202 || response.statusCode == 200) { //202 -- Accepted
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        //202 -- Accepted
         final data = response.body;
 
         secureStorage.write(key: 'token', value: data.toString());
@@ -110,13 +112,10 @@ class _LoginState extends State<Login> {
           context,
           MaterialPageRoute(builder: (_) => LiveRec()),
         );
-
-      }
-      else if (response.statusCode == 401){
+      } else if (response.statusCode == 401) {
         _showMessage('Uživatel s daným emailem a heslem neexistuje');
         logger.w("User already exists");
-      }
-      else {
+      } else {
         _showMessage('Nastala chyba :( Zkuste to znovu');
         logger.e(response);
         print('Login failed: ${response.statusCode}');
@@ -190,7 +189,8 @@ class _LoginState extends State<Login> {
                           if (value == null || value.isEmpty) {
                             return 'Please enter some text';
                           }
-                          if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                          if (!RegExp(
+                                  r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
                               .hasMatch(value)) {
                             return 'Enter valid email';
                           }
@@ -227,7 +227,8 @@ class _LoginState extends State<Login> {
                       const SizedBox(height: 20),
                       ElevatedButton(
                         style: ButtonStyle(
-                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.0),
                             ),

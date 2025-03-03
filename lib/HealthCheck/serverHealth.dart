@@ -56,8 +56,14 @@ class _ServerHealthState extends State<ServerHealth> {
     return SizedBox(
       child: Center(
         child: _isServerHealthy
-            ? const Text('Server is healthy', style: TextStyle(color: Colors.green),)
-            : const Text('Server is down', style: TextStyle(color: Colors.red),),
+            ? const Text(
+                'Server is healthy',
+                style: TextStyle(color: Colors.green),
+              )
+            : const Text(
+                'Server is down',
+                style: TextStyle(color: Colors.red),
+              ),
       ),
     );
   }

@@ -181,8 +181,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         ));
         // Record the overall elapsed time from the very first segment start.
         if (overallStartTime != null) {
-          recordingPartsTimeList.add(
-              DateTime.now().difference(overallStartTime!).inMilliseconds);
+          recordingPartsTimeList
+              .add(DateTime.now().difference(overallStartTime!).inMilliseconds);
         }
         if (isContextMounted(context)) {
           setState(() {
@@ -204,8 +204,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         if (overallStartTime == null) {
           overallStartTime = DateTime.now();
           segmentStartTime = overallStartTime;
-        }
-        else {
+        } else {
           // Mark the start time of this segment.
           segmentStartTime = DateTime.now();
         }
@@ -213,8 +212,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         String filePath =
             '${appDocDir.path}/recording_segment_${DateTime.now().millisecondsSinceEpoch}.wav';
         // Start recording the new segment.
-        final config =
-        RecordConfig(encoder: AudioEncoder.wav, bitRate: 128000);
+        final config = RecordConfig(encoder: AudioEncoder.wav, bitRate: 128000);
         await _recorder.start(config, path: filePath);
         if (isContextMounted(context)) {
           setState(() {
@@ -244,8 +242,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           longitude: currentPosition?.longitude ?? 14.4,
           latitude: currentPosition?.latitude ?? 50.1,
         ));
-        recordingPartsTimeList.add(
-            DateTime.now().difference(overallStartTime!).inMilliseconds);
+        recordingPartsTimeList
+            .add(DateTime.now().difference(overallStartTime!).inMilliseconds);
       }
 
       // Merge segments if there is more than one.
@@ -255,7 +253,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
       } else {
         Directory appDocDir = await getApplicationDocumentsDirectory();
         finalFilePath =
-        '${appDocDir.path}/recording_merged_${DateTime.now().millisecondsSinceEpoch}.wav';
+            '${appDocDir.path}/recording_merged_${DateTime.now().millisecondsSinceEpoch}.wav';
         finalFilePath = await mergeWavFiles(segmentPaths, finalFilePath);
       }
 
@@ -293,7 +291,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   /// Merges multiple WAV files (segments) into a single WAV file.
   /// This basic implementation assumes each segment has a 44-byte header
   /// and uses PCM encoding.
-  Future<String> mergeWavFiles(List<String> segmentPaths, String outputPath) async {
+  Future<String> mergeWavFiles(
+      List<String> segmentPaths, String outputPath) async {
     if (segmentPaths.isEmpty) return "";
 
     // Get the application documents directory.
@@ -304,12 +303,14 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     // Build the file list content in the format:
     // file '/path/to/segment1.wav'
     // file '/path/to/segment2.wav'
-    String fileListContent = segmentPaths.map((path) => "file '$path'").join('\n');
+    String fileListContent =
+        segmentPaths.map((path) => "file '$path'").join('\n');
     await fileList.writeAsString(fileListContent);
 
     // Construct the FFmpeg command.
     // Quoting file paths to handle spaces in directory/file names.
-    String command = "-f concat -safe 0 -i \"$fileListPath\" -c copy \"$outputPath\"";
+    String command =
+        "-f concat -safe 0 -i \"$fileListPath\" -c copy \"$outputPath\"";
 
     // Execute the FFmpeg command.
     final session = await FFmpegKit.execute(command);
@@ -321,7 +322,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     if (ReturnCode.isSuccess(returnCode)) {
       return outputPath;
     } else {
-      throw Exception("FFmpeg merge failed with return code: ${returnCode?.getValue()}");
+      throw Exception(
+          "FFmpeg merge failed with return code: ${returnCode?.getValue()}");
     }
   }
 
@@ -385,9 +387,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
-              onPressed: (_isRecording || _isRecordingPaused)
-                  ? _stopRecording
-                  : null,
+              onPressed:
+                  (_isRecording || _isRecordingPaused) ? _stopRecording : null,
               child: const Text(
                 'Stop',
                 style: TextStyle(

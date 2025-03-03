@@ -22,6 +22,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../PostRecordingForm/RecordingForm.dart';
+
 class LocalDb {
   static Database? _database;
 
@@ -40,7 +41,8 @@ class LocalDb {
       version: 1,
       onCreate: (db, version) async {
         // Read the schema from the .sql file
-        String schema = await rootBundle.loadString('assets/databaseScheme.sql');
+        String schema =
+            await rootBundle.loadString('assets/databaseScheme.sql');
 
         // Execute multiple SQL commands
         List<String> queries = schema.split(';');
@@ -53,7 +55,8 @@ class LocalDb {
     );
   }
 
-  static Future<void> insertRecording(Recording recording, String name, int status, String filepath, double latitude, double longitude) async {
+  static Future<void> insertRecording(Recording recording, String name,
+      int status, String filepath, double latitude, double longitude) async {
     final Database db = await database;
 
     var map = <String, Object?>{

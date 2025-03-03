@@ -32,22 +32,24 @@ class RegPassword extends StatefulWidget {
   final dynamic surname;
   final dynamic nickname;
 
-  
-  const RegPassword({ super.key, required this.email, required this.consent, required this.name, required this.surname, required this.nickname});
+  const RegPassword(
+      {super.key,
+      required this.email,
+      required this.consent,
+      required this.name,
+      required this.surname,
+      required this.nickname});
 
   @override
   State<RegPassword> createState() => _RegPasswordState();
-
 }
 
 class _RegPasswordState extends State<RegPassword> {
-
   final _GlobalKey = GlobalKey<FormState>();
 
   final TextEditingController _passwordController = TextEditingController();
 
   late bool _termsAgreement = false;
-
 
   void _showMessage(String message) {
     showDialog(
@@ -65,12 +67,14 @@ class _RegPasswordState extends State<RegPassword> {
     );
   }
 
-
-  void register() async{
+  void register() async {
     final secureStorage = FlutterSecureStorage();
 
-    final url = Uri(scheme: 'https', host: 'strnadiapi.slavetraders.tech', path: '/auth/sign-up');
-    
+    final url = Uri(
+        scheme: 'https',
+        host: 'strnadiapi.slavetraders.tech',
+        path: '/auth/sign-up');
+
     logger.i(jsonEncode({
       'email': widget.email,
       'password': _passwordController.text,
@@ -78,7 +82,7 @@ class _RegPasswordState extends State<RegPassword> {
       'LastName': widget.surname,
       'nickname': widget.nickname == "" ? null : widget.nickname
     }));
-    
+
     try {
       final response = await http.post(
         url,
@@ -94,7 +98,10 @@ class _RegPasswordState extends State<RegPassword> {
         }),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200 || response.statusCode == 202 ) { //201 -- Created
+      if (response.statusCode == 201 ||
+          response.statusCode == 200 ||
+          response.statusCode == 202) {
+        //201 -- Created
         final data = response.body;
 
         logger.i("Sign Up successful");
@@ -105,13 +112,10 @@ class _RegPasswordState extends State<RegPassword> {
           context,
           MaterialPageRoute(builder: (_) => Login()),
         );
-
-      }
-      else if (response.statusCode == 409){
+      } else if (response.statusCode == 409) {
         _showMessage('Uživatel již existuje');
         logger.w("User already exists");
-      }
-      else {
+      } else {
         _showMessage('Nastala chyba :( Zkuste to znovu');
         logger.e(response);
         print('Sign up failed: ${response.statusCode}');
