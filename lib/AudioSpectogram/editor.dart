@@ -49,13 +49,7 @@ class Spectogram extends StatelessWidget {
               height: 300, // Specify a height for the spectrogram viewer
               child: SpectrogramViewer(audioFilePath: audioFilePath),
             ),
-            RecordingForm(
-              filepath: audioFilePath,
-              currentPosition: currentPosition,
-              recordingParts: recParts,
-              recordingPartsTimeList: recTimeStop,
-              StartTime: StartTime,
-            ),
+            RecordingForm(filepath: audioFilePath, currentPosition: currentPosition, recordingParts: recParts, recordingPartsTimeList: recTimeStop, startTime: StartTime,),
           ],
         ),
       ),

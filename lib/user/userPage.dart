@@ -59,10 +59,7 @@ class _UserPageState extends State<UserPage> {
     }
 
     final jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users')
-        .replace(queryParameters: {
-      'jwt': jwt,
-    });
+    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users');
 
     print("url: $url");
 

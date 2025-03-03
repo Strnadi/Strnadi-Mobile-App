@@ -18,9 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
-import 'package:strnadi/notificationPage/notifList.dart';
-import 'package:strnadi/recording/streamRec.dart';
-import 'package:strnadi/user/userPage.dart';
+import 'package:strnadi/map/mapv2.dart';
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart';
 
 import 'main.dart';
 
@@ -97,7 +97,7 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OSMmap(),
+                    builder: (_) => MapScreenV2(),
                     settings: const RouteSettings(name: '/map'),
                   ),
                 );
