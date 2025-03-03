@@ -70,13 +70,13 @@ Future<void> main() async {
 
       // Capture Flutter framework errors.
       FlutterError.onError = (FlutterErrorDetails details) {
-        logger.e("Flutter error caught", details.exception, details.stack);
+        logger.e("Flutter error caught", error: details.exception, stackTrace: details.stack);
         Sentry.captureException(details.exception, stackTrace: details.stack);
       };
 
       runApp(const MyApp());
     }, (error, stackTrace) {
-      logger.e("Unhandled error caught", error, stackTrace);
+      logger.e("Unhandled error caught", error: error, stackTrace: stackTrace);
       Sentry.captureException(error, stackTrace: stackTrace);
     }),
   );
