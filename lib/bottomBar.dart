@@ -18,8 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRec
+import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/user/userPage.dart';
 
 import 'main.dart';
@@ -48,7 +47,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildConte TapGestureRecognizer _registerTapRecognizer;xt context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Center(child: Text(appBarTitle)),

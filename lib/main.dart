@@ -54,6 +54,7 @@ Future<bool> hasInternetAccess() async {
 }
 
 Future<void> main() async {
+  initDb();
   await SentryFlutter.init(
         (options) {
       options.dsn = 'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'; // Replace with your actual DSN.
@@ -97,7 +98,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Welcome to Flutter',
       theme: ThemeData.dark(),
       home: const HomeScreen(),
     );
@@ -125,7 +125,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Welcome'),
       ),
       // Directly include Authorizator which now returns a complete screen.
       body: Authorizator(login: const Login(), register: const RegMail()),
