@@ -15,6 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/localRecordings/recordingsDb.dart';
 
 class RecordItem {
   final String title;
@@ -24,40 +25,32 @@ class RecordItem {
   RecordItem({required this.title, required this.date, required this.status});
 }
 
-class RecordsScreen extends StatelessWidget {
-  const RecordsScreen({Key? key}) : super(key: key);
+class RecordingScreen extends StatefulWidget {
+  const RecordingScreen({Key? key}) : super(key: key);
+
+  @override
+  _RecordingScreenState createState() => _RecordingScreenState();
+}
+
+class _RecordingScreenState extends State<RecordingScreen> {
+
+  List<RecordItem> list = [];
+
+  @override
+  void initState() {
+    super.initState();
+    getRecordings();
+  }
+
+  void getRecordings() async {
+    list = await LocalDb.GetRecordings();
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     // Sample data matching the screenshot
-    final List<RecordItem> records = [
-      RecordItem(
-        title: 'Na chalupě',
-        date: '29. 11. 2025',
-        status: 'V databázi',
-      ),
-      RecordItem(
-        title: 'Nevím',
-        date: '29. 11. 2025',
-        status: 'V databázi',
-      ),
-      RecordItem(
-        title: 'Les na Dubině',
-        date: '29. 11. 2025',
-        status: 'Čeká na Wi-Fi připojení',
-      ),
-      RecordItem(
-        title: 'Název záznamu 1',
-        date: '29. 11. 2025',
-        status: 'Čeká na Wi-Fi připojení',
-      ),
-      RecordItem(
-        title: 'Název záznamu 2',
-        date: '29. 11. 2025',
-        status: 'Čeká na Wi-Fi připojení',
-      ),
-    ];
-
+    var records = list;
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(

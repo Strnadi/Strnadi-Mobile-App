@@ -110,7 +110,7 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => RecordsScreen(),
+                    builder: (_) => RecordingScreen(),
                     settings: const RouteSettings(name: '/list'),
                   ),
                 );
