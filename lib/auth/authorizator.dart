@@ -19,6 +19,7 @@ import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/recording/streamRec.dart';
 
 enum AuthType { login, register }
 
@@ -97,7 +98,7 @@ class _AuthState extends State<Authorizator> {
       // If you plan to navigate here, consider scheduling it in a post-frame callback.
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
+        MaterialPageRoute(builder: (_) => LiveRec()),
       );
     }
   }

@@ -15,10 +15,14 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRec
 import 'package:strnadi/user/userPage.dart';
+
+import 'main.dart';
 
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
@@ -32,6 +36,17 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.logout,
   }) : super(key: key);
 
+
+  void Logout(BuildContext context) {
+    final localStorage = const FlutterSecureStorage();
+    localStorage.delete(key: 'token');
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => MyApp()),
+          (route) => false, // Remove all previous routes
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,7 +56,10 @@ class ScaffoldWithBottomBar extends StatelessWidget {
           if (logout != null)
             IconButton(
               icon: const Icon(Icons.logout),
-              onPressed: logout,
+              onPressed: () {
+                Logout(context);
+              },
+
             ),
         ],
         automaticallyImplyLeading: false,
@@ -88,12 +106,12 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               // todo add the correct route
-              if (ModalRoute.of(context)?.settings.name != '/map') {
+              if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => LiveRec(),
-                    settings: const RouteSettings(name: '/map'),
+                    builder: (_) => RecordsScreen(),
+                    settings: const RouteSettings(name: '/list'),
                   ),
                 );
               }

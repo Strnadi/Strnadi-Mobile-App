@@ -25,6 +25,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/register.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/recording/streamRec.dart';
 
 final logger = Logger();
 
@@ -66,7 +67,7 @@ class _LoginState extends State<Login> {
     var containsKey = await secureStorage.containsKey(key: 'token');
 
     if (containsKey) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => RecorderWithSpectogram()));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => LiveRec()));
     }
   }
 
@@ -107,7 +108,7 @@ class _LoginState extends State<Login> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
+          MaterialPageRoute(builder: (_) => LiveRec()),
         );
 
       }
@@ -147,122 +148,115 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Přihlášení')),
+      appBar: AppBar(),
       body: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                kToolbarHeight -
-                MediaQuery.of(context).padding.top,
-          ),
-          child: IntrinsicHeight(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                // Center the content vertically if possible.
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Strnadi',
-                    style: TextStyle(fontSize: 60),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _emailController,
-                          textAlign: TextAlign.center,
-                          decoration: InputDecoration(
-                            label: RichText(
-                              text: TextSpan(
-                                text: 'Email',
-                                children: const <TextSpan>[
-                                  TextSpan(
-                                    text: ' *',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            border: const OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter some text';
-                            }
-                            if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                                .hasMatch(value)) {
-                              return 'Enter valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        TextFormField(
-                          controller: _passwordController,
-                          textAlign: TextAlign.center,
-                          decoration: InputDecoration(
-                            label: RichText(
-                              text: TextSpan(
-                                text: 'Password',
-                                children: const <TextSpan>[
-                                  TextSpan(
-                                    text: ' *',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            border: const OutlineInputBorder(),
-                          ),
-                          obscureText: true,
-                          keyboardType: TextInputType.visiblePassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter some text';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          style: ButtonStyle(
-                            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                            ),
-                          ),
-                          onPressed: login,
-                          child: const Text('Submit'),
-                        ),
-                        const SizedBox(height: 20),
-                        RichText(
-                          text: TextSpan(
-                            text: "Nemáte účet? ",
-                            style: const TextStyle(color: Colors.white),
-                            children: <TextSpan>[
-                              TextSpan(
-                                text: "Zaregistrovat se",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
+        child: IntrinsicHeight(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              // Center the content vertically if possible.
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Strnadi',
+                  style: TextStyle(fontSize: 60),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _emailController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Email',
+                              children: const <TextSpan>[
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: Colors.red),
                                 ),
-                                recognizer: _registerTapRecognizer,
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                              .hasMatch(value)) {
+                            return 'Enter valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Password',
+                              children: const <TextSpan>[
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        obscureText: true,
+                        keyboardType: TextInputType.visiblePassword,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        style: ButtonStyle(
+                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                        onPressed: login,
+                        child: const Text('Submit'),
+                      ),
+                      const SizedBox(height: 20),
+                      RichText(
+                        text: TextSpan(
+                          text: "Nemáte účet? ",
+                          style: const TextStyle(color: Colors.white),
+                          children: <TextSpan>[
+                            TextSpan(
+                              text: "Zaregistrovat se",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                              recognizer: _registerTapRecognizer,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

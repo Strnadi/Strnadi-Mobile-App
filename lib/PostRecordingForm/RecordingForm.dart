@@ -13,8 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
-
 import 'dart:io';
 
 import 'package:strnadi/database/soundDatabase.dart';
@@ -28,7 +26,9 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
+import 'package:strnadi/localRecordings/recordingsDb.dart';
 
 final logger = Logger();
 
@@ -46,6 +46,16 @@ class Recording {
     required this.byApp,
     this.note = null,
   });
+
+  factory Recording.fromJson(Map<String, dynamic> json) {
+    return Recording(
+      createdAt: DateTime.parse(json['CreatedAt']),
+      estimatedBirdsCount: json['EstimatedBirdsCount'],
+      device: json['Device'],
+      byApp: json['ByApp'],
+      note: json['Note'],
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -115,14 +125,16 @@ class _RecordingFormState extends State<RecordingForm> {
       widget.recordingPartsTimeList,
       widget.recordingParts,
     );
-    
+
     print(widget.filepath);
 
-    final uploadPart =
-    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
+    final uploadPart = Uri.parse(
+        'https://strnadiapi.slavetraders.tech/recordings/upload-part');
 
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
+
+    print("token $token");
 
     int cumulativeSeconds = 0;
 
@@ -142,9 +154,8 @@ class _RecordingFormState extends State<RecordingForm> {
       // Calculate start and end times for this segment based on cumulative offset.
       int segmentDuration = widget.recordingPartsTimeList[i];
       final segmentStart =
-      widget.StartTime.add(Duration(seconds: cumulativeSeconds));
-      final segmentEnd =
-      segmentStart.add(Duration(seconds: segmentDuration));
+          widget.StartTime.add(Duration(seconds: cumulativeSeconds));
+      final segmentEnd = segmentStart.add(Duration(seconds: segmentDuration));
       cumulativeSeconds += segmentDuration;
 
       try {
@@ -166,7 +177,9 @@ class _RecordingFormState extends State<RecordingForm> {
           }),
         );
 
-        if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
+        if (response.statusCode == 200 ||
+            response.statusCode == 201 ||
+            response.statusCode == 202) {
           logger.i('Upload was successful for segment $i');
           _showMessage("Upload was successful for segment $i");
         } else {
@@ -180,14 +193,14 @@ class _RecordingFormState extends State<RecordingForm> {
     }
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => RecorderWithSpectogram()),
+      MaterialPageRoute(builder: (context) => LiveRec()),
     );
   }
 
   void upload() async {
     final platform = await getDeviceModel();
 
-    print("Estimated birds count: ${_strnadiCountController.toInt()}");
+    //print("Estimated birds count: ${_strnadiCountController.toInt()}");
     final rec = Recording(
       createdAt: DateTime.now(),
       estimatedBirdsCount: _strnadiCountController.toInt(),
@@ -196,14 +209,25 @@ class _RecordingFormState extends State<RecordingForm> {
       note: _commentController.text,
     );
 
-    if (await hasInternetAccess() == false) {
-      logger.w("No internet connection");
-      _showMessage('No internet connection');
+    LocalDb.insertRecording(
+      rec,
+      _recordingNameController.text,
+      0,
+      widget.filepath,
+      widget.currentPosition?.latitude ?? 0,
+      widget.currentPosition?.longitude ?? 0,
+    );
+    logger.i("inserted into local db");
+
+
+    if (!await hasInternetAccess()) {
+      logger.e("No internet connection");
+      _showMessage("No internet connection");
       return;
     }
 
-    final recordingSign = Uri.parse(
-        'https://strnadiapi.slavetraders.tech/recordings/upload');
+    final recordingSign =
+        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
 
     final token = await safeStorage.read(key: 'token');
@@ -270,7 +294,6 @@ class _RecordingFormState extends State<RecordingForm> {
               child: LiveSpectogram.SpectogramLive(
                 data: [],
                 filepath: widget.filepath,
-
               ),
             ),
             const SizedBox(height: 50),
@@ -335,7 +358,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         children: [
                           TileLayer(
                             urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.strnadi.cz',
                           ),
                           MarkerLayer(
