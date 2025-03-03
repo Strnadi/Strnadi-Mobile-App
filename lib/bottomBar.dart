@@ -35,14 +35,13 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.logout,
   }) : super(key: key);
 
-
   void Logout(BuildContext context) {
     final localStorage = const FlutterSecureStorage();
     localStorage.delete(key: 'token');
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false, // Remove all previous routes
+      (route) => false, // Remove all previous routes
     );
   }
 
@@ -58,13 +57,14 @@ class ScaffoldWithBottomBar extends StatelessWidget {
               onPressed: () {
                 Logout(context);
               },
-
             ),
         ],
         automaticallyImplyLeading: false,
       ),
       body: SizedBox(
-        height: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
+        height: MediaQuery.of(context).size.height -
+            kToolbarHeight -
+            kBottomNavigationBarHeight,
         child: content,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

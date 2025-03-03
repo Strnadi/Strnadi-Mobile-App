@@ -37,7 +37,6 @@ class Authorizator extends StatefulWidget {
   State<Authorizator> createState() => _AuthState();
 }
 
-
 class _AuthState extends State<Authorizator> {
   @override
   void initState() {

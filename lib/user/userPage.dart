@@ -59,7 +59,8 @@ class _UserPageState extends State<UserPage> {
     }
 
     final jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users').replace(queryParameters: {
+    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users')
+        .replace(queryParameters: {
       'jwt': jwt,
     });
 
@@ -96,7 +97,7 @@ class _UserPageState extends State<UserPage> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -117,7 +118,8 @@ class _UserPageState extends State<UserPage> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundImage: const AssetImage('./assets/images/default.jpg'),
+                  backgroundImage:
+                      const AssetImage('./assets/images/default.jpg'),
                 ),
                 Text(
                   userName + " " + lastName,

@@ -59,7 +59,7 @@ class RecordsScreen extends StatelessWidget {
     ];
 
     return ScaffoldWithBottomBar(
-    appBarTitle: 'Záznamy',
+      appBarTitle: 'Záznamy',
       content: Padding(
         padding: const EdgeInsets.all(10.0),
         child: ListView.separated(

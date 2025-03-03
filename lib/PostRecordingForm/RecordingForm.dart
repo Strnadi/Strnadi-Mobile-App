@@ -219,7 +219,6 @@ class _RecordingFormState extends State<RecordingForm> {
     );
     logger.i("inserted into local db");
 
-
     if (!await hasInternetAccess()) {
       logger.e("No internet connection");
       _showMessage("No internet connection");
