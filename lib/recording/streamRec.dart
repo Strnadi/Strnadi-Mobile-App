@@ -252,7 +252,7 @@ class _LiveRecState extends State<LiveRec> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: "Live Recorder",
+      appBarTitle: "",
       content: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -263,8 +263,6 @@ class _LiveRecState extends State<LiveRec> {
               _buildRecordStopControl(),
               const SizedBox(width: 20),
               _buildPauseResumeControl(),
-              const SizedBox(width: 20),
-              _buildText(),
             ],
           ),
           if (_amplitude != null) ...[
@@ -288,15 +286,12 @@ class _LiveRecState extends State<LiveRec> {
 
   Widget _buildRecordStopControl() {
     late Icon icon;
-    late Color color;
 
     if (_recordState != RecordState.stop) {
       icon = const Icon(Icons.stop, color: Colors.red, size: 30);
-      color = Colors.red.withValues(alpha: 0.1);
     } else {
       final theme = Theme.of(context);
       icon = Icon(Icons.mic, color: theme.primaryColor, size: 30);
-      color = theme.primaryColor.withValues(alpha: 0.1);
     }
 
     return ClipOval(
@@ -342,13 +337,6 @@ class _LiveRecState extends State<LiveRec> {
     );
   }
 
-  Widget _buildText() {
-    if (_recordState != RecordState.stop) {
-      return _buildTimer();
-    }
-
-    return const Text("Waiting to record");
-  }
 
   Widget _buildTimer() {
     final String minutes = _formatNumber(_recordDuration ~/ 60);

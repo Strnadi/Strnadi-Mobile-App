@@ -15,6 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
 
 class RecordItem {
@@ -50,7 +51,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   @override
   Widget build(BuildContext context) {
     // Sample data matching the screenshot
-    var records = list;
+    var records = list.reversed.toList();
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(
@@ -91,7 +92,14 @@ class _RecordingScreenState extends State<RecordingScreen> {
                 color: Colors.grey,
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecordingItem(recording: records[index]),
+                  ),
+                );
+              },
             );
           },
         ),
