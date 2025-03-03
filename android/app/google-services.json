@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "287278255232",
+    "project_id": "strnadi-54f7f",
+    "storage_bucket": "strnadi-54f7f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:287278255232:android:507c9d4b3a85e51fbcea65",
+        "android_client_info": {
+          "package_name": "com.delta.strnadi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbRMVwWF2NmKPLqB08GPbRW72D9ftam40"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

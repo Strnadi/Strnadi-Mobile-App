@@ -24,6 +24,10 @@ import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
+import 'package:google_api_availability/google_api_availability.dart';
 
 // Create a global logger instance.
 final logger = Logger();
@@ -53,33 +57,74 @@ Future<bool> hasInternetAccess() async {
   }
 }
 
+Future<void> _checkGooglePlayServices(BuildContext context) async {
+  // Check only on Android devices.
+  if (Platform.isAndroid) {
+    final availability =
+    await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+    if (availability != GooglePlayServicesAvailability.success) {
+      // Attempt to prompt the user to update/install Google Play Services.
+      await GoogleApiAvailability.instance.makeGooglePlayServicesAvailable();
+      // Re-check availability after attempting resolution.
+      final newAvailability =
+      await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+      if (newAvailability != GooglePlayServicesAvailability.success) {
+        _showMessage(
+          context,
+          'Google Play Services are required for this app to function properly.',
+        );
+      }
+    }
+  }
+}
+
+void initFirebase() async {
+  await Firebase.initializeApp();
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  final fcmToken = await FirebaseMessaging.instance.getToken();
+  print("Firebase token: $fcmToken");
+  logger.i("Firebase token: $fcmToken");
+  FirebaseMessaging.instance.onTokenRefresh
+      .listen((fcmToken) {
+    // TODO: If necessary send token to application server.
+
+    // Note: This callback is fired at each app startup and whenever a new
+    // token is generated.
+  })
+      .onError((err) {
+    // Error getting token.
+  });
+}
+
 Future<void> main() async {
-  initDb();
   await SentryFlutter.init(
-    (options) {
+        (options) {
       options.dsn =
-          'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'; // Replace with your actual DSN.
-      // Enable performance tracing by setting a sample rate (adjust as needed)
+      'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696';
       options.addIntegration(LoggingIntegration());
       options.tracesSampleRate = 1.0;
       options.experimental.replay.sessionSampleRate = 1.0;
       options.experimental.replay.onErrorSampleRate = 1.0;
     },
-    appRunner: () => runZonedGuarded(() {
-      // Initialize the Flutter bindings within the same zone.
+    appRunner: () async {
+      // Initialize Flutter binding in this zone.
       WidgetsFlutterBinding.ensureInitialized();
+      initDb();
 
-      // Capture Flutter framework errors.
+      // Set up Flutter error handling.
       FlutterError.onError = (FlutterErrorDetails details) {
-        logger.e("Flutter error caught", error: details.exception, stackTrace: details.stack);
+        logger.e("Flutter error caught",
+            error: details.exception, stackTrace: details.stack);
         Sentry.captureException(details.exception, stackTrace: details.stack);
       };
 
       runApp(const MyApp());
-    }, (error, stackTrace) {
-      logger.e("Unhandled error caught", error: error, stackTrace: stackTrace);
-      Sentry.captureException(error, stackTrace: stackTrace);
-    }),
+    },
   );
 }
 
@@ -123,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Defer the check until after the first frame is rendered.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkGooglePlayServices(context);
       checkInternetConnection(context);
     });
   }
