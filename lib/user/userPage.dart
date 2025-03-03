@@ -94,7 +94,7 @@ class _UserPageState extends State<UserPage> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -115,7 +115,8 @@ class _UserPageState extends State<UserPage> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundImage: const AssetImage('./assets/images/default.jpg'),
+                  backgroundImage:
+                      const AssetImage('./assets/images/default.jpg'),
                 ),
                 Text(
                   userName + " " + lastName,

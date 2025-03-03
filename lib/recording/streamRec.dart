@@ -27,14 +27,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 
-
 import '../bottomBar.dart';
 
 final logger = Logger();
 
-
 class LiveRec extends StatefulWidget {
-
   const LiveRec({super.key});
 
   @override
@@ -86,7 +83,6 @@ class _LiveRecState extends State<LiveRec> {
       _updateRecordState(recordState);
     });
 
-
     _amplitudeSub = _audioRecorder
         .onAmplitudeChanged(const Duration(milliseconds: 300))
         .listen((amp) {
@@ -97,7 +93,6 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> _stop() async {
-
     recordingPartsList.add(
       RecordingParts(
         path: null,
@@ -145,7 +140,11 @@ class _LiveRecState extends State<LiveRec> {
           return;
         }
 
-        final config = RecordConfig(encoder: encoder, numChannels: 1, sampleRate: sampleRate, bitRate: bitRate);
+        final config = RecordConfig(
+            encoder: encoder,
+            numChannels: 1,
+            sampleRate: sampleRate,
+            bitRate: bitRate);
 
         // Record to file
         //await recordFile(_audioRecorder, config);
@@ -168,7 +167,6 @@ class _LiveRecState extends State<LiveRec> {
           longitude: currentPosition?.longitude ?? 14.4,
           latitude: currentPosition?.latitude ?? 50.1,
         ));
-
       }
     } catch (e) {
       if (kDebugMode) {
@@ -177,15 +175,15 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-
-  Future<String> recordStream(AudioRecorder recorder, RecordConfig config, String filepath) async {
+  Future<String> recordStream(
+      AudioRecorder recorder, RecordConfig config, String filepath) async {
     final file = File(filepath);
     final stream = await recorder.startStream(config);
 
     final completer = Completer<String>();
 
     stream.listen(
-          (data) {
+      (data) {
         file.writeAsBytes(data, mode: FileMode.append);
         _stream = data;
       },
@@ -201,8 +199,6 @@ class _LiveRecState extends State<LiveRec> {
     return completer.future;
   }
 
-
-
   Future<void> _pause() async {
     _audioRecorder.pause();
 
@@ -214,6 +210,7 @@ class _LiveRecState extends State<LiveRec> {
       latitude: currentPosition?.latitude ?? 50.1,
     ));
   }
+
   Future<void> _resume() => _audioRecorder.resume();
 
   void _updateRecordState(RecordState recordState) {
@@ -255,7 +252,7 @@ class _LiveRecState extends State<LiveRec> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: "Live Recorder",
+      appBarTitle: "",
       content: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -266,8 +263,6 @@ class _LiveRecState extends State<LiveRec> {
               _buildRecordStopControl(),
               const SizedBox(width: 20),
               _buildPauseResumeControl(),
-              const SizedBox(width: 20),
-              _buildText(),
             ],
           ),
           if (_amplitude != null) ...[
@@ -291,15 +286,12 @@ class _LiveRecState extends State<LiveRec> {
 
   Widget _buildRecordStopControl() {
     late Icon icon;
-    late Color color;
 
     if (_recordState != RecordState.stop) {
       icon = const Icon(Icons.stop, color: Colors.red, size: 30);
-      color = Colors.red.withValues(alpha: 0.1);
     } else {
       final theme = Theme.of(context);
       icon = Icon(Icons.mic, color: theme.primaryColor, size: 30);
-      color = theme.primaryColor.withValues(alpha: 0.1);
     }
 
     return ClipOval(
@@ -345,13 +337,6 @@ class _LiveRecState extends State<LiveRec> {
     );
   }
 
-  Widget _buildText() {
-    if (_recordState != RecordState.stop) {
-      return _buildTimer();
-    }
-
-    return const Text("Waiting to record");
-  }
 
   Widget _buildTimer() {
     final String minutes = _formatNumber(_recordDuration ~/ 60);
@@ -381,7 +366,6 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> onStop(String path) async {
-
     Uint8List data = await File(path).readAsBytes();
 
     Uint8List header = createHeader(data.length, sampleRate, bitRate);
@@ -405,7 +389,8 @@ class _LiveRecState extends State<LiveRec> {
     int bitDepth = 16;
     int byteRate = sampleRate * channels * bitDepth ~/ 8;
     int blockAlign = channels * bitDepth ~/ 8;
-    int chunkSize = 36 + dataSize; // Correct chunk size: file size minus 8 bytes
+    int chunkSize =
+        36 + dataSize; // Correct chunk size: file size minus 8 bytes
 
     // Create a 44-byte header buffer.
     Uint8List header = Uint8List(44);

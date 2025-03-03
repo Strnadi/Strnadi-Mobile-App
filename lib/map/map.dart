@@ -149,31 +149,49 @@ class _OSMmapState extends State<OSMmap> {
                       size: 30.0,
                     ),
                   ),
-                ],
-              ),
-              PolygonLayer(
-                polygons: _gridData!.map((gridSquare) {
-                  final lat = gridSquare['lat'] as double;
-                  final lng = gridSquare['lng'] as double;
-                  final size = gridSquare['size'] as double;
-                  return Polygon(
-                    points: [
-                      LatLng(lat, lng), // Bottom-left
-                      LatLng(lat + size, lng), // Top-left
-                      LatLng(lat + size, lng + size), // Top-right
-                      LatLng(lat, lng + size), // Bottom-right
-                    ],
-                    isFilled: true,
-                    color: Colors.black.withAlpha(50),
-                    borderColor: Colors.red,
-                    borderStrokeWidth: 1.0,
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ],
-      ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.navratKrale.app',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          width: 20.0,
+                          height: 20.0,
+                          point: _currentPosition!,
+                          builder: (ctx) => const Icon(
+                            Icons.my_location,
+                            color: Colors.blue,
+                            size: 30.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    PolygonLayer(
+                      polygons: _gridData!.map((gridSquare) {
+                        final lat = gridSquare['lat'] as double;
+                        final lng = gridSquare['lng'] as double;
+                        final size = gridSquare['size'] as double;
+                        return Polygon(
+                          points: [
+                            LatLng(lat, lng), // Bottom-left
+                            LatLng(lat + size, lng), // Top-left
+                            LatLng(lat + size, lng + size), // Top-right
+                            LatLng(lat, lng + size), // Bottom-right
+                          ],
+                          isFilled: true,
+                          color: Colors.black.withAlpha(50),
+                          borderColor: Colors.red,
+                          borderStrokeWidth: 1.0,
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

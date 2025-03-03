@@ -210,11 +210,10 @@ class _RecordingFormState extends State<RecordingForm> {
     );
     logger.i("inserted into local db");
 
-
     if (!await hasInternetAccess()) {
       logger.e("No internet connection");
       _showMessage("No internet connection");
-      return;
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
 
     final recordingSign =
@@ -247,14 +246,18 @@ class _RecordingFormState extends State<RecordingForm> {
         _recordingId = data; // Assuming the API returns an integer recording ID.
         uploadAudio(File(widget.filepath), _recordingId!);
         logger.i(widget.filepath);
+        LocalDb.UpdateStatus(widget.filepath);
       } else {
         logger.w(response);
         print('Error: ${response.statusCode} ${response.body}');
+        Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       }
     } catch (error) {
       logger.e(error);
       print('An error occurred: $error');
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
+
   }
 
   @override

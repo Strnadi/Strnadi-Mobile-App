@@ -20,8 +20,7 @@ import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/map/map.dart';
 import 'package:strnadi/map/mapv2.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRec
-import 'package:strnadi/user/userPage.dart';
+import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart';
 
 import 'main.dart';
 
@@ -37,14 +36,13 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.logout,
   }) : super(key: key);
 
-
   void Logout(BuildContext context) {
     final localStorage = const FlutterSecureStorage();
     localStorage.delete(key: 'token');
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false, // Remove all previous routes
+      (route) => false, // Remove all previous routes
     );
   }
 
@@ -53,6 +51,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Center(child: Text(appBarTitle)),
+        backgroundColor: Colors.white,
         actions: [
           if (logout != null)
             IconButton(
@@ -60,13 +59,15 @@ class ScaffoldWithBottomBar extends StatelessWidget {
               onPressed: () {
                 Logout(context);
               },
-
             ),
         ],
         automaticallyImplyLeading: false,
       ),
+      backgroundColor: Colors.white,
       body: SizedBox(
-        height: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
+        height: MediaQuery.of(context).size.height -
+            kToolbarHeight -
+            kBottomNavigationBarHeight,
         child: content,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -81,6 +82,7 @@ class ReusableBottomAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
+      color: Colors.white,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,
       padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -111,7 +113,7 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => RecordsScreen(),
+                    builder: (_) => RecordingScreen(),
                     settings: const RouteSettings(name: '/list'),
                   ),
                 );
@@ -138,12 +140,12 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               // todo add the correct route
-              if (ModalRoute.of(context)?.settings.name != '/map') {
+              if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => MapScreenV2(),
-                    settings: const RouteSettings(name: '/map'),
+                    builder: (_) => NotificationScreen(),
+                    settings: const RouteSettings(name: '/notification'),
                   ),
                 );
               }

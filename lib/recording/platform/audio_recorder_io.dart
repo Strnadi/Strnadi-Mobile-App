@@ -23,16 +23,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 mixin AudioRecorderMixin {
-
-  Future<String> recordStream(AudioRecorder recorder, RecordConfig config, String filepath) async {
+  Future<String> recordStream(
+      AudioRecorder recorder, RecordConfig config, String filepath) async {
     final file = File(filepath);
     final stream = await recorder.startStream(config);
 
     final completer = Completer<String>();
 
     stream.listen(
-          (data) {
-            file.writeAsBytes(data, mode: FileMode.append);
+      (data) {
+        file.writeAsBytes(data, mode: FileMode.append);
       },
       onDone: () {
         print('End of stream. File written to $filepath.');
@@ -45,6 +45,4 @@ mixin AudioRecorderMixin {
 
     return completer.future;
   }
-
-
 }

@@ -25,7 +25,9 @@ class LiveSpectogram extends StatefulWidget {
   final List<double> data;
   final String? filepath;
 
-  const LiveSpectogram.SpectogramLive({Key? key, required this.data, this.filepath}) : super(key: key);
+  const LiveSpectogram.SpectogramLive(
+      {Key? key, required this.data, this.filepath})
+      : super(key: key);
 
   @override
   _LiveSpectogramState createState() => _LiveSpectogramState();
@@ -45,8 +47,7 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
     if (widget.filepath != null) {
       final wav = await Wav.readFile(widget.filepath!);
       audio = _normalizeRmsVolume(wav.toMono(), 0.3);
-    }
-    else {
+    } else {
       audio = widget.data;
     }
 
@@ -58,7 +59,7 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
 
     stft.run(
       audio,
-          (Float64x2List chunk) {
+      (Float64x2List chunk) {
         final amp = chunk.discardConjugates().magnitudes();
         final List<double> row = [];
 
@@ -103,9 +104,9 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
     return spectrogramData == null
         ? Center(child: CircularProgressIndicator())
         : CustomPaint(
-      size: Size(100, 100),
-      painter: SpectrogramPainter(spectrogramData!),
-    );
+            size: Size(100, 100),
+            painter: SpectrogramPainter(spectrogramData!),
+          );
   }
 }
 
@@ -122,7 +123,8 @@ class SpectrogramPainter extends CustomPainter {
 
     for (int y = 0; y < data[0].length; y++) {
       for (int x = 0; x < data.length; x++) {
-        paint.color = _getColor(data[data.length - 1 - x][data[0].length - 1 - y]);
+        paint.color =
+            _getColor(data[data.length - 1 - x][data[0].length - 1 - y]);
         canvas.drawRect(
           Rect.fromLTWH(x * cellWidth, y * cellHeight, cellWidth, cellHeight),
           paint,

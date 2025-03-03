@@ -25,7 +25,7 @@ import '../PostRecordingForm/RecordingForm.dart';
 void initDb() async {
   final db = await openDatabase('sound.db', version: 1,
       onCreate: (Database db, int version) async {
-        await db.execute('''
+    await db.execute('''
       CREATE TABLE sounds(
         id INTEGER PRIMARY KEY,
         name TEXT,
@@ -37,7 +37,7 @@ void initDb() async {
         sent INTEGER DEFAULT 0
       )
     ''');
-      });
+  });
 }
 
 void insertSound(String name, String path, double latitude, double longitude,
@@ -55,15 +55,13 @@ void insertSound(String name, String path, double latitude, double longitude,
 
 void markAsSent(int id) async {
   final db = await openDatabase('sound.db');
-  await db.update('sounds', {
-    'sent': 1
-  }, where: 'id = ?', whereArgs: [id]);
+  await db.update('sounds', {'sent': 1}, where: 'id = ?', whereArgs: [id]);
 }
 
 void checkIfDbExists() async {
   final db = await openDatabase('sound.db');
   final tables =
-  await db.query('sqlite_master', where: 'type = ?', whereArgs: ['table']);
+      await db.query('sqlite_master', where: 'type = ?', whereArgs: ['table']);
   if (tables.isEmpty) {
     initDb();
   }
@@ -76,16 +74,15 @@ class DatabaseHelper {
   /// The stop times are expected to be in milliseconds.
   /// The output segments are saved as .wav files using PCM 16-bit little-endian encoding.
   static Future<List<RecordingParts>> trimAudio(
-      String audioPath,
-      List<int> stopTimesInMilliseconds,
-      List<RecordingParts> recordingParts,
-      ) async {
+    String audioPath,
+    List<int> stopTimesInMilliseconds,
+    List<RecordingParts> recordingParts,
+  ) async {
     Directory tempDir = await getApplicationDocumentsDirectory();
 
     // Convert stop times from milliseconds to Duration and sort them.
-    List<Duration> stopTimes = stopTimesInMilliseconds
-        .map((t) => Duration(milliseconds: t))
-        .toList();
+    List<Duration> stopTimes =
+        stopTimesInMilliseconds.map((t) => Duration(milliseconds: t)).toList();
     stopTimes.sort((a, b) => a.inMilliseconds.compareTo(b.inMilliseconds));
 
     Duration start = Duration.zero;
@@ -97,8 +94,7 @@ class DatabaseHelper {
       String outputPath = '${tempDir.path}/trimmed_part_$i.wav';
 
       // Calculate the duration of this segment with fractional seconds.
-      double segmentDurationSec =
-          (end - start).inMilliseconds / 1000.0;
+      double segmentDurationSec = (end - start).inMilliseconds / 1000.0;
 
       // If segment duration is zero or negative, skip this segment.
       if (segmentDurationSec <= 0) {
