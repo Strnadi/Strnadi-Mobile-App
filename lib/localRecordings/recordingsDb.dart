@@ -18,8 +18,12 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:strnadi/localRecordings/recList.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../PostRecordingForm/RecordingForm.dart';
 
@@ -59,8 +63,16 @@ class LocalDb {
       int status, String filepath, double latitude, double longitude) async {
     final Database db = await database;
 
+
+    var id = await db.rawQuery("SELECT MAX(id) as id FROM recordings");
+    var lastId = id[0]["id"];
+
+    lastId ??= 0;
+
+    var RecId = lastId as int;
+
     var map = <String, Object?>{
-      'title': name,
+      'title': name == "" ? 'Záznam cislo ${RecId+1}' : name,
       'created_at': recording.createdAt.toIso8601String(),
       'estimated_birds_count': recording.estimatedBirdsCount,
       'by_app': 1,
@@ -77,6 +89,39 @@ class LocalDb {
     await db.insert(
       'recordings',
       map,
+    );
+  }
+
+  static Future<List<RecordItem>> GetRecordings() async {
+    List<RecordItem> records = [];
+
+    var db = await database;
+
+
+    db.rawQuery("SELECT * FROM recordings").then((value) {
+      for (var record in value) {
+        var dateTime = DateTime.parse(record["created_at"].toString());
+        DateTime onlyDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+        String formattedDate = DateFormat("yyyy-MM-dd").format(onlyDate);
+
+
+        records.add(RecordItem(
+          title: record['title'].toString(),
+          date: formattedDate,
+          status: record['upload_status'] == 0 ? 'Čeká na Wi-Fi připojení' : 'V databázi',
+        ));
+      }
+    });
+
+    return records;
+  }
+
+  static Future<void> UpdateStatus(String filepath) async {
+    final Database db = await database;
+
+    await db.rawUpdate(
+      'UPDATE recordings SET upload_status = 1 WHERE filepath = ?',
+      [filepath],
     );
   }
 }
