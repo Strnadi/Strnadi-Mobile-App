@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -124,11 +125,29 @@ class _OSMmapState extends State<OSMmap> {
       content: _currentPosition == null || _gridData == null
           ? const Center(child: CircularProgressIndicator())
           : Stack(
-              children: [
-                FlutterMap(
-                  options: MapOptions(
-                    center: _currentPosition,
-                    zoom: 13.0,
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              center: _currentPosition,
+              zoom: 13.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.navratKrale.app',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    width: 20.0,
+                    height: 20.0,
+                    point: _currentPosition!,
+                    builder: (ctx) => const Icon(
+                      Icons.my_location,
+                      color: Colors.blue,
+                      size: 30.0,
+                    ),
                   ),
                   children: [
                     TileLayer(
@@ -176,3 +195,4 @@ class _OSMmapState extends State<OSMmap> {
     );
   }
 }
+ */
