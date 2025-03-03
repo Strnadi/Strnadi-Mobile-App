@@ -51,6 +51,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Center(child: Text(appBarTitle)),
+        backgroundColor: Colors.white,
         actions: [
           if (logout != null)
             IconButton(
@@ -62,6 +63,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         ],
         automaticallyImplyLeading: false,
       ),
+      backgroundColor: Colors.white,
       body: SizedBox(
         height: MediaQuery.of(context).size.height -
             kToolbarHeight -
@@ -80,6 +82,7 @@ class ReusableBottomAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
+      color: Colors.white,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,
       padding: const EdgeInsets.symmetric(horizontal: 30.0),
