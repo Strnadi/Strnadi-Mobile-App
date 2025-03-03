@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'dart:async';
 import 'dart:math';
 
@@ -41,18 +56,17 @@ class LocalDb {
   static Future<void> insertRecording(Recording recording, String name, int status, String filepath, double latitude, double longitude) async {
     final Database db = await database;
 
-    var map = Map<String, Object?>.new();
-
-    map = {
+    var map = <String, Object?>{
       'title': name,
       'created_at': recording.createdAt.toIso8601String(),
-      'EstimatedBirdsCount': recording.estimatedBirdsCount,
+      'estimated_birds_count': recording.estimatedBirdsCount,
+      'by_app': 1,
       'device': recording.device,
       'note': recording.note,
       'filepath': filepath,
       'latitude': latitude,
       'longitude': longitude,
-      'status': status,
+      'upload_status': status,
     };
 
     logger.d('Inserting recording: $map');
@@ -60,7 +74,6 @@ class LocalDb {
     await db.insert(
       'recordings',
       map,
-      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 }
