@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 
 const MAPY_CZ_API_KEY =
-    '***REMOVED***';
+    'sK2d7akq9IKKz7h7r_D_X0uc5NctyptoWuY2r9rJvDU';
 
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);

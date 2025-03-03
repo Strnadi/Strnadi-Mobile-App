@@ -30,7 +30,7 @@ import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
 
 const MAPY_CZ_API_KEY =
-    '***REMOVED***';
+    'sK2d7akq9IKKz7h7r_D_X0uc5NctyptoWuY2r9rJvDU';
 
 final logger = Logger();
 
