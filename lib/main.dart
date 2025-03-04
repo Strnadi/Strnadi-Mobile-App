@@ -32,8 +32,6 @@ import 'config/config.dart';
 // Create a global logger instance.
 final logger = Logger();
 
-
-
 void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
@@ -61,11 +59,10 @@ Future<bool> hasInternetAccess() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
   await Config.loadConfig();
 
   initFirebase();
-
   await SentryFlutter.init(
         (options) {
       options.dsn =
