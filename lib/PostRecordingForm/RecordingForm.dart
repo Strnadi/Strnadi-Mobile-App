@@ -344,7 +344,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                            urlTemplate: 'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                             userAgentPackageName: 'cz.delta.strnadi',
                           ),
                           MarkerLayer(

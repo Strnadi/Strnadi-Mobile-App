@@ -6,7 +6,7 @@ class Config {
 
   // Load config.json
   static Future<void> loadConfig() async {
-    String jsonString = await rootBundle.loadString('assets/config.json');
+    String jsonString = await rootBundle.loadString('assets/secrets.json');
     _config = json.decode(jsonString);
   }
 
