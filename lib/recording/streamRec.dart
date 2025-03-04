@@ -15,7 +15,6 @@
  */
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -25,8 +24,6 @@ import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:strnadi/widgets/spectogram_painter.dart';
-
 import '../bottomBar.dart';
 
 final logger = Logger();
