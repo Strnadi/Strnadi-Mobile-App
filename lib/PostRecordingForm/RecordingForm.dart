@@ -28,9 +28,9 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
+import '../config/config.dart';
 
-const MAPY_CZ_API_KEY =
-    '***REMOVED***';
+final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
 final logger = Logger();
 

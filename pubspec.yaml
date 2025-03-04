@@ -25,8 +25,8 @@ environment:
 
 license: "GPL-3.0-or-later"
 
-flutter_icons:
-  image_path: "images/logo.webp"
+flutter_launcher_icons:
+  image_path: "images/NSC_icon.PNG"
   android: true
   ios: true
 
@@ -96,8 +96,8 @@ flutter:
     - assets/images/default.jpg
     - assets/databaseScheme.sql
     - assets/
-    - assets/map.html
     - assets/config.json
+    - assets/secrets.json
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
