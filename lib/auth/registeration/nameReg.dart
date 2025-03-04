@@ -87,6 +87,7 @@ class _RegNameState extends State<RegName> {
                                 style: TextStyle(color: Colors.red),
                               ),
                             ],
+                            style: TextStyle(color: Colors.black),
                           ),
                         ),
                         border: const OutlineInputBorder(),
@@ -113,6 +114,7 @@ class _RegNameState extends State<RegName> {
                                 style: TextStyle(color: Colors.red),
                               ),
                             ],
+                            style: TextStyle(color: Colors.black),
                           ),
                         ),
                         border: const OutlineInputBorder(),
@@ -129,17 +131,16 @@ class _RegNameState extends State<RegName> {
                     TextFormField(
                       controller: _nickController,
                       textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        labelText: 'Nick',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        label: RichText(
+                          text: TextSpan(
+                            text: 'Nick',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
                     ),
                   ],
                 )),
@@ -155,18 +156,27 @@ class _RegNameState extends State<RegName> {
                           ),
                         ),
                       ),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RegPassword(
-                            email: widget.email,
-                            consent: widget.consent,
-                            name: _nameController.text,
-                            surname: _surnameController.text,
-                            nickname: _nickController.text,
-                          ),
-                        ),
-                      ),
+                      onPressed: () {
+                        // Validate the form fields
+                        if (_GlobalKey.currentState?.validate() ?? false) {
+                          // If valid, proceed to the next screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegPassword(
+                                email: widget.email,
+                                consent: widget.consent,
+                                name: _nameController.text,
+                                surname: _surnameController.text,
+                                nickname: _nickController.text,
+                              ),
+                            ),
+                          );
+                        } else {
+                          // Optionally, show an error message if validation fails
+                          _showMessage('Please fix the errors before proceeding.');
+                        }
+                      },
                       child: const Text('Submit'),
                     ),
                   ),
