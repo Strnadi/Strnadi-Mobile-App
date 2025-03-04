@@ -63,8 +63,8 @@ class _RegMailState extends State<RegMail> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   const Text(
-                    'Zadejte Vas Email',
-                    style: TextStyle(fontSize: 40),
+                    'Zadejte Váš Email',
+                    style: TextStyle(fontSize: 40, color: Colors.black),
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -80,6 +80,7 @@ class _RegMailState extends State<RegMail> {
                               style: TextStyle(color: Colors.red),
                             ),
                           ],
+                          style: TextStyle(color: Colors.black),
                         ),
                       ),
                       border: const OutlineInputBorder(),
@@ -95,6 +96,23 @@ class _RegMailState extends State<RegMail> {
                         return 'Enter valid email';
                       }
                       return null;
+                    },
+                    onFieldSubmitted: (value) {
+                      if (_GlobalKey.currentState?.validate() ?? false) {
+                        // Proceed to next page if validation is successful
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              email: _emailController.text,
+                              consent: _termsAgreement,
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Optionally, show an error message if validation fails
+                        _showMessage('Please fix the errors before proceeding.');
+                      }
                     },
                   ),
                   const SizedBox(height: 20),
@@ -113,23 +131,34 @@ class _RegMailState extends State<RegMail> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ButtonStyle(
-                          shape:
-                              WidgetStateProperty.all<RoundedRectangleBorder>(
+                          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
                         ),
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
+                        onPressed: () {
+                          if (_GlobalKey.currentState?.validate() ?? false) {
+                            // Proceed to the next screen if the form is valid
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
                                 builder: (_) => RegName(
-                                    email: _emailController.text,
-                                    consent: _termsAgreement))),
+                                  email: _emailController.text,
+                                  consent: _termsAgreement,
+                                ),
+                              ),
+                            );
+                          } else {
+                            // Optionally, show an error message if validation fails
+                            _showMessage('Please fix the errors before proceeding.');
+                          }
+                        },
                         child: const Text('Submit'),
                       ),
                     ),
                   ),
+
                 ],
               ),
             ),

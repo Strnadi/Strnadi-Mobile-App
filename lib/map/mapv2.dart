@@ -3,9 +3,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
+import '../config/config.dart';
 
-const MAPY_CZ_API_KEY =
-    '***REMOVED***';
+final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
@@ -41,6 +41,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
 
   }
+
 
   @override
   Widget build(BuildContext context) {

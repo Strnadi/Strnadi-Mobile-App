@@ -28,9 +28,9 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
+import '../config/config.dart';
 
-const MAPY_CZ_API_KEY =
-    '***REMOVED***';
+final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
 final logger = Logger();
 
@@ -344,7 +344,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                            urlTemplate: 'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                             userAgentPackageName: 'cz.delta.strnadi',
                           ),
                           MarkerLayer(

@@ -159,6 +159,7 @@ class _RegPasswordState extends State<RegPassword> {
                             style: TextStyle(color: Colors.red),
                           ),
                         ],
+                        style: TextStyle(color: Colors.black),
                       ),
                     ),
                     border: const OutlineInputBorder(),
@@ -184,7 +185,16 @@ class _RegPasswordState extends State<RegPassword> {
                           ),
                         ),
                       ),
-                      onPressed: () => register(),
+                      onPressed: () {
+                        // Validate the form before proceeding with the registration
+                        if (_GlobalKey.currentState?.validate() ?? false) {
+                          // If validation is successful, call the register function
+                          register();
+                        } else {
+                          // Optionally, show an error message if validation fails
+                          _showMessage('Please fix the errors before proceeding.');
+                        }
+                      },
                       child: Text('Sign Up'),
                     ),
                   ),
