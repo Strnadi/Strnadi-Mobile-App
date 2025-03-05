@@ -97,7 +97,6 @@ flutter:
     - assets/images/default.jpg
     - assets/databaseScheme.sql
     - assets/
-    - assets/map.html
     - assets/config.json
     - assets/secrets.json
 

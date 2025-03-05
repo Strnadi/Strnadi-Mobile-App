@@ -56,8 +56,6 @@ class _LiveRecState extends State<LiveRec> {
   final recordingPartsTimeList = <int>[];
   final recordingPartsList = <RecordingParts>[];
 
-  Uint8List _stream = Uint8List(0);
-
   // overallStartTime is the time when the very first segment started.
   DateTime? overallStartTime;
 
@@ -217,10 +215,6 @@ class _LiveRecState extends State<LiveRec> {
             sampleRate: sampleRate,
             bitRate: bitRate);
 
-        // Record to file
-        //await recordFile(_audioRecorder, config);
-
-        // Record to stream
         filepath = await _getPath();
         var path = await recordStream(_audioRecorder, config, filepath);
         setState(() {
@@ -263,7 +257,6 @@ class _LiveRecState extends State<LiveRec> {
     stream.listen(
           (data) {
         file.writeAsBytes(data, mode: FileMode.append);
-        _stream = data;
       },
       onDone: () {
         print('End of stream. File written to $filepath.');
@@ -326,32 +319,6 @@ class _LiveRecState extends State<LiveRec> {
 
     return isSupported;
   }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return ScaffoldWithBottomBar(
-  //     appBarTitle: "",
-  //     content: Column(
-  //       mainAxisAlignment: MainAxisAlignment.center,
-  //       children: [
-  //         // SizedBox(height: 100, width: 100, child: LiveSpectogram.SpectogramLive(data: _stream.toList().map((e) => e.toDouble()).toList())),
-  //         Row(
-  //           mainAxisAlignment: MainAxisAlignment.center,
-  //           children: <Widget>[
-  //             _buildRecordStopControl(),
-  //             const SizedBox(width: 20),
-  //             _buildPauseResumeControl(),
-  //           ],
-  //         ),
-  //         if (_amplitude != null) ...[
-  //           const SizedBox(height: 40),
-  //           Text('Current: ${_amplitude?.current ?? 0.0}'),
-  //           Text('Max: ${_amplitude?.max ?? 0.0}'),
-  //         ],
-  //       ],
-  //     ),
-  //   );
-  // }
 
   @override
   void dispose() {
