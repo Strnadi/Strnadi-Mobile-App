@@ -15,7 +15,6 @@
  */
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -25,8 +24,6 @@ import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:strnadi/widgets/spectogram_painter.dart';
-
 import '../bottomBar.dart';
 
 final logger = Logger();
@@ -64,11 +61,13 @@ class _LiveRecState extends State<LiveRec> {
 
   // overallStartTime is the time when the very first segment started.
   DateTime? overallStartTime;
+
   // segmentStartTime is updated each time a new segment starts.
   DateTime? segmentStartTime;
 
   // This will hold the merged recording file path.
   String? recordedFilePath;
+
   // The current location.
   LatLng? currentPosition;
 
@@ -109,16 +108,17 @@ class _LiveRecState extends State<LiveRec> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text("Recording Form")),
-          body: RecordingForm(
-            filepath: filepath,
-            startTime: overallStartTime!,
-            currentPosition: currentPosition,
-            recordingParts: recordingPartsList,
-            recordingPartsTimeList: recordingPartsTimeList,
-          ),
-        ),
+        builder: (context) =>
+            Scaffold(
+              appBar: AppBar(title: const Text("Recording Form")),
+              body: RecordingForm(
+                filepath: filepath,
+                startTime: overallStartTime!,
+                currentPosition: currentPosition,
+                recordingParts: recordingPartsList,
+                recordingPartsTimeList: recordingPartsTimeList,
+              ),
+            ),
       ),
     );
   }
@@ -127,7 +127,9 @@ class _LiveRecState extends State<LiveRec> {
     final dir = await getApplicationDocumentsDirectory();
     return p.join(
       dir.path,
-      'audio_${DateTime.now().millisecondsSinceEpoch}.wav',
+      'audio_${DateTime
+          .now()
+          .millisecondsSinceEpoch}.wav',
     );
   }
 
@@ -175,15 +177,15 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  Future<String> recordStream(
-      AudioRecorder recorder, RecordConfig config, String filepath) async {
+  Future<String> recordStream(AudioRecorder recorder, RecordConfig config,
+      String filepath) async {
     final file = File(filepath);
     final stream = await recorder.startStream(config);
 
     final completer = Completer<String>();
 
     stream.listen(
-      (data) {
+          (data) {
         file.writeAsBytes(data, mode: FileMode.append);
         _stream = data;
       },

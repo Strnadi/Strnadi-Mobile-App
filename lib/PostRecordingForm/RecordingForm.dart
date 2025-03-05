@@ -32,6 +32,9 @@ import '../config/config.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
+const MAPY_CZ_API_KEY =
+    'sK2d7akq9IKKz7h7r_D_X0uc5NctyptoWuY2r9rJvDU';
+
 final logger = Logger();
 
 class Recording {

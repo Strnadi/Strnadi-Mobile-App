@@ -65,6 +65,7 @@ dependencies:
   scidart: any
   fftea: any
   flutter_plot: any
+  just_audio: ^0.9.46
   wav: any
   webview_flutter: ^4.10.0
   flutter_map_location_marker: ^9.1.1
@@ -96,6 +97,7 @@ flutter:
     - assets/images/default.jpg
     - assets/databaseScheme.sql
     - assets/
+    - assets/map.html
     - assets/config.json
     - assets/secrets.json
 
