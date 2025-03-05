@@ -74,6 +74,7 @@ class _LoginState extends State<Login> {
             .write(key: 'token', value: response.body);
         Navigator.push(context, MaterialPageRoute(builder: (_) => LiveRec()));
       } else {
+        logger.w('Login failed: ${response}');
         _showMessage('Přihlášení selhalo, zkuste to znovu');
       }
     } catch (error) {
