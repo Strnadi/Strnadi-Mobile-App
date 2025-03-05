@@ -24,11 +24,9 @@ import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'firebase_options.dart';
+import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'config/config.dart';
 
 
 // Create a global logger instance.
@@ -210,13 +208,10 @@ void initFirebaseMessaging() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Config.loadConfig();
 
-  // Initialize Firebase.
-  await Firebase.initializeApp();
-
-  // Register the background message handler.
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
+  initFirebase();
   await SentryFlutter.init(
         (options) {
       options.dsn =
@@ -246,6 +241,27 @@ void checkInternetConnection(BuildContext context) async {
     logger.e("Does not have internet access");
     _showMessage(
         context, "Nemáte připojení k internetu aplikace nebude fungovat");
+  }
+}
+
+Future<void> _checkGooglePlayServices(BuildContext context) async {
+  // Check only on Android devices.
+  if (Platform.isAndroid) {
+    final availability =
+    await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+    if (availability != GooglePlayServicesAvailability.success) {
+      // Attempt to prompt the user to update/install Google Play Services.
+      await GoogleApiAvailability.instance.makeGooglePlayServicesAvailable();
+      // Re-check availability after attempting resolution.
+      final newAvailability =
+      await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+      if (newAvailability != GooglePlayServicesAvailability.success) {
+        _showMessage(
+          context,
+          'Google Play Services are required for this app to function properly.',
+        );
+      }
+    }
   }
 }
 

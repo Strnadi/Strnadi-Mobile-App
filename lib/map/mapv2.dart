@@ -18,9 +18,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
+import '../config/config.dart';
 
-const MAPY_CZ_API_KEY =
-    'sK2d7akq9IKKz7h7r_D_X0uc5NctyptoWuY2r9rJvDU';
+final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
