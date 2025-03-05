@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:io';
+import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
