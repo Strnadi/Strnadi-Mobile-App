@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io'; // Needed for platform checks
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:version/version.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 String transformReleaseTag(String tag) {
   if (tag.contains('-')) {
@@ -52,8 +54,24 @@ Future<void> checkForUpdate(BuildContext context) async {
             content: Text('A new version (${latestVersion.toString()}) is available. Please update your app.'),
             actions: [
               TextButton(
-                onPressed: () {
-                  // Add logic to redirect to your app store or release page
+                onPressed: () async {
+                  String redirectUrl;
+                  if (Platform.isIOS) {
+                    // Replace with your TestFlight URL
+                    redirectUrl = 'https://testflight.apple.com/join/gN6SV5Dm';
+                  } else if (Platform.isAndroid) {
+                    redirectUrl = 'https://strnadiapk.nanorobot.eu';
+                  } else {
+                    // Fallback URL if needed
+                    redirectUrl = 'https://strnadidownload.nanorobot.eu';
+                  }
+
+                  final Uri uri = Uri.parse(redirectUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  } else {
+                    print('Could not launch $redirectUrl');
+                  }
                   Navigator.of(context).pop();
                 },
                 child: Text('Update'),

@@ -15,10 +15,14 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import '../config/config.dart';
+
+final logger = Logger();
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
@@ -29,6 +33,8 @@ class MapScreenV2 extends StatefulWidget {
   State<MapScreenV2> createState() => _MapScreenV2State();
 }
 
+
+
 class _MapScreenV2State extends State<MapScreenV2> {
   final MapController _mapController = MapController();
   bool _isSatelliteView = false;
@@ -36,14 +42,78 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   // Store the current camera values.
   LatLng _currentCenter = LatLng(50.0755, 14.4378);
+  LatLng _currentPosition = LatLng(50.0755, 14.4378);
   double _currentZoom = 13;
 
   // We'll capture the rendered map size via LayoutBuilder.
   Size? _mapSize;
 
+  void _showMessage(String message) {
+    var context;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showMessage("Please enable location services");
+        logger.w("Location services are not enabled");
+        print("Location services are not enabled");
+        setState(() {
+          _currentPosition =  LatLng(50.0755, 14.4378);
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          logger.w("Location permissions are denied");
+          print("Location permissions are denied");
+          setState(() {
+            _currentPosition = LatLng(50.0755, 14.4378);
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        logger.w("Location permissions are permanently denied");
+        print("Location permissions are permanently denied");
+        setState(() {
+          _currentPosition = LatLng(50.0755, 14.4378);
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
+    } catch (e) {
+      logger.e(e);
+      print("Error retrieving location: $e");
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _getCurrentLocation();
     // Listen to move-end events.
     _mapController.mapEventStream.listen((event) {
       if (event is MapEventMoveEnd) {
@@ -92,7 +162,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
               FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: LatLng(50.0755, 14.4378),
+                  initialCenter: _currentPosition,
                   initialZoom: 13,
                   minZoom: 1,
                   maxZoom: 19,
@@ -117,7 +187,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Marker(
                         width: 20.0,
                         height: 20.0,
-                        point: _currentCenter,
+                        point: _currentPosition,
                         child: const Icon(
                           Icons.my_location,
                           color: Colors.blue,

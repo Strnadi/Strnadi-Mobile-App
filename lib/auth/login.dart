@@ -97,85 +97,89 @@ class _LoginState extends State<Login> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 100),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Strnadi',
-                  style: TextStyle(fontSize: 70, fontWeight: FontWeight.bold, color: Colors.black),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Heslo',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text('Zapomenuté heslo?', style: TextStyle(color: Colors.grey)),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: login,
-                child: const Text('Přihlásit se'),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: RichText(
-                  text: TextSpan(
-                    text: 'Nemáte účet? ',
-                    style: const TextStyle(color: Colors.black),
-                    children: [
-                      TextSpan(
-                        text: 'Zaregistrovat se',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        recognizer: _registerTapRecognizer,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: Text.rich(
+      body: SingleChildScrollView(
+      child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+      padding: const EdgeInsets.only(bottom: 100),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Strnadi',
+              style: TextStyle(fontSize: 70, fontWeight: FontWeight.bold, color: Colors.black),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _emailController,
+            decoration: InputDecoration(
+              labelText: 'Email',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Heslo',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            keyboardType: TextInputType.visiblePassword,
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text('Zapomenuté heslo?', style: TextStyle(color: Colors.grey)),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: login,
+            child: const Text('Přihlásit se'),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: RichText(
+              text: TextSpan(
+                text: 'Nemáte účet? ',
+                style: const TextStyle(color: Colors.black),
+                children: [
                   TextSpan(
-                    text: 'pokračováním souhlasíte s ',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    children: [
-                      TextSpan(
-                        text: 'zásadami ochrany osobních údajů.',
-                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                    text: 'Zaregistrovat se',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    recognizer: _registerTapRecognizer,
                   ),
-                  textAlign: TextAlign.center,
-                ),
+                ],
               ),
-            ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text.rich(
+              TextSpan(
+                text: 'pokračováním souhlasíte s ',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                children: [
+                  TextSpan(
+                    text: 'zásadami ochrany osobních údajů.',
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          ],
           ),
         ),
       ),
+      )
     );
   }
 }
