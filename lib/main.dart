@@ -24,6 +24,7 @@ import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
+import 'package:strnadi/updateChecker.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'config/config.dart';
@@ -81,7 +82,7 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Config.loadConfig();
 
   initFirebase();
@@ -148,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Defer the check until after the first frame is rendered.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkForUpdate(context);
       _checkGooglePlayServices(context);
       checkInternetConnection(context);
     });
