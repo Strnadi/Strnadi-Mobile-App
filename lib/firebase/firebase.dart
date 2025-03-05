@@ -12,7 +12,8 @@ FlutterLocalNotificationsPlugin();
 
 void initFirebase() async {
   // Initialize Firebase.
-  await Firebase.initializeApp();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Register the background message handler.
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
