@@ -40,14 +40,13 @@ int calcBitRate(int sampleRate, int bitDepth) {
 }
 
 class _LiveRecState extends State<LiveRec> {
-  int _recordDuration = 0;
+  double _recordDuration = 0;
   var filepath = "";
   Timer? _timer;
   late final AudioRecorder _audioRecorder;
   StreamSubscription<RecordState>? _recordSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
-  Amplitude? _amplitude;
 
   List<List<double>> spectrogramData = [];
 
@@ -85,12 +84,22 @@ class _LiveRecState extends State<LiveRec> {
     _amplitudeSub = _audioRecorder
         .onAmplitudeChanged(const Duration(milliseconds: 300))
         .listen((amp) {
-      setState(() => _amplitude = amp);
     });
 
     super.initState();
   }
 
+  void _toggleRecording(){
+    if (_recordState == RecordState.record) {
+      _pause();
+    } else if (_recordState == RecordState.pause) {
+      _resume();
+    } else {
+      _start();
+    }
+  }
+
+  /// stop function
   Future<void> _stop() async {
     recordingPartsList.add(
       RecordingParts(
@@ -100,7 +109,7 @@ class _LiveRecState extends State<LiveRec> {
       ),
     );
 
-    recordingPartsTimeList.add(_recordDuration);
+    recordingPartsTimeList.add(_recordDuration.toInt());
 
     await _audioRecorder.stop();
 
@@ -130,6 +139,66 @@ class _LiveRecState extends State<LiveRec> {
       'audio_${DateTime
           .now()
           .millisecondsSinceEpoch}.wav',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaffoldWithBottomBar(
+      appBarTitle: "Nahrávání",
+      content: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 80),
+          Expanded(
+            child: Container(
+              color: Colors.grey.shade300,
+              width: double.infinity,
+            ),
+          ),
+          const SizedBox(height: 40),
+          Text(
+            _formatTime(_recordDuration.toInt()),
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: _toggleRecording,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black,
+              ),
+              child: Icon(
+                _recordState == RecordState.record ? Icons.pause : Icons.mic,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Stisknutím zahájíte nebo pozastavíte nahrávání",
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _stop,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text("Zastavit nahrávání"),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
     );
   }
 
@@ -177,6 +246,13 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
+  String _formatTime(int duration) {
+    final milliseconds = (duration % 10) * 10;
+    final seconds = (duration ~/ 10) % 60;
+    final minutes = (duration ~/ 600);
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')},${milliseconds.toString().padLeft(2, '0')}';
+  }
+
   Future<String> recordStream(AudioRecorder recorder, RecordConfig config,
       String filepath) async {
     final file = File(filepath);
@@ -204,7 +280,7 @@ class _LiveRecState extends State<LiveRec> {
   Future<void> _pause() async {
     _audioRecorder.pause();
 
-    recordingPartsTimeList.add(_recordDuration);
+    recordingPartsTimeList.add(_recordDuration.toInt());
 
     recordingPartsList.add(RecordingParts(
       path: null,
@@ -251,31 +327,31 @@ class _LiveRecState extends State<LiveRec> {
     return isSupported;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ScaffoldWithBottomBar(
-      appBarTitle: "",
-      content: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // SizedBox(height: 100, width: 100, child: LiveSpectogram.SpectogramLive(data: _stream.toList().map((e) => e.toDouble()).toList())),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              _buildRecordStopControl(),
-              const SizedBox(width: 20),
-              _buildPauseResumeControl(),
-            ],
-          ),
-          if (_amplitude != null) ...[
-            const SizedBox(height: 40),
-            Text('Current: ${_amplitude?.current ?? 0.0}'),
-            Text('Max: ${_amplitude?.max ?? 0.0}'),
-          ],
-        ],
-      ),
-    );
-  }
+  // @override
+  // Widget build(BuildContext context) {
+  //   return ScaffoldWithBottomBar(
+  //     appBarTitle: "",
+  //     content: Column(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: [
+  //         // SizedBox(height: 100, width: 100, child: LiveSpectogram.SpectogramLive(data: _stream.toList().map((e) => e.toDouble()).toList())),
+  //         Row(
+  //           mainAxisAlignment: MainAxisAlignment.center,
+  //           children: <Widget>[
+  //             _buildRecordStopControl(),
+  //             const SizedBox(width: 20),
+  //             _buildPauseResumeControl(),
+  //           ],
+  //         ),
+  //         if (_amplitude != null) ...[
+  //           const SizedBox(height: 40),
+  //           Text('Current: ${_amplitude?.current ?? 0.0}'),
+  //           Text('Max: ${_amplitude?.max ?? 0.0}'),
+  //         ],
+  //       ],
+  //     ),
+  //   );
+  // }
 
   @override
   void dispose() {
@@ -284,70 +360,6 @@ class _LiveRecState extends State<LiveRec> {
     _amplitudeSub?.cancel();
     _audioRecorder.dispose();
     super.dispose();
-  }
-
-  Widget _buildRecordStopControl() {
-    late Icon icon;
-
-    if (_recordState != RecordState.stop) {
-      icon = const Icon(Icons.stop, color: Colors.red, size: 30);
-    } else {
-      final theme = Theme.of(context);
-      icon = Icon(Icons.mic, color: theme.primaryColor, size: 30);
-    }
-
-    return ClipOval(
-      child: Material(
-        color: Colors.red,
-        child: InkWell(
-          child: SizedBox(width: 56, height: 56, child: icon),
-          onTap: () {
-            (_recordState != RecordState.stop) ? _stop() : _start();
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPauseResumeControl() {
-    if (_recordState == RecordState.stop) {
-      return const SizedBox.shrink();
-    }
-
-    late Icon icon;
-    late Color color;
-
-    if (_recordState == RecordState.record) {
-      icon = const Icon(Icons.pause, color: Colors.red, size: 30);
-      color = Colors.red.withValues(alpha: 0.1);
-    } else {
-      final theme = Theme.of(context);
-      icon = const Icon(Icons.play_arrow, color: Colors.red, size: 30);
-      color = theme.primaryColor.withValues(alpha: 0.1);
-    }
-
-    return ClipOval(
-      child: Material(
-        color: color,
-        child: InkWell(
-          child: SizedBox(width: 56, height: 56, child: icon),
-          onTap: () {
-            (_recordState == RecordState.pause) ? _resume() : _pause();
-          },
-        ),
-      ),
-    );
-  }
-
-
-  Widget _buildTimer() {
-    final String minutes = _formatNumber(_recordDuration ~/ 60);
-    final String seconds = _formatNumber(_recordDuration % 60);
-
-    return Text(
-      '$minutes : $seconds',
-      style: const TextStyle(color: Colors.red),
-    );
   }
 
   String _formatNumber(int number) {
@@ -362,8 +374,8 @@ class _LiveRecState extends State<LiveRec> {
   void _startTimer() {
     _timer?.cancel();
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-      setState(() => _recordDuration++);
+    _timer = Timer.periodic(const Duration(milliseconds: 1), (Timer t) {
+      setState(() => _recordDuration += 0.01);
     });
   }
 
