@@ -54,7 +54,7 @@ dependencies:
   file_picker: any
   http: ^1.0.0
   flutter_secure_storage: ^8.0.0
-  device_info_plus: any
+  device_info_plus: ^11.3.0
   intl: ^0.18.0
   sqflite: any
   connectivity_plus: any

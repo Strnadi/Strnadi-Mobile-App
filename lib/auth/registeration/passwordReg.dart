@@ -72,7 +72,7 @@ class _RegPasswordState extends State<RegPassword> {
 
     final url = Uri(
         scheme: 'https',
-        host: 'strnadiapi.slavetraders.tech',
+        host: 'api.strnadi.cz',
         path: '/auth/sign-up');
 
     logger.i(jsonEncode({

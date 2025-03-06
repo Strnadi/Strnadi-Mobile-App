@@ -24,6 +24,7 @@ import 'package:strnadi/HealthCheck/serverHealth.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:http/http.dart' as http;
 import '../main.dart';
+import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
 
 class UserPage extends StatefulWidget {
   const UserPage({Key? key}) : super(key: key);
@@ -59,7 +60,7 @@ class _UserPageState extends State<UserPage> {
     }
 
     final jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users');
+    final Uri url = Uri.parse('https://api.strnadi.cz/users');
 
     print("url: $url");
 
@@ -91,6 +92,9 @@ class _UserPageState extends State<UserPage> {
     localStorage.delete(key: 'token');
     localStorage.delete(key: 'user');
     localStorage.delete(key: 'lastname');
+
+    strnadiFirebase.deleteToken();
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),
