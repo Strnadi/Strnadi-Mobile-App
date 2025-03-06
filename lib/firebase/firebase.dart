@@ -126,7 +126,6 @@ Future<void> initFirebaseMessaging() async{
   messaging.getToken().then((token) async {
     logger.i("Firebase token: $token");
 
-    FlutterSecureStorage().write(key: 'fcmToken', value: token);
     Uri url = Uri.https('api.strnadi.cz', '/devices/device');
 
     try {
@@ -155,7 +154,7 @@ Future<void> initFirebaseMessaging() async{
         FlutterSecureStorage().write(key: 'fcmToken', value: token);
       }
       else {
-        logger.e('Failed to send token to server', error: response.body);
+        logger.e('Failed to send token to server ${response.statusCode}');
       }
     }
     catch (error) {
@@ -190,7 +189,7 @@ Future<void> initFirebaseMessaging() async{
         logger.i('Token refreshed');
       }
       else {
-        logger.e('Failed to refresh token', error: response.body);
+        logger.e('Failed to refresh token ${response.statusCode}');
       }
     }
     catch (error) {
@@ -234,7 +233,7 @@ void deleteToken() async{
       logger.i('Token deleted');
     }
     else{
-      logger.e('Failed to delete token', error: response.body);
+      logger.e('Failed to delete token ${response.statusCode}');
     }
   }
   catch (error){
