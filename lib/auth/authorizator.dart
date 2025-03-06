@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/firebase/firebase.dart' as firebase;
 
 enum AuthType { login, register }
 
@@ -71,7 +72,7 @@ class _AuthState extends State<Authorizator> {
     final secureStorage = FlutterSecureStorage();
     final token = await secureStorage.read(key: 'token');
     if (token != null) {
-      final Uri url = Uri.parse('https://strnadiapi.slavetraders.tech/users')
+      final Uri url = Uri.parse('https://api.strnadi.cz/users')
           .replace(queryParameters: {'jwt': token});
       try {
         final response = await http.get(
@@ -90,6 +91,7 @@ class _AuthState extends State<Authorizator> {
           secureStorage.delete(key: 'token');
           secureStorage.delete(key: 'user');
           secureStorage.delete(key: 'lastname');
+          firebase.deleteToken();
         }
       } catch (error) {
         Sentry.captureException(error);

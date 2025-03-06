@@ -130,7 +130,7 @@ class _RecordingFormState extends State<RecordingForm> {
     print(widget.filepath);
 
     final uploadPart = Uri.parse(
-        'https://strnadiapi.slavetraders.tech/recordings/upload-part');
+        'https://api.strnadi.cz/recordings/upload-part');
 
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
@@ -218,7 +218,7 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
+        Uri.parse('https://api.strnadi.cz/recordings/upload');
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: 'token');
     print('token $token');

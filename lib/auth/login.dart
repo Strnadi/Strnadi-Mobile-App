@@ -58,7 +58,7 @@ class _LoginState extends State<Login> {
   }
 
   void login() async {
-    final url = Uri.https('strnadiapi.slavetraders.tech', '/auth/login');
+    final url = Uri.https('api.strnadi.cz', '/auth/login');
     try {
       final response = await http.post(
         url,
