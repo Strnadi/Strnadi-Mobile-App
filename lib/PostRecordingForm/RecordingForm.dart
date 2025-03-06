@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:io';
+import 'package:just_audio/just_audio.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -48,6 +49,8 @@ class Recording {
     required this.byApp,
     this.note,
   });
+
+
 
   factory Recording.fromJson(Map<String, dynamic> json) {
     return Recording(
@@ -220,11 +223,11 @@ class _RecordingFormState extends State<RecordingForm> {
         Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: 'token');
-    print('token $token');
-    print(jsonEncode({
-      'token': token,
-      'Recording': rec.toJson(),
-    }));
+    // print('token $token');
+    // print(jsonEncode({
+    //   'token': token,
+    //   'Recording': rec.toJson(),
+    // }));
     try {
       final response = await http.post(
         recordingSign,
@@ -242,19 +245,16 @@ class _RecordingFormState extends State<RecordingForm> {
       );
       if (response.statusCode == 200 || response.statusCode == 202) {
         final data = jsonDecode(response.body);
-        print(data);
         _recordingId = data; // Assuming the API returns an integer recording ID.
         uploadAudio(File(widget.filepath), _recordingId!);
         logger.i(widget.filepath);
         LocalDb.UpdateStatus(widget.filepath);
       } else {
         logger.w(response);
-        print('Error: ${response.statusCode} ${response.body}');
         Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       }
     } catch (error) {
       logger.e(error);
-      print('An error occurred: $error');
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
 
@@ -278,8 +278,8 @@ class _RecordingFormState extends State<RecordingForm> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
-              height: 100,
-              width: MediaQuery.of(context).size.width * 0.70,
+              height: 300,
+              width: double.infinity,
               child: LiveSpectogram.SpectogramLive(
                 data: [],
                 filepath: widget.filepath,

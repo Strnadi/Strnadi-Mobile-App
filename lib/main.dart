@@ -17,7 +17,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
-import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';

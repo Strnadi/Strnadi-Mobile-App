@@ -23,7 +23,7 @@ class _RecordingItemState extends State<RecordingItem> {
   late String _note;
   late double _latitude;
   late double _longitude;
-  late LatLng? fallbackPosition;
+  late LatLng? fallbackPosition = null;
 
   final AudioPlayer player = AudioPlayer();
   bool isFileLoaded = false;

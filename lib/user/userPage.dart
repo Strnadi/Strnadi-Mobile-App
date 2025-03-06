@@ -23,6 +23,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/HealthCheck/serverHealth.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:http/http.dart' as http;
+import 'package:strnadi/user/settingsList.dart';
 import '../main.dart';
 
 class UserPage extends StatefulWidget {
@@ -119,7 +120,7 @@ class _UserPageState extends State<UserPage> {
                       const AssetImage('./assets/images/default.jpg'),
                 ),
                 Text(
-                  userName + " " + lastName,
+                  "$userName $lastName",
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -128,13 +129,7 @@ class _UserPageState extends State<UserPage> {
               ],
             ),
           ),
-          const ServerHealth(),
-          ElevatedButton(
-            onPressed: () {
-              logout(context);
-            },
-            child: const Text('Logout'),
-          ),
+          MenuScreen()
         ],
       ),
     );
