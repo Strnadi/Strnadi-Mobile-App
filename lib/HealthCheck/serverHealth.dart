@@ -30,10 +30,10 @@ class _ServerHealthState extends State<ServerHealth> {
   bool _isServerHealthy = false;
 
   void checkServerHealth() async {
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/utils/health');
+    final url = Uri.parse('https://api.strnadi.cz/utils/health');
 
     try {
-      final response = await http.get(url);
+      final response = await http.head(url);
       if (response.statusCode == 200) {
         setState(() {
           _isServerHealthy = true;

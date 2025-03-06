@@ -39,7 +39,7 @@
 				<key>NSIncludesSubdomains</key>
 				<true/>
 			</dict>
-			<key>strnadiapi.slavetraders.tech</key>
+			<key>api.strnadi.cz</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<false/>

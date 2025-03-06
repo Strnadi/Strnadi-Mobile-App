@@ -15,6 +15,7 @@
  */
 import 'dart:io';
 import 'package:just_audio/just_audio.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/database/soundDatabase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -132,7 +133,7 @@ class _RecordingFormState extends State<RecordingForm> {
     print(widget.filepath);
 
     final uploadPart = Uri.parse(
-        'https://strnadiapi.slavetraders.tech/recordings/upload-part');
+        'https://api.strnadi.cz/recordings/upload-part');
 
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
@@ -220,7 +221,7 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
+        Uri.parse('https://api.strnadi.cz/recordings/upload');
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: 'token');
     // print('token $token');
