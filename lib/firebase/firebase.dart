@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
+import 'package:strnadi/auth/authorizator.dart' as auth;
 
 
 final logger = Logger();
@@ -114,7 +116,7 @@ Future<void> initFirebaseMessaging() async{
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
   // Request permissions (required for iOS).
-  messaging.requestPermission(
+  await messaging.requestPermission(
     alert: true,
     badge: true,
     sound: true,
@@ -131,11 +133,12 @@ Future<void> initFirebaseMessaging() async{
     try {
       DeviceInfo deviceInfo = await getDeviceInfo();
       
-      while (FlutterSecureStorage().read(key: 'token') == null) {
+      while (!await auth.isLoggedIn()) {
         await Future.delayed(Duration(seconds: 1));
       }
 
       String? jwt = await const FlutterSecureStorage().read(key: 'token');
+      logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
       final response = await http.post(
         url,
         headers: {
@@ -169,11 +172,16 @@ Future<void> initFirebaseMessaging() async{
 
     if (newToken == oldToken) return;
 
+    while (!await auth.isLoggedIn()) {
+      await Future.delayed(Duration(seconds: 1));
+    }
+
     logger.i("Firebase token refreshed: $newToken");
     Uri url = Uri.https('api.strnadi.cz', '/devices/device');
 
     try {
       String? jwt = await FlutterSecureStorage().read(key: 'token');
+      logger.i('JWT Token: $jwt REFRESHING TOKEN');
       final response = await http.post(
         url,
         headers: {
@@ -213,7 +221,7 @@ Future<void> initFirebaseMessaging() async{
   });
 }
 
-void deleteToken() async{
+Future<void> deleteToken() async{
   FirebaseMessaging.instance.deleteToken();
 
   String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');

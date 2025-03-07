@@ -32,6 +32,7 @@ import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
 import '../config/config.dart';
+import 'package:strnadi/locationService.dart' as loc;
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
@@ -100,7 +101,12 @@ class _RecordingFormState extends State<RecordingForm> {
 
   // List to store the user's route (all recorded locations)
   final List<LatLng> _route = [];
-  StreamSubscription<Position>? _positionStreamSub;
+  late Stream<Position> _positionStream;
+
+  late loc.LocationService locationService;
+
+  late LatLng? currentLocation;
+  late LatLng? markerPosition;
 
   DateTime? _lastRouteUpdate;
 
@@ -258,9 +264,17 @@ class _RecordingFormState extends State<RecordingForm> {
   @override
   void initState() {
     super.initState();
-    _startLocationUpdates();
+    locationService = loc.LocationService();
+    _positionStream = locationService.positionStream;
+    markerPosition = null;
+    _positionStream.listen((Position position){
+      setState(() {
+        markerPosition = LatLng(position.latitude, position.longitude);
+      });
+    });
   }
 
+  /*
   void _startLocationUpdates() {
     _positionStreamSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -281,11 +295,17 @@ class _RecordingFormState extends State<RecordingForm> {
         }
       }
     });
+   */
+
+  void updateMap(LatLng newPosition){
+    setState(() {
+      markerPosition = newPosition;
+    });
   }
+
 
   @override
   void dispose() {
-    _positionStreamSub?.cancel();
     _recordingNameController.dispose();
     _commentController.dispose();
     super.dispose();
@@ -293,19 +313,20 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Check for a valid current position (non-default) and valid recording part.
-    LatLng? validCurrentPosition;
-    if (widget.currentPosition != null) {
-      if (widget.currentPosition!.latitude != 50.1 ||
-          widget.currentPosition!.longitude != 14.4) {
-        validCurrentPosition = widget.currentPosition;
-      }
-    }
-    LatLng? validRecordingPart;
+
+    currentLocation = locationService.lastKnownPosition;
+
+    _positionStream.listen((Position position){
+      currentLocation = LatLng(position.latitude, position.longitude);
+      updateMap(currentLocation!);
+    });
+
+    LatLng? validRecordingPartLocation;
+
     if (widget.recordingParts.isNotEmpty) {
       final firstPart = widget.recordingParts.first;
       if (firstPart.latitude != 50.1 || firstPart.longitude != 14.4) {
-        validRecordingPart = LatLng(firstPart.latitude, firstPart.longitude);
+        validRecordingPartLocation = LatLng(firstPart.latitude, firstPart.longitude);
       }
     }
 
@@ -313,11 +334,11 @@ class _RecordingFormState extends State<RecordingForm> {
     LatLng mapCenter;
     if (_route.isNotEmpty) {
       mapCenter = _route.last;
-    } else if (validCurrentPosition != null) {
-      mapCenter = validCurrentPosition;
-    } else if (validRecordingPart != null) {
-      mapCenter = validRecordingPart;
-    } else {
+    } else if (validRecordingPartLocation != null) {
+      mapCenter = validRecordingPartLocation;
+    } else if (currentLocation != null) {
+      mapCenter = currentLocation!;
+    }  else {
       mapCenter = LatLng(50.1, 14.4);
     }
 
@@ -351,7 +372,6 @@ class _RecordingFormState extends State<RecordingForm> {
                         'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                         userAgentPackageName: 'cz.delta.strnadi',
                       ),
-                      // Defensive copy of _route list to avoid concurrent modification errors.
                       if (_route.isNotEmpty)
                         PolylineLayer(
                           polylines: [
@@ -364,23 +384,37 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                       MarkerLayer(
                         markers: [
-                          Marker(
-                            width: 20.0,
-                            height: 20.0,
-                            point: mapCenter,
-                            child: const Icon(
-                              Icons.my_location,
-                              color: Colors.blue,
-                              size: 30.0,
+                          if (markerPosition != null)
+                            Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: markerPosition!,
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 30.0,
+                              ),
                             ),
-                          ),
+                          // Place markers for all recording parts
+                          ...widget.recordingParts.map(
+                                (part) => Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: LatLng(part.latitude, part.longitude),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                                size: 30.0,
+                              ),
+                            ),
+                          ).toList(),
                         ],
                       ),
                     ],
                   ),
                   if (_route.isEmpty &&
-                      validCurrentPosition == null &&
-                      validRecordingPart == null)
+                      currentLocation == null &&
+                      validRecordingPartLocation == null)
                     Positioned.fill(
                       child: Container(
                         color: Colors.black45,

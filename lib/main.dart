@@ -15,6 +15,8 @@
  */
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
 import 'package:strnadi/auth/authorizator.dart';
@@ -31,6 +33,21 @@ import 'config/config.dart';
 
 // Create a global logger instance.
 final logger = Logger();
+
+Future<void> getLocationPerimition(BuildContext context) async {
+  LocationPermission permission = await Geolocator.requestPermission();
+  logger.i("Location permission: $permission");
+  while (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+    _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+    permission = await Geolocator.requestPermission();
+    logger.i("Location permission: $permission");
+    if (permission == LocationPermission.deniedForever) {
+      _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+      await SystemNavigator.pop();
+    }
+  }
+}
+
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
@@ -99,7 +116,7 @@ Future<void> main() async {
       // Initialize your database and other services.
       initDb();
       // Initialize Firebase Messaging.
-      initFirebaseMessaging();
+      await initFirebaseMessaging();
       // Initialize Firebase Local Messaging
       initLocalNotifications();
       // Run the app.
@@ -108,7 +125,7 @@ Future<void> main() async {
   );
 }
 
-void checkInternetConnection(BuildContext context) async {
+Future<void> checkInternetConnection(BuildContext context) async {
   if (await hasInternetAccess()) {
     logger.i("Has Internet access");
   } else {
@@ -147,10 +164,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     // Defer the check until after the first frame is rendered.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      checkForUpdate(context);
-      _checkGooglePlayServices(context);
-      checkInternetConnection(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) async{
+      await checkForUpdate(context);
+      await _checkGooglePlayServices(context);
+      await checkInternetConnection(context);
+      await getLocationPerimition(context);
     });
   }
 
