@@ -20,6 +20,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
 import 'registeration/mail.dart';
 
@@ -167,6 +168,10 @@ class _LoginState extends State<Login> {
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
                 children: [
                   TextSpan(
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+                        _launchURL();
+                      },
                     text: 'zásadami ochrany osobních údajů.',
                     style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                   ),
@@ -181,5 +186,12 @@ class _LoginState extends State<Login> {
       ),
       )
     );
+  }
+
+  _launchURL() async {
+    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
+    if (!await launchUrl(url)) {
+      throw Exception('Could not launch $url');
+    }
   }
 }

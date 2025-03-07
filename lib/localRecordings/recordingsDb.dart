@@ -24,6 +24,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:strnadi/recording/recorderWithSpectogram.dart';
 
 import '../PostRecordingForm/RecordingForm.dart';
 
@@ -60,19 +61,14 @@ class LocalDb {
   }
 
   static Future<void> insertRecording(Recording recording, String name,
-      int status, String filepath, double latitude, double longitude) async {
+      int status, String filepath, double latitude, double longitude,
+      List<RecordingParts> recParts, List<int> recTimeParts,
+      DateTime startTime, int ignoredId) async {
+
     final Database db = await database;
 
-
-    var id = await db.rawQuery("SELECT MAX(id) as id FROM recordings");
-    var lastId = id[0]["id"];
-
-    lastId ??= 0;
-
-    var RecId = lastId as int;
-
     var map = <String, Object?>{
-      'title': name == "" ? 'Záznam cislo ${RecId+1}' : name,
+      'title': name.isEmpty ? 'Záznam číslo' : name,
       'created_at': recording.createdAt.toIso8601String(),
       'estimated_birds_count': recording.estimatedBirdsCount,
       'by_app': 1,
@@ -84,13 +80,31 @@ class LocalDb {
       'upload_status': status,
     };
 
-    logger.d('Inserting recording: $map');
+    // Insert the recording and get its ID
+    int recordingId = await db.insert('recordings', map);
 
-    await db.insert(
-      'recordings',
-      map,
-    );
+    int cumulativeSeconds = 0;
+    for (int i = 0; i < recParts.length; i++) {
+      int segmentDuration = recTimeParts[i];
+      final segmentStart = startTime.add(Duration(seconds: cumulativeSeconds));
+      final segmentEnd = segmentStart.add(Duration(seconds: segmentDuration));
+
+      var partMap = <String, Object?>{
+        'recording_id': recordingId,  // FIX: Use the correct recording ID
+        'start_time': segmentStart.toIso8601String(),  // FIX: Convert DateTime to String
+        'end_time': segmentEnd.toIso8601String(),
+        'latitude_start': recParts[i].latitude,
+        'longitude_start': recParts[i].longitude,
+        'latitude_end': recParts[i].latitude,
+        'longitude_end': recParts[i].longitude,
+      };
+
+      await db.insert('recording_parts', partMap);
+
+      cumulativeSeconds += segmentDuration;
+    }
   }
+
 
   static Future<List<RecordItem>> GetRecordings() async {
     List<RecordItem> records = [];

@@ -16,7 +16,6 @@
 import 'dart:io';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:strnadi/database/soundDatabase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'; // Marker layer package
@@ -31,6 +30,7 @@ import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
 import '../config/config.dart';
+import '../database/soundDatabase.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
@@ -204,15 +204,6 @@ class _RecordingFormState extends State<RecordingForm> {
       note: _commentController.text,
     );
 
-    LocalDb.insertRecording(
-      rec,
-      _recordingNameController.text,
-      0,
-      widget.filepath,
-      widget.currentPosition?.latitude ?? 0,
-      widget.currentPosition?.longitude ?? 0,
-    );
-    logger.i("inserted into local db");
 
     if (!await hasInternetAccess()) {
       logger.e("No internet connection");
@@ -258,6 +249,21 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e(error);
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
+
+
+    LocalDb.insertRecording(
+      rec,
+      _recordingNameController.text,
+      0,
+      widget.filepath,
+      widget.currentPosition?.latitude ?? 0,
+      widget.currentPosition?.longitude ?? 0,
+      widget.recordingParts,
+      widget.recordingPartsTimeList,
+      widget.startTime,
+      _recordingId ?? -1,
+    );
+    logger.i("inserted into local db");
 
   }
 
