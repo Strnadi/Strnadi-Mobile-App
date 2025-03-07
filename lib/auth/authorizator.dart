@@ -102,27 +102,26 @@ class _AuthState extends State<Authorizator> {
     if(await isLoggedIn()) {
       String? token = await secureStorage.read(key: 'token');
 
-      if (token != null) {
-        final Uri url = Uri.parse('https://api.strnadi.cz/users')
-            .replace(queryParameters: {'jwt': token});
+      final Uri url = Uri.parse('https://api.strnadi.cz/users')
+          .replace(queryParameters: {'jwt': token});
 
-        final response = await http.get(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token,
-          }
-        );
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        }
+      );
 
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        secureStorage.write(key: 'user', value: data['firstName']);
-        secureStorage.write(key: 'lastname', value: data['lastName']);
-        // If you plan to navigate here, consider scheduling it in a post-frame callback.
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => LiveRec()),
-        );
-      }
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      secureStorage.write(key: 'user', value: data['firstName']);
+      secureStorage.write(key: 'lastname', value: data['lastName']);
+      // If you plan to navigate here, consider scheduling it in a post-frame callback.
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => LiveRec()),
+      );
     }
     else {
       _showMessage("Byli jste odhlášeni");

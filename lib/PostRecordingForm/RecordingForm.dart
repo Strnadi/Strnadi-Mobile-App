@@ -105,8 +105,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   late loc.LocationService locationService;
 
-  late LatLng? currentLocation;
-  late LatLng? markerPosition;
+  LatLng? currentLocation;
+  LatLng? markerPosition;
 
   DateTime? _lastRouteUpdate;
 
@@ -261,48 +261,40 @@ class _RecordingFormState extends State<RecordingForm> {
     }
   }
 
+  // New method to handle each new position update
+  void _onNewPosition(Position position) {
+    final newPoint = LatLng(position.latitude, position.longitude);
+    setState(() {
+      markerPosition = newPoint;
+      currentLocation = newPoint;
+      if (_route.isEmpty) {
+        _route.add(newPoint);
+      } else {
+        final distance = Distance().distance(_route.last, newPoint);
+        if (distance > 10) {
+          if (_lastRouteUpdate == null ||
+              DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
+            _lastRouteUpdate = DateTime.now();
+            _route.add(newPoint);
+          } else {
+            _route.add(newPoint);
+          }
+        }
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     locationService = loc.LocationService();
     _positionStream = locationService.positionStream;
     markerPosition = null;
-    _positionStream.listen((Position position){
-      setState(() {
-        markerPosition = LatLng(position.latitude, position.longitude);
-      });
+    // Subscribe to the position stream once using the dedicated method
+    _positionStream.listen((Position position) {
+      _onNewPosition(position);
     });
   }
-
-  /*
-  void _startLocationUpdates() {
-    _positionStreamSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 10,
-      ),
-    ).listen((Position position) {
-      LatLng newPoint = LatLng(position.latitude, position.longitude);
-      if (_route.isEmpty || Distance().distance(_route.last, newPoint) > 10) {
-        if (_lastRouteUpdate == null ||
-            DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
-          _lastRouteUpdate = DateTime.now();
-          setState(() {
-            _route.add(newPoint);
-          });
-        } else {
-          _route.add(newPoint);
-        }
-      }
-    });
-   */
-
-  void updateMap(LatLng newPosition){
-    setState(() {
-      markerPosition = newPosition;
-    });
-  }
-
 
   @override
   void dispose() {
@@ -313,16 +305,10 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
-
+    // Use the last known position as the current location if available
     currentLocation = locationService.lastKnownPosition;
 
-    _positionStream.listen((Position position){
-      currentLocation = LatLng(position.latitude, position.longitude);
-      updateMap(currentLocation!);
-    });
-
     LatLng? validRecordingPartLocation;
-
     if (widget.recordingParts.isNotEmpty) {
       final firstPart = widget.recordingParts.first;
       if (firstPart.latitude != 50.1 || firstPart.longitude != 14.4) {
@@ -338,7 +324,7 @@ class _RecordingFormState extends State<RecordingForm> {
       mapCenter = validRecordingPartLocation;
     } else if (currentLocation != null) {
       mapCenter = currentLocation!;
-    }  else {
+    } else {
       mapCenter = LatLng(50.1, 14.4);
     }
 
