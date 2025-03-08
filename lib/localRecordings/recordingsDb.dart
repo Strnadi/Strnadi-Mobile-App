@@ -25,6 +25,7 @@ import 'package:strnadi/localRecordings/recList.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/user/settingsManager.dart';
 
 import '../PostRecordingForm/RecordingForm.dart';
 
@@ -65,7 +66,17 @@ class LocalDb {
       List<RecordingParts> recParts, List<int> recTimeParts,
       DateTime startTime, int ignoredId) async {
 
+    var localSettings = await SettingsService();
+
     final Database db = await database;
+    
+    var numeberOfRecordings = await db.rawQuery("SELECT COUNT(id) AS CNT FROM recordings").then((value) => value[0]["CNT"]).then((value) => int.parse(value.toString()));
+
+    if (numeberOfRecordings >= await localSettings.getLocalRecordingsMax()) {
+      var oldestRecording = await db.rawQuery("SELECT id FROM recordings ORDER BY created_at ASC LIMIT 1").then((value) => value[0]["id"]).then((value) => int.parse(value.toString()));
+      await db.rawDelete("DELETE FROM recordings WHERE id = ?", [oldestRecording]);
+      await db.rawDelete("DELETE FROM recording_parts WHERE recording_id = ?", [oldestRecording]);
+    }
 
     var map = <String, Object?>{
       'title': name.isEmpty ? 'Záznam číslo' : name,

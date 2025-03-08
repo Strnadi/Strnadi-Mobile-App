@@ -98,7 +98,39 @@ class _RecordingFormState extends State<RecordingForm> {
   final _recordingNameController = TextEditingController();
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
+
+  final _audioPlayer = AudioPlayer();
+  Duration currentPosition = Duration.zero;
+  Duration totalDuration = Duration.zero;
+  bool isPlaying = false;
+
   int? _recordingId;
+
+  @override
+  void initState() {
+
+
+    _audioPlayer.positionStream.listen((position) {
+      setState(() {
+        currentPosition = position;
+      });
+    });
+
+    _audioPlayer.durationStream.listen((duration) {
+      setState(() {
+        totalDuration = duration ?? Duration.zero;
+      });
+    });
+
+    _audioPlayer.playingStream.listen((playing) {
+      setState(() {
+        isPlaying = playing;
+      });
+    });
+
+    _audioPlayer.setFilePath(widget.filepath);
+    super.initState();
+  }
 
   Future<bool> hasInternetAccess() async {
     try {
@@ -193,6 +225,22 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
+  void togglePlay() async {
+
+    if (_audioPlayer.playing) {
+      await _audioPlayer.pause();
+    } else {
+      await _audioPlayer.play();
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
   void upload() async {
     final platform = await getDeviceModel();
     print("Estimated birds count: ${_strnadiCountController.toInt()}");
@@ -266,6 +314,10 @@ class _RecordingFormState extends State<RecordingForm> {
     logger.i("inserted into local db");
 
   }
+  void seekRelative(int seconds) {
+    final newPosition = currentPosition + Duration(seconds: seconds);
+    _audioPlayer.seek(newPosition);
+  }
 
   @override
   void dispose() {
@@ -291,6 +343,25 @@ class _RecordingFormState extends State<RecordingForm> {
                 data: [],
                 filepath: widget.filepath,
               ),
+            ),
+            Text(_formatDuration(totalDuration), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold) ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.replay_10, size: 32),
+                  onPressed: () => seekRelative(-10),
+                ),
+                IconButton(
+                  icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                  iconSize: 72,
+                  onPressed: togglePlay,
+                ),
+                IconButton(
+                  icon: Icon(Icons.forward_10, size: 32),
+                  onPressed: () => seekRelative(10),
+                ),
+              ],
             ),
             const SizedBox(height: 50),
             Form(

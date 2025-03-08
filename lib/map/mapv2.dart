@@ -20,6 +20,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
+import 'package:strnadi/bottomBar.dart';
 import '../config/config.dart';
 
 final logger = Logger();
@@ -32,8 +33,6 @@ class MapScreenV2 extends StatefulWidget {
   @override
   State<MapScreenV2> createState() => _MapScreenV2State();
 }
-
-
 
 class _MapScreenV2State extends State<MapScreenV2> {
   final MapController _mapController = MapController();
@@ -63,7 +62,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         ],
       ),
     );
-    }
+  }
 
   Future<void> _getCurrentLocation() async {
     try {
@@ -73,7 +72,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         logger.w("Location services are not enabled");
         print("Location services are not enabled");
         setState(() {
-          _currentPosition =  LatLng(50.0755, 14.4378);
+          _currentPosition = LatLng(50.0755, 14.4378);
         });
         return;
       }
@@ -124,35 +123,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _updateGrid();
       }
     });
-
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mapy.cz Flutter Map V2'),
-        actions: [
-          IconButton(
-            icon: Icon(_isSatelliteView ? Icons.map : Icons.satellite),
-            onPressed: () {
-              setState(() {
-                _isSatelliteView = !_isSatelliteView;
-              });
-            },
-            tooltip: _isSatelliteView
-                ? 'Switch to Map View'
-                : 'Switch to Satellite View',
-          ),
-        ],
-      ),
-      // Use LayoutBuilder to determine the map widget size.
-      body: LayoutBuilder(
+    return ScaffoldWithBottomBar(
+      appBarTitle: 'Mapy.cz Flutter Map V2',
+      content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
           if (_mapSize == null || _mapSize != newSize) {
             _mapSize = newSize;
-            // Update grid after the frame so we use the new size.
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _updateGrid();
             });
@@ -198,7 +179,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   ),
                 ],
               ),
-              // Zoom controls.
               Positioned(
                 bottom: 20,
                 right: 20,
@@ -226,16 +206,28 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       },
                       tooltip: 'Zoom Out',
                     ),
+                    const SizedBox(height: 8),
+                    FloatingActionButton(
+                      heroTag: 'toggleSatellite',
+                      mini: true,
+                      child: Icon(_isSatelliteView ? Icons.map : Icons.satellite),
+                      onPressed: () {
+                        setState(() {
+                          _isSatelliteView = !_isSatelliteView;
+                        });
+                      },
+                      tooltip: _isSatelliteView
+                          ? 'Switch to Map View'
+                          : 'Switch to Satellite View',
+                    ),
                   ],
                 ),
               ),
-              // Attribution text.
               Positioned(
                 bottom: 10,
                 left: 10,
                 child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
                   color: Colors.white70,
                   child: const Text(
                     'Mapy.cz © Seznam.cz, a.s.',
@@ -256,10 +248,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
     double nTiles = math.pow(2, zoom).toDouble();
     double x = (latlng.longitude + 180) / 360 * nTiles * tileSize;
     double latRad = latlng.latitude * math.pi / 180;
-    double y = (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
-        2 *
-        nTiles *
-        tileSize;
+    double y =
+        (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
+            2 *
+            nTiles *
+            tileSize;
     return Offset(x, y);
   }
 
@@ -307,8 +300,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
     const double gridCellHeight = 6 / 60;
     const double gridCellWidth = 10 / 60;
     // The fixed top left (origin) of the grid:
-    const double originLat = 56.0;       // 56°0'N
-    const double originLon = 5 + 40 / 60;  // 5°40'E, i.e. ~5.666667
+    const double originLat = 56.0; // 56°0'N
+    const double originLon = 5 + 40 / 60; // 5°40'E, i.e. ~5.666667
 
     List<Polyline> newGridLines = [];
 
@@ -349,9 +342,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
   int _latToTileY(double lat, int zoom) {
     double latRad = lat * math.pi / 180;
     double nTiles = math.pow(2, zoom).toDouble();
-    double y = (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
-        2 *
-        nTiles;
+    double y =
+        (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
+            2 *
+            nTiles;
     return y.floor();
   }
 
