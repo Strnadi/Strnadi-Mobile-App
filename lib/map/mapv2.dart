@@ -110,6 +110,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   void initState() {
     super.initState();
+    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 50.0755, LocationService().lastKnownPosition?.longitude ?? 14.4378);
+
     _getCurrentLocation();
 
     // Subscribe to the centralized location stream.
@@ -210,26 +212,44 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Reset button: recenter the map to current location and reset orientation to north.
+                    FloatingActionButton(
+                      heroTag: 'reset',
+                      mini: true,
+                      child: const Icon(Icons.gps_fixed),
+                      tooltip: 'Reset orientation & recenter',
+                      onPressed: () async {
+                        // Update current location.
+                        await _getCurrentLocation();
+                        // Recenter the map to the updated current location with the current zoom level.
+                        _mapController.move(_currentPosition, _currentZoom);
+                        // If your map supports rotation (and you’ve enabled it in MapOptions),
+                        // you can reset the orientation to north by uncommenting the next line.
+                        // _mapController.rotate(0);
+                        _updateGrid();
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     FloatingActionButton(
                       heroTag: 'zoomIn',
                       mini: true,
                       child: const Icon(Icons.add),
+                      tooltip: 'Zoom In',
                       onPressed: () {
                         _mapController.move(_currentCenter, _currentZoom + 1);
                         _updateGrid();
                       },
-                      tooltip: 'Zoom In',
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton(
                       heroTag: 'zoomOut',
                       mini: true,
                       child: const Icon(Icons.remove),
+                      tooltip: 'Zoom Out',
                       onPressed: () {
                         _mapController.move(_currentCenter, _currentZoom - 1);
                         _updateGrid();
                       },
-                      tooltip: 'Zoom Out',
                     ),
                   ],
                 ),

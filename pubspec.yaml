@@ -26,12 +26,11 @@ environment:
 license: "GPL-3.0-or-later"
 
 flutter_launcher_icons:
-  flutter_icons:
-    android: true
-    ios: true
-    image_path: "assets/images/logo.png"
-    adaptive_icon_background: "#FFFFFF"         # Could be a color or an image
-    adaptive_icon_foreground: "assets/images/logo.png"
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#FFFFFF"         # Could be a color or an image
+  adaptive_icon_foreground: "assets/images/logo.png"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -100,6 +99,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
+    - assets/images/logo.png
     - lib/map/dummy.json
     - assets/images/default.jpg
     - assets/databaseScheme.sql
