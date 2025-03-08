@@ -22,9 +22,10 @@ import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:strnadi/bottomBar.dart';
 import '../config/config.dart';
+import 'dart:async';
+import 'package:strnadi/locationService.dart'; // Use the location service
 
 final logger = Logger();
-
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
 class MapScreenV2 extends StatefulWidget {
@@ -44,15 +45,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
   LatLng _currentPosition = LatLng(50.0755, 14.4378);
   double _currentZoom = 13;
 
-  // We'll capture the rendered map size via LayoutBuilder.
   Size? _mapSize;
 
+  // Subscribe to location updates via the centralized service.
+  StreamSubscription? _positionStreamSubscription;
+
   void _showMessage(String message) {
-    var context;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Login'),
+        title: const Text('Notification'),
         content: Text(message),
         actions: [
           TextButton(
@@ -70,7 +72,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
       if (!serviceEnabled) {
         _showMessage("Please enable location services");
         logger.w("Location services are not enabled");
-        print("Location services are not enabled");
         setState(() {
           _currentPosition = LatLng(50.0755, 14.4378);
         });
@@ -82,7 +83,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           logger.w("Location permissions are denied");
-          print("Location permissions are denied");
           setState(() {
             _currentPosition = LatLng(50.0755, 14.4378);
           });
@@ -92,7 +92,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
       if (permission == LocationPermission.deniedForever) {
         logger.w("Location permissions are permanently denied");
-        print("Location permissions are permanently denied");
         setState(() {
           _currentPosition = LatLng(50.0755, 14.4378);
         });
@@ -112,8 +111,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   void initState() {
     super.initState();
+    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 50.0755, LocationService().lastKnownPosition?.longitude ?? 14.4378);
+
     _getCurrentLocation();
-    // Listen to move-end events.
+
+    // Subscribe to the centralized location stream.
+    _positionStreamSubscription = LocationService().positionStream.listen((Position position) {
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
+    });
+
     _mapController.mapEventStream.listen((event) {
       if (event is MapEventMoveEnd) {
         setState(() {
@@ -123,6 +131,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _updateGrid();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -185,26 +199,44 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Reset button: recenter the map to current location and reset orientation to north.
+                    FloatingActionButton(
+                      heroTag: 'reset',
+                      mini: true,
+                      child: const Icon(Icons.gps_fixed),
+                      tooltip: 'Reset orientation & recenter',
+                      onPressed: () async {
+                        // Update current location.
+                        await _getCurrentLocation();
+                        // Recenter the map to the updated current location with the current zoom level.
+                        _mapController.move(_currentPosition, _currentZoom);
+                        // If your map supports rotation (and you’ve enabled it in MapOptions),
+                        // you can reset the orientation to north by uncommenting the next line.
+                        // _mapController.rotate(0);
+                        _updateGrid();
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     FloatingActionButton(
                       heroTag: 'zoomIn',
                       mini: true,
                       child: const Icon(Icons.add),
+                      tooltip: 'Zoom In',
                       onPressed: () {
                         _mapController.move(_currentCenter, _currentZoom + 1);
                         _updateGrid();
                       },
-                      tooltip: 'Zoom In',
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton(
                       heroTag: 'zoomOut',
                       mini: true,
                       child: const Icon(Icons.remove),
+                      tooltip: 'Zoom Out',
                       onPressed: () {
                         _mapController.move(_currentCenter, _currentZoom - 1);
                         _updateGrid();
                       },
-                      tooltip: 'Zoom Out',
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton(
@@ -227,7 +259,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 bottom: 10,
                 left: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 2, horizontal: 4),
                   color: Colors.white70,
                   child: const Text(
                     'Mapy.cz © Seznam.cz, a.s.',
@@ -242,7 +275,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     );
   }
 
-  // Convert a LatLng to pixel coordinates at a given zoom.
   Offset latLngToPixel(LatLng latlng, double zoom) {
     const double tileSize = 256.0;
     double nTiles = math.pow(2, zoom).toDouble();
@@ -256,7 +288,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return Offset(x, y);
   }
 
-  // Convert pixel coordinates at a given zoom back to a LatLng.
   LatLng pixelToLatLng(Offset pixel, double zoom) {
     const double tileSize = 256.0;
     double nTiles = math.pow(2, zoom).toDouble();
@@ -267,7 +298,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return LatLng(lat, lon);
   }
 
-  // Calculate the visible bounds of the map using the current center, zoom, and widget size.
   LatLngBounds calculateBounds() {
     if (_mapSize == null) return LatLngBounds(LatLng(0, 0), LatLng(0, 0));
     Offset centerPixel = latLngToPixel(_currentCenter, _currentZoom);
@@ -277,15 +307,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     Offset bottomRightPixel = centerPixel + Offset(width / 2, height / 2);
     LatLng topLeft = pixelToLatLng(topLeftPixel, _currentZoom);
     LatLng bottomRight = pixelToLatLng(bottomRightPixel, _currentZoom);
-    // Construct bounds with southwest and northeast corners.
     return LatLngBounds(
       LatLng(bottomRight.latitude, topLeft.longitude),
       LatLng(topLeft.latitude, bottomRight.longitude),
     );
   }
 
-  // Update grid lines based on the current visible bounds.
-  // Update grid lines based on the current visible bounds using the specified grid intervals.
   void _updateGrid() {
     if (_mapSize == null) return;
     final bounds = calculateBounds();
@@ -294,9 +321,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final double westBound = bounds.west;
     final double eastBound = bounds.east;
 
-    // Grid specification:
-    // Grid cell height: 6 minutes = 6/60 = 0.1 degrees (latitude)
-    // Grid cell width: 10 minutes = 10/60 ≈ 0.166667 degrees (longitude)
     const double gridCellHeight = 6 / 60;
     const double gridCellWidth = 10 / 60;
     // The fixed top left (origin) of the grid:
@@ -305,9 +329,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     List<Polyline> newGridLines = [];
 
-    // --- Vertical grid lines (constant longitude) ---
-    // They occur at: lon = originLon + k * gridCellWidth, for integer k.
-    // Find the first k so that the grid line is >= westBound.
     int kStartLon = ((westBound - originLon) / gridCellWidth).ceil();
     for (int k = kStartLon;; k++) {
       double gridLon = originLon + k * gridCellWidth;
@@ -319,9 +340,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
       ));
     }
 
-    // --- Horizontal grid lines (constant latitude) ---
-    // They occur at: lat = originLat - k * gridCellHeight, for integer k.
-    // Find the first k so that the grid line is <= northBound.
     int kStartLat = ((originLat - northBound) / gridCellHeight).floor();
     for (int k = kStartLat;; k++) {
       double gridLat = originLat - k * gridCellHeight;
@@ -338,7 +356,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
-  // Helper: convert latitude to a tile Y coordinate (in tile units, not pixels).
   int _latToTileY(double lat, int zoom) {
     double latRad = lat * math.pi / 180;
     double nTiles = math.pow(2, zoom).toDouble();
@@ -349,7 +366,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return y.floor();
   }
 
-  // Helper: convert a tile Y coordinate back to a latitude.
   double _tileYToLat(int y, int zoom) {
     double nTiles = math.pow(2, zoom).toDouble();
     double n = math.pi * (1 - 2 * y / nTiles);

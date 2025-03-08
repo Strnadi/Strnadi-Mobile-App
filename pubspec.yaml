@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+8
+version: 1.0.1+9
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -26,9 +26,11 @@ environment:
 license: "GPL-3.0-or-later"
 
 flutter_launcher_icons:
-  image_path: "assets/images/logo.png"
   android: true
   ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#FFFFFF"         # Could be a color or an image
+  adaptive_icon_foreground: "assets/images/logo.png"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -99,6 +101,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
+    - assets/images/logo.png
     - lib/map/dummy.json
     - assets/images/default.jpg
     - assets/databaseScheme.sql
