@@ -304,6 +304,19 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e(error);
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
+    LocalDb.insertRecording(
+      rec,
+      _recordingNameController.text,
+      0,
+      widget.filepath,
+      widget.currentPosition?.latitude ?? 0,
+      widget.currentPosition?.longitude ?? 0,
+      widget.recordingParts,
+      widget.recordingPartsTimeList,
+      widget.startTime,
+      _recordingId ?? -1,
+    );
+    logger.i("inserted into local db");
   }
 
   // New method to handle each new position update
@@ -328,21 +341,7 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     });
   }
-    LocalDb.insertRecording(
-      rec,
-      _recordingNameController.text,
-      0,
-      widget.filepath,
-      widget.currentPosition?.latitude ?? 0,
-      widget.currentPosition?.longitude ?? 0,
-      widget.recordingParts,
-      widget.recordingPartsTimeList,
-      widget.startTime,
-      _recordingId ?? -1,
-    );
-    logger.i("inserted into local db");
 
-  }
   void seekRelative(int seconds) {
     final newPosition = currentPosition + Duration(seconds: seconds);
     _audioPlayer.seek(newPosition);
