@@ -50,58 +50,61 @@ class _RecordingScreenState extends State<RecordingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sample data matching the screenshot
     var records = list.reversed.toList();
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: ListView.separated(
-          itemCount: records.length,
-          separatorBuilder: (context, index) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            return ListTile(
-              title: Text(
-                records[index].title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          child: ListView.separated(
+            itemCount: records.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(
+                  records[index].title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              subtitle: Row(
-                children: [
-                  Text(
-                    records[index].date,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
+                subtitle: Row(
+                  children: [
+                    Text(
+                      records[index].date,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    records[index].status,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
+                    const SizedBox(width: 8),
+                    Text(
+                      records[index].status,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: Colors.grey,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RecordingItem(recording: records[index]),
-                  ),
-                );
-              },
-            );
-          },
+                  ],
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecordingItem(recording: records[index]),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

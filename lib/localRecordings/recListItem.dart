@@ -114,6 +114,16 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+  void DownloadRecording() async {
+    var db = await LocalDb.database;
+    var filepath = await db.rawQuery(
+        "SELECT created_at FROM recordings WHERE title = ?",
+        [widget.recording.title]);
+    var rec_date = filepath[0]["created_at"].toString();
+
+    // TODO stasik endopint to download file
+  }
+
   void togglePlay() async {
     if (!isFileLoaded) return;
 
