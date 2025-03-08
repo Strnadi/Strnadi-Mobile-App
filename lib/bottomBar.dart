@@ -31,12 +31,15 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
   final Widget content;
   final VoidCallback? logout;
+  final allawArrowBack;
 
   const ScaffoldWithBottomBar({
     Key? key,
+
     required this.appBarTitle,
     required this.content,
     this.logout,
+    this.allawArrowBack = false,
   }) : super(key: key);
 
   void Logout(BuildContext context) {
@@ -64,7 +67,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
               },
             ),
         ],
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: allawArrowBack,
       ),
       backgroundColor: Colors.white,
       body: SizedBox(
@@ -111,7 +114,6 @@ class ReusableBottomAppBar extends StatelessWidget {
             icon: const Icon(Icons.menu),
             iconSize: 30.0,
             onPressed: () {
-              // todo add the correct route
               if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.push(
                   context,
@@ -142,7 +144,6 @@ class ReusableBottomAppBar extends StatelessWidget {
             icon: const Icon(Icons.inbox_outlined),
             iconSize: 30.0,
             onPressed: () {
-              // todo add the correct route
               if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.push(
                   context,
