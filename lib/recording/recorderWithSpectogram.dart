@@ -15,6 +15,7 @@
  */
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -100,10 +101,12 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   final _recorder = AudioRecorder();
 
   // These booleans control the UI state.
-  // _isRecording == true means a segment is currently recording.
-  // _isRecordingPaused == true means recording is paused (i.e. a segment has ended, but the user may resume a new one).
   bool _isRecording = false;
   bool _isRecordingPaused = false;
+
+  // NEW: Live timer variables.
+  double _recordDuration = 0; // elapsed time in seconds for the current segment
+  Timer? _timer;
 
   @override
   void initState() {
@@ -164,14 +167,12 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     }
   }
 
-  /// Instead of using pause/resume (which is problematic with WAV),
-  /// we simulate segmentation:
-  /// • If a segment is running (_isRecording true), then we stop it (simulate pause).
-  /// • If no segment is running, we start a new one.
+  /// Starts or pauses recording. When starting a new segment, we also start a live timer.
   Future<void> _toggleRecording() async {
     try {
       if (_isRecording) {
         // Stop the current segment.
+        _timer?.cancel();
         final path = await _recorder.stop();
         segmentPaths.add(path!);
         recordingPartsList.add(RecordingParts(
@@ -179,10 +180,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           longitude: currentPosition?.longitude ?? 14.4,
           latitude: currentPosition?.latitude ?? 50.1,
         ));
-        // Record the overall elapsed time from the very first segment start.
         if (overallStartTime != null) {
-          recordingPartsTimeList
-              .add(DateTime.now().difference(overallStartTime!).inMilliseconds);
+          recordingPartsTimeList.add(DateTime.now().difference(overallStartTime!).inMilliseconds);
         }
         if (isContextMounted(context)) {
           setState(() {
@@ -200,24 +199,24 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           logger.w("Recording permissions are denied");
           return;
         }
-        // If this is the first segment, mark overallStartTime.
+        // Mark overall start time if this is the first segment.
         if (overallStartTime == null) {
           overallStartTime = DateTime.now();
           segmentStartTime = overallStartTime;
         } else {
-          // Mark the start time of this segment.
           segmentStartTime = DateTime.now();
         }
         Directory appDocDir = await getApplicationDocumentsDirectory();
-        String filePath =
-            '${appDocDir.path}/recording_segment_${DateTime.now().millisecondsSinceEpoch}.wav';
-        // Start recording the new segment.
+        String filePath = '${appDocDir.path}/recording_segment_${DateTime.now().millisecondsSinceEpoch}.wav';
         final config = RecordConfig(encoder: AudioEncoder.wav, bitRate: 128000);
         await _recorder.start(config, path: filePath);
+        // Start the live timer.
+        _startTimer();
         if (isContextMounted(context)) {
           setState(() {
             _isRecording = true;
             _isRecordingPaused = false;
+            _recordDuration = 0; // Reset for the new segment.
           });
         }
       }
@@ -229,12 +228,12 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     }
   }
 
-  /// When the user presses Stop, if a segment is still running we stop it,
-  /// then merge all the segments into one WAV file.
+  /// Stop recording completely, merge segments, and navigate to the Spectogram screen.
   Future<void> _stopRecording() async {
     try {
-      // If currently recording a segment, finish it.
+      // If a segment is currently recording, finish it.
       if (_isRecording && overallStartTime != null) {
+        _timer?.cancel();
         final path = await _recorder.stop();
         segmentPaths.add(path!);
         recordingPartsList.add(RecordingParts(
@@ -242,18 +241,16 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           longitude: currentPosition?.longitude ?? 14.4,
           latitude: currentPosition?.latitude ?? 50.1,
         ));
-        recordingPartsTimeList
-            .add(DateTime.now().difference(overallStartTime!).inMilliseconds);
+        recordingPartsTimeList.add(DateTime.now().difference(overallStartTime!).inMilliseconds);
       }
 
-      // Merge segments if there is more than one.
+      // Merge segments if needed.
       String finalFilePath;
       if (segmentPaths.length == 1) {
         finalFilePath = segmentPaths.first;
       } else {
         Directory appDocDir = await getApplicationDocumentsDirectory();
-        finalFilePath =
-            '${appDocDir.path}/recording_merged_${DateTime.now().millisecondsSinceEpoch}.wav';
+        finalFilePath = '${appDocDir.path}/recording_merged_${DateTime.now().millisecondsSinceEpoch}.wav';
         finalFilePath = await mergeWavFiles(segmentPaths, finalFilePath);
       }
 
@@ -265,7 +262,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         });
       }
 
-      // Navigate to the Spectogram screen with the final file and metadata.
+      // Navigate to the Spectogram screen.
       if (recordedFilePath != null && overallStartTime != null) {
         Navigator.push(
           context,
@@ -288,47 +285,27 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     }
   }
 
-  /// Merges multiple WAV files (segments) into a single WAV file.
-  /// This basic implementation assumes each segment has a 44-byte header
-  /// and uses PCM encoding.
-  Future<String> mergeWavFiles(
-      List<String> segmentPaths, String outputPath) async {
-    if (segmentPaths.isEmpty) return "";
+  /// Starts a timer that updates _recordDuration every 100ms.
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (Timer t) {
+      setState(() {
+        _recordDuration += 0.1;
+      });
+    });
+  }
 
-    // Get the application documents directory.
-    Directory appDocDir = await getApplicationDocumentsDirectory();
-    String fileListPath = '${appDocDir.path}/filelist.txt';
-    File fileList = File(fileListPath);
-
-    // Build the file list content in the format:
-    // file '/path/to/segment1.wav'
-    // file '/path/to/segment2.wav'
-    String fileListContent =
-        segmentPaths.map((path) => "file '$path'").join('\n');
-    await fileList.writeAsString(fileListContent);
-
-    // Construct the FFmpeg command.
-    // Quoting file paths to handle spaces in directory/file names.
-    String command =
-        "-f concat -safe 0 -i \"$fileListPath\" -c copy \"$outputPath\"";
-
-    // Execute the FFmpeg command.
-    final session = await FFmpegKit.execute(command);
-    final returnCode = await session.getReturnCode();
-
-    // Clean up the temporary file list.
-    await fileList.delete();
-
-    if (ReturnCode.isSuccess(returnCode)) {
-      return outputPath;
-    } else {
-      throw Exception(
-          "FFmpeg merge failed with return code: ${returnCode?.getValue()}");
-    }
+  /// Format a duration (in seconds) into MM:SS.
+  String _formatTime(double seconds) {
+    int s = seconds.floor();
+    int m = s ~/ 60;
+    int sec = s % 60;
+    return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _recorder.dispose();
     super.dispose();
   }
@@ -341,6 +318,11 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
+            // Display the live timer above the status.
+            Text(
+              "Time: ${_formatTime(_recordDuration)}",
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
             // Display recording status.
             Container(
               width: 300,
@@ -371,15 +353,13 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
               child: IconButton(
                 onPressed: _toggleRecording,
                 icon: Icon(
-                  _isRecording
-                      ? Icons.pause
-                      : (_isRecordingPaused ? Icons.play_arrow : Icons.mic),
+                  _isRecording ? Icons.pause : (_isRecordingPaused ? Icons.play_arrow : Icons.mic),
                   size: 50,
                   color: Colors.white,
                 ),
               ),
             ),
-            // Stop button, enabled if either recording or paused.
+            // Stop button, enabled if recording or paused.
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -387,8 +367,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
-              onPressed:
-                  (_isRecording || _isRecordingPaused) ? _stopRecording : null,
+              onPressed: (_isRecording || _isRecordingPaused) ? _stopRecording : null,
               child: const Text(
                 'Stop',
                 style: TextStyle(
@@ -400,5 +379,29 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         ),
       ),
     );
+  }
+
+  /// Merges multiple WAV segments into one file.
+  Future<String> mergeWavFiles(List<String> segmentPaths, String outputPath) async {
+    if (segmentPaths.isEmpty) return "";
+
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    String fileListPath = '${appDocDir.path}/filelist.txt';
+    File fileList = File(fileListPath);
+
+    String fileListContent = segmentPaths.map((path) => "file '$path'").join('\n');
+    await fileList.writeAsString(fileListContent);
+
+    String command = "-f concat -safe 0 -i \"$fileListPath\" -c copy \"$outputPath\"";
+    final session = await FFmpegKit.execute(command);
+    final returnCode = await session.getReturnCode();
+
+    await fileList.delete();
+
+    if (ReturnCode.isSuccess(returnCode)) {
+      return outputPath;
+    } else {
+      throw Exception("FFmpeg merge failed with return code: ${returnCode?.getValue()}");
+    }
   }
 }

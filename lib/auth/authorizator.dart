@@ -38,11 +38,41 @@ class Authorizator extends StatefulWidget {
   State<Authorizator> createState() => _AuthState();
 }
 
+Future<bool> isLoggedIn() async {
+  final secureStorage = FlutterSecureStorage();
+  final token = await secureStorage.read(key: 'token');
+  if (token != null) {
+    final Uri url = Uri.parse('https://api.strnadi.cz/users')
+        .replace(queryParameters: {'jwt': token});
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        return true;
+
+      } else {
+        return false;
+      }
+    } catch (error) {
+      Sentry.captureException(error);
+      return false;
+    }
+  }
+  return false;
+}
+
+
+
 class _AuthState extends State<Authorizator> {
   @override
   void initState() {
     super.initState();
-    isLoggedIn(); // token check if needed
+    checkLoggedIn(); // token check if needed
   }
 
   @override
@@ -50,7 +80,6 @@ class _AuthState extends State<Authorizator> {
     // Return the complete login screen without extra wrapping.
     return widget.login;
   }
-
   void _showMessage(String message) {
     // This will work fine now as long as it's called from a valid Material context.
     showDialog(
@@ -68,39 +97,41 @@ class _AuthState extends State<Authorizator> {
     );
   }
 
-  void isLoggedIn() async {
-    final secureStorage = FlutterSecureStorage();
-    final token = await secureStorage.read(key: 'token');
-    if (token != null) {
+  Future<void> checkLoggedIn() async{
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+    if(await isLoggedIn()) {
+      String? token = await secureStorage.read(key: 'token');
+
       final Uri url = Uri.parse('https://api.strnadi.cz/users')
           .replace(queryParameters: {'jwt': token});
-      try {
-        final response = await http.get(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> data = jsonDecode(response.body);
-          secureStorage.write(key: 'user', value: data['firstName']);
-          secureStorage.write(key: 'lastname', value: data['lastName']);
-        } else {
-          _showMessage("Byli jste odhlášeni");
-          secureStorage.delete(key: 'token');
-          secureStorage.delete(key: 'user');
-          secureStorage.delete(key: 'lastname');
-          firebase.deleteToken();
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
         }
-      } catch (error) {
-        Sentry.captureException(error);
-      }
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      secureStorage.write(key: 'user', value: data['firstName']);
+      secureStorage.write(key: 'lastname', value: data['lastName']);
       // If you plan to navigate here, consider scheduling it in a post-frame callback.
+
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => LiveRec()),
       );
     }
+    else {
+      if(await FlutterSecureStorage().read(key: 'token') != null) {
+        _showMessage("Byli jste odhlášeni");
+        secureStorage.delete(key: 'token');
+        secureStorage.delete(key: 'user');
+        secureStorage.delete(key: 'lastname');
+        firebase.deleteToken();
+      }
+    }
   }
+
 }

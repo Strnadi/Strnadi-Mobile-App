@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:io';
+import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/database/soundDatabase.dart';
@@ -31,9 +32,9 @@ import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
 import '../config/config.dart';
+import 'package:strnadi/locationService.dart' as loc;
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
-
 final logger = Logger();
 
 class Recording {
@@ -50,8 +51,6 @@ class Recording {
     required this.byApp,
     this.note,
   });
-
-
 
   factory Recording.fromJson(Map<String, dynamic> json) {
     return Recording(
@@ -100,6 +99,17 @@ class _RecordingFormState extends State<RecordingForm> {
   double _strnadiCountController = 1.0;
   int? _recordingId;
 
+  // List to store the user's route (all recorded locations)
+  final List<LatLng> _route = [];
+  late Stream<Position> _positionStream;
+
+  late loc.LocationService locationService;
+
+  LatLng? currentLocation;
+  LatLng? markerPosition;
+
+  DateTime? _lastRouteUpdate;
+
   Future<bool> hasInternetAccess() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -123,7 +133,6 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> uploadAudio(File audioFile, int id) async {
-    // Trim the audio into segments.
     List<RecordingParts> trimmedAudioParts = await DatabaseHelper.trimAudio(
       widget.filepath,
       widget.recordingPartsTimeList,
@@ -132,9 +141,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
     print(widget.filepath);
 
-    final uploadPart = Uri.parse(
-        'https://api.strnadi.cz/recordings/upload-part');
-
+    final uploadPart = Uri.parse('https://api.strnadi.cz/recordings/upload-part');
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
 
@@ -220,15 +227,9 @@ class _RecordingFormState extends State<RecordingForm> {
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
 
-    final recordingSign =
-        Uri.parse('https://api.strnadi.cz/recordings/upload');
+    final recordingSign = Uri.parse('https://api.strnadi.cz/recordings/upload');
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: 'token');
-    // print('token $token');
-    // print(jsonEncode({
-    //   'token': token,
-    //   'Recording': rec.toJson(),
-    // }));
     try {
       final response = await http.post(
         recordingSign,
@@ -246,7 +247,7 @@ class _RecordingFormState extends State<RecordingForm> {
       );
       if (response.statusCode == 200 || response.statusCode == 202) {
         final data = jsonDecode(response.body);
-        _recordingId = data; // Assuming the API returns an integer recording ID.
+        _recordingId = data;
         uploadAudio(File(widget.filepath), _recordingId!);
         logger.i(widget.filepath);
         LocalDb.UpdateStatus(widget.filepath);
@@ -258,7 +259,41 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e(error);
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
+  }
 
+  // New method to handle each new position update
+  void _onNewPosition(Position position) {
+    final newPoint = LatLng(position.latitude, position.longitude);
+    setState(() {
+      markerPosition = newPoint;
+      currentLocation = newPoint;
+      if (_route.isEmpty) {
+        _route.add(newPoint);
+      } else {
+        final distance = Distance().distance(_route.last, newPoint);
+        if (distance > 10) {
+          if (_lastRouteUpdate == null ||
+              DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
+            _lastRouteUpdate = DateTime.now();
+            _route.add(newPoint);
+          } else {
+            _route.add(newPoint);
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    locationService = loc.LocationService();
+    _positionStream = locationService.positionStream;
+    markerPosition = null;
+    // Subscribe to the position stream once using the dedicated method
+    _positionStream.listen((Position position) {
+      _onNewPosition(position);
+    });
   }
 
   @override
@@ -270,8 +305,29 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Fallback coordinate if currentPosition is null.
-    final fallbackPosition = widget.currentPosition ?? LatLng(50.1, 14.4);
+    // Use the last known position as the current location if available
+    currentLocation = locationService.lastKnownPosition;
+
+    LatLng? validRecordingPartLocation;
+    if (widget.recordingParts.isNotEmpty) {
+      final firstPart = widget.recordingParts.first;
+      if (firstPart.latitude != 50.1 || firstPart.longitude != 14.4) {
+        validRecordingPartLocation = LatLng(firstPart.latitude, firstPart.longitude);
+      }
+    }
+
+    // Determine the map center based on available data.
+    LatLng mapCenter;
+    if (_route.isNotEmpty) {
+      mapCenter = _route.last;
+    } else if (validRecordingPartLocation != null) {
+      mapCenter = validRecordingPartLocation;
+    } else if (currentLocation != null) {
+      mapCenter = currentLocation!;
+    } else {
+      mapCenter = LatLng(50.1, 14.4);
+    }
+
     return SingleChildScrollView(
       child: Center(
         child: Column(
@@ -287,6 +343,79 @@ class _RecordingFormState extends State<RecordingForm> {
               ),
             ),
             const SizedBox(height: 50),
+            SizedBox(
+              height: 200,
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: mapCenter,
+                      initialZoom: 13.0,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                        'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                        userAgentPackageName: 'cz.delta.strnadi',
+                      ),
+                      if (_route.isNotEmpty)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: List.from(_route),
+                              strokeWidth: 4.0,
+                              color: Colors.blue,
+                            ),
+                          ],
+                        ),
+                      MarkerLayer(
+                        markers: [
+                          if (markerPosition != null)
+                            Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: markerPosition!,
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 30.0,
+                              ),
+                            ),
+                          // Place markers for all recording parts
+                          ...widget.recordingParts.map(
+                                (part) => Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: LatLng(part.latitude, part.longitude),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                                size: 30.0,
+                              ),
+                            ),
+                          ).toList(),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (_route.isEmpty &&
+                      currentLocation == null &&
+                      validRecordingPartLocation == null)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black45,
+                        child: const Center(
+                          child: Text(
+                            "Error: Location not recorded",
+                            style: TextStyle(color: Colors.red, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             Form(
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
@@ -335,35 +464,6 @@ class _RecordingFormState extends State<RecordingForm> {
                           _strnadiCountController = value;
                         });
                       },
-                    ),
-                    SizedBox(
-                      height: 200,
-                      child: FlutterMap(
-                        options: MapOptions(
-                          initialCenter: fallbackPosition,
-                          initialZoom: 13.0,
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate: 'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                            userAgentPackageName: 'cz.delta.strnadi',
-                          ),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                width: 20.0,
-                                height: 20.0,
-                                point: fallbackPosition,
-                                child: const Icon(
-                                  Icons.my_location,
-                                  color: Colors.blue,
-                                  size: 30.0,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 20),
