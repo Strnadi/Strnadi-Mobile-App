@@ -23,6 +23,7 @@ import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
 import 'registeration/mail.dart';
+import 'package:strnadi/firebase/firebase.dart' as fb;
 
 final logger = Logger();
 
@@ -73,6 +74,7 @@ class _LoginState extends State<Login> {
       if (response.statusCode == 200 || response.statusCode == 202) {
         await const FlutterSecureStorage()
             .write(key: 'token', value: response.body);
+        fb.refreshToken();
         Navigator.push(context, MaterialPageRoute(builder: (_) => LiveRec()));
       } else {
         logger.w('Login failed: ${response}');
