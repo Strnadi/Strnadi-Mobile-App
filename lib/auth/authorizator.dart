@@ -124,11 +124,13 @@ class _AuthState extends State<Authorizator> {
       );
     }
     else {
-      _showMessage("Byli jste odhlášeni");
-      secureStorage.delete(key: 'token');
-      secureStorage.delete(key: 'user');
-      secureStorage.delete(key: 'lastname');
-      firebase.deleteToken();
+      if(await FlutterSecureStorage().read(key: 'token') != null) {
+        _showMessage("Byli jste odhlášeni");
+        secureStorage.delete(key: 'token');
+        secureStorage.delete(key: 'user');
+        secureStorage.delete(key: 'lastname');
+        firebase.deleteToken();
+      }
     }
   }
 
