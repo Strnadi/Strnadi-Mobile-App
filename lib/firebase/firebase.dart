@@ -127,18 +127,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // You can process the message data here (for example, save it locally or update your UI state).
 }
 
-Future<void> initFirebaseMessaging() async{
+Future<void> refreshToken() async{
   FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  // Request permissions (required for iOS).
-  await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  ).then((NotificationSettings settings) {
-    logger.i("User granted permission: ${settings.authorizationStatus}");
-  });
-
   // Retrieve and log the FCM token.
   messaging.getToken().then((token) async {
     logger.i("Firebase token: $token");
@@ -147,7 +137,7 @@ Future<void> initFirebaseMessaging() async{
 
     try {
       DeviceInfo deviceInfo = await getDeviceInfo();
-      
+
       while (!await auth.isLoggedIn()) {
         await Future.delayed(Duration(seconds: 1));
       }
@@ -163,11 +153,12 @@ Future<void> initFirebaseMessaging() async{
         body: jsonEncode({
           'newToken': token,
           'oldToken': null,
-          'platform': deviceInfo.platform,
-          'DeviceName' : deviceInfo.deviceModel
+          'devicePlatform': deviceInfo.platform,
+          'deviceName' : deviceInfo.deviceModel
         }),
       );
       if (response.statusCode==200){
+        logger.i(deviceInfo.platform);
         logger.i('Token sent to server');
         FlutterSecureStorage().write(key: 'fcmToken', value: token);
       }
@@ -179,6 +170,21 @@ Future<void> initFirebaseMessaging() async{
       logger.e(error);
     }
   });
+}
+
+Future<void> initFirebaseMessaging() async{
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // Request permissions (required for iOS).
+  await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  ).then((NotificationSettings settings) {
+    logger.i("User granted permission: ${settings.authorizationStatus}");
+  });
+
+  await refreshToken();
 
   // Listen for token refresh.
   messaging.onTokenRefresh.listen((newToken) async{
