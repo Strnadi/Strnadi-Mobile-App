@@ -210,18 +210,19 @@ class _LiveRecState extends State<LiveRec> {
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _stop,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          if (_recordState == RecordState.pause)
+            ElevatedButton(
+              onPressed: _stop,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
+              child: const Text("Ukončit nahrávání"),
             ),
-            child: const Text("Zastavit nahrávání"),
-          ),
           const SizedBox(height: 40),
         ],
       ),

@@ -17,7 +17,6 @@ import 'dart:io';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:strnadi/database/soundDatabase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'; // Marker layer package
@@ -32,6 +31,7 @@ import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import 'package:strnadi/localRecordings/recordingsDb.dart';
 import '../config/config.dart';
+import '../database/soundDatabase.dart';
 import 'package:strnadi/locationService.dart' as loc;
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
@@ -97,8 +97,14 @@ class _RecordingFormState extends State<RecordingForm> {
   final _recordingNameController = TextEditingController();
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
-  int? _recordingId;
 
+  final _audioPlayer = AudioPlayer();
+  Duration currentPosition = Duration.zero;
+  Duration totalDuration = Duration.zero;
+  bool isPlaying = false;
+
+  int? _recordingId;
+  
   // List to store the user's route (all recorded locations)
   final List<LatLng> _route = [];
   late Stream<Position> _positionStream;
@@ -110,6 +116,38 @@ class _RecordingFormState extends State<RecordingForm> {
 
   DateTime? _lastRouteUpdate;
 
+  @override
+  void initState() {
+
+
+    _audioPlayer.positionStream.listen((position) {
+      setState(() {
+        currentPosition = position;
+      });
+    });
+
+    _audioPlayer.durationStream.listen((duration) {
+      setState(() {
+        totalDuration = duration ?? Duration.zero;
+      });
+    });
+
+    _audioPlayer.playingStream.listen((playing) {
+      setState(() {
+        isPlaying = playing;
+      });
+    });
+
+    _audioPlayer.setFilePath(widget.filepath);
+    super.initState();
+    locationService = loc.LocationService();
+    _positionStream = locationService.positionStream;
+    markerPosition = null;
+    // Subscribe to the position stream once using the dedicated method
+    _positionStream.listen((Position position) {
+      _onNewPosition(position);
+    });
+  }
   Future<bool> hasInternetAccess() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -200,6 +238,22 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
+  void togglePlay() async {
+
+    if (_audioPlayer.playing) {
+      await _audioPlayer.pause();
+    } else {
+      await _audioPlayer.play();
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
   void upload() async {
     final platform = await getDeviceModel();
     print("Estimated birds count: ${_strnadiCountController.toInt()}");
@@ -211,15 +265,6 @@ class _RecordingFormState extends State<RecordingForm> {
       note: _commentController.text,
     );
 
-    LocalDb.insertRecording(
-      rec,
-      _recordingNameController.text,
-      0,
-      widget.filepath,
-      widget.currentPosition?.latitude ?? 0,
-      widget.currentPosition?.longitude ?? 0,
-    );
-    logger.i("inserted into local db");
 
     if (!await hasInternetAccess()) {
       logger.e("No internet connection");
@@ -283,17 +328,24 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     });
   }
+    LocalDb.insertRecording(
+      rec,
+      _recordingNameController.text,
+      0,
+      widget.filepath,
+      widget.currentPosition?.latitude ?? 0,
+      widget.currentPosition?.longitude ?? 0,
+      widget.recordingParts,
+      widget.recordingPartsTimeList,
+      widget.startTime,
+      _recordingId ?? -1,
+    );
+    logger.i("inserted into local db");
 
-  @override
-  void initState() {
-    super.initState();
-    locationService = loc.LocationService();
-    _positionStream = locationService.positionStream;
-    markerPosition = null;
-    // Subscribe to the position stream once using the dedicated method
-    _positionStream.listen((Position position) {
-      _onNewPosition(position);
-    });
+  }
+  void seekRelative(int seconds) {
+    final newPosition = currentPosition + Duration(seconds: seconds);
+    _audioPlayer.seek(newPosition);
   }
 
   @override
@@ -341,6 +393,25 @@ class _RecordingFormState extends State<RecordingForm> {
                 data: [],
                 filepath: widget.filepath,
               ),
+            ),
+            Text(_formatDuration(totalDuration), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold) ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.replay_10, size: 32),
+                  onPressed: () => seekRelative(-10),
+                ),
+                IconButton(
+                  icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                  iconSize: 72,
+                  onPressed: togglePlay,
+                ),
+                IconButton(
+                  icon: Icon(Icons.forward_10, size: 32),
+                  onPressed: () => seekRelative(10),
+                ),
+              ],
             ),
             const SizedBox(height: 50),
             SizedBox(

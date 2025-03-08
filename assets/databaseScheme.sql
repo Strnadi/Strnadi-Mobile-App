@@ -11,3 +11,16 @@ CREATE TABLE recordings (
     longitude REAL,
     upload_status INTEGER DEFAULT 0 -- 0 = pending, 1 = uploaded
 );
+
+CREATE TABLE recording_parts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recording_id INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    latitude_start REAL,
+    longitude_start REAL,
+    latitude_end REAL,
+    longitude_end REAL,
+    FOREIGN KEY (recording_id) REFERENCES recordings(id) ON DELETE CASCADE
+);
+

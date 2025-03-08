@@ -22,13 +22,13 @@ import 'dart:io';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
-import 'package:strnadi/database/soundDatabase.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
 import 'package:strnadi/updateChecker.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'config/config.dart';
+import 'package:strnadi/localRecordings/recordingsDb.dart';
 
 
 // Create a global logger instance.
@@ -114,7 +114,7 @@ Future<void> main() async {
     },
     appRunner: () async {
       // Initialize your database and other services.
-      initDb();
+      await LocalDb.database;
       // Initialize Firebase Messaging.
       await initFirebaseMessaging();
       // Initialize Firebase Local Messaging
