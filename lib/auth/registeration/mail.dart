@@ -14,10 +14,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:flutter/gestures.dart';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RegMail extends StatefulWidget {
   const RegMail({super.key});
@@ -60,7 +62,7 @@ class _RegMailState extends State<RegMail> {
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     'Zadejte Váš Email',
@@ -131,6 +133,9 @@ class _RegMailState extends State<RegMail> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all<Color>(
+                            Colors.black,
+                          ),
                           shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.0),
@@ -154,13 +159,35 @@ class _RegMailState extends State<RegMail> {
                             _showMessage('Please fix the errors before proceeding.');
                           }
                         },
-                        child: const Text('Submit'),
+                        child: const Text('Pokracovat', style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ),
-
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20.0),
+                    child: RichText(
+                      text: TextSpan(
+                        text: 'By continuing, you agree to the ',
+                        style: const TextStyle(color: Colors.black),
+                        children: [
+                          TextSpan(
+                            text: 'Terms of Service',
+                            style: const TextStyle(color: Colors.blue),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                // Handle TOS link tap
+                                // You can use a URL launcher to open the TOS link
+                                launch('https://new.strnadi.cz/podminky-pouzivani');
+                              },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
+
             ),
           ),
         ));
