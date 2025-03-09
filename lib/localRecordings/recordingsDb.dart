@@ -73,7 +73,7 @@ class LocalDb {
     var numeberOfRecordings = await db.rawQuery("SELECT COUNT(id) AS CNT FROM recordings").then((value) => value[0]["CNT"]).then((value) => int.parse(value.toString()));
 
     if (numeberOfRecordings >= await localSettings.getLocalRecordingsMax()) {
-      var oldestRecording = await db.rawQuery("SELECT id FROM recordings ORDER BY created_at ASC LIMIT 1").then((value) => value[0]["id"]).then((value) => int.parse(value.toString()));
+      var oldestRecording = await db.rawQuery("SELECT id FROM recordings ORDER BY created_at DESC LIMIT 1").then((value) => value[0]["id"]).then((value) => int.parse(value.toString()));
       await db.rawDelete("DELETE FROM recordings WHERE id = ?", [oldestRecording]);
       await db.rawDelete("DELETE FROM recording_parts WHERE recording_id = ?", [oldestRecording]);
     }

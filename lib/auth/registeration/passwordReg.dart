@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:strnadi/auth/registeration/mailSent.dart';
 
 final logger = Logger();
 
@@ -110,7 +111,7 @@ class _RegPasswordState extends State<RegPassword> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => Login()),
+          MaterialPageRoute(builder: (_) => MailSent()),
         );
       } else if (response.statusCode == 409) {
         _showMessage('Uživatel již existuje');
