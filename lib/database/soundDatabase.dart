@@ -22,6 +22,51 @@ import 'package:sqflite/sqflite.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 
+class Recording{
+  final int id;
+  final String createdAt;
+  final int estimatedBirdsCount;
+  final String device;
+  final int byApp;
+  final String note;
+  final String path;
+
+  Recording({
+    required this.id,
+    required this.createdAt,
+    required this.estimatedBirdsCount,
+    required this.device,
+    required this.byApp,
+    required this.note,
+    required this.path,
+  });
+
+  factory Recording.fromJson(Map<String, dynamic> json) {
+    return Recording(
+      id: json['id'],
+      createdAt: json['createdAt'],
+      estimatedBirdsCount: json['estimatedBirdsCount'],
+      device: json['device'],
+      byApp: json['byApp'],
+      note: json['note'],
+      path: json['path']
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'createdAt': createdAt,
+      'estimatedBirdsCount': estimatedBirdsCount,
+      'device': device,
+      'byApp': byApp,
+      'note': note,
+      'path': path,
+    };
+  }
+}
+
+
 void initDb() async {
   final db = await openDatabase('sound.db', version: 1,
       onCreate: (Database db, int version) async {
@@ -164,5 +209,40 @@ class DatabaseHelper {
   static Future<void> insertRecording(Recording recording) async {
     final db = await database;
     await db.insert("recordings", recording.toJson());
+  }
+
+  static Future<List<Recording>> getRecordings() async{
+    final db = await database;
+    final List<Map<String, dynamic>> recordings = await db.query("recordings");
+    return List.generate(recordings.length, (i) {
+      return Recording(
+        id: recordings[i]['id'],
+        createdAt: recordings[i]['createdAt'],
+        estimatedBirdsCount: recordings[i]['estimatedBirdsCount'],
+        device: recordings[i]['device'],
+        byApp: recordings[i]['byApp'],
+        note: recordings[i]['note'],
+        path: recordings[i]['path']
+      );
+    });
+  }
+
+  static Future<void> deleteRecording(int id) async {
+    final db = await database;
+    await db.delete("recordings", where: "id = ?", whereArgs: [id]);
+  }
+
+  static Future<void> updateRecording(Recording recording) async {
+    final db = await database;
+    await db.update("recordings", recording.toJson(), where: "id = ?", whereArgs: [recording.id]);
+  }
+
+  static Future<void> deleteAllRecordings() async {
+    final db = await database;
+    await db.delete("recordings");
+  }
+
+  static Future<void> syncRecordings(List<Recording> newRecordings) async {
+
   }
 }

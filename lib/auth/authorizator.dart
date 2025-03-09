@@ -133,5 +133,4 @@ class _AuthState extends State<Authorizator> {
       }
     }
   }
-
 }
