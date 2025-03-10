@@ -53,100 +53,65 @@ class _RegMailState extends State<RegMail> {
 
   @override
   Widget build(BuildContext context) {
+
+    // this doesn't makes sense but it works so i will leave it here
+    final halfScreen = MediaQuery.of(context).size.height * 0.2;
+
     return Scaffold(
-        appBar: AppBar(title: const Text('Registrace')),
-        body: Center(
-          child: Form(
-            key: _GlobalKey,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Zadejte Váš Email',
-                    style: TextStyle(fontSize: 40, color: Colors.black),
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _emailController,
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      label: RichText(
-                        text: TextSpan(
-                          text: 'Email',
-                          children: const <TextSpan>[
-                            TextSpan(
-                              text: ' *',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ],
-                          style: TextStyle(color: Colors.black),
-                        ),
+      appBar: AppBar(title: const Text('Registrace')),
+      body: Center(
+        child: Form(
+          key: _GlobalKey,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(top: halfScreen),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      const Text(
+                        'Zadejte Váš Email',
+                        style: TextStyle(fontSize: 40, color: Colors.black),
                       ),
-                      border: const OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter some text';
-                      }
-                      if (!RegExp(
-                              r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                          .hasMatch(value)) {
-                        return 'Enter valid email';
-                      }
-                      return null;
-                    },
-                    onFieldSubmitted: (value) {
-                      if (_GlobalKey.currentState?.validate() ?? false) {
-                        // Proceed to next page if validation is successful
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegName(
-                              email: _emailController.text,
-                              consent: _termsAgreement,
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _emailController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Email',
+                              children: const <TextSpan>[
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ],
+                              style: TextStyle(color: Colors.black),
                             ),
                           ),
-                        );
-                      } else {
-                        // Optionally, show an error message if validation fails
-                        _showMessage('Please fix the errors before proceeding.');
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  CheckboxListTile(
-                    title: const Text('I agree to the terms and conditions'),
-                    value: _termsAgreement,
-                    onChanged: (value) {
-                      setState(() {
-                        _termsAgreement = value!;
-                      });
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all<Color>(
-                            Colors.black,
-                          ),
-                          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10.0),
-                            ),
-                          ),
+                          border: const OutlineInputBorder(),
                         ),
-                        onPressed: () {
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          if (!RegExp(
+                              r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                              .hasMatch(value)) {
+                            return 'Enter valid email';
+                          }
+                          return null;
+                        },
+                        onFieldSubmitted: (value) {
                           if (_GlobalKey.currentState?.validate() ?? false) {
-                            // Proceed to the next screen if the form is valid
-                            Navigator.push(
-                              context,
+                            // Proceed to next page if validation is successful
+                            Navigator.push(context,
                               MaterialPageRoute(
                                 builder: (_) => RegName(
                                   email: _emailController.text,
@@ -156,40 +121,82 @@ class _RegMailState extends State<RegMail> {
                             );
                           } else {
                             // Optionally, show an error message if validation fails
-                            _showMessage('Please fix the errors before proceeding.');
                           }
                         },
-                        child: const Text('Pokracovat', style: TextStyle(color: Colors.white)),
                       ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20.0),
-                    child: RichText(
-                      text: TextSpan(
-                        text: 'By continuing, you agree to the ',
-                        style: const TextStyle(color: Colors.black),
-                        children: [
-                          TextSpan(
-                            text: 'Terms of Service',
-                            style: const TextStyle(color: Colors.blue),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = () {
-                                // Handle TOS link tap
-                                // You can use a URL launcher to open the TOS link
-                                launch('https://new.strnadi.cz/podminky-pouzivani');
-                              },
+                      const SizedBox(height: 20),
+                      CheckboxListTile(
+                        title: const Text('I agree to the terms and conditions'),
+                        value: _termsAgreement,
+                        onChanged: (value) {
+                          setState(() {
+                            _termsAgreement = value!;
+                          });
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.all<Color>(
+                                Colors.black,
+                              ),
+                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                              ),
+                            ),
+                            onPressed: () {
+                              if (_GlobalKey.currentState?.validate() ?? false) {
+                                // Proceed to the next screen if the form is valid
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RegName(
+                                      email: _emailController.text,
+                                      consent: _termsAgreement,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                // Optionally, show an error message if validation fails
+                                _showMessage('Please fix the errors before proceeding.');
+                              }
+                            },
+                            child: const Text('Pokracovat', style: TextStyle(color: Colors.white)),
                           ),
-                        ],
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: RichText(
+                    text: TextSpan(
+                      text: 'By continuing, you agree to the ',
+                      style: const TextStyle(color: Colors.black),
+                      children: [
+                        TextSpan(
+                          text: 'Terms of Service',
+                          style: const TextStyle(color: Colors.blue),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              launchUrl(Uri.parse('https://new.strnadi.cz/podminky-pouzivani'));
+                            },
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-
+                ),
+              ],
             ),
           ),
-        ));
+        ),
+      ),
+    );
   }
 }
