@@ -24,6 +24,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
@@ -97,6 +98,8 @@ class _RecordingFormState extends State<RecordingForm> {
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
 
+  List<File> _selectedImages = [];
+
   final _audioPlayer = AudioPlayer();
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
@@ -147,6 +150,14 @@ class _RecordingFormState extends State<RecordingForm> {
       _onNewPosition(position);
     });
   }
+
+  void _onImagesSelected(List<File> images) {
+    setState(() {
+      _selectedImages = images;
+    });
+  }
+
+
   Future<bool> hasInternetAccess() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -534,6 +545,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         });
                       },
                     ),
+                    MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 20),
                       child: SizedBox(
