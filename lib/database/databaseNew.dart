@@ -1,13 +1,11 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
-import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
+import 'dart:typed_data';
 
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
-import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import '../PostRecordingForm/RecordingForm.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -64,10 +62,10 @@ class Recording{
         createdAt: json['createdAt'] as String,
         estimatedBirdsCount: json['estimatedBirdsCount'] as int,
         device: json['device'] as String?,
-        byApp: json['byApp'] as bool,
+        byApp: (json['byApp'] as int) == 1,
         note: json['note'] as String?,
         path: json['path'] as String?,
-        sent: json['sent'] as bool,
+        sent: (json['sent'] as int) == 1,
     );
   }
 
@@ -92,10 +90,10 @@ class Recording{
       'createdAt': createdAt,
       'estimatedBirdsCount': estimatedBirdsCount,
       'device': device,
-      'byApp': byApp,
+      'byApp': byApp ? 1 : 0,
       'note': note,
       'path': path,
-      'sent': sent,
+      'sent': sent ? 1 : 0,
     };
   }
 
@@ -109,6 +107,38 @@ class Recording{
       'note': note,
     };
   }
+  @override
+  bool operator ==(Object other) {
+    if(identical(this, other)) return true;
+    if(other is! Recording) return false;
+    bool equal = true;
+    if (this.BEId != null && other.BEId != null){
+      equal = equal && this.BEId == other.BEId;
+    }
+    if (this.mail != null && other.mail != null){
+      equal = equal && this.mail == other.mail;
+    }
+    if (this.createdAt != null && other.createdAt != null){
+      equal = equal && this.createdAt == other.createdAt;
+    }
+    if (this.estimatedBirdsCount != null && other.estimatedBirdsCount != null){
+      equal = equal && this.estimatedBirdsCount == other.estimatedBirdsCount;
+    }
+    if (this.device != null && other.device != null){
+      equal = equal && this.device == other.device;
+    }
+    if (this.byApp != null && other.byApp != null){
+      equal = equal && this.byApp == other.byApp;
+    }
+    if (this.note != null && other.note != null){
+      equal = equal && this.note == other.note;
+    }
+
+    return equal;
+  }
+
+  @override
+  int get hashCode => 0;
 }
 
 class RecordingPart{
@@ -202,14 +232,6 @@ class RecordingPart{
       'sent': sent,
     };
   }
-
-  Future<void> send(String path) async{
-    this.path = path;
-    this.sent = true;
-
-    final db = await DatabaseNew.database;
-    await db.update('recordingParts', this.toJson(), where: 'id = ?', whereArgs: [this.id]);
-  }
 }
 
 class DatabaseNew{
@@ -265,12 +287,10 @@ class DatabaseNew{
   }
 
   static Future<void> syncRecordings() async{
-    fetchRecordingsFromBE().whenComplete(onFetchFinished);
-    fetchRecordingsFromBE().onError((error, stackTrace) {
+    fetchRecordingsFromBE().then((_) => onFetchFinished(), onError: (error) {
       Logger().e(error);
-      throw Exception(error);
+      throw error;
     });
-    fetchRecordingsFromBE();
   }
 
   static Future<List<Recording>> getRecordings() async{
@@ -301,7 +321,7 @@ class DatabaseNew{
     await db.delete("recordings", where: "id = ?", whereArgs: [id]);
   }
 
-  static Future<void> sendRecording(Recording recording) async {
+  static Future<void> sendRecording(Recording recording, List<RecordingPart> recordingParts) async {
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
       throw FetchException('Failed to send recording to backend', 401);
@@ -311,14 +331,19 @@ class DatabaseNew{
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
-      });
+      },
+      body: jsonEncode(recording.toBEJson()));
     if (response.statusCode == 200) {
-      recording.sent = true;
       recording.BEId = jsonDecode(response.body);
       final db = await database;
       await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+      recordingParts.forEach((RecordingPart part){
+        part.recordingId = recording.BEId;
+        sendRecordingPart(part);
+      });
+      recording.sent = true;
     } else {
-      throw FetchException('Failed to send recording to backend', response.statusCode);
+      throw UploadException('Failed to send recording to backend', response.statusCode);
     }
   }
 
@@ -326,10 +351,10 @@ class DatabaseNew{
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     Map<String, Object?> json = recordingPart.toBEJson();
     if (recordingPart.path == null){
-      throw UploadException('Recording part path is null', 400);
+      throw UploadException('Recording part path is null', 410);
     }
-    String data = File(recordingPart.path!).readAsStringSync();
-    String dataBase64 = base64Encode(utf8.encode(data));
+    Uint8List data = File(recordingPart.path!).readAsBytesSync();
+    String dataBase64 = base64Encode(data);
     json.addEntries([MapEntry('data', dataBase64)]);
     if (jwt == null) {
       throw UploadException('Failed to send recording part to backend', 401);
@@ -340,10 +365,11 @@ class DatabaseNew{
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwt',
         },
-        body: json
+        body: jsonEncode(json)
     );
     if(response.statusCode == 200){
       logger.i('Recording part id: ${recordingPart.id} uploaded');
+      recordingPart.sent = true;
     }
     else{
       throw UploadException('Failed to upload part id: ${recordingPart.id}', response.statusCode);
@@ -383,6 +409,9 @@ class DatabaseNew{
           parts.add(RecordingPart.fromBEJson(body[recordingIndex]['parts']![partIndex], body[recordingIndex]['id']));
         }
       }
+      fetchedRecordings = recordings;
+      fetchedRecordingParts = parts;
+
       fetching = false;
       return;
     }
