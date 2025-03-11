@@ -50,8 +50,6 @@ class _RegPasswordState extends State<RegPassword> {
 
   final TextEditingController _passwordController = TextEditingController();
 
-  late bool _termsAgreement = false;
-
   void _showMessage(String message) {
     showDialog(
       context: context,
@@ -109,10 +107,12 @@ class _RegPasswordState extends State<RegPassword> {
 
         secureStorage.write(key: 'token', value: data.toString());
 
-        Navigator.push(
+        Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => MailSent()),
+          MaterialPageRoute(builder: (context) => Login()),
+              (Route<dynamic> route) => false,
         );
+
       } else if (response.statusCode == 409) {
         _showMessage('Uživatel již existuje');
         logger.w("User already exists");

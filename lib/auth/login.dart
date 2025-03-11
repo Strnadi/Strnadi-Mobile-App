@@ -22,6 +22,7 @@ import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
+import 'forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 
@@ -134,7 +135,15 @@ class _LoginState extends State<Login> {
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
-            child: Text('Zapomenuté heslo?', style: TextStyle(color: Colors.grey)),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgottenPassword()));
+              },
+              child: const Text(
+                'Zapomenuté heslo?',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
