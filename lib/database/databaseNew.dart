@@ -138,7 +138,17 @@ class Recording{
   }
 
   @override
-  int get hashCode => 0;
+  int get hashCode {
+    return Object.hash(
+        BEId ?? 0,
+        mail,
+        createdAt,
+        estimatedBirdsCount,
+        device ?? '',
+        byApp,
+        note ?? ''
+    );
+  }
 }
 
 class RecordingPart{
@@ -177,13 +187,13 @@ class RecordingPart{
       recordingId: json['recordingId'] as int?,
       startTime: json['startTime'] as String,
       endTime: json['endTime'] as String,
-      gpsLatitudeStart: json['gpsLatitudeStart'] as double,
-      gpsLatitudeEnd: json['gpsLatitudeEnd'] as double,
-      gpsLongitudeStart: json['gpsLongitudeStart'] as double,
-      gpsLongitudeEnd: json['gpsLongitudeEnd'] as double,
+      gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
+      gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
+      gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
+      gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
       square: json['square'] as String?,
       path: json['path'] as String?,
-      sent: json['sent'] as bool,
+      sent: (json['sent'] as int) == 1,
     );
   }
 
@@ -193,10 +203,10 @@ class RecordingPart{
       recordingId: recordingId,
       startTime: json['start'] as String,
       endTime: json['end'] as String,
-      gpsLatitudeStart: json['gpsLatitudeStart'] as double,
-      gpsLatitudeEnd: json['gpsLatitudeEnd'] as double,
-      gpsLongitudeStart: json['gpsLongitudeStart'] as double,
-      gpsLongitudeEnd: json['gpsLongitudeEnd'] as double,
+      gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
+      gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
+      gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
+      gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
       square: json['square'] as String?,
       sent: true
     );
@@ -229,7 +239,7 @@ class RecordingPart{
       'gpsLongitudeEnd': gpsLongitudeEnd,
       'square': square,
       'path': path,
-      'sent': sent,
+      'sent': sent ? 1 : 0,
     };
   }
 }
@@ -271,14 +281,18 @@ class DatabaseNew{
 
     List<Recording> newRecordings = fetchedRecordings!.where((recording) => !sentRecordings.contains(recording)).toList();
 
-    newRecordings.forEach((recording)=>insertRecording(recording));
+    for (Recording recording in newRecordings){
+      await insertRecording(recording);
+    }
 
     List<RecordingPart> newRecordingParts = List<RecordingPart>.empty(growable: true);
     newRecordings.forEach((recording){
       newRecordingParts.addAll(fetchedRecordingParts!.where((part) => part.recordingId == recording.BEId));
     });
 
-    newRecordingParts.forEach((recordingPart)=>insertRecordingPart(recordingPart));
+    for (RecordingPart recordingPart in newRecordingParts){
+      await insertRecordingPart(recordingPart);
+    }
 
     //TODO: Implement the same for recordingParts
     //TODO: Implement the same for images
@@ -312,12 +326,12 @@ class DatabaseNew{
   static Future<void> deleteRecording(int id) async {
     final db = await database;
     List<RecordingPart> recordingPartsCopy = List<RecordingPart>.from(recordingParts);
-    recordingPartsCopy.forEach((recording) {
+    for (RecordingPart recording in recordingPartsCopy){
       if (recording.recordingId == id) {
         recordingParts.remove(recording);
-        db.delete("recordingParts", where: "recordingId = ?", whereArgs: [id]);
+        await db.delete("recordingParts", where: "recordingId = ?", whereArgs: [id]);
       }
-    });
+    }
     await db.delete("recordings", where: "id = ?", whereArgs: [id]);
   }
 
@@ -337,11 +351,12 @@ class DatabaseNew{
       recording.BEId = jsonDecode(response.body);
       final db = await database;
       await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
-      recordingParts.forEach((RecordingPart part){
+      for (RecordingPart part in recordingParts) {
         part.recordingId = recording.BEId;
-        sendRecordingPart(part);
-      });
+        await sendRecordingPart(part);
+      }
       recording.sent = true;
+      updateRecordingInDB(recording);
     } else {
       throw UploadException('Failed to send recording to backend', response.statusCode);
     }
@@ -370,12 +385,22 @@ class DatabaseNew{
     if(response.statusCode == 200){
       logger.i('Recording part id: ${recordingPart.id} uploaded');
       recordingPart.sent = true;
+      updateRecordingPartInDB(recordingPart);
     }
     else{
       throw UploadException('Failed to upload part id: ${recordingPart.id}', response.statusCode);
     }
   }
 
+  static Future<void> updateRecordingInDB(Recording recording) async {
+    final db = await database;
+    await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+  }
+
+  static Future<void> updateRecordingPartInDB(RecordingPart recordingPart) async {
+    final db = await database;
+    await db.update('recordingParts', recordingPart.toJson(), where: 'id = ?', whereArgs: [recordingPart.id]);
+  }
 
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
@@ -428,6 +453,7 @@ class DatabaseNew{
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,
         BEId INTEGER UNIQUE,
+        mail TEXT,
         createdAt TEXT,
         estimatedBirdsCount INTEGER,
         device TEXT,
