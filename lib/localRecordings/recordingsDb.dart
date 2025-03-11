@@ -66,13 +66,13 @@ class LocalDb {
       List<RecordingParts> recParts, List<int> recTimeParts,
       DateTime startTime, int ignoredId) async {
 
-    var localSettings = await SettingsService();
+    var localSettings = SettingsService();
 
     final Database db = await database;
     
-    var numeberOfRecordings = await db.rawQuery("SELECT COUNT(id) AS CNT FROM recordings").then((value) => value[0]["CNT"]).then((value) => int.parse(value.toString()));
+    var numberOfRecordings = await db.rawQuery("SELECT COUNT(id) AS CNT FROM recordings").then((value) => value[0]["CNT"]).then((value) => int.parse(value.toString()));
 
-    if (numeberOfRecordings >= await localSettings.getLocalRecordingsMax()) {
+    if (numberOfRecordings >= await localSettings.getLocalRecordingsMax()) {
       var oldestRecording = await db.rawQuery("SELECT id FROM recordings ORDER BY created_at DESC LIMIT 1").then((value) => value[0]["id"]).then((value) => int.parse(value.toString()));
       await db.rawDelete("DELETE FROM recordings WHERE id = ?", [oldestRecording]);
       await db.rawDelete("DELETE FROM recording_parts WHERE recording_id = ?", [oldestRecording]);

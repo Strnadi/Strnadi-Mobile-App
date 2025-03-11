@@ -13,13 +13,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:io';
+
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fftea/fftea.dart';
-import 'package:strnadi/auth/login.dart';
 import 'package:wav/wav.dart';
+import 'package:flutter/foundation.dart'; // for compute()
 
 class LiveSpectogram extends StatefulWidget {
   final List<double> data;
@@ -39,16 +39,33 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
   @override
   void initState() {
     super.initState();
-    _processAudio();
+    _processInBackground();
   }
 
-  Future<void> _processAudio() async {
+  Future<void> _processInBackground() async {
+    final result = await compute(processAudioInBackground, {
+      'filepath': widget.filepath,
+      'data': widget.data,
+    });
+
+    setState(() {
+      spectrogramData = result;
+    });
+  }
+
+
+  // Required because compute() only accepts top-level/static functions
+  Future<List<List<double>>> processAudioInBackground(Map<String, dynamic> args) async {
+    final String? filepath = args['filepath'];
+    final List<double> inputData = args['data'];
+
     List<double> audio = [];
-    if (widget.filepath != null) {
-      final wav = await Wav.readFile(widget.filepath!);
+
+    if (filepath != null) {
+      final wav = await Wav.readFile(filepath);
       audio = _normalizeRmsVolume(wav.toMono(), 0.3);
     } else {
-      audio = widget.data;
+      audio = inputData;
     }
 
     const chunkSize = 1024;
@@ -59,7 +76,7 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
 
     stft.run(
       audio,
-      (Float64x2List chunk) {
+          (Float64x2List chunk) {
         final amp = chunk.discardConjugates().magnitudes();
         final List<double> row = [];
 
@@ -74,10 +91,9 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
       chunkSize ~/ 2,
     );
 
-    setState(() {
-      spectrogramData = data;
-    });
+    return data;
   }
+
 
   double _rms(List<double> audio) {
     if (audio.isEmpty) {

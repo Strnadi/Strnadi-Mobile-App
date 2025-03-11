@@ -389,6 +389,8 @@ class _RecordingFormState extends State<RecordingForm> {
       mapCenter = LatLng(50.1, 14.4);
     }
 
+    final halfScreen = MediaQuery.of(context).size.width * 0.45;
+
     return SingleChildScrollView(
       child: Center(
         child: Column(
@@ -546,22 +548,51 @@ class _RecordingFormState extends State<RecordingForm> {
                       },
                     ),
                     MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ButtonStyle(
-                            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: SizedBox(
+                            width: halfScreen,
+                            child: ElevatedButton(
+                              style: ButtonStyle(
+                                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                ),
                               ),
+                              onPressed: upload,
+                              child: const Text('Submit'),
                             ),
                           ),
-                          onPressed: upload,
-                          child: const Text('Submit'),
                         ),
-                      ),
+                        Padding(
+
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: SizedBox(
+                            width: halfScreen,
+                            child: ElevatedButton(
+                              style: ButtonStyle(
+                                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                ),
+                              ),
+                              onPressed: () {
+                                dispose();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => LiveRec()),
+                                );
+                              },
+                              child: const Text('Discard'),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
