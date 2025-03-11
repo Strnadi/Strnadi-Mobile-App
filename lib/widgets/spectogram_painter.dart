@@ -13,13 +13,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fftea/fftea.dart';
 import 'package:wav/wav.dart';
-import 'package:flutter/foundation.dart'; // for compute()
 
 class LiveSpectogram extends StatefulWidget {
   final List<double> data;
@@ -39,33 +39,16 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
   @override
   void initState() {
     super.initState();
-    _processInBackground();
+    _processAudio();
   }
 
-  Future<void> _processInBackground() async {
-    final result = await compute(processAudioInBackground, {
-      'filepath': widget.filepath,
-      'data': widget.data,
-    });
-
-    setState(() {
-      spectrogramData = result;
-    });
-  }
-
-
-  // Required because compute() only accepts top-level/static functions
-  Future<List<List<double>>> processAudioInBackground(Map<String, dynamic> args) async {
-    final String? filepath = args['filepath'];
-    final List<double> inputData = args['data'];
-
+  Future<void> _processAudio() async {
     List<double> audio = [];
-
-    if (filepath != null) {
-      final wav = await Wav.readFile(filepath);
+    if (widget.filepath != null) {
+      final wav = await Wav.readFile(widget.filepath!);
       audio = _normalizeRmsVolume(wav.toMono(), 0.3);
     } else {
-      audio = inputData;
+      audio = widget.data;
     }
 
     const chunkSize = 1024;
@@ -91,9 +74,10 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
       chunkSize ~/ 2,
     );
 
-    return data;
+    setState(() {
+      spectrogramData = data;
+    });
   }
-
 
   double _rms(List<double> audio) {
     if (audio.isEmpty) {
@@ -120,9 +104,9 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
     return spectrogramData == null
         ? Center(child: CircularProgressIndicator())
         : CustomPaint(
-            size: Size(100, 100),
-            painter: SpectrogramPainter(spectrogramData!),
-          );
+      size: Size(100, 100),
+      painter: SpectrogramPainter(spectrogramData!),
+    );
   }
 }
 

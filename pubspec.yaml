@@ -103,7 +103,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/images/logo.png
-    - lib/map/dummy.json
+    - lib/archived/dummy.json
     - assets/images/default.jpg
     - assets/databaseScheme.sql
     - assets/
