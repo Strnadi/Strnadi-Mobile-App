@@ -55,6 +55,9 @@ class _RegNameState extends State<RegName> {
 
   @override
   Widget build(BuildContext context) {
+
+    final halfScreen = MediaQuery.of(context).size.height * 0.2;
+
     return Scaffold(
       appBar: AppBar(),
       body: Center(
@@ -64,92 +67,96 @@ class _RegNameState extends State<RegName> {
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Jak se jmenujete?',
-                  style: TextStyle(fontSize: 40),
+                Padding(
+                  padding: EdgeInsets.only(top: halfScreen),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Jak se jmenujete?',
+                        style: TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _nameController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Jmeno',
+                              children: const <TextSpan>[
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ],
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _surnameController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Prijmeni',
+                              children: const <TextSpan>[
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ],
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _nickController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Nick',
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ],
+                  ),
                 ),
-                Container(
-                    child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _nameController,
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        label: RichText(
-                          text: TextSpan(
-                            text: 'Jmeno',
-                            children: const <TextSpan>[
-                              TextSpan(
-                                text: ' *',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ],
-                            style: TextStyle(color: Colors.black),
-                          ),
-                        ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _surnameController,
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        label: RichText(
-                          text: TextSpan(
-                            text: 'Prijmeni',
-                            children: const <TextSpan>[
-                              TextSpan(
-                                text: ' *',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ],
-                            style: TextStyle(color: Colors.black),
-                          ),
-                        ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _nickController,
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        label: RichText(
-                          text: TextSpan(
-                            text: 'Nick',
-                            style: TextStyle(color: Colors.black),
-                          ),
-                        ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                  ],
-                )),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all<Color>(
+                          Colors.black,
+                        ),
                         shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                           RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
@@ -174,10 +181,11 @@ class _RegNameState extends State<RegName> {
                           );
                         } else {
                           // Optionally, show an error message if validation fails
-                          _showMessage('Please fix the errors before proceeding.');
+                          _showMessage(
+                              'Please fix the errors before proceeding.');
                         }
                       },
-                      child: const Text('Submit'),
+                      child: const Text('Submit', style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ),

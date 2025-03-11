@@ -168,6 +168,8 @@ class _LiveRecState extends State<LiveRec> {
 
   @override
   Widget build(BuildContext context) {
+
+    final halfScreen = MediaQuery.of(context).size.width * 0.15;
     // Display total cumulative time: current segment + previous segments.
     int displayTime = (_totalRecordedTime + _recordDuration).toInt();
     return ScaffoldWithBottomBar(
@@ -210,22 +212,81 @@ class _LiveRecState extends State<LiveRec> {
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 20),
-          if (_recordState == RecordState.pause)
-            ElevatedButton(
-              onPressed: _stop,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+          if (_recordState == RecordState.record || _recordState == RecordState.pause)
+            Padding(
+              padding: EdgeInsets.only(left: halfScreen),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: _stop,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text("Ukončit nahrávání"),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: _discardRecording,
+                  ),
+                ],
               ),
-              child: const Text("Ukončit nahrávání"),
             ),
           const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  void clear() {
+    // Implement the logic to discard the recording
+    setState(() {
+      _recordDuration = 0;
+      _totalRecordedTime = 0;
+      segmentPaths.clear();
+      recordingPartsList.clear();
+      recordingPartsTimeList.clear();
+      recordedFilePath = null;
+      _recordState = RecordState.stop;
+    });
+    // Optionally, delete the recorded file if it exists
+    if (filepath.isNotEmpty) {
+      File(filepath).delete();
+    }
+  }
+
+  void _discardRecording() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Discard'),
+          content: const Text('Are you sure you want to discard the current recording?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Implement the logic to discard the recording
+                clear();
+
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Discard'),
+            ),
+          ],
+        );
+      },
     );
   }
 

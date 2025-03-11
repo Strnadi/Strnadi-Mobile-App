@@ -22,6 +22,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:strnadi/auth/registeration/mailSent.dart';
 
 final logger = Logger();
 
@@ -48,8 +49,6 @@ class _RegPasswordState extends State<RegPassword> {
   final _GlobalKey = GlobalKey<FormState>();
 
   final TextEditingController _passwordController = TextEditingController();
-
-  late bool _termsAgreement = false;
 
   void _showMessage(String message) {
     showDialog(
@@ -108,10 +107,12 @@ class _RegPasswordState extends State<RegPassword> {
 
         secureStorage.write(key: 'token', value: data.toString());
 
-        Navigator.push(
+        Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => Login()),
+          MaterialPageRoute(builder: (context) => Login()),
+              (Route<dynamic> route) => false,
         );
+
       } else if (response.statusCode == 409) {
         _showMessage('Uživatel již existuje');
         logger.w("User already exists");
@@ -130,6 +131,9 @@ class _RegPasswordState extends State<RegPassword> {
 
   @override
   Widget build(BuildContext context) {
+
+    final halfScreen = MediaQuery.of(context).size.height * 0.2;
+
     return Scaffold(
       appBar: AppBar(),
       body: Center(
@@ -139,39 +143,46 @@ class _RegPasswordState extends State<RegPassword> {
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Heslo',
-                  style: TextStyle(fontSize: 40),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _passwordController,
-                  textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    label: RichText(
-                      text: TextSpan(
-                        text: 'Heslo',
-                        children: const <TextSpan>[
-                          TextSpan(
-                            text: ' *',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ],
-                        style: TextStyle(color: Colors.black),
+                Padding(
+                  padding: EdgeInsets.only(top: halfScreen),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Nastav te si Heslo',
+                        style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    border: const OutlineInputBorder(),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          label: RichText(
+                            text: TextSpan(
+                              text: 'Heslo',
+                              children: const <TextSpan>[
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ],
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.visiblePassword,
+                        obscureText: true,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
-                  keyboardType: TextInputType.visiblePassword,
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter some text';
-                    }
-                    return null;
-                  },
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -179,6 +190,7 @@ class _RegPasswordState extends State<RegPassword> {
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all<Color>(Colors.black),
                         shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                           RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
@@ -195,7 +207,7 @@ class _RegPasswordState extends State<RegPassword> {
                           _showMessage('Please fix the errors before proceeding.');
                         }
                       },
-                      child: Text('Sign Up'),
+                      child: Text('Sign Up', style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ),

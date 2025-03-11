@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,43 +13,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
 import 'package:flutter/gestures.dart';
-import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/auth/registeration/nameReg.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 
-class RegMail extends StatefulWidget {
-  const RegMail({super.key});
+import 'login.dart';
+
+class ForgottenPassword extends StatefulWidget {
+  const ForgottenPassword({Key? key}) : super(key: key);
 
   @override
-  State<RegMail> createState() => _RegMailState();
+  _ForgottenPasswordState createState() => _ForgottenPasswordState();
 }
 
-class _RegMailState extends State<RegMail> {
-  final _GlobalKey = GlobalKey<FormState>();
+class _ForgottenPasswordState extends State<ForgottenPassword> {
 
   final TextEditingController _emailController = TextEditingController();
 
-  late bool _termsAgreement = false;
-
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Register'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+  final _GlobalKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +40,6 @@ class _RegMailState extends State<RegMail> {
     final halfScreen = MediaQuery.of(context).size.height * 0.2;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrace')),
       body: Center(
         child: Form(
           key: _GlobalKey,
@@ -74,7 +55,7 @@ class _RegMailState extends State<RegMail> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       const Text(
-                        'Zadejte Váš Email',
+                        'Zadejte Váš Email Pro Resetování Hesla',
                         style: TextStyle(fontSize: 40, color: Colors.black),
                       ),
                       const SizedBox(height: 20),
@@ -110,28 +91,10 @@ class _RegMailState extends State<RegMail> {
                         },
                         onFieldSubmitted: (value) {
                           if (_GlobalKey.currentState?.validate() ?? false) {
-                            // Proceed to next page if validation is successful
-                            Navigator.push(context,
-                              MaterialPageRoute(
-                                builder: (_) => RegName(
-                                  email: _emailController.text,
-                                  consent: _termsAgreement,
-                                ),
-                              ),
-                            );
+                            requestPasswordReset(_emailController.text);
                           } else {
                             // Optionally, show an error message if validation fails
                           }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      CheckboxListTile(
-                        title: const Text('I agree to the terms and conditions'),
-                        value: _termsAgreement,
-                        onChanged: (value) {
-                          setState(() {
-                            _termsAgreement = value!;
-                          });
                         },
                       ),
                       Padding(
@@ -140,10 +103,10 @@ class _RegMailState extends State<RegMail> {
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all<Color>(
+                              backgroundColor: WidgetStateProperty.all<Color>(
                                 Colors.black,
                               ),
-                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                              shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                                 RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10.0),
                                 ),
@@ -152,21 +115,13 @@ class _RegMailState extends State<RegMail> {
                             onPressed: () {
                               if (_GlobalKey.currentState?.validate() ?? false) {
                                 // Proceed to the next screen if the form is valid
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => RegName(
-                                      email: _emailController.text,
-                                      consent: _termsAgreement,
-                                    ),
-                                  ),
-                                );
+                                requestPasswordReset(_emailController.text);
                               } else {
                                 // Optionally, show an error message if validation fails
                                 _showMessage('Please fix the errors before proceeding.');
                               }
                             },
-                            child: const Text('Pokracovat', style: TextStyle(color: Colors.white)),
+                            child: const Text('Resetovat Heslo', style: TextStyle(color: Colors.white)),
                           ),
                         ),
                       ),
@@ -199,4 +154,37 @@ class _RegMailState extends State<RegMail> {
       ),
     );
   }
+
+  Future<void> requestPasswordReset(String email) async {
+    final uri = Uri.parse('https://api.strnadi.cz/auth/request-password-reset?email=$email');
+
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        _showMessage("Email byl odeslán");
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const Login()));
+      } else {
+        print('Failed to send password reset: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error sending password reset request: $e');
+    }
+  }
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Register'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
 }
