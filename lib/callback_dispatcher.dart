@@ -9,8 +9,11 @@ void callbackDispatcher() {
     if (task == "sendRecording") {
       int recordingId = inputData?["recordingId"];
       // Retrieve the recording from the database
-      Recording? recording = await DatabaseNew.getRecordingById(recordingId);
+      Recording? recording = await DatabaseNew.getRecordingFromDbById(recordingId);
       if (recording != null) {
+        if(recording.sending) return Future.value(false);
+        recording.sending = true;
+        DatabaseNew.updateRecording(recording);
         // Retrieve parts – assuming BEId is set for recordings that are ready to send
         List<RecordingPart> parts = DatabaseNew.getPartsById(recording.BEId ?? 0);
         try {

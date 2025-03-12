@@ -13,6 +13,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/main.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/callback_dispatcher.dart';
 
@@ -78,6 +79,7 @@ class Recording{
   String? path;
   bool downloaded;
   bool sent;
+  bool sending;
 
   Recording({
     this.id,
@@ -91,6 +93,7 @@ class Recording{
     this.path,
     this.downloaded = true,
     this.sent = false,
+    this.sending = false,
   });
 
   factory Recording.fromJson(Map<String, Object?> json){
@@ -106,6 +109,7 @@ class Recording{
         path: json['path'] as String?,
         sent: (json['sent'] as int) == 1,
         downloaded: (json['downloaded'] as int) == 1,
+        sending: (json['sending'] as int) == 1,
     );
   }
 
@@ -133,6 +137,7 @@ class Recording{
       path: unready.path,
       sent: false,
       downloaded: true,
+      sending: false,
     );
   }
 
@@ -163,6 +168,7 @@ class Recording{
       'path': path,
       'sent': sent ? 1 : 0,
       'downloaded': downloaded ? 1 : 0,
+      'sending': sending ? 1 : 0,
     };
   }
 
@@ -468,6 +474,11 @@ class DatabaseNew{
   }
 
   static Future<void> sendRecording(Recording recording, List<RecordingPart> recordingParts) async {
+    if(!await hasInternetAccess()){
+      recording.sending = false;
+      updateRecording(recording);
+      return;
+    }
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
       throw FetchException('Failed to send recording to backend', 401);
@@ -488,7 +499,8 @@ class DatabaseNew{
         await sendRecordingPart(part);
       }
       recording.sent = true;
-      updateRecordingInDB(recording);
+      recording.sending=false;
+      updateRecording(recording);
     } else {
       throw UploadException('Failed to send recording to backend', response.statusCode);
     }
@@ -514,19 +526,21 @@ class DatabaseNew{
     if(response.statusCode == 200){
       logger.i('Recording part id: ${recordingPart.id} uploaded');
       recordingPart.sent = true;
-      updateRecordingPartInDB(recordingPart);
+      updateRecordingPart(recordingPart);
     }
     else{
       throw UploadException('Failed to upload part id: ${recordingPart.id}', response.statusCode);
     }
   }
 
-  static Future<void> updateRecordingInDB(Recording recording) async {
+  static Future<void> updateRecording(Recording recording) async {
+    recordings[recordings.indexWhere((element) => element.id == recording.id)] = recording;
     final db = await database;
     await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
   }
 
-  static Future<void> updateRecordingPartInDB(RecordingPart recordingPart) async {
+  static Future<void> updateRecordingPart(RecordingPart recordingPart) async {
+    recordingParts[recordingParts.indexWhere((element) => element.id == recordingPart.id)] = recordingPart;
     final db = await database;
     await db.update('recordingParts', recordingPart.toJson(), where: 'id = ?', whereArgs: [recordingPart.id]);
   }
@@ -613,7 +627,7 @@ class DatabaseNew{
       file.writeAsBytesSync(response.bodyBytes);
       recording.path = file.path;
       recording.downloaded = true;
-      updateRecordingInDB(recording);
+      updateRecording(recording);
     }
     else{
       throw FetchException('Failed to download recording', response.statusCode);
@@ -621,7 +635,7 @@ class DatabaseNew{
   }
 
   static Future<Database> initDb() async{
-    return openDatabase('soundNew.db', version: 2,
+    return openDatabase('soundNew.db', version: 1,
         onCreate: (Database db, int version) async {
           await db.execute('''
       CREATE TABLE recordings(
@@ -635,7 +649,8 @@ class DatabaseNew{
         note TEXT,
         path TEXT,
         sent INTEGER,
-        downloaded INTEGER
+        downloaded INTEGER,
+        sending INTEGER
       )
       ''');
           await db.execute('''
@@ -736,8 +751,14 @@ class DatabaseNew{
     return trimmedParts;
   }
 
-  static getRecordingById(int recordingId) {
-    return recordings.firstWhere((element) => element.id == recordingId);
+  static Future<Recording?> getRecordingFromDbById(int recordingId) async{
+    final db = await database;
+    final List<Map<String, dynamic>> results =
+        await db.query("recordings", where: "id = ?", whereArgs: [recordingId]);
+    if (results.isNotEmpty) {
+      return Recording.fromJson(results.first);
+    }
+    return null;
   }
 
 

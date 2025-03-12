@@ -196,6 +196,7 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i('Waiting for recording to be ready');
     }
     logger.i('Started inserting recording');
+    recording.downloaded = true;
     recording.id = await DatabaseNew.insertRecording(recording);
     setState(() {
       _recordingId = recording.id;

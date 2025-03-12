@@ -21,8 +21,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     getRecordings();
   }
 
-  void _showMessage(String message,String title) {
-    // This will work fine now as long as it's called from a valid Material context.
+  void _showMessage(String message, String title) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -46,16 +45,13 @@ class _RecordingScreenState extends State<RecordingScreen> {
   }
 
   void openRecording(recording) {
-    if(recording.downloaded) {
+    if (recording.downloaded) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              RecordingItem(recording: recording),
+          builder: (context) => RecordingItem(recording: recording),
         ),
       );
-    } else{
-      return;
     }
   }
 
@@ -105,27 +101,46 @@ class _RecordingScreenState extends State<RecordingScreen> {
                       ),
                     ],
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!records[index].downloaded)
-                        IconButton(
-                          icon: const Icon(Icons.file_download),
-                          onPressed: () {
-                            DatabaseNew.downloadRecording(records[index].id!).onError((e, stackTrace) {
-                              if(e is UnimplementedError){
-                                _showMessage("Tato funkce není dostupná na tomto zařízení", "Chyba");
-                              }
-                              logger.e(e);
-                              Sentry.captureException(e);
-                            });
-                          },
+                  trailing: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!records[index].sending && !records[index].sent)
+                          IconButton(
+                            icon: const Icon(Icons.file_upload, size: 20),
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                            onPressed: () {
+                              DatabaseNew.sendRecordingBackground(records[index].id!)
+                                  .onError((e, stackTrace) {
+                                logger.e(e);
+                                Sentry.captureException(e);
+                              });
+                            },
+                          ),
+                        if (!records[index].downloaded)
+                          IconButton(
+                            icon: const Icon(Icons.file_download, size: 20),
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                            onPressed: () {
+                              DatabaseNew.downloadRecording(records[index].id!)
+                                  .onError((e, stackTrace) {
+                                if (e is UnimplementedError) {
+                                  _showMessage("Tato funkce není dostupná na tomto zařízení", "Chyba");
+                                }
+                                logger.e(e);
+                                Sentry.captureException(e);
+                              });
+                            },
+                          ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
                         ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   onTap: () => openRecording(records[index]),
