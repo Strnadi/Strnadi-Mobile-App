@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -12,6 +13,8 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:strnadi/exceptions.dart';
+import 'package:workmanager/workmanager.dart';
+import 'package:strnadi/callback_dispatcher.dart';
 
 final logger = Logger();
 
@@ -73,6 +76,7 @@ class Recording{
   bool byApp;
   String? note;
   String? path;
+  bool downloaded;
   bool sent;
 
   Recording({
@@ -85,6 +89,7 @@ class Recording{
     required this.byApp,
     this.note,
     this.path,
+    this.downloaded = true,
     this.sent = false,
   });
 
@@ -100,6 +105,7 @@ class Recording{
         note: json['note'] as String?,
         path: json['path'] as String?,
         sent: (json['sent'] as int) == 1,
+        downloaded: (json['downloaded'] as int) == 1,
     );
   }
 
@@ -125,7 +131,8 @@ class Recording{
       byApp: unready.byApp ?? true,
       note: unready.note,
       path: unready.path,
-      sent: false
+      sent: false,
+      downloaded: true,
     );
   }
 
@@ -138,7 +145,8 @@ class Recording{
       device: json['device'] as String?,
       byApp: json['byApp'] as bool,
       note: json['note'] as String?,
-      sent: true
+      sent: true,
+      downloaded: false,
     );
   }
 
@@ -154,6 +162,7 @@ class Recording{
       'note': note,
       'path': path,
       'sent': sent ? 1 : 0,
+      'downloaded': downloaded ? 1 : 0,
     };
   }
 
@@ -321,8 +330,8 @@ class RecordingPart{
       'id': id,
       'BEId': BEId,
       'recordingId': recordingId,
-      'startTime': startTime,
-      'endTime': endTime,
+      'startTime': startTime.toString(),
+      'endTime': endTime.toString(),
       'gpsLatitudeStart': gpsLatitudeStart,
       'gpsLatitudeEnd': gpsLatitudeEnd,
       'gpsLongitudeStart': gpsLongitudeStart,
@@ -354,19 +363,22 @@ class DatabaseNew{
   static Future<int> insertRecording(Recording recording) async {
     logger.i('Getting database');
     final db = await database;
-    logger.i('Inserting recording');
+    logger.i('Inserting recording ${recording.id}');
     final int id = await db.insert("recordings", recording.toJson());
     recording.id = id;
     recordings.add(recording);
-    logger.i('Recording inserted');
+    logger.i('Recording ${recording.id} inserted');
     return id;
   }
 
   static Future<int> insertRecordingPart(RecordingPart recordingPart) async {
+    logger.i('Getting database');
     final db = await database;
+    logger.i('Inserting recording part ${recordingPart.id}');
     final int id = await db.insert("recordingParts", recordingPart.toJson());
     recordingPart.id = id;
     recordingParts.add(recordingPart);
+    logger.i('Recording part ${recordingPart.id} inserted');
     return id;
   }
 
@@ -378,6 +390,7 @@ class DatabaseNew{
     List<Recording> newRecordings = fetchedRecordings!.where((recording) => !sentRecordings.contains(recording)).toList();
 
     for (Recording recording in newRecordings){
+      recording.downloaded = false;
       await insertRecording(recording);
     }
 
@@ -390,20 +403,29 @@ class DatabaseNew{
       await insertRecordingPart(recordingPart);
     }
 
-    //TODO: Implement the same for recordingParts
     //TODO: Implement the same for images
 
     //TODO: Implement update
   }
 
   static Future<void> syncRecordings() async{
-    fetchRecordingsFromBE().then((_) => onFetchFinished(), onError: (error) {
-      Logger().e(error);
-      throw error;
-    });
+
+    if(fetching){
+      return;
+    }
+    try {
+      await fetchRecordingsFromBE();
+      await onFetchFinished();
+      logger.i('Recordings fetched');
+    }
+    catch (e){
+      logger.e(e);
+      Sentry.captureException(e);
+    }
   }
 
   static Future<List<Recording>> getRecordings() async{
+    logger.i('Getting recordings');
     final db = await database;
     final List<Map<String, dynamic>> recordings = await db.query("recordings");
     return List.generate(recordings.length, (i) {
@@ -412,6 +434,7 @@ class DatabaseNew{
   }
 
   static Future<List<RecordingPart>> getRecordingParts() async{
+    logger.i('Getting recording parts');
     final db = await database;
     final List<Map<String, dynamic>> recordingParts = await db.query("recordingParts");
     return List.generate(recordingParts.length, (i) {
@@ -420,15 +443,28 @@ class DatabaseNew{
   }
 
   static Future<void> deleteRecording(int id) async {
+    logger.i('Deleting recording id: $id');
     final db = await database;
     List<RecordingPart> recordingPartsCopy = List<RecordingPart>.from(recordingParts);
     for (RecordingPart recording in recordingPartsCopy){
       if (recording.recordingId == id) {
+        logger.i('Deleting recording part id: ${recording.id}');
         recordingParts.remove(recording);
         await db.delete("recordingParts", where: "recordingId = ?", whereArgs: [id]);
       }
     }
     await db.delete("recordings", where: "id = ?", whereArgs: [id]);
+    logger.i('Recording id: $id deleted');
+  }
+
+  static Future<void> sendRecordingBackground(int recordingId) async {
+    await Workmanager().registerOneOffTask(
+      "sendRecording_$recordingId", // A unique name for the task.
+      "sendRecording", // The task identifier used in the callback.
+      inputData: {
+        "recordingId": recordingId,
+      },
+    );
   }
 
   static Future<void> sendRecording(Recording recording, List<RecordingPart> recordingParts) async {
@@ -547,10 +583,41 @@ class DatabaseNew{
   }
 
   static Future<void> downloadRecording(int id)async{
-    if(recordings.firstWhere((element) => element.id == id).sent){
+    if(recordings.firstWhere((element) => element.id == id).downloaded){
       return;
     }
-    throw NotImplementedException(); //TODO: download from BE
+
+    throw UnimplementedError(); //TODO: Wait for stasik to implement this
+
+    Recording recording = recordings.firstWhere((element) => element.id == id);
+
+    List<RecordingPart> parts = recordingParts.where((element) => element.recordingId == recording.BEId).toList();
+
+    Uri url = Uri(scheme: 'https',host: 'api.strnadi.cz', path: '/recordings/${recording.BEId}/download');
+
+    String? jwt = await FlutterSecureStorage().read(key: 'token');
+    if (jwt == null) {
+      throw FetchException('Failed to fetch recordings from backend', 401);
+    }
+
+    final http.Response response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      }
+    );
+    if(response.statusCode == 200){
+      Directory tempDir = await getApplicationDocumentsDirectory();
+      File file = File('${tempDir.path}/recording_${recording.BEId}.wav');
+      file.writeAsBytesSync(response.bodyBytes);
+      recording.path = file.path;
+      recording.downloaded = true;
+      updateRecordingInDB(recording);
+    }
+    else{
+      throw FetchException('Failed to download recording', response.statusCode);
+    }
   }
 
   static Future<Database> initDb() async{
@@ -567,12 +634,14 @@ class DatabaseNew{
         byApp INTEGER,
         note TEXT,
         path TEXT,
-        sent INTEGER
+        sent INTEGER,
+        downloaded INTEGER
       )
       ''');
           await db.execute('''
       CREATE TABLE recordingParts(
         id INTEGER PRIMARY KEY,
+        BEId INTEGER UNIQUE,
         recordingId INTEGER,
         startTime TEXT,
         endTime TEXT,
@@ -666,4 +735,10 @@ class DatabaseNew{
 
     return trimmedParts;
   }
+
+  static getRecordingById(int recordingId) {
+    return recordings.firstWhere((element) => element.id == recordingId);
+  }
+
+
 }

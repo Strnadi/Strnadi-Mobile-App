@@ -31,6 +31,8 @@ import 'package:google_api_availability/google_api_availability.dart';
 import 'config/config.dart';
 import 'package:strnadi/archived/recordingsDb.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/callback_dispatcher.dart';
+import 'package:workmanager/workmanager.dart';
 
 
 // Create a global logger instance.
@@ -105,6 +107,12 @@ Future<void> main() async {
 
   initFirebase();
 
+  // Initialize workmanager with our callback.
+  Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: true, // Set to false in production.
+  );
+
   await SentryFlutter.init(
         (options) {
       options.dsn =
@@ -126,7 +134,6 @@ Future<void> main() async {
       // Initialize Firebase Local Messaging
       initLocalNotifications();
       // Run the app.
-      DatabaseNew.fetchRecordingsFromBE();
       runApp(const MyApp());
     },
   );

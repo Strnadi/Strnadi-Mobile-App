@@ -89,8 +89,14 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   void getLocation() {
-    center = LatLng(parts.last.gpsLatitudeEnd, parts.last.gpsLongitudeEnd);
+    if (parts.isNotEmpty) {
+      center = LatLng(parts.last.gpsLatitudeEnd, parts.last.gpsLongitudeEnd);
+    } else {
+      // Set a default center, e.g., a predetermined location or the user's last known position.
+      center = LatLng(49.1951, 16.6068); // Example default value
+    }
   }
+
 
   Future<void> getData() async {
     if(widget.recording.path != null) {

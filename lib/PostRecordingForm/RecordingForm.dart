@@ -315,7 +315,7 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     }
 
-    await DatabaseNew.sendRecording(recording, partsReady);
+    await DatabaseNew.sendRecordingBackground(recording.id!);
       /*
       try {
         final response = await http.post(
@@ -385,7 +385,7 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     try {
-      await DatabaseNew.sendRecording(recording, DatabaseNew.getPartsById(_recordingId!));
+      await DatabaseNew.sendRecordingBackground(recording.id!);
     }
     catch(e){
       logger.e(e);

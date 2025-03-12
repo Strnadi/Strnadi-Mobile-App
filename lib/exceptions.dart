@@ -35,14 +35,3 @@ class LocationException implements Exception {
 
   LocationException(this.message, this.permission, this.enabled, this.falledBack);
 }
-
-class NotImplementedException implements Exception {
-}
-/*
-class PermissionException implements Exception {
-  final String message;
-  final String permission;
-
-  PermissionException(this.message, this.permission);
-}
-*/
