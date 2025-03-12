@@ -21,11 +21,26 @@ import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-
+import 'package:strnadi/exceptions.dart';
 
 
 
 class LocationService {
+
+  Future<void> checkLocationWorking() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever) {
+      throw LocationException('Permission denied forever', false, await Geolocator.isLocationServiceEnabled(), null);
+    }
+    if (permission == LocationPermission.denied) {
+      throw LocationException('Permission denied', false, await Geolocator.isLocationServiceEnabled(), null);
+    }
+  }
+
+  Future<bool> isLocationEnabled(){
+    return Geolocator.isLocationServiceEnabled();
+  }
+
   static final LocationService _instance = LocationService._internal();
 
   factory LocationService() => _instance;
@@ -49,7 +64,12 @@ class LocationService {
     return _positionStream!;
   }
 
-  @override
+  Future<LatLng> getCurrentLocation() async {
+    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+    lastKnownPosition = LatLng(position.latitude, position.longitude);
+    return lastKnownPosition!;
+  }
+
   void init() {
     positionStream.listen((Position position) {
       lastKnownPosition = LatLng(position.latitude, position.longitude);

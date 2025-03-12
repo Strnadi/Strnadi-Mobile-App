@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
+/*
 import 'dart:io';
 
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
@@ -22,6 +24,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 
+/*
 class Recording{
   final int id;
   final String createdAt;
@@ -65,7 +68,7 @@ class Recording{
     };
   }
 }
-
+ */
 
 void initDb() async {
   final db = await openDatabase('sound.db', version: 1,
@@ -246,3 +249,4 @@ class DatabaseHelper {
 
   }
 }
+*/

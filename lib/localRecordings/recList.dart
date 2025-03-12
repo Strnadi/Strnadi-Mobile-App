@@ -15,9 +15,11 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
-import 'package:strnadi/localRecordings/recordingsDb.dart';
+import 'package:strnadi/archived/recordingsDb.dart';
 
+/*
 class RecordItem {
   final String title;
   final String date;
@@ -25,6 +27,7 @@ class RecordItem {
 
   RecordItem({required this.title, required this.date, required this.status});
 }
+*/
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({Key? key}) : super(key: key);
@@ -35,7 +38,7 @@ class RecordingScreen extends StatefulWidget {
 
 class _RecordingScreenState extends State<RecordingScreen> {
 
-  List<RecordItem> list = [];
+  List<Recording> list = List<Recording>.empty(growable: true);
 
   @override
   void initState() {
@@ -44,13 +47,13 @@ class _RecordingScreenState extends State<RecordingScreen> {
   }
 
   void getRecordings() async {
-    list = await LocalDb.GetRecordings();
+    list = await DatabaseNew.getRecordings();
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    var records = list.reversed.toList();
+    List<Recording> records = list.reversed.toList();
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(
@@ -64,7 +67,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             itemBuilder: (context, index) {
               return ListTile(
                 title: Text(
-                  records[index].title,
+                  records[index].note??'',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -73,7 +76,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                 subtitle: Row(
                   children: [
                     Text(
-                      records[index].date,
+                      records[index].createdAt.toString(),
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.grey,
@@ -81,7 +84,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      records[index].status,
+                      records[index].sent? 'Odesláno' : 'Čeká na odeslání',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.grey,

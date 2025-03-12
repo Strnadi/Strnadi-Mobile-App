@@ -11,29 +11,63 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:strnadi/exceptions.dart';
 
 final logger = Logger();
 
-class FetchException implements Exception {
-  final String message;
-  final int statusCode;
 
-  FetchException(this.message, this.statusCode);
+
+class RecordingUnready{
+  int? id;
+  String? mail;
+  DateTime? createdAt;
+  int? estimatedBirdsCount;
+  String? device;
+  bool? byApp;
+  String? note;
+  String? path;
+
+  RecordingUnready({
+    this.id,
+    this.mail,
+    this.createdAt,
+    this.estimatedBirdsCount,
+    this.device,
+    this.byApp,
+    this.note,
+    this.path
+    });
 }
 
-class UploadException implements Exception {
-  final String message;
-  final int statusCode;
+class RecordingPartUnready{
+  int? id;
+  int? recordingId;
+  DateTime? startTime;
+  DateTime? endTime;
+  double? gpsLatitudeStart;
+  double? gpsLatitudeEnd;
+  double? gpsLongitudeStart;
+  double? gpsLongitudeEnd;
+  String? dataBase64;
 
-  UploadException(this.message, this.statusCode);
+  RecordingPartUnready({
+    this.id,
+    this.recordingId,
+    this.startTime,
+    this.endTime,
+    this.gpsLatitudeStart,
+    this.gpsLatitudeEnd,
+    this.gpsLongitudeStart,
+    this.gpsLongitudeEnd,
+    this.dataBase64,
+  });
 }
-
 
 class Recording{
   int? id;
   int? BEId;
   String mail;
-  String createdAt;
+  DateTime createdAt;
   int estimatedBirdsCount;
   String? device;
   bool byApp;
@@ -59,7 +93,7 @@ class Recording{
         id: json['id'] as int?,
         BEId: json['BEId'] as int?,
         mail: json['mail'] as String,
-        createdAt: json['createdAt'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
         estimatedBirdsCount: json['estimatedBirdsCount'] as int,
         device: json['device'] as String?,
         byApp: (json['byApp'] as int) == 1,
@@ -69,11 +103,37 @@ class Recording{
     );
   }
 
+  factory Recording.fromUnready(RecordingUnready unready){
+    if(
+    unready.id == null ||
+    unready.mail == null ||
+    unready.createdAt == null ||
+    unready.estimatedBirdsCount == null ||
+    unready.device == null ||
+    unready.byApp == null ||
+    unready.path == null
+    ){
+      throw UnreadyException('Recording is not ready');
+    }
+    return Recording(
+      id: unready.id,
+      BEId: null,
+      mail: unready.mail ?? '',
+      createdAt: unready.createdAt!,
+      estimatedBirdsCount: unready.estimatedBirdsCount ?? 0,
+      device: unready.device,
+      byApp: unready.byApp ?? true,
+      note: unready.note,
+      path: unready.path,
+      sent: false
+    );
+  }
+
   factory Recording.fromBEJson(Map<String, Object?> json, String mail){
     return Recording(
       BEId: json['id'] as int?,
       mail: mail,
-      createdAt: json['createdAt'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
       estimatedBirdsCount: json['estimatedBirdsCount'] as int,
       device: json['device'] as String?,
       byApp: json['byApp'] as bool,
@@ -87,7 +147,7 @@ class Recording{
       'id': id,
       'BEId': BEId,
       'mail': mail,
-      'createdAt': createdAt,
+      'createdAt': createdAt.toString(),
       'estimatedBirdsCount': estimatedBirdsCount,
       'device': device,
       'byApp': byApp ? 1 : 0,
@@ -100,7 +160,7 @@ class Recording{
   Map<String, Object?> toBEJson(){
     return {
       'id': BEId,
-      'createdAt': createdAt,
+      'createdAt': createdAt.toIso8601String(),
       'estimatedBirdsCount': estimatedBirdsCount,
       'device': device,
       'byApp': byApp,
@@ -155,14 +215,14 @@ class RecordingPart{
   int? id;
   int? BEId;
   int? recordingId;
-  String startTime;
-  String endTime;
+  DateTime startTime;
+  DateTime endTime;
   double gpsLatitudeStart;
   double gpsLatitudeEnd;
   double gpsLongitudeStart;
   double gpsLongitudeEnd;
   String? square;
-  String? path;
+  String? dataBase64;
   bool sent;
 
   RecordingPart({
@@ -176,7 +236,7 @@ class RecordingPart{
     required this.gpsLongitudeStart,
     required this.gpsLongitudeEnd,
     this.square,
-    this.path,
+    this.dataBase64,
     this.sent = false,
   });
 
@@ -185,14 +245,13 @@ class RecordingPart{
       id: json['id'] as int?,
       BEId: json['BEId'] as int?,
       recordingId: json['recordingId'] as int?,
-      startTime: json['startTime'] as String,
-      endTime: json['endTime'] as String,
+      startTime: DateTime.parse(json['startTime'] as String),
+      endTime: DateTime.parse(json['endTime'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
       gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
       square: json['square'] as String?,
-      path: json['path'] as String?,
       sent: (json['sent'] as int) == 1,
     );
   }
@@ -201,8 +260,8 @@ class RecordingPart{
     return RecordingPart(
       BEId: json['id'] as int?,
       recordingId: recordingId,
-      startTime: json['start'] as String,
-      endTime: json['end'] as String,
+      startTime: DateTime.parse(json['start'] as String),
+      endTime: DateTime.parse(json['end'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
@@ -212,17 +271,48 @@ class RecordingPart{
     );
   }
 
+  factory RecordingPart.fromUnready(RecordingPartUnready unready){
+    if(
+    unready.id == null ||
+    unready.recordingId == null ||
+    unready.startTime == null ||
+    unready.endTime == null ||
+    unready.gpsLatitudeStart == null ||
+    unready.gpsLatitudeEnd == null ||
+    unready.gpsLongitudeStart == null ||
+    unready.gpsLongitudeEnd == null ||
+    unready.dataBase64 == null
+    ){
+      throw UnreadyException('Recording part is not ready');
+    }
+
+    return RecordingPart(
+      id: unready.id,
+      BEId: null,
+      recordingId: unready.recordingId,
+      startTime: unready.startTime!,
+      endTime: unready.endTime!,
+      gpsLatitudeStart: unready.gpsLatitudeStart ?? 0.0,
+      gpsLatitudeEnd: unready.gpsLatitudeEnd ?? 0.0,
+      gpsLongitudeStart: unready.gpsLongitudeStart ?? 0.0,
+      gpsLongitudeEnd: unready.gpsLongitudeEnd ?? 0.0,
+      dataBase64: unready.dataBase64,
+      square: null,
+      sent: false
+    );
+  }
+
   Map<String, Object?> toBEJson(){
     return {
       'id': BEId,
       'recordingId': recordingId,
-      'start': startTime,
-      'end': endTime,
-      'gpsLatitudeStart': gpsLatitudeStart,
-      'gpsLatitudeEnd': gpsLatitudeEnd,
-      'gpsLongitudeStart': gpsLongitudeStart,
-      'gpsLongitudeEnd': gpsLongitudeEnd,
-      'square': square,
+      'start': startTime.toIso8601String(),
+      'end': endTime.toIso8601String(),
+      'latitudeStart': gpsLatitudeStart,
+      'latitudeEnd': gpsLatitudeEnd,
+      'longitudeStart': gpsLongitudeStart,
+      'longitudeEnd': gpsLongitudeEnd,
+      'data': dataBase64,
     };
   }
 
@@ -238,7 +328,6 @@ class RecordingPart{
       'gpsLongitudeStart': gpsLongitudeStart,
       'gpsLongitudeEnd': gpsLongitudeEnd,
       'square': square,
-      'path': path,
       'sent': sent ? 1 : 0,
     };
   }
@@ -262,16 +351,23 @@ class DatabaseNew{
     return _database!;
   }
 
-  static Future<void> insertRecording(Recording recording) async {
+  static Future<int> insertRecording(Recording recording) async {
+    logger.i('Getting database');
     final db = await database;
-    await db.insert("recordings", recording.toJson());
+    logger.i('Inserting recording');
+    final int id = await db.insert("recordings", recording.toJson());
+    recording.id = id;
     recordings.add(recording);
+    logger.i('Recording inserted');
+    return id;
   }
 
-  static Future<void> insertRecordingPart(RecordingPart recordingPart) async {
+  static Future<int> insertRecordingPart(RecordingPart recordingPart) async {
     final db = await database;
-    await db.insert("recordingParts", recordingPart.toJson());
+    final int id = await db.insert("recordingParts", recordingPart.toJson());
+    recordingPart.id = id;
     recordingParts.add(recordingPart);
+    return id;
   }
 
   static Future<void> onFetchFinished() async{
@@ -365,12 +461,9 @@ class DatabaseNew{
   static Future<void> sendRecordingPart(RecordingPart recordingPart) async {
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     Map<String, Object?> json = recordingPart.toBEJson();
-    if (recordingPart.path == null){
-      throw UploadException('Recording part path is null', 410);
+    if (recordingPart.dataBase64 == null){
+      throw UploadException('Recording part data is null', 410);
     }
-    Uint8List data = File(recordingPart.path!).readAsBytesSync();
-    String dataBase64 = base64Encode(data);
-    json.addEntries([MapEntry('data', dataBase64)]);
     if (jwt == null) {
       throw UploadException('Failed to send recording part to backend', 401);
     }
@@ -405,7 +498,10 @@ class DatabaseNew{
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
     // Fetch recordings from backend
-    Uri url = Uri.https('api.strnadi.cz', '/recordings');
+    Uri url = Uri(scheme: 'https',host: 'api.strnadi.cz', path: '/recordings', queryParameters: {
+      'parts': 'true'
+    });
+
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
       throw FetchException('Failed to fetch recordings from backend', 401);
@@ -446,8 +542,19 @@ class DatabaseNew{
     }
   }
 
+  static List<RecordingPart> getPartsById(int id){
+    return recordingParts.where((part) => part.recordingId == id).toList();
+  }
+
+  static Future<void> downloadRecording(int id)async{
+    if(recordings.firstWhere((element) => element.id == id).sent){
+      return;
+    }
+    throw NotImplementedException(); //TODO: download from BE
+  }
+
   static Future<Database> initDb() async{
-    return openDatabase('sound.db', version: 1,
+    return openDatabase('soundNew.db', version: 2,
         onCreate: (Database db, int version) async {
           await db.execute('''
       CREATE TABLE recordings(
@@ -474,7 +581,6 @@ class DatabaseNew{
         gpsLongitudeStart REAL,
         gpsLongitudeEnd REAL,
         square TEXT,
-        path TEXT,
         sent INTEGER,
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
       )
@@ -489,16 +595,20 @@ class DatabaseNew{
       )
     ''');
         }, onOpen: (Database db) async {
-          recordings = await getRecordings();
-          recordingParts = await getRecordingParts();
-          loadedRecordings = true;
-        });
+    final List<Map<String, dynamic>> recs = await db.query("recordings");
+    recordings = List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
+
+    final List<Map<String, dynamic>> parts = await db.query("recordingParts");
+    recordingParts = List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
+
+    loadedRecordings = true;
+  });
   }
 
-  static Future<List<RecordingPart>> trimAudio(
+  static Future<List<RecordingPartUnready>> trimAudio(
       String audioPath,
       List<int> stopTimesInMilliseconds,
-      List<RecordingPart> recordingParts,
+      List<RecordingPartUnready> recordingParts,
       ) async {
     Directory tempDir = await getApplicationDocumentsDirectory();
 
@@ -508,7 +618,7 @@ class DatabaseNew{
     stopTimes.sort((a, b) => a.inMilliseconds.compareTo(b.inMilliseconds));
 
     Duration start = Duration.zero;
-    List<RecordingPart> trimmedParts = [];
+    List<RecordingPartUnready> trimmedParts = [];
 
     for (int i = 0; i < stopTimes.length; i++) {
       Duration end = stopTimes[i];
@@ -542,22 +652,13 @@ class DatabaseNew{
 
       // Use the corresponding recording part for location info if available,
       // otherwise create a default one.
-      RecordingPart part;
+      RecordingPartUnready part;
       if (i < recordingParts.length) {
         part = recordingParts[i];
       } else {
-        part = RecordingPart(
-          recordingId: 0,
-          startTime: "",
-          endTime: "",
-          gpsLatitudeStart: 0.0,
-          gpsLatitudeEnd: 0.0,
-          gpsLongitudeStart: 0.0,
-          gpsLongitudeEnd: 0.0,
-          path: "",
-        );
+        throw InvalidPartException('part $i is invalid', i);
       }
-      part.path = savedPath;
+      part.dataBase64 = base64Encode(File(savedPath).readAsBytesSync());
       trimmedParts.add(part);
 
       start = end;
