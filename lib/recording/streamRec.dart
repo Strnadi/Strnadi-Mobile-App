@@ -168,7 +168,6 @@ class _LiveRecState extends State<LiveRec> {
 
   @override
   Widget build(BuildContext context) {
-
     final halfScreen = MediaQuery.of(context).size.width * 0.15;
     // Display total cumulative time: current segment + previous segments.
     int displayTime = (_totalRecordedTime + _recordDuration).toInt();
@@ -218,21 +217,22 @@ class _LiveRecState extends State<LiveRec> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ElevatedButton(
+                  OutlinedButton(
                     onPressed: _stop,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.black, width: 2),
+                      backgroundColor: Colors.white,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text("Ukončit nahrávání"),
+                    child: const Text("Ukončit nahrávání", style: TextStyle(color: Colors.black)),
                   ),
                   const SizedBox(width: 10),
                   IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: Colors.black),
                     onPressed: _discardRecording,
                   ),
                 ],
