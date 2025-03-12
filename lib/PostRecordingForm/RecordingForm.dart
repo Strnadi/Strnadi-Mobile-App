@@ -187,13 +187,9 @@ class _RecordingFormState extends State<RecordingForm> {
       widget.recordingParts,
     );
 
-    print(widget.filepath);
-
     final uploadPart = Uri.parse('https://api.strnadi.cz/recordings/upload-part');
     final safeStorage = FlutterSecureStorage();
     final token = await safeStorage.read(key: "token");
-
-    print("token $token");
 
     int cumulativeSeconds = 0;
     for (int i = 0; i < trimmedAudioParts.length; i++) {
@@ -475,7 +471,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 size: 30.0,
                               ),
                             ),
-                          ).toList(),
+                          ),
                         ],
                       ),
                     ],
