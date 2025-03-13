@@ -61,6 +61,7 @@ class _RegisterState extends State<Register> {
       return;
     }
 
+    // TODO add consent field to the registration form
     final url = Uri.parse('https://api.strnadi.cz/auth/sign-up');
 
     try {
@@ -117,6 +118,7 @@ class _RegisterState extends State<Register> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
         appBar: AppBar(title: const Text('Registrace')),
         body: Center(
