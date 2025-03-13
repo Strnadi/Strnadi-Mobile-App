@@ -195,8 +195,9 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           });
         }
       }
-    } catch (e) {
-      logger.e(e);
+    } catch (e, stackTrace) {
+      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       if (isContextMounted(context)) {
         _showMessage(context, "Error during recording: $e");
       }
@@ -262,8 +263,9 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           ),
         );
       }
-    } catch (e) {
-      logger.e(e);
+    } catch (e, stackTrace) {
+      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       if (isContextMounted(context)) {
         _showMessage(context, "Error stopping recording: $e");
       }

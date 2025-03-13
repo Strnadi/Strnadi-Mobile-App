@@ -137,8 +137,9 @@ class _LiveRecState extends State<LiveRec> {
     try {
       await _audioRecorder.stop();
       await onStop(filepath);
-    } catch (e) {
-      logger.e("Error stopping recorder or processing file: $e");
+    } catch (e, stackTrace) {
+      logger.e("Error stopping recorder or processing file: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       return;
     }
 
@@ -343,9 +344,9 @@ class _LiveRecState extends State<LiveRec> {
           filepath = path;
         });
       }
-    } catch (e) {
-      logger.e(e);
-      Sentry.captureException(e);
+    } catch (e, stackTrace) {
+      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 

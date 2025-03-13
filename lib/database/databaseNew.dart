@@ -430,9 +430,9 @@ class DatabaseNew{
       await onFetchFinished();
       logger.i('Recordings fetched');
     }
-    catch (e){
-      logger.e(e);
-      Sentry.captureException(e);
+    catch (e, stackTrace){
+      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 

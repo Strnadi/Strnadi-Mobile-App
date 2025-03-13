@@ -115,8 +115,8 @@ class _RecordingScreenState extends State<RecordingScreen> {
                             onPressed: () {
                               DatabaseNew.sendRecordingBackground(records[index].id!)
                                   .onError((e, stackTrace) {
-                                logger.e(e);
-                                Sentry.captureException(e);
+                                logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+                                Sentry.captureException(e, stackTrace: stackTrace);
                               });
                             },
                           ),
@@ -131,8 +131,8 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                 if (e is UnimplementedError) {
                                   _showMessage("Tato funkce není dostupná na tomto zařízení", "Chyba");
                                 }
-                                logger.e(e);
-                                Sentry.captureException(e);
+                                logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+                                Sentry.captureException(e, stackTrace: stackTrace);
                               });
                             },
                           ),
