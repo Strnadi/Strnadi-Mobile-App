@@ -13,8 +13,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
@@ -24,6 +27,9 @@ import 'package:strnadi/bottomBar.dart';
 import '../config/config.dart';
 import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
+import 'package:http/http.dart' as http;
+
+import '../database/databaseNew.dart';
 
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
@@ -44,6 +50,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
   LatLng _currentCenter = LatLng(50.0755, 14.4378);
   LatLng _currentPosition = LatLng(50.0755, 14.4378);
   double _currentZoom = 13;
+
+  List<Recording> _recordings = [];
 
   Size? _mapSize;
 
@@ -131,6 +139,32 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _updateGrid();
       }
     });
+  }
+
+  void getRecordings() async {
+
+    try {
+      final response = await http.get(
+        Uri.https('api.strnadi.cz', '/recordings?count=0&parts=true'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        logger.i('Recordings fetched');
+        List<dynamic> data = jsonDecode(response.body);
+        List<Recording> recordings = data.map((e) => Recording.fromJson(e)).toList();
+        setState(() {
+          _recordings = recordings;
+        });
+      }
+      else {
+        logger.e('Failed to fetch recordings ${response.statusCode}');
+      }
+    }
+    catch (error) {
+      logger.e(error);
+    }
   }
 
   @override

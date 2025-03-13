@@ -23,6 +23,8 @@ void callbackDispatcher() {
           recording.sending = false;
           DatabaseNew.updateRecording(recording);
           logger.e("Failed to upload recording $recordingId in background: $e", error: e, stackTrace: stackTrace);
+        } catch (e) {
+          logger.e("Failed to upload recording $recordingId in background: ${e.toString()}");
         }
       } else {
         if(recording!=null) {

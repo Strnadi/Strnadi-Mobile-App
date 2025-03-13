@@ -55,6 +55,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
     }
   }
 
+  String formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
+  }
+
+
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
@@ -83,24 +88,28 @@ class _RecordingScreenState extends State<RecordingScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  subtitle: Row(
-                    children: [
-                      Text(
-                        records[index].createdAt.toString(),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                  subtitle: SizedBox(
+                    child: Row(
+                      children: [
+                        Text(
+                          records[index].createdAt != null
+                              ? formatDateTime(records[index].createdAt!)
+                              : '',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                        const SizedBox(width: 8),
+                        Text(
+                          records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   trailing: FittedBox(
                     fit: BoxFit.scaleDown,
