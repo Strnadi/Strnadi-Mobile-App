@@ -21,6 +21,7 @@ import 'dart:convert';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/firebase/firebase.dart' as firebase;
+import 'package:strnadi/database/databaseNew.dart';
 
 enum AuthType { login, register }
 
@@ -117,7 +118,7 @@ class _AuthState extends State<Authorizator> {
       secureStorage.write(key: 'user', value: data['firstName']);
       secureStorage.write(key: 'lastname', value: data['lastName']);
       // If you plan to navigate here, consider scheduling it in a post-frame callback.
-
+      DatabaseNew.syncRecordings();
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => LiveRec()),
@@ -133,5 +134,4 @@ class _AuthState extends State<Authorizator> {
       }
     }
   }
-
 }

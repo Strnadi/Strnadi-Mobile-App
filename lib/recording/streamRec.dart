@@ -19,7 +19,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:record/record.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
+import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
@@ -59,7 +61,10 @@ class _LiveRecState extends State<LiveRec> {
   int bitRate = calcBitRate(44100, 16);
 
   final recordingPartsTimeList = <int>[];
-  final recordingPartsList = <RecordingParts>[];
+
+  List<RecordingPartUnready> recordingPartsList = List<RecordingPartUnready>.empty(growable: true);
+
+  RecordingPartUnready? recordedPart;
 
   // overallStartTime is the time when the very first segment started.
   DateTime? overallStartTime;
@@ -78,6 +83,8 @@ class _LiveRecState extends State<LiveRec> {
   // New: Subscription to the location stream.
   StreamSubscription? _locationSub;
 
+  late LocationService _locService;
+
   @override
   void initState() {
     _audioRecorder = AudioRecorder();
@@ -91,13 +98,16 @@ class _LiveRecState extends State<LiveRec> {
         .listen((amp) {
       // Optionally, update spectrogramData here.
     });
+    _locService = LocationService();
 
     // Subscribe to our centralized location stream.
-    _locationSub = LocationService().positionStream.listen((position) {
+    _locationSub = _locService.positionStream.listen((position) {
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
       });
     });
+
+
 
     super.initState();
   }
@@ -121,11 +131,7 @@ class _LiveRecState extends State<LiveRec> {
     recordingPartsTimeList.add(segmentDuration);
 
     recordingPartsList.add(
-      RecordingParts(
-        path: null,
-        longitude: currentPosition?.longitude ?? 14.4,
-        latitude: currentPosition?.latitude ?? 50.1,
-      ),
+      recordedPart!
     );
 
     try {
@@ -139,8 +145,6 @@ class _LiveRecState extends State<LiveRec> {
     if (overallStartTime == null) {
       return;
     }
-
-    await onStop(filepath);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -292,6 +296,7 @@ class _LiveRecState extends State<LiveRec> {
 
   Future<void> _start() async {
     try {
+      logger.i('started recording');
       if (await _audioRecorder.hasPermission()) {
         const encoder = AudioEncoder.pcm16bits;
 
@@ -307,26 +312,40 @@ class _LiveRecState extends State<LiveRec> {
         );
 
         filepath = await _getPath();
-        var path = await recordStream(_audioRecorder, config, filepath);
-        setState(() {
-          filepath = path;
-        });
+        try {
+          await _locService.checkLocationWorking();
+        }
+        catch (e){
+          rethrow;
+        }
 
+        recordedPart = RecordingPartUnready(
+          gpsLongitudeStart: _locService.lastKnownPosition?.longitude, // will return null if location is not available
+          gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
+          startTime: overallStartTime,
+        );
+
+        logger.i('Recording part created');
+
+        if (recordedPart!.gpsLongitudeStart == null || recordedPart!.gpsLatitudeStart == null){
+          _locService.getCurrentLocation().then((_){
+            recordedPart!.gpsLongitudeStart = _locService.lastKnownPosition?.longitude;
+            recordedPart!.gpsLatitudeStart = _locService.lastKnownPosition?.latitude;
+          });
+        }
         _recordDuration = 0;
         _totalRecordedTime = 0;
         _startTimer();
         overallStartTime = DateTime.now();
 
-        recordingPartsList.add(RecordingParts(
-          path: null,
-          longitude: currentPosition?.longitude ?? 14.4,
-          latitude: currentPosition?.latitude ?? 50.1,
-        ));
+        var path = await recordStream(_audioRecorder, config, filepath);
+        setState(() {
+          filepath = path;
+        });
       }
     } catch (e) {
-      if (kDebugMode) {
-        //print(e);
-      }
+      logger.e(e);
+      Sentry.captureException(e);
     }
   }
 
@@ -367,16 +386,37 @@ class _LiveRecState extends State<LiveRec> {
     _totalRecordedTime += _recordDuration;
     recordingPartsTimeList.add(segmentDuration);
 
-    recordingPartsList.add(RecordingParts(
-      path: null,
-      longitude: currentPosition?.longitude ?? 14.4,
-      latitude: currentPosition?.latitude ?? 50.1,
-    ));
+    recordedPart!.endTime = DateTime.now();
+    recordedPart!.gpsLongitudeEnd = currentPosition?.longitude;
+    recordedPart!.gpsLatitudeEnd = currentPosition?.latitude;
+
+    recordingPartsList.add(recordedPart!);
 
     _recordDuration = 0;
   }
 
-  Future<void> _resume() => _audioRecorder.resume();
+  Future<void> _resume() async{
+    await _audioRecorder.resume();
+
+    var path = await _getPath();
+    setState(() {
+      filepath = path;
+    });
+
+    recordedPart = RecordingPartUnready(
+      dataBase64: null,
+      gpsLongitudeStart: _locService.lastKnownPosition?.longitude, // will return null if location is not available
+      gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
+      startTime: DateTime.now(),
+    );
+
+    if (recordedPart!.gpsLongitudeStart == null || recordedPart!.gpsLatitudeStart == null){
+      _locService.getCurrentLocation().then((_){
+        recordedPart!.gpsLongitudeStart = _locService.lastKnownPosition?.longitude;
+        recordedPart!.gpsLatitudeStart = _locService.lastKnownPosition?.latitude;
+      });
+    }
+  }
 
   void _updateRecordState(RecordState recordState) {
     setState(() => _recordState = recordState);
