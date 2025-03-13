@@ -375,8 +375,12 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> upload() async {
-    print("Estimated birds count: ${_strnadiCountController.toInt()}");
+    logger.i("Estimated birds count: ${_strnadiCountController.toInt()}");
 
+    recording.note = _commentController.text == ''? null : _commentController.text;
+    recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
+    recording.estimatedBirdsCount = _strnadiCountController.toInt();
+    DatabaseNew.insertRecording(recording);
 
     if (!await hasInternetAccess()) {
       logger.e("No internet connection");

@@ -76,6 +76,7 @@ class Recording{
   String? device;
   bool byApp;
   String? note;
+  String? name;
   String? path;
   bool downloaded;
   bool sent;
@@ -90,6 +91,7 @@ class Recording{
     this.device,
     required this.byApp,
     this.note,
+    this.name,
     this.path,
     this.downloaded = true,
     this.sent = false,
@@ -106,6 +108,7 @@ class Recording{
         device: json['device'] as String?,
         byApp: (json['byApp'] as int) == 1,
         note: json['note'] as String?,
+        name: json['name'] as String?,
         path: json['path'] as String?,
         sent: (json['sent'] as int) == 1,
         downloaded: (json['downloaded'] as int) == 1,
@@ -165,6 +168,7 @@ class Recording{
       'device': device,
       'byApp': byApp ? 1 : 0,
       'note': note,
+      'name': name,
       'path': path,
       'sent': sent ? 1 : 0,
       'downloaded': downloaded ? 1 : 0,
@@ -483,6 +487,8 @@ class DatabaseNew{
     }
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
+      recording.sending = false;
+      updateRecording(recording);
       throw FetchException('Failed to send recording to backend', 401);
     }
     final http.Response response = await http.post(
@@ -504,6 +510,8 @@ class DatabaseNew{
       recording.sending=false;
       updateRecording(recording);
     } else {
+      recording.sending = false;
+      updateRecording(recording);
       throw UploadException('Failed to send recording to backend', response.statusCode);
     }
   }
@@ -648,6 +656,7 @@ class DatabaseNew{
         estimatedBirdsCount INTEGER,
         device TEXT,
         byApp INTEGER,
+        name TEXT,
         note TEXT,
         path TEXT,
         sent INTEGER,

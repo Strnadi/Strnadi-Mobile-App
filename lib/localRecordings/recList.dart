@@ -77,7 +77,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
               itemBuilder: (context, index) {
                 return ListTile(
                   title: Text(
-                    records[index].note ?? '',
+                    records[index].name ?? records[index].id?.toString() ?? 'Neznámý název',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
