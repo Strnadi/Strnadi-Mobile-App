@@ -58,6 +58,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
+    records.forEach((rec) => logger.i('rec id ${rec.id} is ${rec.downloaded ? 'downloaded': 'Not donwloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(

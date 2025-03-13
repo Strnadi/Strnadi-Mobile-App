@@ -369,7 +369,7 @@ class DatabaseNew{
   static Future<int> insertRecording(Recording recording) async {
     logger.i('Getting database');
     final db = await database;
-    logger.i('Inserting recording ${recording.id}');
+    logger.i('Inserting recording');
     final int id = await db.insert("recordings", recording.toJson());
     recording.id = id;
     recordings.add(recording);
@@ -380,7 +380,7 @@ class DatabaseNew{
   static Future<int> insertRecordingPart(RecordingPart recordingPart) async {
     logger.i('Getting database');
     final db = await database;
-    logger.i('Inserting recording part ${recordingPart.id}');
+    logger.i('Inserting recording part');
     final int id = await db.insert("recordingParts", recordingPart.toJson());
     recordingPart.id = id;
     recordingParts.add(recordingPart);
@@ -396,6 +396,7 @@ class DatabaseNew{
     List<Recording> newRecordings = fetchedRecordings!.where((recording) => !sentRecordings.contains(recording)).toList();
 
     for (Recording recording in newRecordings){
+      recording.sent = true;
       recording.downloaded = false;
       await insertRecording(recording);
     }
@@ -406,6 +407,7 @@ class DatabaseNew{
     });
 
     for (RecordingPart recordingPart in newRecordingParts){
+      recordingPart.sent = true;
       await insertRecordingPart(recordingPart);
     }
 
