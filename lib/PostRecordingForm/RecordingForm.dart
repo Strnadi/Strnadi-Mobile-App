@@ -247,7 +247,7 @@ class _RecordingFormState extends State<RecordingForm> {
     int cumulativeSeconds = 0;
     for (int i = 0; i < trimmedAudioParts.length; i++) {
       if (trimmedAudioParts[i].dataBase64?.isEmpty ?? false) {
-        logger.e(
+        logger.w(
             "Trimmed audio segment $i has data; skipping upload for this segment.");
         continue;
       }
@@ -270,16 +270,16 @@ class _RecordingFormState extends State<RecordingForm> {
             try {
               await locationService.checkLocationWorking();
             }
-            catch (e){
+            catch (e, stackTrace){
               if(e is LocationException) {
                 if (!e.permission) {
-                  logger.e("Error while getting location permissions: $e");
+                  logger.w("Error while getting location permissions: $e", error: e, stackTrace: stackTrace);
                   _showMessage(
                       'Lokace musí být povolena pro správné fungování aplikace');
                   Navigator.pop(context);
                 }
                 if(!e.enabled){
-                  logger.e("Error while getting location permissions: $e");
+                  logger.w("Error while getting location permissions: $e", error: e, stackTrace: stackTrace);
                   _showMessage(
                       'Lokace musí být zapnuta pro správné fungování aplikace');
                   while(!await locationService.isLocationEnabled()){
@@ -299,15 +299,15 @@ class _RecordingFormState extends State<RecordingForm> {
         part.id = await DatabaseNew.insertRecordingPart(part);
         partsReady.add(part);
       }
-      catch(e){
-        logger.e("Error while converting RecordingPartUnready to RecordingPart: $e");
+      catch(e, stackTrace){
+        logger.e("Error while converting RecordingPartUnready to RecordingPart: $e", error: e, stackTrace: stackTrace);
         if(e is InvalidPartException){
           _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (corrupted metadata)');
         }
         else {
           _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (unknown error)');
         }
-        Sentry.captureException(e);
+        Sentry.captureException(e, stackTrace: stackTrace);
         continue;
       }
     }
@@ -371,11 +371,15 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> upload() async {
-    print("Estimated birds count: ${_strnadiCountController.toInt()}");
+    logger.i("Estimated birds count: ${_strnadiCountController.toInt()}");
 
+    recording.note = _commentController.text == ''? null : _commentController.text;
+    recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
+    recording.estimatedBirdsCount = _strnadiCountController.toInt();
+    DatabaseNew.insertRecording(recording);
 
     if (!await hasInternetAccess()) {
-      logger.e("No internet connection");
+      logger.w("No internet connection");
       _showMessage("No internet connection");
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => LiveRec()));
@@ -384,9 +388,9 @@ class _RecordingFormState extends State<RecordingForm> {
     try {
       await DatabaseNew.sendRecordingBackground(recording.id!);
     }
-    catch(e){
-      logger.e(e);
-      Sentry.captureException(e);
+    catch(e, stackTrace){
+      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     /*

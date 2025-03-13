@@ -64,7 +64,12 @@
 	<array>
 		<string>remote-notification</string>
 		<string>fetch</string>
+        <string>processing</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>sendRecording</string>
+    </array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
     <false/>
 	<key>UILaunchStoryboardName</key>

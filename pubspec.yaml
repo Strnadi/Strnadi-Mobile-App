@@ -62,8 +62,8 @@ dependencies:
   connectivity_plus: any
   ffmpeg_kit_flutter: ^6.0.3
   logger: ^2.0.0
-  sentry_flutter: ^8.13.0
-  sentry_logging: ^8.13.0
+  sentry_flutter: ^8.14.0
+  sentry_logging: ^8.14.0
   scidart: any
   fftea: any
   flutter_plot: any
@@ -87,6 +87,7 @@ dependencies:
 
 
 dev_dependencies:
+  sentry_dart_plugin: ^2.4.1
   flutter_test:
     sdk: flutter
 
@@ -146,3 +147,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: strnadi
+  org: delta-strnadi

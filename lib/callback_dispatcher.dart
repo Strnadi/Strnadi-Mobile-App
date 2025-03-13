@@ -19,10 +19,16 @@ void callbackDispatcher() {
         try {
           await DatabaseNew.sendRecording(recording, parts);
           logger.i("Recording $recordingId uploaded successfully in background");
-        } catch (e) {
-          logger.e("Failed to upload recording $recordingId in background: $e");
+        } catch (e, stackTrace) {
+          recording.sending = false;
+          DatabaseNew.updateRecording(recording);
+          logger.e("Failed to upload recording $recordingId in background: $e", error: e, stackTrace: stackTrace);
         }
       } else {
+        if(recording!=null) {
+          recording.sending = false;
+          DatabaseNew.updateRecording(recording);
+        }
         logger.e("Recording $recordingId not found in DB");
       }
     }
