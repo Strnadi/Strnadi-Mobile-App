@@ -244,10 +244,6 @@ class _RecordingFormState extends State<RecordingForm> {
 
     logger.i('Recording: ${recording.id} has been sent');
 
-    //final uploadPart = Uri.parse('https://api.strnadi.cz/recordings/upload-part');
-
-    //logger.i("token $token");
-
     int cumulativeSeconds = 0;
     for (int i = 0; i < trimmedAudioParts.length; i++) {
       if (trimmedAudioParts[i].dataBase64?.isEmpty ?? false) {
