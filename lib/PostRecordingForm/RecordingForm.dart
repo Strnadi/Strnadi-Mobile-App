@@ -20,23 +20,30 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sqflite/sqlite_api.dart';
 import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
-import 'package:strnadi/localRecordings/recordingsDb.dart';
+import 'package:strnadi/archived/recordingsDb.dart';
 import '../config/config.dart';
-import '../database/soundDatabase.dart';
+import '../archived/soundDatabase.dart';
 import 'package:strnadi/locationService.dart' as loc;
+import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/auth/authorizator.dart' as auth;
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
 
+/*
 class Recording {
   final DateTime createdAt;
   final int estimatedBirdsCount;
@@ -72,11 +79,12 @@ class Recording {
     };
   }
 }
+ */
 
 class RecordingForm extends StatefulWidget {
   final String filepath;
   final LatLng? currentPosition;
-  final List<RecordingParts> recordingParts;
+  final List<RecordingPartUnready> recordingParts;
   final DateTime startTime;
   final List<int> recordingPartsTimeList;
 
@@ -105,6 +113,7 @@ class _RecordingFormState extends State<RecordingForm> {
   Duration totalDuration = Duration.zero;
   bool isPlaying = false;
 
+  late Recording recording;
   int? _recordingId;
   
   // List to store the user's route (all recorded locations)
@@ -120,8 +129,6 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   void initState() {
-
-
     _audioPlayer.positionStream.listen((position) {
       setState(() {
         currentPosition = position;
@@ -149,6 +156,52 @@ class _RecordingFormState extends State<RecordingForm> {
     _positionStream.listen((Position position) {
       _onNewPosition(position);
     });
+
+    final safeStorage = FlutterSecureStorage();
+
+    recording = Recording(
+      createdAt: DateTime.now(),
+      mail: "",
+      estimatedBirdsCount: _strnadiCountController.toInt(),
+      device: "",
+      byApp: true,
+      note: _commentController.text,
+    );
+
+    safeStorage.read(key: 'token').then((token) async{
+      if(token == null){
+        _showMessage('You are not logged in');
+      }
+      while(recording == null){
+        await Future.delayed(Duration(seconds: 1));
+      }
+      recording.mail = JwtDecoder.decode(token!)['sub'];
+      logger.i('Mail set to ${recording.mail}');
+    });
+
+    getDeviceModel().then((model) async{
+      while (recording == null){
+        await Future.delayed(Duration(seconds: 1));
+      }
+      recording.device = model;
+      logger.i('Device set to ${recording.device}');
+    });
+
+    insertRecordingWhenReady();
+  }
+  
+  Future<void> insertRecordingWhenReady() async{
+    while(recording.mail == "" || recording.device == ""){
+      await Future.delayed(Duration(seconds: 1));
+      logger.i('Waiting for recording to be ready');
+    }
+    logger.i('Started inserting recording');
+    recording.downloaded = true;
+    recording.id = await DatabaseNew.insertRecording(recording);
+    setState(() {
+      _recordingId = recording.id;
+    });
+    logger.i('ID set to $_recordingId');
   }
 
   void _onImagesSelected(List<File> images) {
@@ -181,30 +234,90 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> uploadAudio(File audioFile, int id) async {
-    List<RecordingParts> trimmedAudioParts = await DatabaseHelper.trimAudio(
+    List<RecordingPartUnready> trimmedAudioParts = await DatabaseNew.trimAudio(
       widget.filepath,
       widget.recordingPartsTimeList,
       widget.recordingParts,
     );
 
-    final uploadPart = Uri.parse('https://api.strnadi.cz/recordings/upload-part');
-    final safeStorage = FlutterSecureStorage();
-    final token = await safeStorage.read(key: "token");
+    List<RecordingPart> partsReady = List<RecordingPart>.empty(growable: true);
+
+    logger.i('Recording: ${recording.id} has been sent');
+
+    //final uploadPart = Uri.parse('https://api.strnadi.cz/recordings/upload-part');
+
+    //logger.i("token $token");
 
     int cumulativeSeconds = 0;
     for (int i = 0; i < trimmedAudioParts.length; i++) {
-      String? segmentPath = trimmedAudioParts[i].path;
-      if (segmentPath == null || segmentPath.isEmpty) {
-        logger.e("Trimmed audio segment $i has an invalid path; skipping upload for this segment.");
+      if (trimmedAudioParts[i].dataBase64?.isEmpty ?? false) {
+        logger.e(
+            "Trimmed audio segment $i has data; skipping upload for this segment.");
         continue;
       }
-      final segmentFile = File(segmentPath);
-      final fileBytes = await segmentFile.readAsBytes();
-      final base64Audio = base64Encode(fileBytes);
+      final base64Audio = trimmedAudioParts[i].dataBase64;
       int segmentDuration = widget.recordingPartsTimeList[i];
-      final segmentStart = widget.startTime.add(Duration(seconds: cumulativeSeconds));
+      final segmentStart = widget.startTime.add(
+          Duration(seconds: cumulativeSeconds));
       final segmentEnd = segmentStart.add(Duration(seconds: segmentDuration));
       cumulativeSeconds += segmentDuration;
+      try {
+        trimmedAudioParts[i].recordingId = id;
+        trimmedAudioParts[i].startTime = segmentStart;
+        trimmedAudioParts[i].endTime = segmentEnd;
+        if(trimmedAudioParts[i].gpsLatitudeStart == null || trimmedAudioParts[i].gpsLongitudeStart == null){
+          throw InvalidPartException("Part ${trimmedAudioParts[i].id} has null start latitude or longitude", trimmedAudioParts[i].id??-1);
+        }
+        if(trimmedAudioParts[i].gpsLongitudeEnd == null || trimmedAudioParts[i].gpsLatitudeEnd == null){
+          logger.w('Part ${trimmedAudioParts[i].id} has null end latitude or longitude');
+          if(locationService.lastKnownPosition == null){
+            try {
+              await locationService.checkLocationWorking();
+            }
+            catch (e){
+              if(e is LocationException) {
+                if (!e.permission) {
+                  logger.e("Error while getting location permissions: $e");
+                  _showMessage(
+                      'Lokace musí být povolena pro správné fungování aplikace');
+                  Navigator.pop(context);
+                }
+                if(!e.enabled){
+                  logger.e("Error while getting location permissions: $e");
+                  _showMessage(
+                      'Lokace musí být zapnuta pro správné fungování aplikace');
+                  while(!await locationService.isLocationEnabled()){
+                    await Future.delayed(Duration(seconds: 1));
+                    _showMessage('Lokace musí být zapnuta pro správné fungování aplikace');
+                  }
+                }
+              }
+              continue;
+            }
+            await locationService.getCurrentLocation();
+          }
+          trimmedAudioParts[i].gpsLongitudeEnd = locationService.lastKnownPosition?.longitude;
+          trimmedAudioParts[i].gpsLatitudeEnd = locationService.lastKnownPosition?.latitude;
+        }
+        final part = RecordingPart.fromUnready(trimmedAudioParts[i]);
+        part.id = await DatabaseNew.insertRecordingPart(part);
+        partsReady.add(part);
+      }
+      catch(e){
+        logger.e("Error while converting RecordingPartUnready to RecordingPart: $e");
+        if(e is InvalidPartException){
+          _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (corrupted metadata)');
+        }
+        else {
+          _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (unknown error)');
+        }
+        Sentry.captureException(e);
+        continue;
+      }
+    }
+
+    await DatabaseNew.sendRecordingBackground(recording.id!);
+      /*
       try {
         final response = await http.post(
           uploadPart,
@@ -242,6 +355,7 @@ class _RecordingFormState extends State<RecordingForm> {
       context,
       MaterialPageRoute(builder: (context) => LiveRec()),
     );
+     */
   }
 
   void togglePlay() async {
@@ -260,30 +374,29 @@ class _RecordingFormState extends State<RecordingForm> {
     return '$minutes:$seconds';
   }
 
-  void upload() async {
-    final platform = await getDeviceModel();
+  Future<void> upload() async {
     print("Estimated birds count: ${_strnadiCountController.toInt()}");
-    final rec = Recording(
-      createdAt: DateTime.now(),
-      estimatedBirdsCount: _strnadiCountController.toInt(),
-      device: platform,
-      byApp: true,
-      note: _commentController.text,
-    );
 
 
     if (!await hasInternetAccess()) {
       logger.e("No internet connection");
       _showMessage("No internet connection");
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
 
-    final recordingSign = Uri.parse('https://api.strnadi.cz/recordings/upload');
-    final safeStorage = FlutterSecureStorage();
-    final token = await safeStorage.read(key: 'token');
+    try {
+      await DatabaseNew.sendRecordingBackground(recording.id!);
+    }
+    catch(e){
+      logger.e(e);
+      Sentry.captureException(e);
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+    /*
     try {
       final response = await http.post(
-        recordingSign,
+        recordingUrl,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token'
@@ -323,6 +436,8 @@ class _RecordingFormState extends State<RecordingForm> {
       _recordingId ?? -1,
     );
     logger.i("inserted into local db");
+  }
+  */
   }
 
   // New method to handle each new position update
@@ -365,20 +480,24 @@ class _RecordingFormState extends State<RecordingForm> {
     // Use the last known position as the current location if available
     currentLocation = locationService.lastKnownPosition;
 
-    LatLng? validRecordingPartLocation;
-    if (widget.recordingParts.isNotEmpty) {
-      final firstPart = widget.recordingParts.first;
-      if (firstPart.latitude != 50.1 || firstPart.longitude != 14.4) {
-        validRecordingPartLocation = LatLng(firstPart.latitude, firstPart.longitude);
-      }
+    if(_recordingId == null){
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
+
+    if(recordingParts.isNotEmpty){
+      recordingParts.forEach((part){
+        _route.add(LatLng(part.gpsLongitudeStart, part.gpsLatitudeStart));
+        _route.add(LatLng(part.gpsLongitudeEnd, part.gpsLatitudeEnd));
+      });
     }
 
     // Determine the map center based on available data.
     LatLng mapCenter;
     if (_route.isNotEmpty) {
       mapCenter = _route.last;
-    } else if (validRecordingPartLocation != null) {
-      mapCenter = validRecordingPartLocation;
     } else if (currentLocation != null) {
       mapCenter = currentLocation!;
     } else {
@@ -433,7 +552,7 @@ class _RecordingFormState extends State<RecordingForm> {
                     children: [
                       TileLayer(
                         urlTemplate:
-                        'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                        'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                         userAgentPackageName: 'cz.delta.strnadi',
                       ),
                       if (_route.isNotEmpty)
@@ -460,11 +579,11 @@ class _RecordingFormState extends State<RecordingForm> {
                               ),
                             ),
                           // Place markers for all recording parts
-                          ...widget.recordingParts.map(
+                          ...recordingParts.map(
                                 (part) => Marker(
                               width: 20.0,
                               height: 20.0,
-                              point: LatLng(part.latitude, part.longitude),
+                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
                               child: const Icon(
                                 Icons.location_on,
                                 color: Colors.red,
@@ -477,8 +596,7 @@ class _RecordingFormState extends State<RecordingForm> {
                     ],
                   ),
                   if (_route.isEmpty &&
-                      currentLocation == null &&
-                      validRecordingPartLocation == null)
+                      currentLocation == null)
                     Positioned.fill(
                       child: Container(
                         color: Colors.black45,
@@ -565,7 +683,6 @@ class _RecordingFormState extends State<RecordingForm> {
                           ),
                         ),
                         Padding(
-
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           child: SizedBox(
                             width: halfScreen,
@@ -578,7 +695,6 @@ class _RecordingFormState extends State<RecordingForm> {
                                 ),
                               ),
                               onPressed: () {
-                                dispose();
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => LiveRec()),

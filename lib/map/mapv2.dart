@@ -165,7 +165,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 children: [
                   TileLayer(
                     urlTemplate:
-                    'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'basic'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                    'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                     userAgentPackageName: 'cz.delta.strnadi',
                   ),
                   if (_isSatelliteView)

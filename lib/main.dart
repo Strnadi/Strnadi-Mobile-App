@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -28,7 +29,10 @@ import 'package:strnadi/updateChecker.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'config/config.dart';
-import 'package:strnadi/localRecordings/recordingsDb.dart';
+import 'package:strnadi/archived/recordingsDb.dart';
+import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/callback_dispatcher.dart';
+import 'package:workmanager/workmanager.dart';
 
 
 // Create a global logger instance.
@@ -103,6 +107,12 @@ Future<void> main() async {
 
   initFirebase();
 
+  // Initialize workmanager with our callback.
+  Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: true, // Set to false in production.
+  );
+
   await SentryFlutter.init(
         (options) {
       options.dsn =
@@ -112,12 +122,15 @@ Future<void> main() async {
       options.tracesSampleRate = 1.0;
       options.experimental.replay.sessionSampleRate = 1.0;
       options.experimental.replay.onErrorSampleRate = 1.0;
+      options.environment = kDebugMode? 'development' : 'production';
     },
-    appRunner: () async {
+    appRunner: () async{
       // Initialize your database and other services.
-      await LocalDb.database;
+      logger.i('Loading database');
+      await DatabaseNew.database;
+      logger.i('Loaded Database');
       // Initialize Firebase Messaging.
-      await initFirebaseMessaging();
+      initFirebaseMessaging();
       // Initialize Firebase Local Messaging
       initLocalNotifications();
       // Run the app.

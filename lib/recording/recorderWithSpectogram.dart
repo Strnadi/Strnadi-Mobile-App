@@ -23,12 +23,16 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/AudioSpectogram/editor.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:strnadi/database/databaseNew.dart';
 import '../PostRecordingForm/RecordingForm.dart';
+import 'package:strnadi/locationService.dart';
+import 'package:strnadi/exceptions.dart';
 
 final logger = Logger();
 
@@ -55,6 +59,7 @@ bool isContextMounted(BuildContext context) {
   return ModalRoute.of(context)?.isCurrent ?? true;
 }
 
+/*
 /// A data class for recording parts (here we also store the file path for each segment).
 class RecordingParts {
   String? path;
@@ -67,6 +72,7 @@ class RecordingParts {
     required this.latitude,
   });
 }
+ */
 
 /// RecorderWithSpectogram now implements manual segmentation:
 /// • When the user taps the record button while not recording, we start a new segment.
@@ -82,7 +88,7 @@ class RecorderWithSpectogram extends StatefulWidget {
 class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   // Lists to store timestamps and geolocation info for each segment.
   final recordingPartsTimeList = <int>[];
-  final recordingPartsList = <RecordingParts>[];
+  final recordingPartsList = List<RecordingPartUnready>.empty(growable: true);
 
   // overallStartTime is the time when the very first segment started.
   DateTime? overallStartTime;
@@ -92,7 +98,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   // This will hold the merged recording file path.
   String? recordedFilePath;
   // The current location.
-  LatLng? currentPosition;
+  late LocationService locationService;
+  //LatLng? currentPosition;
 
   // List to keep file paths for all segments.
   final List<String> segmentPaths = [];
@@ -108,63 +115,30 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   double _recordDuration = 0; // elapsed time in seconds for the current segment
   Timer? _timer;
 
+  RecordingPartUnready? recorded;
+
   @override
-  void initState() {
-    super.initState();
-    _getCurrentLocation();
-  }
+  void initState(){
+    locationService = LocationService();
 
-  /// Get current location with error/permission handling.
-  Future<void> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _showMessage(context, "Please enable location services");
-        logger.w("Location services are not enabled");
-        if (isContextMounted(context)) {
-          setState(() {
-            currentPosition = const LatLng(50.1, 14.4);
-          });
+    locationService.checkLocationWorking().then((_){
+
+    },onError: (e){
+      if(e is LocationException){
+        if(e.enabled){
+          _showMessage(context, "Please enable location services");
         }
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          logger.w("Location permissions are denied");
-          if (isContextMounted(context)) {
-            setState(() {
-              currentPosition = const LatLng(50.1, 14.4);
-            });
-          }
-          return;
+        else if(e.permission){
+          _showMessage(context, "Please enable access location services");
         }
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        logger.w("Location permissions are permanently denied");
-        if (isContextMounted(context)) {
-          setState(() {
-            currentPosition = const LatLng(50.1, 14.4);
-          });
-        }
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition();
-      if (isContextMounted(context)) {
-        setState(() {
-          currentPosition = LatLng(position.latitude, position.longitude);
-        });
-      }
-    } catch (e) {
-      logger.e(e);
-      if (isContextMounted(context)) {
+      else {
         _showMessage(context, "Error retrieving location: $e");
       }
-    }
+      Sentry.captureException(e);
+    });
+
+    super.initState();
   }
 
   /// Starts or pauses recording. When starting a new segment, we also start a live timer.
@@ -175,11 +149,10 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         _timer?.cancel();
         final path = await _recorder.stop();
         segmentPaths.add(path!);
-        recordingPartsList.add(RecordingParts(
-          path: path,
-          longitude: currentPosition?.longitude ?? 14.4,
-          latitude: currentPosition?.latitude ?? 50.1,
-        ));
+        recorded!.gpsLatitudeEnd = locationService.lastKnownPosition?.latitude;
+        recorded!.gpsLongitudeEnd = locationService.lastKnownPosition?.longitude;
+        recorded!.endTime = DateTime.now();
+        recordingPartsList.add(recorded!);
         if (overallStartTime != null) {
           recordingPartsTimeList.add(DateTime.now().difference(overallStartTime!).inMilliseconds);
         }
@@ -209,6 +182,8 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         Directory appDocDir = await getApplicationDocumentsDirectory();
         String filePath = '${appDocDir.path}/recording_segment_${DateTime.now().millisecondsSinceEpoch}.wav';
         final config = RecordConfig(encoder: AudioEncoder.wav, bitRate: 128000);
+
+        recorded = RecordingPartUnready(startTime: segmentStartTime!, gpsLatitudeStart: locationService.lastKnownPosition?.latitude, gpsLongitudeStart: locationService.lastKnownPosition?.longitude);
         await _recorder.start(config, path: filePath);
         // Start the live timer.
         _startTimer();
@@ -236,11 +211,21 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
         _timer?.cancel();
         final path = await _recorder.stop();
         segmentPaths.add(path!);
-        recordingPartsList.add(RecordingParts(
-          path: path,
-          longitude: currentPosition?.longitude ?? 14.4,
-          latitude: currentPosition?.latitude ?? 50.1,
-        ));
+
+        if(recorded!.gpsLongitudeStart == null){
+
+          recorded!.gpsLongitudeStart = locationService.lastKnownPosition?.longitude;
+        }
+        if(recorded!.gpsLatitudeStart == null) {
+          recorded!.gpsLatitudeStart = locationService.lastKnownPosition?.latitude;
+        }
+
+
+        recorded!.gpsLatitudeEnd = locationService.lastKnownPosition?.latitude;
+        recorded!.gpsLongitudeEnd = locationService.lastKnownPosition?.longitude;
+        recorded!.endTime = DateTime.now();
+        recordingPartsList.add(recorded!);
+
         recordingPartsTimeList.add(DateTime.now().difference(overallStartTime!).inMilliseconds);
       }
 
@@ -269,7 +254,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
           MaterialPageRoute(
             builder: (_) => Spectogram(
               audioFilePath: recordedFilePath!,
-              currentPosition: currentPosition,
+              currentPosition: locationService.lastKnownPosition,
               recParts: recordingPartsList,
               recTimeStop: recordingPartsTimeList,
               StartTime: overallStartTime!,

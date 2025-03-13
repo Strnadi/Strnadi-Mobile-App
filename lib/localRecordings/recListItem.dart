@@ -19,26 +19,31 @@ import 'package:just_audio/just_audio.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/localRecordings/recList.dart';
-import 'package:strnadi/localRecordings/recordingsDb.dart';
+import 'package:strnadi/archived/recordingsDb.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
+import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/locationService.dart';
 
 import '../PostRecordingForm/RecordingForm.dart';
 
 class RecordingItem extends StatefulWidget {
-  final RecordItem recording;
+  Recording recording;
 
-  const RecordingItem({Key? key, required this.recording}) : super(key: key);
+  RecordingItem({Key? key, required this.recording}) : super(key: key);
 
   @override
   _RecordingItemState createState() => _RecordingItemState();
 }
 
 class _RecordingItemState extends State<RecordingItem> {
-  late String _filepath;
-  late String _note;
-  late double _latitude;
-  late double _longitude;
-  late LatLng? fallbackPosition = null;
+
+  bool loaded = false;
+
+  late LatLng center;
+
+  late List<RecordingPart> parts;
+
+  late LocationService locationService;
 
   final AudioPlayer player = AudioPlayer();
   bool isFileLoaded = false;
@@ -49,8 +54,15 @@ class _RecordingItemState extends State<RecordingItem> {
   @override
   void initState() {
     super.initState();
-    getData();
-    getNote();
+    getData().then((_) {
+      setState(() {
+        loaded = true;
+      });
+    });
+
+    locationService = LocationService();
+
+    getParts();
     getLocation();
 
     player.positionStream.listen((position) {
@@ -72,21 +84,30 @@ class _RecordingItemState extends State<RecordingItem> {
     });
   }
 
-  Future<void> getData() async {
-    var db = await LocalDb.database;
-    var filepath = await db.rawQuery(
-        "SELECT filepath FROM recordings WHERE title = ?",
-        [widget.recording.title]);
+  void getParts(){
+    parts = DatabaseNew.getPartsById(widget.recording.id!);
+  }
 
-    if (filepath.isNotEmpty) {
-      _filepath = filepath[0]["filepath"].toString();
-      await player.setFilePath(_filepath);
+  void getLocation() {
+    if (parts.isNotEmpty) {
+      center = LatLng(parts.last.gpsLatitudeEnd, parts.last.gpsLongitudeEnd);
+    } else {
+      // Set a default center, e.g., a predetermined location or the user's last known position.
+      center = LatLng(49.1951, 16.6068); // Example default value
+    }
+  }
+
+
+  Future<void> getData() async {
+    if(widget.recording.path != null) {
+      await player.setFilePath(widget.recording.path!);
       setState(() {
         isFileLoaded = true;
       });
     }
   }
 
+  /*
   Future<void> getNote() async {
     var db = await LocalDb.database;
     var note = await db.rawQuery("SELECT note FROM recordings WHERE title = ?",
@@ -96,6 +117,7 @@ class _RecordingItemState extends State<RecordingItem> {
       _note = note[0]["note"].toString();
     }
   }
+
 
   Future<void> getLocation() async {
     var db = await LocalDb.database;
@@ -113,8 +135,10 @@ class _RecordingItemState extends State<RecordingItem> {
       });
     }
   }
+  */
 
-  void DownloadRecording() async {
+  /*
+  Future<void> DownloadRecording() async {
     var db = await LocalDb.database;
     var filepath = await db.rawQuery(
         "SELECT created_at FROM recordings WHERE title = ?",
@@ -123,6 +147,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
     // TODO stasik endopint to download file
   }
+  */
 
   void togglePlay() async {
     if (!isFileLoaded) return;
@@ -154,8 +179,18 @@ class _RecordingItemState extends State<RecordingItem> {
 
   @override
   Widget build(BuildContext context) {
+
+    if(!loaded){
+      return ScaffoldWithBottomBar(
+        appBarTitle: widget.recording.note??'',
+        content: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return ScaffoldWithBottomBar(
-      appBarTitle: widget.recording.title,
+      appBarTitle: widget.recording.note??'',
       content: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -165,7 +200,7 @@ class _RecordingItemState extends State<RecordingItem> {
             width: double.infinity,
             child: LiveSpectogram.SpectogramLive(
               data: [],
-              filepath: _filepath,
+              filepath: widget.recording.path,
             ),
           ),
 
@@ -198,15 +233,6 @@ class _RecordingItemState extends State<RecordingItem> {
             ),
           ),
 
-          // Note
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              _note.isNotEmpty ? _note : "No note",
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
-
           // Map
           Container(
             child: Padding(
@@ -226,21 +252,22 @@ class _RecordingItemState extends State<RecordingItem> {
                       height: 300,
                       child: FlutterMap(
                         options: MapOptions(
-                          initialCenter: fallbackPosition ?? LatLng(49.1951, 16.6068),
+                          initialCenter: center,
                           initialZoom: 13.0,
                         ),
                         children: [
                           TileLayer(
                             urlTemplate:
-                            'https://api.mapy.cz/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                            'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                             userAgentPackageName: 'cz.delta.strnadi',
                           ),
                           MarkerLayer(
                             markers: [
+                              if(locationService.lastKnownPosition != null)
                               Marker(
                                 width: 20.0,
                                 height: 20.0,
-                                point: fallbackPosition ?? LatLng(49.1951, 16.6068),
+                                point: locationService.lastKnownPosition!,
                                 child: const Icon(
                                   Icons.my_location,
                                   color: Colors.blue,
