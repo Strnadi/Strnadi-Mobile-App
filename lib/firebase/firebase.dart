@@ -17,6 +17,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
@@ -27,7 +28,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:strnadi/auth/authorizator.dart' as auth;
-
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 final logger = Logger();
 
@@ -127,21 +128,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // You can process the message data here (for example, save it locally or update your UI state).
 }
 
-Future<void> refreshToken() async{
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  // Retrieve and log the FCM token.
-  messaging.getToken().then((token) async {
-    logger.i("Firebase token: $token");
+Future<void> addDevice() async{
 
-    Uri url = Uri.https('api.strnadi.cz', '/devices/device');
+  while(!await auth.isLoggedIn()){
+    Future.delayed(Duration(seconds: 1));
+  }
 
-    try {
+  try {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    messaging.getToken().then((token) async {
+      logger.i("Firebase token: $token");
+
+      Uri url = Uri.https('api.strnadi.cz', '/devices/add');
       DeviceInfo deviceInfo = await getDeviceInfo();
-
-      while (!await auth.isLoggedIn()) {
-        await Future.delayed(Duration(seconds: 1));
-      }
-
       String? jwt = await const FlutterSecureStorage().read(key: 'token');
       logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
       final response = await http.post(
@@ -151,25 +150,106 @@ Future<void> refreshToken() async{
           'Authorization': 'Bearer $jwt',
         },
         body: jsonEncode({
-          'newToken': token,
-          'oldToken': null,
+          'fcmToken': token,
           'devicePlatform': deviceInfo.platform,
-          'deviceName' : deviceInfo.deviceModel
+          'deviceName': deviceInfo.deviceModel,
+          'userEmail': JwtDecoder.decode(jwt!)['sub']
         }),
       );
-      if (response.statusCode==200){
-        logger.i(deviceInfo.platform);
-        logger.i('Token sent to server');
+      if (response.statusCode == 200) {
+        logger.i('Device added');
         FlutterSecureStorage().write(key: 'fcmToken', value: token);
       }
       else {
-        logger.e('Failed to send token to server ${response.statusCode}');
+        logger.e('Failed to add device ${response.statusCode}');
       }
+    });
+  } catch(e, stackTrace){
+    logger.e(e, stackTrace: stackTrace);
+    Sentry.captureException(e, stackTrace: stackTrace);
+  }
+}
+
+Future<void> updateDevice(String? oldToken, String? newToken) async{
+  if(oldToken == null){
+    logger.e('Old token is null sending new token');
+    await addDevice();
+    return;
+  }
+  if(newToken == null){
+    logger.e('New token is null deleting token');
+    deleteToken();
+  }
+
+  Uri url = Uri.https('api.strnadi.cz', '/devices/update');
+
+  try {
+    String? jwt = await const FlutterSecureStorage().read(key: 'token');
+    logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+    final response = await http.patch(url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+        body: jsonEncode({
+          'newFCMToken': newToken,
+          'oldFCMToken': oldToken
+        })
+    );
+    if(response.statusCode == 200){
+      logger.i('Device updated');
+      FlutterSecureStorage().write(key: 'fcmToken', value: newToken);
     }
-    catch (error) {
-      logger.e(error);
+    else{
+      logger.e('Failed to update device ${response.statusCode}');
     }
-  });
+  }
+  catch(e, stackTrace){
+    logger.e(e, stackTrace: stackTrace);
+    Sentry.captureException(e, stackTrace: stackTrace);
+  }
+}
+
+Future<void> deleteToken()async{
+  Uri uri = Uri.https('api.strnadi.cz', '/devices/delete');
+  String? token = await FlutterSecureStorage().read(key: 'fcmToken');
+  if(token == null){
+    logger.i('No token to delete');
+    return;
+  }
+
+  try{
+    String? jwt = await FlutterSecureStorage().read(key: 'token');
+    final response = await http.delete(uri, headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $jwt'
+    }, body: jsonEncode({'fcmToken': token}));
+    if (response.statusCode == 200){
+      logger.i('Token deleted');
+      FlutterSecureStorage().delete(key: 'fcmToken');
+    }
+    else{
+      logger.e('Failed to delete token ${response.statusCode}');
+    }
+  }
+  catch (error) {
+    logger.e(error);
+    Sentry.captureException(error);
+  }
+}
+
+Future<void> refreshToken() async{
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
+  if(oldToken == null){
+    await addDevice();
+  }
+  else{
+    String? newToken = await messaging.getToken();
+    if(newToken != oldToken){
+      await updateDevice(oldToken, newToken!);
+    }
+  }
 }
 
 Future<void> initFirebaseMessaging() async{
@@ -188,42 +268,9 @@ Future<void> initFirebaseMessaging() async{
 
   // Listen for token refresh.
   messaging.onTokenRefresh.listen((newToken) async{
-
+    logger.i("Token refreshed: $newToken");
     String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
-
-    if (newToken == oldToken) return;
-
-    while (!await auth.isLoggedIn()) {
-      await Future.delayed(Duration(seconds: 1));
-    }
-
-    logger.i("Firebase token refreshed: $newToken");
-    Uri url = Uri.https('api.strnadi.cz', '/devices/device');
-
-    try {
-      String? jwt = await FlutterSecureStorage().read(key: 'token');
-      logger.i('JWT Token: $jwt REFRESHING TOKEN');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-        body: jsonEncode({
-          'newToken': newToken,
-          'oldToken': oldToken
-        }),
-      );
-      if (response.statusCode == 200){
-        logger.i('Token refreshed');
-      }
-      else {
-        logger.e('Failed to refresh token ${response.statusCode}');
-      }
-    }
-    catch (error) {
-      logger.e(error);
-    }
+    await updateDevice(oldToken!, newToken);
   });
 
   // Listen for foreground messages.
@@ -240,34 +287,4 @@ Future<void> initFirebaseMessaging() async{
     logger.i("Notification caused app to open: ${message.messageId}");
     // Handle navigation or state update if needed.
   });
-}
-
-Future<void> deleteToken() async{
-  FirebaseMessaging.instance.deleteToken();
-
-  String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
-  String? jwt = await FlutterSecureStorage().read(key: 'token');
-
-  Uri uri = Uri.https('api.strnadi.cz', '/devices/device');
-
-  try{
-    final response = await http.post(uri, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $jwt'
-    }, body: jsonEncode({
-      'newToken': null,
-      'oldToken': oldToken
-    }));
-    if (response.statusCode == 200){
-      logger.i('Token deleted');
-    }
-    else{
-      logger.e('Failed to delete token ${response.statusCode}');
-    }
-  }
-  catch (error){
-    logger.e(error);
-  }
-
-  FlutterSecureStorage().delete(key: 'fcmToken');
 }

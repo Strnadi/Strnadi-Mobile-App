@@ -75,7 +75,8 @@ class _RegisterState extends State<Register> {
           'password': password,
           'FirstName': name,
           'LastName': surname,
-          'nickname': nickname
+          'nickname': nickname,
+          'consent': true // TODO add consent field to the registration form
         }),
       );
 
