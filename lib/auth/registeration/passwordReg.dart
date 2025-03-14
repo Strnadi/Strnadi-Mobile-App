@@ -79,7 +79,8 @@ class _RegPasswordState extends State<RegPassword> {
       'password': _passwordController.text,
       'FirstName': widget.name,
       'LastName': widget.surname,
-      'nickname': widget.nickname == "" ? null : widget.nickname
+      'nickname': widget.nickname == "" ? null : widget.nickname,
+      'consent': true // TODO add consent field to the registration form
     }));
 
     try {
@@ -93,7 +94,8 @@ class _RegPasswordState extends State<RegPassword> {
           'password': _passwordController.text,
           'FirstName': widget.name,
           'LastName': widget.surname,
-          'nickname': widget.nickname == "" ? null : widget.nickname
+          'nickname': widget.nickname == "" ? null : widget.nickname,
+          'consent': true // TODO add consent field to the registration form
         }),
       );
 

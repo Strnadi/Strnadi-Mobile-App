@@ -15,6 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -43,7 +44,7 @@ Future<bool> isLoggedIn() async {
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
-    final Uri url = Uri.parse('https://api.strnadi.cz/users')
+    final Uri url = Uri.parse('https://api.strnadi.cz/auth/verify-jwt')
         .replace(queryParameters: {'jwt': token});
     try {
       final response = await http.get(
@@ -55,7 +56,6 @@ Future<bool> isLoggedIn() async {
       );
       if (response.statusCode == 200) {
         return true;
-
       } else {
         return false;
       }
@@ -103,7 +103,9 @@ class _AuthState extends State<Authorizator> {
     if(await isLoggedIn()) {
       String? token = await secureStorage.read(key: 'token');
 
-      final Uri url = Uri.parse('https://api.strnadi.cz/users')
+      String? email = JwtDecoder.decode(token!)['sub'];
+
+      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email')
           .replace(queryParameters: {'jwt': token});
 
       final response = await http.get(

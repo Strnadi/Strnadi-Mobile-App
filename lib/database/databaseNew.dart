@@ -184,6 +184,7 @@ class Recording{
       'device': device,
       'byApp': byApp,
       'note': note,
+      'name': name
     };
   }
   @override
@@ -325,13 +326,13 @@ class RecordingPart{
     return {
       'id': BEId,
       'recordingId': recordingId,
-      'start': startTime.toIso8601String(),
-      'end': endTime.toIso8601String(),
-      'latitudeStart': gpsLatitudeStart,
-      'latitudeEnd': gpsLatitudeEnd,
-      'longitudeStart': gpsLongitudeStart,
-      'longitudeEnd': gpsLongitudeEnd,
-      'data': dataBase64,
+      'startDate': startTime.toIso8601String(),
+      'endDate': endTime.toIso8601String(),
+      'gpsLatitudeStart': gpsLatitudeStart,
+      'gpsLatitudeEnd': gpsLatitudeEnd,
+      'gpsLongitudeStart': gpsLongitudeStart,
+      'gpsLongitudeEnd': gpsLongitudeEnd,
+      'dataBase64': dataBase64,
     };
   }
 
@@ -371,25 +372,39 @@ class DatabaseNew{
   }
 
   static Future<int> insertRecording(Recording recording) async {
-    logger.i('Getting database');
-    final db = await database;
-    logger.i('Inserting recording');
-    final int id = await db.insert("recordings", recording.toJson());
-    recording.id = id;
-    recordings.add(recording);
-    logger.i('Recording ${recording.id} inserted');
-    return id;
+    try {
+      logger.i('Getting database');
+      final db = await database;
+      logger.i('Inserting recording');
+      final int id = await db.insert("recordings", recording.toJson());
+      recording.id = id;
+      recordings.add(recording);
+      logger.i('Recording ${recording.id} inserted');
+      return id;
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to insert recording', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      return -1;
+    }
   }
 
   static Future<int> insertRecordingPart(RecordingPart recordingPart) async {
-    logger.i('Getting database');
-    final db = await database;
-    logger.i('Inserting recording part');
-    final int id = await db.insert("recordingParts", recordingPart.toJson());
-    recordingPart.id = id;
-    recordingParts.add(recordingPart);
-    logger.i('Recording part ${recordingPart.id} inserted');
-    return id;
+    try {
+      logger.i('Getting database');
+      final db = await database;
+      logger.i('Inserting recording part');
+      final int id = await db.insert("recordingParts", recordingPart.toJson());
+      recordingPart.id = id;
+      recordingParts.add(recordingPart);
+      logger.i('Recording part ${recordingPart.id} inserted');
+      return id;
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to insert recording part', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      return -1;
+    }
   }
 
   static Future<void> onFetchFinished() async{
@@ -526,7 +541,7 @@ class DatabaseNew{
       throw UploadException('Failed to send recording part to backend', 401);
     }
     final http.Response response = await http.post(
-        Uri.https('api.strnadi.cz', '/recordingParts/upload'),
+        Uri.https('api.strnadi.cz', '/recordings/upload-part'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwt',
@@ -544,29 +559,44 @@ class DatabaseNew{
   }
 
   static Future<void> updateRecording(Recording recording) async {
-    recordings[recordings.indexWhere((element) => element.id == recording.id)] = recording;
-    final db = await database;
-    await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+    try{
+      recordings[recordings.indexWhere((element) => element.id == recording.id)] = recording;
+      final db = await database;
+      await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to update recording', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
   }
 
   static Future<void> updateRecordingPart(RecordingPart recordingPart) async {
-    recordingParts[recordingParts.indexWhere((element) => element.id == recordingPart.id)] = recordingPart;
-    final db = await database;
-    await db.update('recordingParts', recordingPart.toJson(), where: 'id = ?', whereArgs: [recordingPart.id]);
+    try {
+      recordingParts[recordingParts.indexWhere((element) =>
+      element.id == recordingPart.id)] = recordingPart;
+      final db = await database;
+      await db.update('recordingParts', recordingPart.toJson(), where: 'id = ?',
+          whereArgs: [recordingPart.id]);
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to update recording part', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
   }
 
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
-    // Fetch recordings from backend
-    Uri url = Uri(scheme: 'https',host: 'api.strnadi.cz', path: '/recordings', queryParameters: {
-      'parts': 'true'
-    });
-
-    String? jwt = await FlutterSecureStorage().read(key: 'token');
+    final String? jwt = await FlutterSecureStorage().read(key: 'jwt');
     if (jwt == null) {
+      fetching = false;
       throw FetchException('Failed to fetch recordings from backend', 401);
     }
-    String? mail = JwtDecoder.decode(jwt)['email'];
+    final String email = JwtDecoder.decode(jwt)['sub'];
+    // Fetch recordings from backend
+    Uri url = Uri(scheme: 'https',host: 'api.strnadi.cz', path: '/recordings', queryParameters: {
+      'parts': 'true',
+      'email': email
+    });
 
     final http.Response response = await http.get(
       url,
@@ -581,7 +611,7 @@ class DatabaseNew{
 
     if (response.statusCode == 200){
       List<Recording> recordings = List<Recording>.generate(body.length, (recordingIndex) {
-        return Recording.fromBEJson(body[recordingIndex], mail ?? '');
+        return Recording.fromBEJson(body[recordingIndex], email ?? '');
       });
 
       List<RecordingPart> parts = List<RecordingPart>.empty(growable: true);
@@ -594,6 +624,11 @@ class DatabaseNew{
       fetchedRecordingParts = parts;
 
       fetching = false;
+      return;
+    }
+    else if(response.statusCode == 204){ //No content
+      fetching = false;
+      logger.i('No recordings');
       return;
     }
     else {
