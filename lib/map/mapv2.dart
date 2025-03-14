@@ -145,7 +145,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     try {
       final response = await http.get(
-        Uri.https('api.strnadi.cz', '/recordings?count=0&parts=true'),
+        Uri.https('api.strnadi.cz', '/recordings?parts=true'),
         headers: {
           'Content-Type': 'application/json',
         },
