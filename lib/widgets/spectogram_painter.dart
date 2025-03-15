@@ -20,13 +20,51 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fftea/fftea.dart';
 import 'package:wav/wav.dart';
+import 'package:flutter/foundation.dart'; // Needed for compute()
+
+// Top-level function to compute the spectrogram off the main thread
+List<List<double>> computeSpectrogram(List<double> audio) {
+  const int chunkSize = 1024;
+  final stft = STFT(chunkSize, Window.hanning(chunkSize));
+  const int buckets = 120;
+  final List<List<double>> data = [];
+
+  stft.run(
+    audio,
+        (Float64x2List chunk) {
+      final amp = chunk.discardConjugates().magnitudes();
+      final List<double> row = [];
+      for (int bucket = 0; bucket < buckets; ++bucket) {
+        int start = (amp.length * bucket) ~/ buckets;
+        int end = (amp.length * (bucket + 1)) ~/ buckets;
+        final segment = amp.sublist(start, end);
+        double power = computeRms(segment);
+        row.add(power);
+      }
+      data.add(row);
+    },
+    chunkSize ~/ 2,
+  );
+  return data;
+}
+
+// Top-level function to compute RMS of a list of doubles
+double computeRms(List<double> audio) {
+  if (audio.isEmpty) {
+    return 0;
+  }
+  double squareSum = 0;
+  for (final x in audio) {
+    squareSum += x * x;
+  }
+  return math.sqrt(squareSum / audio.length);
+}
 
 class LiveSpectogram extends StatefulWidget {
   final List<double> data;
   final String? filepath;
 
-  const LiveSpectogram.SpectogramLive(
-      {Key? key, required this.data, this.filepath})
+  const LiveSpectogram.SpectogramLive({Key? key, required this.data, this.filepath})
       : super(key: key);
 
   @override
@@ -51,47 +89,15 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
       audio = widget.data;
     }
 
-    const chunkSize = 1024;
-    final stft = STFT(chunkSize, Window.hanning(chunkSize));
-    const buckets = 120;
-
-    final List<List<double>> data = [];
-
-    stft.run(
-      audio,
-          (Float64x2List chunk) {
-        final amp = chunk.discardConjugates().magnitudes();
-        final List<double> row = [];
-
-        for (int bucket = 0; bucket < buckets; ++bucket) {
-          int start = (amp.length * bucket) ~/ buckets;
-          int end = (amp.length * (bucket + 1)) ~/ buckets;
-          double power = _rms(Float64List.sublistView(amp, start, end));
-          row.add(power);
-        }
-        data.add(row);
-      },
-      chunkSize ~/ 2,
-    );
-
+    // Offload the heavy spectrogram computation to a background isolate
+    final data = await compute(computeSpectrogram, audio);
     setState(() {
       spectrogramData = data;
     });
   }
 
-  double _rms(List<double> audio) {
-    if (audio.isEmpty) {
-      return 0;
-    }
-    double squareSum = 0;
-    for (final x in audio) {
-      squareSum += x * x;
-    }
-    return math.sqrt(squareSum / audio.length);
-  }
-
   Float64List _normalizeRmsVolume(List<double> audio, double target) {
-    double factor = target / _rms(audio);
+    double factor = target / computeRms(audio);
     final output = Float64List.fromList(audio);
     for (int i = 0; i < audio.length; ++i) {
       output[i] *= factor;
@@ -123,8 +129,7 @@ class SpectrogramPainter extends CustomPainter {
 
     for (int y = 0; y < data[0].length; y++) {
       for (int x = 0; x < data.length; x++) {
-        paint.color =
-            _getColor(data[data.length - 1 - x][data[0].length - 1 - y]);
+        paint.color = _getColor(data[data.length - 1 - x][data[0].length - 1 - y]);
         canvas.drawRect(
           Rect.fromLTWH(x * cellWidth, y * cellHeight, cellWidth, cellHeight),
           paint,

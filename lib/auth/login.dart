@@ -20,6 +20,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
 import 'forgottenPassword.dart';
@@ -78,11 +79,12 @@ class _LoginState extends State<Login> {
         fb.refreshToken();
         Navigator.push(context, MaterialPageRoute(builder: (_) => LiveRec()));
       } else {
-        logger.w('Login failed: ${response}');
+        logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
         _showMessage('Přihlášení selhalo, zkuste to znovu');
       }
-    } catch (error) {
-      logger.e(error);
+    } catch (error, stackTrace) {
+      logger.e('en error has occured when logging in $error', error: error, stackTrace: stackTrace);
+      Sentry.captureException(error, stackTrace: stackTrace);
       _showMessage('Chyba připojení');
     }
   }
