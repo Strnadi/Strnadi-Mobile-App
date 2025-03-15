@@ -14,39 +14,54 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/database/databaseNew.dart';
 
-class NotificationScreen extends StatelessWidget {
-  final List<NotificationItem> notifications = [
-    NotificationItem(
-      icon: Icons.mic,
-      title: 'Nahrávka analyzována!',
-      message: 'Ve vaší nahrávce “na chalupě” byl určen dialekt CB',
-      time: '3h',
-      unread: true,
-    ),
-    NotificationItem(
-      icon: Icons.camera,
-      title: 'Váš snímek byl vybrán jako fotka týdne',
-      message: 'U vaší nahrávky “na procházce v Praze” byla vybrána fotka, jako fotka týdne!',
-      time: '1d',
-      unread: true,
-    ),
-    NotificationItem(
-      icon: Icons.error_outline,
-      title: 'Nová aktualizace aplikace',
-      message: 'Lorem ipsum dolor sit amet consectetur. Accumsan et hendrerit viverra elit pretium. 👏',
-      time: '1m',
-      unread: false,
-    ),
-    NotificationItem(
-      icon: Icons.notifications,
-      title: 'Notification title',
-      message: 'Lorem ipsum dolor sit amet consectetur. Accumsan et hendrerit viverra elit pretium.',
-      time: '8m',
-      unread: false,
-    ),
-  ];
+class NotificationScreen extends StatefulWidget {
+  @override
+  _NotificationScreenState createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+
+  List<NotificationItem> notifications = [];
+
+  void getNotifications() async {
+
+    setState(() async {
+      notifications = await DatabaseNew.getNotificationList();
+    });
+  }
+
+
+
+  // final List<NotificationItem> notifications = [
+  //   NotificationItem(
+  //     title: 'Nahrávka analyzována!',
+  //     message: 'Ve vaší nahrávce “na chalupě” byl určen dialekt CB',
+  //     time: '3h',
+  //     unread: true,
+  //   ),
+  //   NotificationItem(
+  //     title: 'Váš snímek byl vybrán jako fotka týdne',
+  //     message: 'U vaší nahrávky “na procházce v Praze” byla vybrána fotka, jako fotka týdne!',
+  //     time: '1d',
+  //     unread: true,
+  //   ),
+  //   NotificationItem(
+  //     title: 'Nová aktualizace aplikace',
+  //     message: 'Lorem ipsum dolor sit amet consectetur. Accumsan et hendrerit viverra elit pretium. 👏',
+  //     time: '1m',
+  //     unread: false,
+  //   ),
+  //   NotificationItem(
+  //     title: 'Notification title',
+  //     message: 'Lorem ipsum dolor sit amet consectetur. Accumsan et hendrerit viverra elit pretium.',
+  //     time: '8m',
+  //     unread: false,
+  //   ),
+  // ];
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +74,6 @@ class NotificationScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final notification = notifications[index];
           return ListTile(
-            leading: Icon(notification.icon),
             title: Text(
               notification.title,
               style: const TextStyle(fontWeight: FontWeight.bold),
@@ -81,14 +95,12 @@ class NotificationScreen extends StatelessWidget {
 }
 
 class NotificationItem {
-  final IconData icon;
   final String title;
   final String message;
   final String time;
   final bool unread;
 
   NotificationItem({
-    required this.icon,
     required this.title,
     required this.message,
     required this.time,

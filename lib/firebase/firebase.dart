@@ -17,6 +17,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/database/databaseNew.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import '../firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -125,7 +126,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if necessary.
   await Firebase.initializeApp();
   logger.i("Handling a background message: ${message.messageId}");
-  // You can process the message data here (for example, save it locally or update your UI state).
+  // TODO save notification
+  DatabaseNew.insertNotification(message);
 }
 
 Future<void> addDevice() async{
