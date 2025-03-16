@@ -77,16 +77,14 @@ class _LoginState extends State<Login> {
         await const FlutterSecureStorage()
             .write(key: 'token', value: response.body);
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
-      }
-      else if(response.statusCode == 401){
+      } else if (response.statusCode == 401) {
         _showMessage('Špatné jméno nebo heslo');
-      }
-      else {
+      } else {
         logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
         _showMessage('Přihlášení selhalo, zkuste to znovu');
       }
     } catch (error, stackTrace) {
-      logger.e('en error has occured when logging in $error', error: error, stackTrace: stackTrace);
+      logger.e('An error has occured when logging in $error', error: error, stackTrace: stackTrace);
       Sentry.captureException(error, stackTrace: stackTrace);
       _showMessage('Chyba připojení');
     }
@@ -97,121 +95,166 @@ class _LoginState extends State<Login> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'))
+        ],
       ),
     );
   }
+
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
-    final halfScreen = MediaQuery.of(context).size.height * 0.1;
-    return Padding(
-      padding: EdgeInsets.only(top: halfScreen),
-      child: Scaffold(
+    const Color yellowishBlack = Color(0xFF2D2B18);
+    const Color yellow = Color(0xFFFFD641);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      // AppBar with a back button at the top
+      appBar: AppBar(
         backgroundColor: Colors.white,
-        body: SingleChildScrollView(
-        child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Padding(
-        padding: const EdgeInsets.only(bottom: 100),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Strnadi',
-                style: TextStyle(fontSize: 70, fontWeight: FontWeight.bold, color: Colors.black),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Heslo',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              keyboardType: TextInputType.visiblePassword,
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgottenPassword()));
-                },
-                child: const Text(
-                  'Zapomenuté heslo?',
-                  style: TextStyle(color: Colors.grey),
+        elevation: 0,
+        leading: IconButton(
+          icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Spacing from the top (additional to AppBar)
+              const SizedBox(height: 20),
+
+              // Title: "Přihlášení"
+              const Text(
+                'Přihlášení',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+
+              const SizedBox(height: 40),
+
+              // --- E-mail label and TextField ---
+              Text(
+                'E-mail',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
               ),
-              onPressed: login,
-              child: const Text('Přihlásit se'),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: RichText(
-                text: TextSpan(
-                  text: 'Nemáte účet? ',
-                  style: const TextStyle(color: Colors.black),
-                  children: [
-                    TextSpan(
-                      text: 'Zaregistrovat se',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      recognizer: _registerTapRecognizer,
+              const SizedBox(height: 8),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  fillColor: Colors.grey[200],
+                  filled: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  // More rounded border
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // --- Heslo (Password) label and TextField ---
+              Text(
+                'Heslo',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  fillColor: Colors.grey[200],
+                  filled: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: _obscurePassword
+                        ? Image.asset(
+                      'assets/icons/visOn.png',
+                      width: 30,
+                      height: 30,
+                    )
+                        : Image.asset(
+                      'assets/icons/visOff.png',
+                      width: 30,
+                      height: 30,
                     ),
-                  ],
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: Text.rich(
-                TextSpan(
-                  text: 'pokračováním souhlasíte s ',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  children: [
-                    TextSpan(
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          _launchURL();
-                        },
-                      text: 'zásadami ochrany osobních údajů.',
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+
+              // "Zapomenuté heslo?" aligned to the right
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    // Handle "Forgot password" here
+                  },
+                  child: const Text('Zapomenuté heslo?'),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
+
+              const SizedBox(height: 24),
             ],
-            ),
           ),
         ),
-        )
+      ),
+      // Login button moved to bottomNavigationBar
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              login();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: yellow,
+              foregroundColor: yellowishBlack,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+            ),
+            child: const Text('Přihlásit se'),
+          ),
+        ),
       ),
     );
-  }
-
-  _launchURL() async {
-    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
-    if (!await launchUrl(url)) {
-      throw Exception('Could not launch $url');
-    }
   }
 }
