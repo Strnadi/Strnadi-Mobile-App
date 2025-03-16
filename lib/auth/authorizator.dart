@@ -121,7 +121,7 @@ class _AuthState extends State<Authorizator> {
       secureStorage.write(key: 'lastname', value: data['lastName']);
       // If you plan to navigate here, consider scheduling it in a post-frame callback.
       DatabaseNew.syncRecordings();
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LiveRec()),
       );
