@@ -542,6 +542,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   void dispose() {
+    spectogramKey.currentState!.dispose();
     _recordingNameController.dispose();
     _commentController.dispose();
     super.dispose();
@@ -790,6 +791,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 ),
                               ),
                               onPressed: () {
+                                spectogramKey = GlobalKey();
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => LiveRec()),

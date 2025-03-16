@@ -609,11 +609,6 @@ class DatabaseNew {
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
     // Fetch recordings from backend
-    Uri url = Uri(
-        scheme: 'https',
-        host: 'api.strnadi.cz',
-        path: '/recordings',
-        queryParameters: {'parts': 'true'});
 
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {

@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:fftea/fftea.dart';
 import 'package:wav/wav.dart';
 
-final GlobalKey<_LiveSpectogramState> spectogramKey = GlobalKey<_LiveSpectogramState>();
+GlobalKey<_LiveSpectogramState> spectogramKey = GlobalKey<_LiveSpectogramState>();
 
 
 class LiveSpectogram extends StatefulWidget {
