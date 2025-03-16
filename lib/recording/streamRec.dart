@@ -190,7 +190,7 @@ class _LiveRecState extends State<LiveRec> {
             filepath: filepath,
             startTime: overallStartTime!,
             currentPosition: currentPosition,
-            recordingParts: recordingPartsList,
+            recordingPartsU: recordingPartsList,
             recordingPartsTimeList: recordingPartsTimeList,
           ),
         ),
