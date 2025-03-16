@@ -51,3 +51,5 @@ pubspec.lock
 
 assets/secrets.json
 sentry.properties
+
+android/gradle.properties

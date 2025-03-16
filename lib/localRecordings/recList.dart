@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
@@ -55,6 +70,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
     }
   }
 
+  String formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
+  }
+
+
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
@@ -83,24 +103,28 @@ class _RecordingScreenState extends State<RecordingScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  subtitle: Row(
-                    children: [
-                      Text(
-                        records[index].createdAt.toString(),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                  subtitle: SizedBox(
+                    child: Row(
+                      children: [
+                        Text(
+                          records[index].createdAt != null
+                              ? formatDateTime(records[index].createdAt!)
+                              : '',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                        const SizedBox(width: 8),
+                        Text(
+                          records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   trailing: FittedBox(
                     fit: BoxFit.scaleDown,
