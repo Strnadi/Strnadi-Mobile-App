@@ -609,6 +609,9 @@ class DatabaseNew {
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
     // Fetch recordings from backend
+
+
+
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
       fetching = false;

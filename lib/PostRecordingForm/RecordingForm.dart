@@ -40,46 +40,10 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/auth/authorizator.dart' as auth;
 
+import 'addDialect.dart';
+
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
-
-/*
-class Recording {
-  final DateTime createdAt;
-  final int estimatedBirdsCount;
-  final String device;
-  final bool byApp;
-  final String? note;
-
-  Recording({
-    required this.createdAt,
-    required this.estimatedBirdsCount,
-    required this.device,
-    required this.byApp,
-    this.note,
-  });
-
-  factory Recording.fromJson(Map<String, dynamic> json) {
-    return Recording(
-      createdAt: DateTime.parse(json['CreatedAt']),
-      estimatedBirdsCount: json['EstimatedBirdsCount'],
-      device: json['Device'],
-      byApp: json['ByApp'],
-      note: json['Note'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      "CreatedAt": createdAt.toIso8601String(),
-      "EstimatedBirdsCount": estimatedBirdsCount,
-      "Device": device,
-      "ByApp": byApp,
-      "Note": note,
-    };
-  }
-}
- */
 
 class RecordingForm extends StatefulWidget {
   final String filepath;
@@ -87,6 +51,7 @@ class RecordingForm extends StatefulWidget {
   final List<RecordingPartUnready> recordingPartsU;
   final DateTime startTime;
   final List<int> recordingPartsTimeList;
+
 
   const RecordingForm({
     Key? key,
@@ -106,7 +71,13 @@ class _RecordingFormState extends State<RecordingForm> {
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
 
+  double currentPos = 0.0;
+
   List<File> _selectedImages = [];
+
+  Widget? spectogram;
+
+  List<DialectModel> dialectSegments = [];
 
   final _audioPlayer = AudioPlayer();
   Duration currentPosition = Duration.zero;
@@ -131,6 +102,20 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   void initState() {
+
+    setState(() {
+      spectogram = LiveSpectogram.SpectogramLive(
+        key: spectogramKey,
+        data: [],
+        filepath: widget.filepath,
+        getCurrentPosition: (pos) {
+          setState(() {
+            currentPos = pos;
+          });
+        },
+      );
+    });
+
     _audioPlayer.positionStream.listen((position) {
       setState(() {
         currentPosition = position;
@@ -148,6 +133,7 @@ class _RecordingFormState extends State<RecordingForm> {
         isPlaying = playing;
       });
     });
+
 
     _audioPlayer.setFilePath(widget.filepath);
     super.initState();
@@ -191,7 +177,93 @@ class _RecordingFormState extends State<RecordingForm> {
 
     insertRecordingWhenReady();
   }
-  
+
+  void _showDialectSelectionDialog() {
+
+    var position = spectogramKey.currentState!.currentPositionPx;
+
+    var spect = spectogram;
+
+    setState(() {
+      spectogram = null;
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) => DialectSelectionDialog(
+        spectogram: spect!,
+        currentPosition: position,
+        duration: totalDuration.inSeconds.toDouble(),
+        onDialectAdded: (dialect) {
+          setState(() {
+            dialectSegments.add(dialect);
+            spectogram = spect;
+          });
+        },
+      ),
+    );
+  }
+
+  String _formatTimestamp(double seconds) {
+    int mins = (seconds ~/ 60);
+    int secs = (seconds % 60).floor();
+    int ms = ((seconds - seconds.floor()) * 100).floor();
+
+    return "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}.${ms.toString().padLeft(2, '0')}";
+  }
+
+  // Widget to display dialect segment in timeline
+  Widget _buildDialectSegment(DialectModel dialect) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              "${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}",
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ),
+          SizedBox(width: 8),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: dialect.color,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.grey.shade400),
+            ),
+            child: Text(
+              dialect.label,
+              style: TextStyle(
+                fontSize: 14,
+                color: dialect.color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                dialectSegments.remove(dialect);
+              });
+            },
+            child: Icon(
+              Icons.delete_outline,
+              color: Colors.red.shade300,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> insertRecordingWhenReady() async{
     while(recording.mail == "" || recording.device == ""){
       await Future.delayed(Duration(seconds: 1));
@@ -472,6 +544,7 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   void dispose() {
+    spectogramKey.currentState!.dispose();
     _recordingNameController.dispose();
     _commentController.dispose();
     super.dispose();
@@ -525,10 +598,7 @@ class _RecordingFormState extends State<RecordingForm> {
             SizedBox(
               height: 300,
               width: double.infinity,
-              child: LiveSpectogram.SpectogramLive(
-                data: [],
-                filepath: widget.filepath,
-              ),
+              child: spectogram,
             ),
             Text(_formatDuration(totalDuration), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold) ),
             Row(
@@ -549,6 +619,32 @@ class _RecordingFormState extends State<RecordingForm> {
                 ),
               ],
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.add),
+                label: Text('Přidat dialekt'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFFFF7C0),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onPressed: _showDialectSelectionDialog,
+              ),
+            ),
+
+            // Display dialect segments if any
+            if (dialectSegments.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                ),
+              ),
             const SizedBox(height: 50),
             SizedBox(
               height: 200,
@@ -705,6 +801,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 ),
                               ),
                               onPressed: () {
+                                spectogramKey = GlobalKey();
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => LiveRec()),
