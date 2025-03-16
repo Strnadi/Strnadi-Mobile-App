@@ -100,7 +100,7 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               if (ModalRoute.of(context)?.settings.name != '/map') {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (_) => MapScreenV2(),
@@ -115,7 +115,7 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               if (ModalRoute.of(context)?.settings.name != '/list') {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (_) => RecordingScreen(),
@@ -130,7 +130,7 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               if (ModalRoute.of(context)?.settings.name != '/Recorder') {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (_) => LiveRec(),
@@ -145,7 +145,7 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               if (ModalRoute.of(context)?.settings.name != '/notification') {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (_) => NotificationScreen(),
@@ -160,7 +160,7 @@ class ReusableBottomAppBar extends StatelessWidget {
             iconSize: 30.0,
             onPressed: () {
               if (ModalRoute.of(context)?.settings.name != '/user') {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (_) => UserPage(),
