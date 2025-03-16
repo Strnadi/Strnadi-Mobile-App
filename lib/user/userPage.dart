@@ -18,6 +18,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/HealthCheck/serverHealth.dart';
@@ -61,7 +62,8 @@ class _UserPageState extends State<UserPage> {
     }
 
     final jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.parse('https://api.strnadi.cz/users');
+    final String email = await JwtDecoder.decode(jwt!)['sub'];
+    final Uri url = Uri.parse('https://api.strnadi.cz/users/${email}');
 
     print("url: $url");
 

@@ -610,6 +610,8 @@ class DatabaseNew {
     fetching = true;
     // Fetch recordings from backend
 
+
+
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
       fetching = false;

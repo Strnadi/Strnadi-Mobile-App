@@ -76,9 +76,12 @@ class _LoginState extends State<Login> {
       if (response.statusCode == 200 || response.statusCode == 202) {
         await const FlutterSecureStorage()
             .write(key: 'token', value: response.body);
-        fb.refreshToken();
-        Navigator.push(context, MaterialPageRoute(builder: (_) => LiveRec()));
-      } else {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
+      }
+      else if(response.statusCode == 401){
+        _showMessage('Špatné jméno nebo heslo');
+      }
+      else {
         logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
         _showMessage('Přihlášení selhalo, zkuste to znovu');
       }
