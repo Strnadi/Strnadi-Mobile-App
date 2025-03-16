@@ -17,6 +17,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:record/record.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -40,6 +42,37 @@ class LiveRec extends StatefulWidget {
 
 int calcBitRate(int sampleRate, int bitDepth) {
   return sampleRate * bitDepth;
+}
+
+void _showMessage(BuildContext context, String message) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Login'),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
+
+Future<void> getLocationPermission(BuildContext context) async {
+  LocationPermission permission = await Geolocator.requestPermission();
+  logger.i("Location permission: $permission");
+  while (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+    _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+    permission = await Geolocator.requestPermission();
+    logger.i("Location permission: $permission");
+    if (permission == LocationPermission.deniedForever) {
+      _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+      await SystemNavigator.pop();
+    }
+  }
 }
 
 class _LiveRecState extends State<LiveRec> {
@@ -87,6 +120,8 @@ class _LiveRecState extends State<LiveRec> {
 
   @override
   void initState() {
+    getLocationPermission(context);
+
     _audioRecorder = AudioRecorder();
 
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {

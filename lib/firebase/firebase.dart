@@ -154,7 +154,7 @@ Future<void> addDevice() async{
         body: jsonEncode({
           'fcmToken': token,
           'devicePlatform': deviceInfo.platform,
-          'deviceName': deviceInfo.deviceModel,
+          'deviceModel': deviceInfo.deviceModel,
           'userEmail': JwtDecoder.decode(jwt!)['sub']
         }),
       );

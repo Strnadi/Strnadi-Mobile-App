@@ -84,7 +84,7 @@ class Recording {
 class RecordingForm extends StatefulWidget {
   final String filepath;
   final LatLng? currentPosition;
-  final List<RecordingPartUnready> recordingParts;
+  final List<RecordingPartUnready> recordingPartsU;
   final DateTime startTime;
   final List<int> recordingPartsTimeList;
 
@@ -93,7 +93,7 @@ class RecordingForm extends StatefulWidget {
     required this.filepath,
     required this.startTime,
     required this.currentPosition,
-    required this.recordingParts,
+    required this.recordingPartsU,
     required this.recordingPartsTimeList,
   }) : super(key: key);
 
@@ -126,6 +126,8 @@ class _RecordingFormState extends State<RecordingForm> {
   LatLng? markerPosition;
 
   DateTime? _lastRouteUpdate;
+
+  List<RecordingPart> recordingPartsReady = List<RecordingPart>.empty(growable: true);
 
   @override
   void initState() {
@@ -197,11 +199,11 @@ class _RecordingFormState extends State<RecordingForm> {
     }
     logger.i('Started inserting recording');
     recording.downloaded = true;
-    recording.id = await DatabaseNew.insertRecording(recording);
+    //recording.id = await DatabaseNew.insertRecording(recording);
     setState(() {
-      _recordingId = recording.id;
+    //  _recordingId = recording.id;
     });
-    logger.i('ID set to $_recordingId');
+    //logger.i('ID set to $_recordingId');
   }
 
   void _onImagesSelected(List<File> images) {
@@ -237,7 +239,7 @@ class _RecordingFormState extends State<RecordingForm> {
     List<RecordingPartUnready> trimmedAudioParts = await DatabaseNew.trimAudio(
       widget.filepath,
       widget.recordingPartsTimeList,
-      widget.recordingParts,
+      widget.recordingPartsU,
     );
 
     List<RecordingPart> partsReady = List<RecordingPart>.empty(growable: true);
@@ -376,12 +378,12 @@ class _RecordingFormState extends State<RecordingForm> {
     recording.note = _commentController.text == ''? null : _commentController.text;
     recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
-    DatabaseNew.insertRecording(recording);
+    recording.id = await DatabaseNew.insertRecording(recording);
 
     if (!await hasInternetAccess()) {
       logger.w("No internet connection");
       _showMessage("No internet connection");
-      Navigator.push(
+      Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
 
@@ -392,7 +394,7 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
-    Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LiveRec()));
     /*
     try {
       final response = await http.post(
@@ -485,12 +487,20 @@ class _RecordingFormState extends State<RecordingForm> {
         child: CircularProgressIndicator(),
       );
     }
-    List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
+    //List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
 
-    if(recordingParts.isNotEmpty){
-      recordingParts.forEach((part){
-        _route.add(LatLng(part.gpsLongitudeStart, part.gpsLatitudeStart));
-        _route.add(LatLng(part.gpsLongitudeEnd, part.gpsLatitudeEnd));
+    if(widget.recordingPartsU.isNotEmpty){
+      widget.recordingPartsU.forEach((part){
+        if(part.gpsLatitudeStart == null || part.gpsLongitudeStart == null){
+          part.gpsLatitudeStart = currentLocation?.latitude ?? 0;
+          part.gpsLongitudeStart = currentLocation?.longitude ?? 0;
+        }
+        if(part.gpsLatitudeEnd == null || part.gpsLongitudeEnd == null){
+          part.gpsLatitudeEnd = currentLocation?.latitude ?? 0;
+          part.gpsLongitudeEnd = currentLocation?.longitude ?? 0;
+        }
+        _route.add(LatLng(part.gpsLongitudeStart!, part.gpsLatitudeStart!));
+        _route.add(LatLng(part.gpsLongitudeEnd!, part.gpsLatitudeEnd!));
       });
     }
 
@@ -579,11 +589,11 @@ class _RecordingFormState extends State<RecordingForm> {
                               ),
                             ),
                           // Place markers for all recording parts
-                          ...recordingParts.map(
+                          ...widget.recordingPartsU.map(
                                 (part) => Marker(
                               width: 20.0,
                               height: 20.0,
-                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
+                              point: LatLng(part.gpsLatitudeEnd!, part.gpsLongitudeEnd!),
                               child: const Icon(
                                 Icons.location_on,
                                 color: Colors.red,

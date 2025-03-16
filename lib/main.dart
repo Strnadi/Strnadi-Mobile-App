@@ -38,20 +38,6 @@ import 'package:workmanager/workmanager.dart';
 // Create a global logger instance.
 final logger = Logger();
 
-Future<void> getLocationPerimition(BuildContext context) async {
-  LocationPermission permission = await Geolocator.requestPermission();
-  logger.i("Location permission: $permission");
-  while (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
-    _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
-    permission = await Geolocator.requestPermission();
-    logger.i("Location permission: $permission");
-    if (permission == LocationPermission.deniedForever) {
-      _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
-      await SystemNavigator.pop();
-    }
-  }
-}
-
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
@@ -182,7 +168,6 @@ class _HomeScreenState extends State<HomeScreen> {
       await checkForUpdate(context);
       await _checkGooglePlayServices(context);
       await checkInternetConnection(context);
-      await getLocationPerimition(context);
     });
   }
 
