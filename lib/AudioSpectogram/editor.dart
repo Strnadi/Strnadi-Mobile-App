@@ -19,7 +19,7 @@ import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/bottomBar.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 
 class Spectogram extends StatelessWidget {
   final String audioFilePath;

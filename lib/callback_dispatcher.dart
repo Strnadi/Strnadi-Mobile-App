@@ -19,6 +19,7 @@ import 'package:logger/logger.dart';
 
 final logger = Logger();
 
+@pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     if (task == "sendRecording") {
