@@ -283,6 +283,7 @@ class RecordingPart {
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
       gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
       square: json['square'] as String?,
+      dataBase64: json['dataBase64'] as String?,
       sent: (json['sent'] as int) == 1,
     );
   }
@@ -303,15 +304,14 @@ class RecordingPart {
   }
 
   factory RecordingPart.fromUnready(RecordingPartUnready unready) {
-    if (unready.id == null ||
-        unready.recordingId == null ||
-        unready.startTime == null ||
+    if (unready.startTime == null ||
         unready.endTime == null ||
         unready.gpsLatitudeStart == null ||
         unready.gpsLatitudeEnd == null ||
         unready.gpsLongitudeStart == null ||
         unready.gpsLongitudeEnd == null ||
         unready.dataBase64 == null) {
+      logger.i('id: ${unready.id}, recordingId: ${unready.recordingId}, startTime: ${unready.startTime}, endTime: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, dataBase64: ${unready.dataBase64}');
       throw UnreadyException('Recording part is not ready');
     }
 
@@ -355,6 +355,7 @@ class RecordingPart {
       'gpsLatitudeEnd': gpsLatitudeEnd,
       'gpsLongitudeStart': gpsLongitudeStart,
       'gpsLongitudeEnd': gpsLongitudeEnd,
+      'dataBase64': dataBase64,
       'square': square,
       'sent': sent ? 1 : 0,
     };
@@ -564,7 +565,7 @@ class DatabaseNew {
       throw UploadException('Failed to send recording part to backend', 401);
     }
     final http.Response response =
-        await http.post(Uri.https('api.strnadi.cz', '/recordingParts/upload'),
+        await http.post(Uri.https('api.strnadi.cz', '/recordings/upload-part'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $jwt',
@@ -741,6 +742,7 @@ class DatabaseNew {
         gpsLongitudeStart REAL,
         gpsLongitudeEnd REAL,
         square TEXT,
+        dataBase64 TEXT,
         sent INTEGER,
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
       )

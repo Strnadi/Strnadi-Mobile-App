@@ -170,6 +170,11 @@ class _LiveRecState extends State<LiveRec> {
     final dataWithHeader = data + createHeader(data.length, sampleRate, bitRate);
     recordedPart!.dataBase64 = base64Encode(dataWithHeader);
 
+    recordedPart!.gpsLatitudeEnd = currentPosition?.latitude;
+    recordedPart!.gpsLongitudeEnd = currentPosition?.longitude;
+
+    recordedPart!.endTime = DateTime.now();
+
     recordingPartsList.add(
       recordedPart!
     );
@@ -359,6 +364,7 @@ class _LiveRecState extends State<LiveRec> {
         catch (e){
           rethrow;
         }
+        overallStartTime = DateTime.now();
 
         recordedPart = RecordingPartUnready(
           gpsLongitudeStart: _locService.lastKnownPosition?.longitude, // will return null if location is not available
