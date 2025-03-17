@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -30,10 +31,50 @@ import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../bottomBar.dart';
-import 'package:strnadi/locationService.dart'; // Import our location service
+import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart';
 
 final logger = Logger();
+
+class ElapsedTimer {
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _ticker;
+  final ValueChanged<Duration> onTick;
+
+  ElapsedTimer({required this.onTick});
+
+  void start() {
+    _stopwatch.start();
+    _ticker = Timer.periodic(Duration(milliseconds: 100), (_) {
+      onTick(_stopwatch.elapsed);
+    });
+  }
+
+  void pause() {
+    _stopwatch.stop();
+    _ticker?.cancel();
+  }
+
+  void resume() {
+    _stopwatch.start();
+    _ticker = Timer.periodic(Duration(milliseconds: 100), (_) {
+      onTick(_stopwatch.elapsed);
+    });
+  }
+
+  void reset() {
+    _stopwatch.reset();
+    _ticker?.cancel();
+    onTick(_stopwatch.elapsed);
+  }
+
+  Duration get elapsed => _stopwatch.elapsed;
+
+  void dispose() {
+    _stopwatch.stop();
+    _ticker?.cancel();
+  }
+}
 
 class LiveRec extends StatefulWidget {
   const LiveRec({super.key});
@@ -62,11 +103,11 @@ void _showMessage(BuildContext context, String message) {
   );
 }
 
-
 Future<void> getLocationPermission(BuildContext context) async {
   LocationPermission permission = await Geolocator.requestPermission();
   logger.i("Location permission: $permission");
-  while (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+  while (permission != LocationPermission.whileInUse &&
+      permission != LocationPermission.always) {
     _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
     permission = await Geolocator.requestPermission();
     logger.i("Location permission: $permission");
@@ -78,78 +119,66 @@ Future<void> getLocationPermission(BuildContext context) async {
 }
 
 class _LiveRecState extends State<LiveRec> {
-  // _recordDuration holds the duration of the current (running) segment.
-  double _recordDuration = 0;
-  // _totalRecordedTime holds the cumulative duration of all segments that have been paused.
-  double _totalRecordedTime = 0;
+  Duration _recordDuration = Duration.zero;
+  Duration _totalRecordedTime = Duration.zero;
 
-  var filepath = "";
-  Timer? _timer;
+  String filepath = "";
+
+  late final ElapsedTimer _elapsedTimer;
   late final AudioRecorder _audioRecorder;
   StreamSubscription<RecordState>? _recordSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
 
-  List<List<double>> spectrogramData = [];
-
   int sampleRate = 44100;
   int bitRate = calcBitRate(44100, 16);
 
   final recordingPartsTimeList = <int>[];
-
-  List<RecordingPartUnready> recordingPartsList = List<RecordingPartUnready>.empty(growable: true);
-
+  List<RecordingPartUnready> recordingPartsList = [];
   RecordingPartUnready? recordedPart;
 
-  // overallStartTime is the time when the very first segment started.
   DateTime? overallStartTime;
-  // segmentStartTime is updated each time a new segment starts.
   DateTime? segmentStartTime;
 
-  // This will hold the merged recording file path.
   String? recordedFilePath;
 
-  // The current location.
   LatLng? currentPosition;
 
-  // List to keep file paths for all segments.
   final List<String> segmentPaths = [];
 
-  // New: Subscription to the location stream.
   StreamSubscription? _locationSub;
-
   late LocationService _locService;
+
+  bool recording = false;
 
   @override
   void initState() {
+    super.initState();
     getLocationPermission(context);
 
     _audioRecorder = AudioRecorder();
-
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
     });
-
-    _amplitudeSub = _audioRecorder
-        .onAmplitudeChanged(const Duration(milliseconds: 300))
+    _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 300))
         .listen((amp) {
-      // Optionally, update spectrogramData here.
+      // Optionally update spectrogram data if needed.
     });
     _locService = LocationService();
-
-    // Subscribe to our centralized location stream.
     _locationSub = _locService.positionStream.listen((position) {
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
       });
     });
 
-
-
-    super.initState();
+    _elapsedTimer = ElapsedTimer(onTick: (elapsed) {
+      setState(() {
+        _recordDuration = elapsed;
+      });
+    });
   }
 
-  void _toggleRecording(){
+  void _toggleRecording() {
     if (_recordState == RecordState.record) {
       _pause();
     } else if (_recordState == RecordState.pause) {
@@ -159,50 +188,52 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  /// Stop function: Add the final segment duration to the cumulative total,
-  /// then pass the overall time and per-segment data to the RecordingForm.
+  /// Updated _stop() function:
+  /// • If the recorder is in the "record" state, process the final segment.
+  /// • If it is paused, skip file processing (since _pause() already handled it).
   Future<void> _stop() async {
+    if (_recordState == RecordState.record) {
+      try {
+        await _audioRecorder.stop();
+        _elapsedTimer.pause();
+        setState(() {
+          recording = false;
+        });
+      } catch (e, stackTrace) {
+        logger.e("Error stopping recorder: $e", error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+        return;
+      }
 
-    try {
-      await _audioRecorder.stop();
-      //await onStop(filepath);
-    } catch (e, stackTrace) {
-      logger.e("Error stopping recorder or processing file: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
-      return;
+      int segmentDuration = _recordDuration.inSeconds;
+      _totalRecordedTime += _recordDuration;
+      recordingPartsTimeList.add(segmentDuration);
+
+      Uint8List data = await File(filepath).readAsBytes();
+      final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
+      recordedPart!.dataBase64 = base64Encode(dataWithHeader);
+
+      await File(filepath).delete();
+      File newFile = await File(filepath).create();
+      await newFile.writeAsBytes(dataWithHeader);
+
+      if (_locService.lastKnownPosition == null) {
+        await _locService.getCurrentLocation();
+      }
+      recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
+      recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
+      recordedPart!.endTime = DateTime.now();
+      recordingPartsList.add(recordedPart!);
+    } else if (_recordState == RecordState.pause) {
+      // In paused state, assume _pause() has already processed the segment.
+      setState(() {
+        recording = false;
+      });
     }
 
-    // Add the current segment duration to total if any.
-    int segmentDuration = _recordDuration.toInt();
-    _totalRecordedTime += _recordDuration;
-    recordingPartsTimeList.add(segmentDuration);
-
-    Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
-    recordedPart!.dataBase64 = base64Encode(dataWithHeader);
-
-    await File(filepath).delete();
-    File newFile = await File(filepath).create();
-    await newFile.writeAsBytes(dataWithHeader);
-
-    if(_locService.lastKnownPosition == null){
-      await _locService.getCurrentLocation();
-    }
-
-    recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
-    recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
-
-    recordedPart!.endTime = DateTime.now();
-
-    recordingPartsList.add(
-        recordedPart!
-    );
-
-    // Concat the segments into a single file.
+    // Concatenate segments and navigate to the RecordingForm.
     List<String> paths = segmentPaths;
-
     final String outputPath = await _getPath();
-
     try {
       await concatWavFiles(paths, outputPath, sampleRate, bitRate);
       recordedFilePath = outputPath;
@@ -213,9 +244,7 @@ class _LiveRecState extends State<LiveRec> {
       return;
     }
 
-    if (overallStartTime == null) {
-      return;
-    }
+    if (overallStartTime == null) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -235,17 +264,13 @@ class _LiveRecState extends State<LiveRec> {
 
   Future<String> _getPath() async {
     final dir = await getApplicationDocumentsDirectory();
-    return p.join(
-      dir.path,
-      'audio_${DateTime.now().millisecondsSinceEpoch}.wav',
-    );
+    return p.join(dir.path, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
   }
 
   @override
   Widget build(BuildContext context) {
     final halfScreen = MediaQuery.of(context).size.width * 0.15;
-    // Display total cumulative time: current segment + previous segments.
-    int displayTime = (_totalRecordedTime + _recordDuration).toInt();
+    final totalTime = _totalRecordedTime + _recordDuration;
     return ScaffoldWithBottomBar(
       appBarTitle: "Nahrávání",
       content: Column(
@@ -254,13 +279,13 @@ class _LiveRecState extends State<LiveRec> {
           const SizedBox(height: 80),
           Expanded(
             child: Container(
-              color: Colors.grey.shade300,
+              color: Colors.grey,
               width: double.infinity,
             ),
           ),
           const SizedBox(height: 40),
           Text(
-            _formatTime(displayTime),
+            _formatTime(totalTime),
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
@@ -286,7 +311,7 @@ class _LiveRecState extends State<LiveRec> {
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 20),
-          if (_recordState == RecordState.record || _recordState == RecordState.pause)
+          if (recording)
             Padding(
               padding: EdgeInsets.only(left: halfScreen),
               child: Row(
@@ -297,7 +322,6 @@ class _LiveRecState extends State<LiveRec> {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.black, width: 2),
                       backgroundColor: Colors.white,
-                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -320,17 +344,15 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   void clear() {
-    // Implement the logic to discard the recording
     setState(() {
-      _recordDuration = 0;
-      _totalRecordedTime = 0;
+      _recordDuration = Duration.zero;
+      _totalRecordedTime = Duration.zero;
       segmentPaths.clear();
       recordingPartsList.clear();
       recordingPartsTimeList.clear();
       recordedFilePath = null;
       _recordState = RecordState.stop;
     });
-    // Optionally, delete the recorded file if it exists
     if (filepath.isNotEmpty) {
       File(filepath).delete();
     }
@@ -345,17 +367,13 @@ class _LiveRecState extends State<LiveRec> {
           content: const Text('Are you sure you want to discard the current recording?'),
           actions: <Widget>[
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
-                // Implement the logic to discard the recording
                 clear();
-
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Discard'),
             ),
@@ -370,10 +388,7 @@ class _LiveRecState extends State<LiveRec> {
       logger.i('started recording');
       if (await _audioRecorder.hasPermission()) {
         const encoder = AudioEncoder.pcm16bits;
-
-        if (!await _isEncoderSupported(encoder)) {
-          return;
-        }
+        if (!await _isEncoderSupported(encoder)) return;
 
         final config = RecordConfig(
           encoder: encoder,
@@ -383,57 +398,49 @@ class _LiveRecState extends State<LiveRec> {
         );
 
         filepath = await _getPath();
-        try {
-          await _locService.checkLocationWorking();
-        }
-        catch (e){
-          rethrow;
-        }
+        await _locService.checkLocationWorking();
         overallStartTime = DateTime.now();
 
         recordedPart = RecordingPartUnready(
-          gpsLongitudeStart: _locService.lastKnownPosition?.longitude, // will return null if location is not available
+          gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
           gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
           startTime: overallStartTime,
         );
 
-        logger.i('Recording part created');
-
-        if (recordedPart!.gpsLongitudeStart == null || recordedPart!.gpsLatitudeStart == null){
-          _locService.getCurrentLocation().then((_){
+        if (recordedPart!.gpsLongitudeStart == null ||
+            recordedPart!.gpsLatitudeStart == null) {
+          _locService.getCurrentLocation().then((_) {
             recordedPart!.gpsLongitudeStart = _locService.lastKnownPosition?.longitude;
             recordedPart!.gpsLatitudeStart = _locService.lastKnownPosition?.latitude;
           });
         }
-        _recordDuration = 0;
-        _totalRecordedTime = 0;
-        _startTimer();
-        overallStartTime = DateTime.now();
+
+        _elapsedTimer.reset();
+        _elapsedTimer.start();
 
         segmentPaths.add(filepath);
-
         recordStream(_audioRecorder, config, filepath);
+        setState(() {
+          recording = true;
+        });
       }
     } catch (e, stackTrace) {
-      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      logger.e("An error has occurred $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
-  String _formatTime(int duration) {
-    final milliseconds = (duration % 10) * 10;
-    final seconds = (duration ~/ 10) % 60;
-    final minutes = (duration ~/ 600);
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')},${milliseconds.toString().padLeft(2, '0')}';
+  String _formatTime(Duration duration) {
+    final minutes = duration.inMinutes.toString().padLeft(2, '0');
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    final hundredths = ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
+    return '$minutes:$seconds,$hundredths';
   }
 
-  Future<String> recordStream(
-      AudioRecorder recorder, RecordConfig config, String filepath) async {
+  Future<String> recordStream(AudioRecorder recorder, RecordConfig config, String filepath) async {
     final file = File(filepath);
     final stream = await recorder.startStream(config);
-
     final completer = Completer<String>();
-
     stream.listen(
           (data) {
         file.writeAsBytes(data, mode: FileMode.append);
@@ -446,23 +453,21 @@ class _LiveRecState extends State<LiveRec> {
         completer.completeError(error);
       },
     );
-
     return completer.future;
   }
 
   Future<void> _pause() async {
-    _audioRecorder.stop();
+    await _audioRecorder.stop();
+    _elapsedTimer.pause();
 
-    int segmentDuration = _recordDuration.toInt();
+    int segmentDuration = _recordDuration.inSeconds;
     _totalRecordedTime += _recordDuration;
     recordingPartsTimeList.add(segmentDuration);
 
     recordedPart!.endTime = DateTime.now();
-
-    if(_locService.lastKnownPosition == null){
+    if (_locService.lastKnownPosition == null) {
       await _locService.getCurrentLocation();
     }
-
     recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
     recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
 
@@ -475,23 +480,24 @@ class _LiveRecState extends State<LiveRec> {
     await newFile.writeAsBytes(dataWithHeader);
 
     recordingPartsList.add(recordedPart!);
-
-    _recordDuration = 0;
+    setState(() {
+      _recordDuration = Duration.zero;
+    });
   }
 
-  Future<void> _resume() async{
+  Future<void> _resume() async {
     var path = await _getPath();
     setState(() {
       filepath = path;
     });
 
+    _elapsedTimer.reset();
+    _elapsedTimer.start();
+
     segmentPaths.add(path);
 
     const encoder = AudioEncoder.pcm16bits;
-
-    if (!await _isEncoderSupported(encoder)) {
-      return;
-    }
+    if (!await _isEncoderSupported(encoder)) return;
 
     final config = RecordConfig(
       encoder: encoder,
@@ -504,13 +510,14 @@ class _LiveRecState extends State<LiveRec> {
 
     recordedPart = RecordingPartUnready(
       dataBase64: null,
-      gpsLongitudeStart: _locService.lastKnownPosition?.longitude, // will return null if location is not available
+      gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
       gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
       startTime: DateTime.now(),
     );
 
-    if (recordedPart!.gpsLongitudeStart == null || recordedPart!.gpsLatitudeStart == null){
-      _locService.getCurrentLocation().then((_){
+    if (recordedPart!.gpsLongitudeStart == null ||
+        recordedPart!.gpsLatitudeStart == null) {
+      _locService.getCurrentLocation().then((_) {
         recordedPart!.gpsLongitudeStart = _locService.lastKnownPosition?.longitude;
         recordedPart!.gpsLatitudeStart = _locService.lastKnownPosition?.latitude;
       });
@@ -519,79 +526,29 @@ class _LiveRecState extends State<LiveRec> {
 
   void _updateRecordState(RecordState recordState) {
     setState(() => _recordState = recordState);
-
-    switch (recordState) {
-      case RecordState.pause:
-        _timer?.cancel();
-        break;
-      case RecordState.record:
-        _startTimer();
-        break;
-      case RecordState.stop:
-        _timer?.cancel();
-        _recordDuration = 0;
-        break;
-    }
   }
 
   Future<bool> _isEncoderSupported(AudioEncoder encoder) async {
     final isSupported = await _audioRecorder.isEncoderSupported(encoder);
-
     if (!isSupported) {
       debugPrint('${encoder.name} is not supported on this platform.');
       debugPrint('Supported encoders are:');
-
       for (final e in AudioEncoder.values) {
         if (await _audioRecorder.isEncoderSupported(e)) {
           debugPrint('- ${e.name}');
         }
       }
     }
-
     return isSupported;
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _elapsedTimer.dispose();
     _recordSub?.cancel();
     _amplitudeSub?.cancel();
     _audioRecorder.dispose();
     _locationSub?.cancel();
     super.dispose();
   }
-
-  String _formatNumber(int number) {
-    String numberStr = number.toString();
-    if (number < 10) {
-      numberStr = '0$numberStr';
-    }
-    return numberStr;
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(milliseconds: 1), (Timer t) {
-      setState(() => _recordDuration += 0.01);
-    });
-  }
-
-  // Future<void> onStop(String path) async {
-  //   final _file = File(path);
-  //   // if (!await _file.exists()) {
-  //   //   logger.e('File does not exist at path: $path');
-  //   //   return;
-  //   // }
-  //   // Uint8List data = await _file.readAsBytes();
-  //   //
-  //   // Uint8List header = createWavHeader(data.length, sampleRate, bitRate);
-  //   // final file = header + data;
-  //   // await File(path).delete();
-  //   // final newFile = await File(path).create();
-  //   // await newFile.writeAsBytes(file);
-  //   // logger.i('Recording saved to: $path');
-  //   // setState(() {
-  //   //   recordedFilePath = path;
-  //   // });
-  // }
 }
