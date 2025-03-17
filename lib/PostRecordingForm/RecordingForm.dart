@@ -165,6 +165,7 @@ class _RecordingFormState extends State<RecordingForm> {
       }
       recording.mail = JwtDecoder.decode(token!)['sub'];
       logger.i('Mail set to ${recording.mail}');
+      logger.i("current position: ${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}");
     });
 
     getDeviceModel().then((model) async{
@@ -601,12 +602,10 @@ class _RecordingFormState extends State<RecordingForm> {
 
     // Determine the map center based on available data.
     LatLng mapCenter;
-    if (_route.isNotEmpty) {
-      mapCenter = _route.last;
-    } else if (currentLocation != null) {
-      mapCenter = currentLocation!;
+    if (currentLocation != null) {
+      mapCenter = LatLng(recordingParts[0].gpsLatitudeStart, recordingParts[0].gpsLongitudeStart);
     } else {
-      mapCenter = LatLng(50.1, 14.4);
+      mapCenter = LatLng(0.0, 0.0);
     }
 
     final halfScreen = MediaQuery.of(context).size.width * 0.45;

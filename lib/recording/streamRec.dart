@@ -170,8 +170,8 @@ class _LiveRecState extends State<LiveRec> {
     final dataWithHeader = data + createHeader(data.length, sampleRate, bitRate);
     recordedPart!.dataBase64 = base64Encode(dataWithHeader);
 
-    recordedPart!.gpsLatitudeEnd = currentPosition?.latitude;
-    recordedPart!.gpsLongitudeEnd = currentPosition?.longitude;
+    recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
+    recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
 
     recordedPart!.endTime = DateTime.now();
 
