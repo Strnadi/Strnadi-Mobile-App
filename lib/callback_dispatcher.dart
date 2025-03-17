@@ -28,9 +28,9 @@ void callbackDispatcher() {
       if (recording != null) {
         if(recording.sending) return Future.value(false);
         recording.sending = true;
-        await DatabaseNew.updateRecording(recording);
+        DatabaseNew.updateRecording(recording);
         // Retrieve parts – assuming BEId is set for recordings that are ready to send
-        List<RecordingPart> parts = DatabaseNew.getPartsById(recording.id ?? 0);
+        List<RecordingPart> parts = DatabaseNew.getPartsById(recording.BEId ?? 0);
         try {
           await DatabaseNew.sendRecording(recording, parts);
           logger.i("Recording $recordingId uploaded successfully in background");

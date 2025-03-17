@@ -72,6 +72,7 @@ class _LoginState extends State<Login> {
           'password': _passwordController.text,
         }),
       );
+
       if (response.statusCode == 200 || response.statusCode == 202) {
         await const FlutterSecureStorage()
             .write(key: 'token', value: response.body);
