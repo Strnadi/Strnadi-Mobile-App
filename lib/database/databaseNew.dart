@@ -288,21 +288,20 @@ class RecordingPart {
     return RecordingPart(
       BEId: json['id'] as int?,
       recordingId: recordingId,
-      startTime: DateTime.parse(json['start'] as String),
-      endTime: DateTime.parse(json['end'] as String),
+      startTime: DateTime.parse(json['startTime'] as String),
+      endTime: DateTime.parse(json['endTime'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
       gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
+      dataBase64: json['dataBase64'] as String?,
       square: json['square'] as String?,
       sent: true
     );
   }
 
   factory RecordingPart.fromUnready(RecordingPartUnready unready) {
-    if (unready.id == null ||
-        unready.recordingId == null ||
-        unready.startTime == null ||
+    if (unready.startTime == null ||
         unready.endTime == null ||
         unready.gpsLatitudeStart == null ||
         unready.gpsLatitudeEnd == null ||
@@ -331,8 +330,8 @@ class RecordingPart {
     return {
       'id': BEId,
       'recordingId': recordingId,
-      'startDate': startTime.toIso8601String(),
-      'endDate': endTime.toIso8601String(),
+      'startTime': startTime.toIso8601String(),
+      'endTime': endTime.toIso8601String(),
       'gpsLatitudeStart': gpsLatitudeStart,
       'gpsLatitudeEnd': gpsLatitudeEnd,
       'gpsLongitudeStart': gpsLongitudeStart,
@@ -352,6 +351,7 @@ class RecordingPart {
       'gpsLatitudeEnd': gpsLatitudeEnd,
       'gpsLongitudeStart': gpsLongitudeStart,
       'gpsLongitudeEnd': gpsLongitudeEnd,
+      'dataBase64': dataBase64,
       'square': square,
       'sent': sent ? 1 : 0,
     };
@@ -739,6 +739,7 @@ class DatabaseNew {
         gpsLatitudeEnd REAL,
         gpsLongitudeStart REAL,
         gpsLongitudeEnd REAL,
+        dataBase64 TEXT,
         square TEXT,
         sent INTEGER,
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
