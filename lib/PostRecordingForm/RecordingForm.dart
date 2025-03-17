@@ -71,6 +71,8 @@ class _RecordingFormState extends State<RecordingForm> {
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
 
+  final ValueNotifier<LatLng?> markerNotifier = ValueNotifier(null);
+
   double currentPos = 0.0;
 
   List<File> _selectedImages = [];
@@ -515,24 +517,27 @@ class _RecordingFormState extends State<RecordingForm> {
   // New method to handle each new position update
   void _onNewPosition(Position position) {
     final newPoint = LatLng(position.latitude, position.longitude);
-    setState(() {
-      markerPosition = newPoint;
-      currentLocation = newPoint;
-      if (_route.isEmpty) {
-        _route.add(newPoint);
-      } else {
-        final distance = Distance().distance(_route.last, newPoint);
-        if (distance > 10) {
-          if (_lastRouteUpdate == null ||
-              DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
-            _lastRouteUpdate = DateTime.now();
-            _route.add(newPoint);
-          } else {
+    final now = DateTime.now();
+    if (_lastRouteUpdate == null || now.difference(_lastRouteUpdate!) > const Duration(seconds: 5)) {
+      _lastRouteUpdate = now;
+      setState(() {
+        currentLocation = newPoint;
+        if (_route.isEmpty) {
+          _route.add(newPoint);
+        } else {
+          final distance = Distance().distance(_route.last, newPoint);
+          if (distance > 10) {
             _route.add(newPoint);
           }
         }
-      }
-    });
+      });
+    } else {
+      setState(() {
+        currentLocation = newPoint;
+      });
+    }
+    // Update the marker asynchronously without rebuilding the whole map
+    markerNotifier.value = newPoint;
   }
 
   void seekRelative(int seconds) {
@@ -638,76 +643,12 @@ class _RecordingFormState extends State<RecordingForm> {
                 ),
               ),
             const SizedBox(height: 50),
-            SizedBox(
-              height: 200,
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    options: MapOptions(
-                      initialCenter: mapCenter,
-                      initialZoom: 13.0,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                        'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                        userAgentPackageName: 'cz.delta.strnadi',
-                      ),
-                      if (_route.isNotEmpty)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: List.from(_route),
-                              strokeWidth: 4.0,
-                              color: Colors.blue,
-                            ),
-                          ],
-                        ),
-                      MarkerLayer(
-                        markers: [
-                          if (markerPosition != null)
-                            Marker(
-                              width: 20.0,
-                              height: 20.0,
-                              point: markerPosition!,
-                              child: const Icon(
-                                Icons.my_location,
-                                color: Colors.blue,
-                                size: 30.0,
-                              ),
-                            ),
-                          // Place markers for all recording parts
-                          ...recordingParts.map(
-                                (part) => Marker(
-                              width: 20.0,
-                              height: 20.0,
-                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                                size: 30.0,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  if (_route.isEmpty &&
-                      currentLocation == null)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black45,
-                        child: const Center(
-                          child: Text(
-                            "Error: Location not recorded",
-                            style: TextStyle(color: Colors.red, fontSize: 16),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+            MapDisplay(
+              route: _route,
+              markerNotifier: markerNotifier,
+              currentLocation: currentLocation,
+              mapCenter: mapCenter,
+              mapApiKey: MAPY_CZ_API_KEY,
             ),
             const SizedBox(height: 20),
             Form(
@@ -786,11 +727,11 @@ class _RecordingFormState extends State<RecordingForm> {
                             width: halfScreen,
                             child: ElevatedButton(
                               style: ButtonStyle(
-                                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                                   RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10.0),
                                   ),
-                                ),
+                              ),
                               ),
                               onPressed: () {
                                 spectogramKey = GlobalKey();
@@ -823,3 +764,104 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 }
+
+class MapDisplay extends StatefulWidget {
+  final List<LatLng> route;
+  final ValueNotifier<LatLng?> markerNotifier;
+  final LatLng? currentLocation;
+  final LatLng mapCenter;
+  final String mapApiKey;
+
+  const MapDisplay({
+    Key? key,
+    required this.route,
+    required this.markerNotifier,
+    required this.currentLocation,
+    required this.mapCenter,
+    required this.mapApiKey,
+  }) : super(key: key);
+
+  @override
+  _MapDisplayState createState() => _MapDisplayState();
+}
+
+class _MapDisplayState extends State<MapDisplay> {
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 200,
+      child: Stack(
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: widget.mapCenter,
+              initialZoom: 13.0,
+              onMapReady: () {
+                setState(() {
+                  _mapReady = true;
+                });
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${widget.mapApiKey}',
+                userAgentPackageName: 'cz.delta.strnadi',
+              ),
+              if (widget.route.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: List.from(widget.route),
+                      strokeWidth: 4.0,
+                      color: Colors.blue,
+                    ),
+                  ],
+                ),
+              ValueListenableBuilder<LatLng?>(
+                valueListenable: widget.markerNotifier,
+                builder: (context, marker, child) {
+                  return MarkerLayer(
+                    markers: marker != null
+                        ? [
+                            Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: marker,
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 30.0,
+                              ),
+                            )
+                          ]
+                        : [],
+                  );
+                },
+              ),
+            ],
+          ),
+          if (!_mapReady)
+            Positioned.fill(
+              child: Container(
+                color: Colors.white.withOpacity(0.7),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          if (widget.route.isEmpty && widget.currentLocation == null)
+            const Positioned.fill(
+              child: Center(
+                child: Text(
+                  "Error: Location not recorded",
+                  style: TextStyle(color: Colors.red, fontSize: 16),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+  bool _mapReady = false;
