@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -164,6 +165,10 @@ class _LiveRecState extends State<LiveRec> {
     int segmentDuration = _recordDuration.toInt();
     _totalRecordedTime += _recordDuration;
     recordingPartsTimeList.add(segmentDuration);
+
+    Uint8List data = await File(filepath).readAsBytes();
+    final dataWithHeader = data + createHeader(data.length, sampleRate, bitRate);
+    recordedPart!.dataBase64 = base64Encode(dataWithHeader);
 
     recordingPartsList.add(
       recordedPart!
@@ -425,6 +430,9 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.endTime = DateTime.now();
     recordedPart!.gpsLongitudeEnd = currentPosition?.longitude;
     recordedPart!.gpsLatitudeEnd = currentPosition?.latitude;
+    Uint8List data = await File(filepath).readAsBytes();
+    final dataWithHeader = data + createHeader(data.length, sampleRate, bitRate);
+    recordedPart!.dataBase64 = base64Encode(dataWithHeader);
 
     recordingPartsList.add(recordedPart!);
 
