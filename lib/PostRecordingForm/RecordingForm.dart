@@ -173,7 +173,7 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i('Device set to ${recording.device}');
     });
 
-    insertRecordingWhenReady();
+    // insertRecordingWhenReady();
   }
 
   void _showDialectSelectionDialog() {
@@ -262,19 +262,6 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
-  Future<void> insertRecordingWhenReady() async{
-    while(recording.mail == "" || recording.device == ""){
-      await Future.delayed(Duration(seconds: 1));
-      logger.i('Waiting for recording to be ready');
-    }
-    logger.i('Started inserting recording');
-    recording.downloaded = true;
-    recording.id = await DatabaseNew.insertRecording(recording);
-    setState(() {
-      _recordingId = recording.id;
-    });
-    logger.i('ID set to $_recordingId');
-  }
 
   void _onImagesSelected(List<File> images) {
     setState(() {
