@@ -31,6 +31,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart'; // Import our location service
+import 'package:strnadi/recording/waw.dart';
 
 final logger = Logger();
 
@@ -161,14 +162,28 @@ class _LiveRecState extends State<LiveRec> {
   /// Stop function: Add the final segment duration to the cumulative total,
   /// then pass the overall time and per-segment data to the RecordingForm.
   Future<void> _stop() async {
+
+    try {
+      await _audioRecorder.stop();
+      await onStop(filepath);
+    } catch (e, stackTrace) {
+      logger.e("Error stopping recorder or processing file: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      return;
+    }
+
     // Add the current segment duration to total if any.
     int segmentDuration = _recordDuration.toInt();
     _totalRecordedTime += _recordDuration;
     recordingPartsTimeList.add(segmentDuration);
 
     Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = data + createHeader(data.length, sampleRate, bitRate);
+    final dataWithHeader = data + createWavHeader(data.length, sampleRate, bitRate);
     recordedPart!.dataBase64 = base64Encode(dataWithHeader);
+
+    File(filepath).deleteSync();
+    File(filepath).createSync();
+    File(filepath).writeAsBytesSync(dataWithHeader);
 
     recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
     recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
@@ -176,14 +191,19 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.endTime = DateTime.now();
 
     recordingPartsList.add(
-      recordedPart!
+        recordedPart!
     );
 
+    // Concat the segments into a single file.
+    List<String> paths = segmentPaths;
+
+    final String outputPath = await _getPath();
+
     try {
-      await _audioRecorder.stop();
-      await onStop(filepath);
+      await concatWavFiles(paths, outputPath, sampleRate, 16);
+      recordedFilePath = outputPath;
     } catch (e, stackTrace) {
-      logger.e("Error stopping recorder or processing file: $e", error: e, stackTrace: stackTrace);
+      logger.e("Error concatenating files: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       return;
     }
@@ -197,7 +217,7 @@ class _LiveRecState extends State<LiveRec> {
         builder: (context) => Scaffold(
           appBar: AppBar(title: const Text("Recording Form")),
           body: RecordingForm(
-            filepath: filepath,
+            filepath: outputPath,
             startTime: overallStartTime!,
             currentPosition: currentPosition,
             recordingParts: recordingPartsList,
@@ -385,10 +405,9 @@ class _LiveRecState extends State<LiveRec> {
         _startTimer();
         overallStartTime = DateTime.now();
 
-        var path = await recordStream(_audioRecorder, config, filepath);
-        setState(() {
-          filepath = path;
-        });
+        segmentPaths.add(filepath);
+
+        recordStream(_audioRecorder, config, filepath);
       }
     } catch (e, stackTrace) {
       logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
@@ -427,7 +446,7 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> _pause() async {
-    _audioRecorder.pause();
+    _audioRecorder.stop();
 
     int segmentDuration = _recordDuration.toInt();
     _totalRecordedTime += _recordDuration;
@@ -437,8 +456,12 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.gpsLongitudeEnd = currentPosition?.longitude;
     recordedPart!.gpsLatitudeEnd = currentPosition?.latitude;
     Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = data + createHeader(data.length, sampleRate, bitRate);
+    final dataWithHeader = data + createWavHeader(data.length, sampleRate, bitRate);
     recordedPart!.dataBase64 = base64Encode(dataWithHeader);
+
+    File(filepath).deleteSync();
+    File(filepath).createSync();
+    File(filepath).writeAsBytesSync(dataWithHeader);
 
     recordingPartsList.add(recordedPart!);
 
@@ -446,12 +469,27 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> _resume() async{
-    await _audioRecorder.resume();
-
     var path = await _getPath();
     setState(() {
       filepath = path;
     });
+
+    segmentPaths.add(path);
+
+    const encoder = AudioEncoder.pcm16bits;
+
+    if (!await _isEncoderSupported(encoder)) {
+      return;
+    }
+
+    final config = RecordConfig(
+      encoder: encoder,
+      numChannels: 1,
+      sampleRate: sampleRate,
+      bitRate: bitRate,
+    );
+
+    recordStream(_audioRecorder, config, filepath);
 
     recordedPart = RecordingPartUnready(
       dataBase64: null,
@@ -535,7 +573,7 @@ class _LiveRecState extends State<LiveRec> {
     }
     Uint8List data = await _file.readAsBytes();
 
-    Uint8List header = createHeader(data.length, sampleRate, bitRate);
+    Uint8List header = createWavHeader(data.length, sampleRate, bitRate);
     final file = header + data;
     await File(path).delete();
     final newFile = await File(path).create();
@@ -544,32 +582,5 @@ class _LiveRecState extends State<LiveRec> {
     setState(() {
       recordedFilePath = path;
     });
-  }
-
-  Uint8List createHeader(int dataSize, int sampleRate, int bitRate) {
-    int channels = 1;
-    int bitDepth = 16;
-    int byteRate = sampleRate * channels * bitDepth ~/ 8;
-    int blockAlign = channels * bitDepth ~/ 8;
-    int chunkSize = 36 + dataSize;
-
-    Uint8List header = Uint8List(44);
-    ByteData bd = ByteData.sublistView(header);
-
-    header.setRange(0, 4, [82, 73, 70, 70]);
-    bd.setUint32(4, chunkSize, Endian.little);
-    header.setRange(8, 12, [87, 65, 86, 69]);
-    header.setRange(12, 16, [102, 109, 116, 32]);
-    bd.setUint32(16, 16, Endian.little);
-    bd.setUint16(20, 1, Endian.little);
-    bd.setUint16(22, channels, Endian.little);
-    bd.setUint32(24, sampleRate, Endian.little);
-    bd.setUint32(28, byteRate, Endian.little);
-    bd.setUint16(32, blockAlign, Endian.little);
-    bd.setUint16(34, bitDepth, Endian.little);
-    header.setRange(36, 40, [100, 97, 116, 97]);
-    bd.setUint32(40, dataSize, Endian.little);
-
-    return header;
   }
 }
