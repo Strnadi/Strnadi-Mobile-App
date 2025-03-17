@@ -21,8 +21,11 @@ int findDataOffset(Uint8List bytes) {
 
 /// Creates a new WAV header for the given total data size.
 /// You can modify this function to extract more information from the original header if needed.
-Uint8List createWavHeader(int dataSize, int sampleRate, int bitDepth) {
+Uint8List createWavHeader(int dataSize, int sampleRate, int bitRate) {
   int channels = 1;
+  // Calculate the bit depth (bits per sample) from the bit rate.
+  // For PCM WAV, bitRate = sampleRate * channels * bitDepth.
+  int bitDepth = bitRate ~/ (sampleRate * channels);
   int byteRate = sampleRate * channels * bitDepth ~/ 8;
   int blockAlign = channels * bitDepth ~/ 8;
   int chunkSize = 36 + dataSize;
@@ -54,7 +57,7 @@ Uint8List createWavHeader(int dataSize, int sampleRate, int bitDepth) {
 
 /// Concatenates WAV files by automatically determining where the audio data begins.
 Future<void> concatWavFiles(
-    List<String> filePaths, String outputPath, int sampleRate, int bitDepth) async {
+    List<String> filePaths, String outputPath, int sampleRate, int bitRate) async {
   if (filePaths.isEmpty) return;
 
   // Process the first file.
@@ -73,7 +76,7 @@ Future<void> concatWavFiles(
   }
 
   // Option 1: Use a custom header creation function.
-  Uint8List newHeader = createWavHeader(concatenatedData.length, sampleRate, bitDepth);
+  Uint8List newHeader = createWavHeader(concatenatedData.length, sampleRate, bitRate);
   // Option 2: Or, if you want to preserve some fields from the first header,
   // you could merge them programmatically.
 

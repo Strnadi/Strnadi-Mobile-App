@@ -308,6 +308,7 @@ class RecordingPart {
         unready.gpsLongitudeStart == null ||
         unready.gpsLongitudeEnd == null ||
         unready.dataBase64 == null) {
+      logger.i('Recording part is not ready. Part id: ${unready.id}, recording id: ${unready.recordingId}, start time: ${unready.startTime}, end time: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, dataBase64: ${unready.dataBase64}');
       throw UnreadyException('Recording part is not ready');
     }
 

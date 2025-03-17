@@ -134,6 +134,14 @@ class _RecordingFormState extends State<RecordingForm> {
       });
     });
 
+    // Listen for the player state to detect when playback is completed.
+    _audioPlayer.playerStateStream.listen((playerState) {
+      if (playerState.processingState == ProcessingState.completed) {
+        // Loop back to the beginning and pause.
+        _audioPlayer.seek(Duration.zero);
+        _audioPlayer.pause();
+      }
+    });
 
     _audioPlayer.setFilePath(widget.filepath);
     super.initState();
@@ -607,6 +615,8 @@ class _RecordingFormState extends State<RecordingForm> {
     } else {
       mapCenter = LatLng(0.0, 0.0);
     }
+
+    markerPosition = locationService.lastKnownPosition != null ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude) : null;
 
     final halfScreen = MediaQuery.of(context).size.width * 0.45;
 
