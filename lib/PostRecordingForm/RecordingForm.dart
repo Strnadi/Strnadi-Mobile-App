@@ -370,6 +370,7 @@ class _RecordingFormState extends State<RecordingForm> {
           trimmedAudioParts[i].gpsLatitudeEnd = locationService.lastKnownPosition?.latitude;
         }
         final part = RecordingPart.fromUnready(trimmedAudioParts[i]);
+        logger.i("Part $i has been converted to RecordingPart");
         part.id = await DatabaseNew.insertRecordingPart(part);
         partsReady.add(part);
       }
@@ -447,9 +448,10 @@ class _RecordingFormState extends State<RecordingForm> {
   Future<void> upload() async {
     logger.i("Estimated birds count: ${_strnadiCountController.toInt()}");
 
-    recording.note = _commentController.text == ''? null : _commentController.text;
-    recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
+    recording.note = _commentController.text == '' ? null : _commentController.text;
+    recording.name = _recordingNameController.text == '' ? null : _recordingNameController.text;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
+    // TODO fix this error
     DatabaseNew.insertRecording(recording);
 
     if (!await hasInternetAccess()) {
@@ -466,6 +468,7 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
+    spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     /*
     try {
