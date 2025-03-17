@@ -30,6 +30,7 @@ import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/main.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:strnadi/recording/waw.dart';
 
 final logger = Logger();
 
@@ -288,8 +289,8 @@ class RecordingPart {
     return RecordingPart(
       BEId: json['id'] as int?,
       recordingId: recordingId,
-      startTime: DateTime.parse(json['startTime'] as String),
-      endTime: DateTime.parse(json['endTime'] as String),
+      startTime: DateTime.parse(json['start'] as String),
+      endTime: DateTime.parse(json['end'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
@@ -331,8 +332,8 @@ class RecordingPart {
     return {
       'id': BEId,
       'recordingId': recordingId,
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
+      'startDate': startTime.toIso8601String(),
+      'endDate': endTime.toIso8601String(),
       'gpsLatitudeStart': gpsLatitudeStart,
       'gpsLatitudeEnd': gpsLatitudeEnd,
       'gpsLongitudeStart': gpsLongitudeStart,
@@ -675,7 +676,7 @@ class DatabaseNew {
       return;
     }
 
-    throw UnimplementedError(); //TODO: Wait for stasik to implement this
+    throw UnimplementedError(); //TODO: Finish the downloadRecording method
 
     Recording recording = recordings.firstWhere((element) => element.id == id);
 
@@ -686,7 +687,11 @@ class DatabaseNew {
     Uri url = Uri(
         scheme: 'https',
         host: 'api.strnadi.cz',
-        path: '/recordings/${recording.BEId}/download');
+        path: '/recordings/${recording.BEId}',
+        queryParameters: {
+          'parts': 'true',
+          'sound': 'true',
+        });
 
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
@@ -699,11 +704,34 @@ class DatabaseNew {
     });
     if (response.statusCode == 200) {
       Directory tempDir = await getApplicationDocumentsDirectory();
-      File file = File('${tempDir.path}/recording_${recording.BEId}.wav');
-      file.writeAsBytesSync(response.bodyBytes);
-      recording.path = file.path;
+      List<RecordingPart> parts = List<RecordingPart>.generate(
+          jsonDecode(response.body)['parts'].length, (partIndex) {
+        return RecordingPart.fromBEJson(
+            jsonDecode(response.body)['parts'][partIndex], recording.BEId!);
+      });
+
+      List<String> paths = List<String>.empty(growable: true);
+      for (RecordingPart part in parts) {
+        part.dataBase64 = jsonDecode(response.body)['parts'][parts.indexOf(part)]['dataBase64'];
+        //part.square = jsonDecode(response.body)['parts'][parts.indexOf(part)]['square'];
+        part.sent = true;
+        await updateRecordingPart(part);
+
+        //Write it into a file
+        String path = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+        File file = File(path);
+        await file.writeAsBytes(base64Decode(part.dataBase64!));
+        paths.add(path);
+      }
+
+      String outputPath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+
+      await concatWavFiles(paths, outputPath, 44100, 44100*16);
+
+      recording.path = outputPath;
       recording.downloaded = true;
       updateRecording(recording);
+      logger.i('downloaded recording id: $id');
     } else {
       throw FetchException('Failed to download recording', response.statusCode);
     }
