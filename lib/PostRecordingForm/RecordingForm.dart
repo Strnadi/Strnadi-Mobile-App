@@ -98,6 +98,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   DateTime? _lastRouteUpdate;
 
+  List<RecordingPart> recordingParts = List<RecordingPart>.empty(growable: true);
+
   @override
   void initState() {
 
@@ -163,6 +165,7 @@ class _RecordingFormState extends State<RecordingForm> {
       }
       recording.mail = JwtDecoder.decode(token!)['sub'];
       logger.i('Mail set to ${recording.mail}');
+      logger.i("current position: ${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}");
     });
 
     getDeviceModel().then((model) async{
@@ -173,7 +176,12 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i('Device set to ${recording.device}');
     });
 
-    // insertRecordingWhenReady();
+    widget.recordingParts.forEach((part){
+      RecordingPart newPart = RecordingPart.fromUnready(part);
+      recordingParts.add(newPart);
+    });
+
+    //insertRecordingWhenReady();
   }
 
   void _showDialectSelectionDialog() {
@@ -262,6 +270,19 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
+  Future<void> insertRecordingWhenReady() async{
+    while(recording.mail == "" || recording.device == ""){
+      await Future.delayed(Duration(seconds: 1));
+      logger.i('Waiting for recording to be ready');
+    }
+    logger.i('Started inserting recording');
+    recording.downloaded = true;
+    recording.id = await DatabaseNew.insertRecording(recording);
+    setState(() {
+      _recordingId = recording.id;
+    });
+    logger.i('ID set to $_recordingId');
+  }
 
   void _onImagesSelected(List<File> images) {
     setState(() {
@@ -292,6 +313,7 @@ class _RecordingFormState extends State<RecordingForm> {
     }
   }
 
+  /*
   Future<void> uploadAudio(File audioFile, int id) async {
     List<RecordingPartUnready> trimmedAudioParts = await DatabaseNew.trimAudio(
       widget.filepath,
@@ -413,6 +435,8 @@ class _RecordingFormState extends State<RecordingForm> {
      */
   }
 
+   */
+
   void togglePlay() async {
 
     if (_audioPlayer.playing) {
@@ -434,14 +458,20 @@ class _RecordingFormState extends State<RecordingForm> {
 
     recording.note = _commentController.text == ''? null : _commentController.text;
     recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
+    recording.downloaded = true;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
-    DatabaseNew.insertRecording(recording);
+    _recordingId = await DatabaseNew.insertRecording(recording);
 
     if (!await hasInternetAccess()) {
       logger.w("No internet connection");
       _showMessage("No internet connection");
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => LiveRec()));
+    }
+
+    for (RecordingPart part in recordingParts) {
+      part.recordingId = _recordingId;
+      await DatabaseNew.insertRecordingPart(part);
     }
 
     try {
@@ -542,29 +572,40 @@ class _RecordingFormState extends State<RecordingForm> {
   Widget build(BuildContext context) {
     // Use the last known position as the current location if available
     currentLocation = locationService.lastKnownPosition;
-
+    /*
     if(_recordingId == null){
       return Center(
         child: CircularProgressIndicator(),
       );
     }
-    List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
+     */
+    //List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
 
     if(recordingParts.isNotEmpty){
-      recordingParts.forEach((part){
-        _route.add(LatLng(part.gpsLongitudeStart, part.gpsLatitudeStart));
-        _route.add(LatLng(part.gpsLongitudeEnd, part.gpsLatitudeEnd));
-      });
+      for (var part in recordingParts) {
+        if(part.gpsLongitudeStart == null || part.gpsLatitudeStart == null){
+          logger.w('Part ${part.id} has null start latitude or longitude');
+          part.gpsLongitudeStart = 0;
+          part.gpsLatitudeStart = 0;
+          continue;
+        }
+        if (part.gpsLongitudeEnd == null || part.gpsLatitudeEnd == null) {
+          logger.w('Part ${part.id} has null end latitude or longitude');
+          part.gpsLongitudeEnd = 0;
+          part.gpsLatitudeEnd = 0;
+          continue;
+        }
+        _route.add(LatLng(part.gpsLongitudeStart!, part.gpsLatitudeStart!));
+        _route.add(LatLng(part.gpsLongitudeEnd!, part.gpsLatitudeEnd!));
+      }
     }
 
     // Determine the map center based on available data.
     LatLng mapCenter;
-    if (_route.isNotEmpty) {
-      mapCenter = _route.last;
-    } else if (currentLocation != null) {
-      mapCenter = currentLocation!;
+    if (currentLocation != null) {
+      mapCenter = LatLng(recordingParts[0].gpsLatitudeStart, recordingParts[0].gpsLongitudeStart);
     } else {
-      mapCenter = LatLng(50.1, 14.4);
+      mapCenter = LatLng(0.0, 0.0);
     }
 
     final halfScreen = MediaQuery.of(context).size.width * 0.45;
@@ -669,7 +710,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 (part) => Marker(
                               width: 20.0,
                               height: 20.0,
-                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
+                              point: LatLng(part.gpsLatitudeEnd!, part.gpsLongitudeEnd!),
                               child: const Icon(
                                 Icons.location_on,
                                 color: Colors.red,
