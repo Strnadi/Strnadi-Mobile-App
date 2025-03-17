@@ -15,7 +15,17 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/home.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:strnadi/auth/registeration/mail.dart';
+import 'package:strnadi/recording/streamRec.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/firebase/firebase.dart' as firebase;
+import 'package:strnadi/database/databaseNew.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:strnadi/auth/login.dart';
+import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
 
 enum AuthType { login, register }
 
@@ -33,48 +43,246 @@ class Authorizator extends StatefulWidget {
   State<Authorizator> createState() => _AuthState();
 }
 
-class _AuthState extends State<Authorizator> {
-  AuthType authType = AuthType.login;
-
-  void isLoggedIn() {
-    // Check if user is logged in
-    final secureStorage = FlutterSecureStorage();
-    final token = secureStorage.read(key: 'jwt');
-    if (token != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
+Future<bool> isLoggedIn() async {
+  final secureStorage = FlutterSecureStorage();
+  final token = await secureStorage.read(key: 'token');
+  if (token != null) {
+    final Uri url = Uri.parse('https://api.strnadi.cz/auth/verify-jwt')
+        .replace(queryParameters: {'jwt': token});
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      Sentry.captureException(error);
+      return false;
     }
+  }
+  return false;
+}
+
+class _AuthState extends State<Authorizator> {
+  @override
+  void initState() {
+    super.initState();
+    checkLoggedIn(); // token check if needed
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      spacing: 20,
-      children: [
-        SegmentedButton<AuthType>(
-          segments: const <ButtonSegment<AuthType>>[
-            ButtonSegment<AuthType>(
-                value: AuthType.login,
-                label: Text('Login'),
-                icon: Icon(Icons.key)),
-            ButtonSegment<AuthType>(
-                value: AuthType.register,
-                label: Text('Register'),
-                icon: Icon(Icons.account_circle_rounded)),
-          ],
-          selected: <AuthType>{authType},
-          onSelectionChanged: (Set<AuthType> newSelection) {
-            setState(() {
-              authType = newSelection.first;
-            });
-          },
+    // Example color definitions
+    const Color textColor = Color(0xFF2D2B18);
+    const Color yellow = Color(0xFFFFD641);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          // Ensures scroll if the screen is too short on small devices
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              children: [
+                // Spacing from the top
+                const SizedBox(height: 40),
+
+                // Bird image
+                Image.asset(
+                  'assets/images/ncs_logo_tall_large.png', // Update path if needed
+                  width: 200,
+                  height: 200,
+                ),
+
+                const SizedBox(height: 32),
+
+                // Main title
+                const Text(
+                  'Nářečí českých strnadů',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Subtitle
+                const Text(
+                  'Nahrávejte, mapujte, dobývejte',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: textColor,
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // "Založit účet" button (yellow background, no elevation)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RegMail()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0, // No elevation
+                      shadowColor: Colors.transparent, // Remove shadow
+                      backgroundColor: yellow,
+                      foregroundColor: textColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Založit účet', style: TextStyle(color: textColor),),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // "Přihlásit se" button (outlined)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const Login()));
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: textColor,
+                      side: BorderSide(color: Colors.grey[200]!, width: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Přihlásit se', style: TextStyle(color: textColor)),
+                  ),
+                ),
+
+                // Add some space to ensure the bottom disclaimer isn't too close
+                const SizedBox(height: 60),
+              ],
+            ),
+          ),
         ),
-        Center(
-          child: authType == AuthType.login ? widget.login : widget.register,
-        )
-      ],
+      ),
+      // Disclaimer pinned at bottom
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'pokračováním souhlasíte se zásadami',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.black),
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => _launchURL(),
+                child: const Text(
+                  'ochrany osobních údajů.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  Future<void> checkLoggedIn() async {
+    final secureStorage = FlutterSecureStorage();
+    if (await isLoggedIn()) {
+      String? token = await secureStorage.read(key: 'token');
+      if (token == null) return;
+
+      String email = JwtDecoder.decode(token)['sub'];
+      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email')
+          .replace(queryParameters: {'jwt': token});
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      secureStorage.write(key: 'user', value: data['firstName']);
+      secureStorage.write(key: 'lastname', value: data['lastName']);
+
+      DatabaseNew.syncRecordings();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LiveRec()),
+      );
+    } else {
+      // If there is a token but user is not logged in (invalid token),
+      // remove it and show message.
+      if (await secureStorage.read(key: 'token') != null) {
+        _showMessage("Byli jste odhlášeni");
+        secureStorage.delete(key: 'token');
+        secureStorage.delete(key: 'user');
+        secureStorage.delete(key: 'lastname');
+        firebase.deleteToken();
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchURL() async {
+    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
+    if (!await launchUrl(url)) {
+      throw Exception('Could not launch $url');
+    }
   }
 }

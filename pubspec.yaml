@@ -16,17 +16,21 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.1+10
 
 environment:
-  sdk: ^3.6.0
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.3.0"
+
 
 license: "GPL-3.0-or-later"
 
-flutter_icons:
-  image_path: "images/icon.png"
+flutter_launcher_icons:
   android: true
   ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#FFFFFF"         # Could be a color or an image
+  adaptive_icon_foreground: "assets/images/logo.png"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -38,25 +42,52 @@ dependencies:
   flutter:
     sdk: flutter
 
-
+  firebase_core: ^3.12.1
+  firebase_messaging: ^15.2.4
+  ffi: ^2.0.0
   audioplayers: ^6.1.0
-  record: any
+  record: ^5.2.0
   path_provider: any
-  flutter_map: ^5.0.0
-  latlong2: ^0.9.0
+  flutter_map: ^7.0.0
+  latlong2: ^0.9.1
   permission_handler: any
   geolocator: ^13.0.2
   audio_waveforms: ^1.2.0
   file_picker: any
   http: ^1.0.0
   flutter_secure_storage: ^8.0.0
-  device_info_plus: any
+  device_info_plus: ^11.3.0
   intl: ^0.18.0
+  sqflite: any
+  connectivity_plus: any
+  ffmpeg_kit_flutter: ^6.0.3
+  logger: ^2.0.0
+  sentry_flutter: ^8.14.0
+  sentry_logging: ^8.14.0
+  scidart: any
+  fftea: any
+  flutter_plot: any
+  just_audio: ^0.9.46
+  wav: any
+  webview_flutter: ^4.10.0
+  flutter_map_location_marker: ^9.1.1
+  shared_preferences: ^2.0.8
+  flutter_spinbox: any
+  image_picker: ^0.8.6  # Check for the latest version_
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  google_api_availability: ^5.0.1
+  flutter_local_notifications: ^18.0.1
+  package_info_plus: ^8.3.0
+  version: ^3.0.2
+  url_launcher: ^6.3.1
+  jwt_decoder: ^2.0.1
+  workmanager: ^0.5.2
+
 
 dev_dependencies:
+  sentry_dart_plugin: ^2.4.1
   flutter_test:
     sdk: flutter
 
@@ -74,7 +105,14 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
-    - lib/map/dummy.json
+    - assets/images/
+    - lib/archived/dummy.json
+    - assets/images/default.jpg
+    - assets/databaseScheme.sql
+    - assets/
+    - assets/config.json
+    - assets/secrets.json
+    - assets/icons/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -110,3 +148,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: strnadi
+  org: delta-strnadi
