@@ -1,3 +1,4 @@
+// lib/bottomBar.dart
 /*
  * Copyright (C) 2024 Marian Pecqueur
  * This program is free software: you can redistribute it and/or modify
@@ -6,7 +7,6 @@
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
@@ -15,46 +15,66 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:strnadi/home.dart';
-import 'package:strnadi/map/map.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/localRecordings/recList.dart';
+import 'package:strnadi/archived/map.dart';
+import 'package:strnadi/map/mapv2.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart';
+
+import 'main.dart';
+import 'notificationPage/notifList.dart';
+import 'user/userPage.dart';
+
 
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
   final Widget content;
+  final VoidCallback? logout;
+  final allawArrowBack;
 
   const ScaffoldWithBottomBar({
     Key? key,
+
     required this.appBarTitle,
     required this.content,
+    this.logout,
+    this.allawArrowBack = false,
   }) : super(key: key);
+
+  void Logout(BuildContext context) {
+    final localStorage = const FlutterSecureStorage();
+    localStorage.delete(key: 'token');
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => MyApp()),
+      (route) => false, // Remove all previous routes
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(appBarTitle),
+        title: Center(child: Text(appBarTitle)),
+        backgroundColor: Colors.white,
+        actions: [
+          if (logout != null)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () {
+                Logout(context);
+              },
+            ),
+        ],
+        automaticallyImplyLeading: allawArrowBack,
       ),
-      body: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height - kToolbarHeight - kBottomNavigationBarHeight,
-        ),
+      backgroundColor: Colors.white,
+      body: SizedBox(
+        height: MediaQuery.of(context).size.height -
+            kToolbarHeight -
+            kBottomNavigationBarHeight,
         child: content,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (appBarTitle == 'Recording Screen') {
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => RecorderWithSpectogram()),
-          );
-        },
-        child: const Icon(
-          Icons.mic,
-          size: 30,
-        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: const ReusableBottomAppBar(),
@@ -68,6 +88,7 @@ class ReusableBottomAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
+      color: Colors.white,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,
       padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -75,30 +96,75 @@ class ReusableBottomAppBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.home),
+            icon: const Icon(Icons.map),
             iconSize: 30.0,
             onPressed: () {
-              if (ModalRoute.of(context)?.settings.name != '/home') {
-                Navigator.push(
+              if (ModalRoute.of(context)?.settings.name != '/map') {
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => HomePage(),
-                    settings: const RouteSettings(name: '/home'),
+                    builder: (_) => MapScreenV2(),
+                    settings: const RouteSettings(name: '/map'),
                   ),
                 );
               }
             },
           ),
           IconButton(
-            icon: const Icon(Icons.map),
+            icon: const Icon(Icons.menu),
             iconSize: 30.0,
             onPressed: () {
-              if (ModalRoute.of(context)?.settings.name != '/map') {
-                Navigator.push(
+              if (ModalRoute.of(context)?.settings.name != '/list') {
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OSMmap(),
-                    settings: const RouteSettings(name: '/map'),
+                    builder: (_) => RecordingScreen(),
+                    settings: const RouteSettings(name: '/list'),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.mic),
+            iconSize: 30.0,
+            onPressed: () {
+              if (ModalRoute.of(context)?.settings.name != '/Recorder') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LiveRec(),
+                    settings: const RouteSettings(name: '/Recorder'),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.inbox_outlined),
+            iconSize: 30.0,
+            onPressed: () {
+              if (ModalRoute.of(context)?.settings.name != '/notification') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NotificationScreen(),
+                    settings: const RouteSettings(name: '/notification'),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            iconSize: 30.0,
+            onPressed: () {
+              if (ModalRoute.of(context)?.settings.name != '/user') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserPage(),
+                    settings: const RouteSettings(name: '/user'),
                   ),
                 );
               }

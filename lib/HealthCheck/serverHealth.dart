@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2024 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -15,6 +15,9 @@
  */
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class ServerHealth extends StatefulWidget {
   const ServerHealth({Key? key}) : super(key: key);
@@ -27,16 +30,17 @@ class _ServerHealthState extends State<ServerHealth> {
   bool _isServerHealthy = false;
 
   void checkServerHealth() async {
-    final url = Uri.parse('https://strnadiapi.slavetraders.tech/utils/health');
+    final url = Uri.parse('https://api.strnadi.cz/utils/health');
 
     try {
-      final response = await http.get(url);
+      final response = await http.head(url);
       if (response.statusCode == 200) {
         setState(() {
           _isServerHealthy = true;
         });
       }
     } catch (e) {
+      logger.e(e);
       print(e);
     }
   }
@@ -52,8 +56,14 @@ class _ServerHealthState extends State<ServerHealth> {
     return SizedBox(
       child: Center(
         child: _isServerHealthy
-            ? const Text('Server is healthy', style: TextStyle(color: Colors.green),)
-            : const Text('Server is down', style: TextStyle(color: Colors.red),),
+            ? const Text(
+                'Server is healthy',
+                style: TextStyle(color: Colors.green),
+              )
+            : const Text(
+                'Server is down',
+                style: TextStyle(color: Colors.red),
+              ),
       ),
     );
   }

@@ -24,12 +24,54 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>77.236.222.115</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>api.strnadi.cz</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Not implemented yet</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need access to your location to provide a better experience.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need access to your location to provide a better experience.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Add your own description</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>For future use when app will be able to upload photos of birds</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+        <string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>sendRecording</string>
+    </array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -47,29 +89,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-    <string>We need access to your location to provide a better experience.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>For future use when app will be able to upload photos of birds</string>
-    <key>ITSAppUsesNonExemptEncryption</key>
-    <false/>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>We need access to your location to provide a better experience.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>Not implemented yet</string>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSExceptionDomains</key>
-        <dict>
-            <key>strnadiapi.slavetraders.tech</key>
-            <dict>
-                <key>NSIncludesSubdomains</key>
-                <true/>
-                <key>NSExceptionAllowsInsecureHTTPLoads</key>
-                <false/>
-                <!-- Adjust settings if your server doesn't meet ATS requirements -->
-            </dict>
-        </dict>
-    </dict>
 </dict>
 </plist>

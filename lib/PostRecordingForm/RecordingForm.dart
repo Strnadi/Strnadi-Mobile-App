@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 [Your Name]
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,62 +14,53 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:io';
-
-import 'package:strnadi/database/soundDatabase.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
+import 'package:just_audio/just_audio.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
-import 'package:strnadi/bottomBar.dart';
-import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:intl/intl.dart';
-import 'package:strnadi/home.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sqflite/sqlite_api.dart';
+import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:strnadi/recording/recorderWithSpectogram.dart';
-import 'package:strnadi/database/soundDatabase.dart';
+import 'package:logger/logger.dart';
+import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/widgets/spectogram_painter.dart';
+import 'package:strnadi/archived/recordingsDb.dart';
+import '../config/config.dart';
+import '../archived/soundDatabase.dart';
+import 'package:strnadi/locationService.dart' as loc;
+import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/auth/authorizator.dart' as auth;
 
-import '../AudioSpectogram/editor.dart';
+import 'addDialect.dart';
 
-class Recording {
-  final DateTime createdAt;
-  final int estimatedBirdsCount;
-  final String device;
-  final bool byApp;
-  final String? note;
-
-  Recording({
-    required this.createdAt,
-    required this.estimatedBirdsCount,
-    required this.device,
-    required this.byApp,
-    this.note,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      "CreatedAt": createdAt.toIso8601String(),
-      "EstimatedBirdsCount": estimatedBirdsCount,
-      "Device": device,
-      "ByApp": byApp,
-      "Note": note,
-    };
-  }
-}
+final MAPY_CZ_API_KEY = Config.mapsApiKey;
+final logger = Logger();
 
 class RecordingForm extends StatefulWidget {
   final String filepath;
   final LatLng? currentPosition;
-  final List<RecordingParts> recordingParts;
-  final DateTime StartTime;
+  final List<RecordingPartUnready> recordingParts;
+  final DateTime startTime;
   final List<int> recordingPartsTimeList;
 
-  const RecordingForm(
-      {Key? key, required this.filepath, required this.StartTime, required this.currentPosition, required this.recordingParts, required this.recordingPartsTimeList})
-      : super(key: key);
+
+  const RecordingForm({
+    Key? key,
+    required this.filepath,
+    required this.startTime,
+    required this.currentPosition,
+    required this.recordingParts,
+    required this.recordingPartsTimeList,
+  }) : super(key: key);
 
   @override
   _RecordingFormState createState() => _RecordingFormState();
@@ -79,135 +70,409 @@ class _RecordingFormState extends State<RecordingForm> {
   final _recordingNameController = TextEditingController();
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
-  int? _recordingId = null;
+
+  double currentPos = 0.0;
+
+  List<File> _selectedImages = [];
+
+  Widget? spectogram;
+
+  List<DialectModel> dialectSegments = [];
+
+  final _audioPlayer = AudioPlayer();
+  Duration currentPosition = Duration.zero;
+  Duration totalDuration = Duration.zero;
+  bool isPlaying = false;
+
+  late Recording recording;
+  int? _recordingId;
+
+  // List to store the user's route (all recorded locations)
+  final List<LatLng> _route = [];
+  late Stream<Position> _positionStream;
+
+  late loc.LocationService locationService;
+
+  LatLng? currentLocation;
+  LatLng? markerPosition;
+
+  DateTime? _lastRouteUpdate;
+
+  @override
+  void initState() {
+
+    setState(() {
+      spectogram = LiveSpectogram.SpectogramLive(
+        key: spectogramKey,
+        data: [],
+        filepath: widget.filepath,
+        getCurrentPosition: (pos) {
+          setState(() {
+            currentPos = pos;
+          });
+        },
+      );
+    });
+
+    _audioPlayer.positionStream.listen((position) {
+      setState(() {
+        currentPosition = position;
+      });
+    });
+
+    _audioPlayer.durationStream.listen((duration) {
+      setState(() {
+        totalDuration = duration ?? Duration.zero;
+      });
+    });
+
+    _audioPlayer.playingStream.listen((playing) {
+      setState(() {
+        isPlaying = playing;
+      });
+    });
 
 
-  Future<bool> hasInternetAccess() async {
-      try {
-        final result = await InternetAddress.lookup('google.com');
-        return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-      } on SocketException catch (_) {
-        return false;
+    _audioPlayer.setFilePath(widget.filepath);
+    super.initState();
+    locationService = loc.LocationService();
+    _positionStream = locationService.positionStream;
+    markerPosition = null;
+    // Subscribe to the position stream once using the dedicated method
+    _positionStream.listen((Position position) {
+      _onNewPosition(position);
+    });
+
+    final safeStorage = FlutterSecureStorage();
+
+    recording = Recording(
+      createdAt: DateTime.now(),
+      mail: "",
+      estimatedBirdsCount: _strnadiCountController.toInt(),
+      device: "",
+      byApp: true,
+      note: _commentController.text,
+    );
+
+    safeStorage.read(key: 'token').then((token) async{
+      if(token == null){
+        _showMessage('You are not logged in');
       }
+      while(recording == null){
+        await Future.delayed(Duration(seconds: 1));
+      }
+      recording.mail = JwtDecoder.decode(token!)['sub'];
+      logger.i('Mail set to ${recording.mail}');
+    });
+
+    getDeviceModel().then((model) async{
+      while (recording == null){
+        await Future.delayed(Duration(seconds: 1));
+      }
+      recording.device = model;
+      logger.i('Device set to ${recording.device}');
+    });
+
+    insertRecordingWhenReady();
+  }
+
+  void _showDialectSelectionDialog() {
+
+    var position = spectogramKey.currentState!.currentPositionPx;
+
+    var spect = spectogram;
+
+    setState(() {
+      spectogram = null;
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) => DialectSelectionDialog(
+        spectogram: spect!,
+        currentPosition: position,
+        duration: totalDuration.inSeconds.toDouble(),
+        onDialectAdded: (dialect) {
+          setState(() {
+            dialectSegments.add(dialect);
+            spectogram = spect;
+          });
+        },
+      ),
+    );
+  }
+
+  String _formatTimestamp(double seconds) {
+    int mins = (seconds ~/ 60);
+    int secs = (seconds % 60).floor();
+    int ms = ((seconds - seconds.floor()) * 100).floor();
+
+    return "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}.${ms.toString().padLeft(2, '0')}";
+  }
+
+  // Widget to display dialect segment in timeline
+  Widget _buildDialectSegment(DialectModel dialect) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              "${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}",
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ),
+          SizedBox(width: 8),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: dialect.color,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.grey.shade400),
+            ),
+            child: Text(
+              dialect.label,
+              style: TextStyle(
+                fontSize: 14,
+                color: dialect.color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                dialectSegments.remove(dialect);
+              });
+            },
+            child: Icon(
+              Icons.delete_outline,
+              color: Colors.red.shade300,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> insertRecordingWhenReady() async{
+    while(recording.mail == "" || recording.device == ""){
+      await Future.delayed(Duration(seconds: 1));
+      logger.i('Waiting for recording to be ready');
+    }
+    logger.i('Started inserting recording');
+    recording.downloaded = true;
+    recording.id = await DatabaseNew.insertRecording(recording);
+    setState(() {
+      _recordingId = recording.id;
+    });
+    logger.i('ID set to $_recordingId');
+  }
+
+  void _onImagesSelected(List<File> images) {
+    setState(() {
+      _selectedImages = images;
+    });
   }
 
 
+  Future<bool> hasInternetAccess() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
 
   Future<String> getDeviceModel() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-
     if (Platform.isAndroid) {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.model; // e.g., "Pixel 6"
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.model;
     } else if (Platform.isIOS) {
-      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.utsname.machine; // e.g., "iPhone14,2"
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.utsname.machine;
     } else {
       return "Unknown Device";
     }
   }
 
-
-
   Future<void> uploadAudio(File audioFile, int id) async {
+    List<RecordingPartUnready> trimmedAudioParts = await DatabaseNew.trimAudio(
+      widget.filepath,
+      widget.recordingPartsTimeList,
+      widget.recordingParts,
+    );
 
-    // extract this to a method and trim it and than in a for call the upload
-    var trimmedAudo = await DatabaseHelper.trimAudio(widget.filepath, widget.recordingPartsTimeList, widget.recordingParts);
+    List<RecordingPart> partsReady = List<RecordingPart>.empty(growable: true);
 
-    final uploadPart =
-    Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload-part');
+    logger.i('Recording: ${recording.id} has been sent');
 
-    var safeStorage = FlutterSecureStorage();
+    int cumulativeSeconds = 0;
+    for (int i = 0; i < trimmedAudioParts.length; i++) {
+      if (trimmedAudioParts[i].dataBase64?.isEmpty ?? false) {
+        logger.w(
+            "Trimmed audio segment $i has data; skipping upload for this segment.");
+        continue;
+      }
+      final base64Audio = trimmedAudioParts[i].dataBase64;
+      int segmentDuration = widget.recordingPartsTimeList[i];
+      final segmentStart = widget.startTime.add(
+          Duration(seconds: cumulativeSeconds));
+      final segmentEnd = segmentStart.add(Duration(seconds: segmentDuration));
+      cumulativeSeconds += segmentDuration;
+      try {
+        trimmedAudioParts[i].recordingId = id;
+        trimmedAudioParts[i].startTime = segmentStart;
+        trimmedAudioParts[i].endTime = segmentEnd;
+        if(trimmedAudioParts[i].gpsLatitudeStart == null || trimmedAudioParts[i].gpsLongitudeStart == null){
+          throw InvalidPartException("Part ${trimmedAudioParts[i].id} has null start latitude or longitude", trimmedAudioParts[i].id??-1);
+        }
+        if(trimmedAudioParts[i].gpsLongitudeEnd == null || trimmedAudioParts[i].gpsLatitudeEnd == null){
+          logger.w('Part ${trimmedAudioParts[i].id} has null end latitude or longitude');
+          if(locationService.lastKnownPosition == null){
+            try {
+              await locationService.checkLocationWorking();
+            }
+            catch (e, stackTrace){
+              if(e is LocationException) {
+                if (!e.permission) {
+                  logger.w("Error while getting location permissions: $e", error: e, stackTrace: stackTrace);
+                  _showMessage(
+                      'Lokace musí být povolena pro správné fungování aplikace');
+                  Navigator.pop(context);
+                }
+                if(!e.enabled){
+                  logger.w("Error while getting location permissions: $e", error: e, stackTrace: stackTrace);
+                  _showMessage(
+                      'Lokace musí být zapnuta pro správné fungování aplikace');
+                  while(!await locationService.isLocationEnabled()){
+                    await Future.delayed(Duration(seconds: 1));
+                    _showMessage('Lokace musí být zapnuta pro správné fungování aplikace');
+                  }
+                }
+              }
+              continue;
+            }
+            await locationService.getCurrentLocation();
+          }
+          trimmedAudioParts[i].gpsLongitudeEnd = locationService.lastKnownPosition?.longitude;
+          trimmedAudioParts[i].gpsLatitudeEnd = locationService.lastKnownPosition?.latitude;
+        }
+        final part = RecordingPart.fromUnready(trimmedAudioParts[i]);
+        part.id = await DatabaseNew.insertRecordingPart(part);
+        partsReady.add(part);
+      }
+      catch(e, stackTrace){
+        logger.e("Error while converting RecordingPartUnready to RecordingPart: $e", error: e, stackTrace: stackTrace);
+        if(e is InvalidPartException){
+          _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (corrupted metadata)');
+        }
+        else {
+          _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (unknown error)');
+        }
+        Sentry.captureException(e, stackTrace: stackTrace);
+        continue;
+      }
+    }
 
-    var token = await safeStorage.read(key: "token");
-
-    for (int i = 0; i < trimmedAudo.length - 1; i++) {
-
-      List<int> fileBytes = await audioFile.readAsBytes();
-
-      String base64Audio = base64Encode(fileBytes);
-
+    await DatabaseNew.sendRecordingBackground(recording.id!);
+      /*
       try {
         final response = await http.post(
           uploadPart,
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
           },
           body: jsonEncode({
-            'jwt': token,
             'RecordingId': id,
-            "Start": widget.StartTime.toIso8601String(),
-            "End": widget.StartTime.add(Duration(seconds: widget.recordingPartsTimeList[i])).toIso8601String(),
-            "LatitudeStart": widget.recordingParts[i].latitude,
-            "LongitudeStart": widget.recordingParts[i].longtitute,
-            "LatitudeEnd": widget.recordingParts[i].latitude,
-            "LongitudeEnd": widget.recordingParts[i].longtitute,
-            "data": base64Audio
+            "Start": segmentStart.toIso8601String(),
+            "End": segmentEnd.toIso8601String(),
+            "LatitudeStart": trimmedAudioParts[i].latitude,
+            "LongitudeStart": trimmedAudioParts[i].longitude,
+            "LatitudeEnd": trimmedAudioParts[i].latitude,
+            "LongitudeEnd": trimmedAudioParts[i].longitude,
+            "data": base64Audio,
           }),
         );
 
-        if (response.statusCode == 200) {
-          print('upload was successful');
-          _showMessage("upload was successful");
-          Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
+        if (response.statusCode == 200 ||
+            response.statusCode == 201 ||
+            response.statusCode == 202) {
+          logger.i('Upload was successful for segment $i');
+          _showMessage("Upload was successful for segment $i");
         } else {
-          print('Error: ${response.statusCode} ${response.body}');
-          _showMessage("upload was not successful");
+          logger.w('Error: ${response.statusCode} ${response.body}');
+          _showMessage("Upload was not successful for segment $i");
         }
       } catch (error) {
-        _showMessage("failed to upload ${error}");
+        logger.e(error);
+        _showMessage("Failed to upload segment $i: $error");
       }
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => LiveRec()),
+    );
+     */
+  }
+
+  void togglePlay() async {
+
+    if (_audioPlayer.playing) {
+      await _audioPlayer.pause();
+    } else {
+      await _audioPlayer.play();
     }
   }
 
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
 
+  Future<void> upload() async {
+    logger.i("Estimated birds count: ${_strnadiCountController.toInt()}");
 
-  void Upload() async {
+    recording.note = _commentController.text == ''? null : _commentController.text;
+    recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
+    recording.estimatedBirdsCount = _strnadiCountController.toInt();
+    DatabaseNew.insertRecording(recording);
 
-    var platform = await getDeviceModel();
-
-    print("estimated birds count: ${_strnadiCountController.toInt()}");
-    final rec = Recording(
-        createdAt: DateTime.timestamp(),
-        estimatedBirdsCount: _strnadiCountController.toInt(),
-        device: platform,
-        byApp: true,
-        note: _commentController.text
-    );
-
-    if (await hasInternetAccess() == false) {
-      _showMessage('No internet connection');
-      insertSound(
-          widget.filepath,
-          rec.estimatedBirdsCount as String,
-          rec.createdAt as double,
-          rec.note as double,
-          widget.currentPosition!.latitude as int,
-          widget.currentPosition!.longitude as String
-      );
+    if (!await hasInternetAccess()) {
+      logger.w("No internet connection");
+      _showMessage("No internet connection");
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
 
-    final recordingSign =
-        Uri.parse('https://strnadiapi.slavetraders.tech/recordings/upload');
-    final safeStorage = FlutterSecureStorage();
-
-
-
-    var token = await safeStorage.read(key: 'token');
-
-
-    print('token $token');
-
-    print(jsonEncode({
-      'token': token,
-      'Recording': rec.toJson(),
-    }));
-
+    try {
+      await DatabaseNew.sendRecordingBackground(recording.id!);
+    }
+    catch(e, stackTrace){
+      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
+    spectogramKey = GlobalKey();
+    Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+    /*
     try {
       final response = await http.post(
-        recordingSign,
+        recordingUrl,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
           'jwt': token,
@@ -217,36 +482,240 @@ class _RecordingFormState extends State<RecordingForm> {
           "Note": rec.note,
         }),
       );
-
       if (response.statusCode == 200 || response.statusCode == 202) {
         final data = jsonDecode(response.body);
-        print(data);
         _recordingId = data;
         uploadAudio(File(widget.filepath), _recordingId!);
-
+        logger.i(widget.filepath);
+        LocalDb.UpdateStatus(widget.filepath);
       } else {
-        print('Error: ${response.statusCode} ${response.body}');
+        logger.w(response);
+        Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       }
     } catch (error) {
-      print('An error occurred: $error');
+      logger.e(error);
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
     }
+    LocalDb.insertRecording(
+      rec,
+      _recordingNameController.text,
+      0,
+      widget.filepath,
+      widget.currentPosition?.latitude ?? 0,
+      widget.currentPosition?.longitude ?? 0,
+      widget.recordingParts,
+      widget.recordingPartsTimeList,
+      widget.startTime,
+      _recordingId ?? -1,
+    );
+    logger.i("inserted into local db");
+  }
+  */
+  }
+
+  // New method to handle each new position update
+  void _onNewPosition(Position position) {
+    final newPoint = LatLng(position.latitude, position.longitude);
+    setState(() {
+      markerPosition = newPoint;
+      currentLocation = newPoint;
+      if (_route.isEmpty) {
+        _route.add(newPoint);
+      } else {
+        final distance = Distance().distance(_route.last, newPoint);
+        if (distance > 10) {
+          if (_lastRouteUpdate == null ||
+              DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
+            _lastRouteUpdate = DateTime.now();
+            _route.add(newPoint);
+          } else {
+            _route.add(newPoint);
+          }
+        }
+      }
+    });
+  }
+
+  void seekRelative(int seconds) {
+    final newPosition = currentPosition + Duration(seconds: seconds);
+    _audioPlayer.seek(newPosition);
+  }
+
+  @override
+  void dispose() {
+    if (spectogramKey.currentState != null) {
+      spectogramKey.currentState!.dispose();
+    }
+    _recordingNameController.dispose();
+    _commentController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Use the last known position as the current location if available
+    currentLocation = locationService.lastKnownPosition;
+
+    if(_recordingId == null){
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
+
+    if(recordingParts.isNotEmpty){
+      recordingParts.forEach((part){
+        _route.add(LatLng(part.gpsLongitudeStart, part.gpsLatitudeStart));
+        _route.add(LatLng(part.gpsLongitudeEnd, part.gpsLatitudeEnd));
+      });
+    }
+
+    // Determine the map center based on available data.
+    LatLng mapCenter;
+    if (_route.isNotEmpty) {
+      mapCenter = _route.last;
+    } else if (currentLocation != null) {
+      mapCenter = currentLocation!;
+    } else {
+      mapCenter = LatLng(50.1, 14.4);
+    }
+
+    final halfScreen = MediaQuery.of(context).size.width * 0.45;
+
     return SingleChildScrollView(
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            SizedBox(
+              height: 300,
+              width: double.infinity,
+              child: spectogram,
+            ),
+            Text(_formatDuration(totalDuration), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold) ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.replay_10, size: 32),
+                  onPressed: () => seekRelative(-10),
+                ),
+                IconButton(
+                  icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                  iconSize: 72,
+                  onPressed: togglePlay,
+                ),
+                IconButton(
+                  icon: Icon(Icons.forward_10, size: 32),
+                  onPressed: () => seekRelative(10),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.add),
+                label: Text('Přidat dialekt'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFFFF7C0),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onPressed: _showDialectSelectionDialog,
+              ),
+            ),
+
+            // Display dialect segments if any
+            if (dialectSegments.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                ),
+              ),
             const SizedBox(height: 50),
+            SizedBox(
+              height: 200,
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: mapCenter,
+                      initialZoom: 13.0,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                        'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                        userAgentPackageName: 'cz.delta.strnadi',
+                      ),
+                      if (_route.isNotEmpty)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: List.from(_route),
+                              strokeWidth: 4.0,
+                              color: Colors.blue,
+                            ),
+                          ],
+                        ),
+                      MarkerLayer(
+                        markers: [
+                          if (markerPosition != null)
+                            Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: markerPosition!,
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 30.0,
+                              ),
+                            ),
+                          // Place markers for all recording parts
+                          ...recordingParts.map(
+                                (part) => Marker(
+                              width: 20.0,
+                              height: 20.0,
+                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                                size: 30.0,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (_route.isEmpty &&
+                      currentLocation == null)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black45,
+                        child: const Center(
+                          child: Text(
+                            "Error: Location not recorded",
+                            style: TextStyle(color: Colors.red, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             Form(
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     TextFormField(
                       controller: _recordingNameController,
@@ -291,54 +760,51 @@ class _RecordingFormState extends State<RecordingForm> {
                         });
                       },
                     ),
-                    // if location is null request the location from the user
-                    SizedBox(
-                      height: 200,
-                      child: FlutterMap(
-                        options: MapOptions(
-                          center: widget.currentPosition,
-                          zoom: 13.0,
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.navratKrale.app',
-                          ),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                width: 20.0,
-                                height: 20.0,
-                                point: widget.currentPosition!,
-                                builder: (ctx) => Icon(
-                                  Icons.my_location,
-                                  color: Colors.blue,
-                                  size: 30.0,
+                    MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: SizedBox(
+                            width: halfScreen,
+                            child: ElevatedButton(
+                              style: ButtonStyle(
+                                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ButtonStyle(
-                            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
+                              onPressed: upload,
+                              child: const Text('Submit'),
                             ),
                           ),
-                          onPressed: Upload,
-                          child: const Text('Submit'),
-
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: SizedBox(
+                            width: halfScreen,
+                            child: ElevatedButton(
+                              style: ButtonStyle(
+                                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                ),
+                              ),
+                              onPressed: () {
+                                spectogramKey = GlobalKey();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => LiveRec()),
+                                );
+                              },
+                              child: const Text('Discard'),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -351,8 +817,10 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void _showMessage(String s) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(s),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(s),
+      ),
+    );
   }
 }

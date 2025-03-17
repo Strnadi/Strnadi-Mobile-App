@@ -1,10 +1,1 @@
-add the database work when offline
-
-trim tha audio and make the data right 
-(each metadato for each part - a list of not only split time but the whole metadata shit)
-
-fix the audio trim to stop the recording 
-
-Add the scrollable elemnt to the login
-
-Email the testflight link to do the external testing
+Add the bottom bar side icon with method to be passed in (filter at the local recs, logout etc)

@@ -48,3 +48,8 @@ app.*.map.json
 ios/Podfile.lock
 
 pubspec.lock
+
+assets/secrets.json
+sentry.properties
+
+android/gradle.properties
