@@ -19,7 +19,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/archived/map.dart';
 import 'package:strnadi/map/mapv2.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart';
 
 import 'main.dart';

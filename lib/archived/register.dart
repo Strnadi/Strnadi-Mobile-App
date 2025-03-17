@@ -21,7 +21,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});

@@ -15,7 +15,7 @@
  */
 import 'dart:async';
 import 'dart:io';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+//import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -808,68 +808,6 @@ class DatabaseNew {
     }
     return messages;
     // TODO add the notification retrieval
-  }
-
-  static Future<List<RecordingPartUnready>> trimAudio(
-    String audioPath,
-    List<int> stopTimesInMilliseconds,
-    List<RecordingPartUnready> recordingParts,
-  ) async {
-    Directory tempDir = await getApplicationDocumentsDirectory();
-
-    // Convert stop times from milliseconds to Duration and sort them.
-    List<Duration> stopTimes =
-        stopTimesInMilliseconds.map((t) => Duration(milliseconds: t)).toList();
-    stopTimes.sort((a, b) => a.inMilliseconds.compareTo(b.inMilliseconds));
-
-    Duration start = Duration.zero;
-    List<RecordingPartUnready> trimmedParts = [];
-
-    for (int i = 0; i < stopTimes.length; i++) {
-      Duration end = stopTimes[i];
-      // Updated output file extension to .wav
-      String outputPath = '${tempDir.path}/trimmed_part_$i.wav';
-
-      // Calculate the duration of this segment with fractional seconds.
-      double segmentDurationSec = (end - start).inMilliseconds / 1000.0;
-
-      // If segment duration is zero or negative, skip this segment.
-      if (segmentDurationSec <= 0) {
-        print("Segment $i duration is zero or negative, skipping.");
-        continue;
-      }
-
-      // Calculate start time in seconds (with fractional precision)
-      double startSec = start.inMilliseconds / 1000.0;
-
-      // Updated FFmpeg command to output WAV file using PCM 16-bit little-endian encoding.
-      String command =
-          '-y -i "$audioPath" -ss ${startSec.toStringAsFixed(2)} -t ${segmentDurationSec.toStringAsFixed(2)} -c:a pcm_s16le "$outputPath"';
-      print("Executing FFmpeg command: $command");
-
-      await FFmpegKit.execute(command);
-
-      // Check if the trimmed file was successfully created.
-      String savedPath = File(outputPath).existsSync() ? outputPath : "";
-      if (savedPath.isEmpty) {
-        print("Trimmed file not created: $outputPath");
-      }
-
-      // Use the corresponding recording part for location info if available,
-      // otherwise create a default one.
-      RecordingPartUnready part;
-      if (i < recordingParts.length) {
-        part = recordingParts[i];
-      } else {
-        throw InvalidPartException('part $i is invalid', i);
-      }
-      part.dataBase64 = base64Encode(File(savedPath).readAsBytesSync());
-      trimmedParts.add(part);
-
-      start = end;
-    }
-
-    return trimmedParts;
   }
 
   static Future<Recording?> getRecordingFromDbById(int recordingId) async {

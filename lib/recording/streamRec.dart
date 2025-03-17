@@ -25,7 +25,7 @@ import 'package:record/record.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -184,6 +184,10 @@ class _LiveRecState extends State<LiveRec> {
     await File(filepath).delete();
     File newFile = await File(filepath).create();
     await newFile.writeAsBytes(dataWithHeader);
+
+    if(_locService.lastKnownPosition == null){
+      await _locService.getCurrentLocation();
+    }
 
     recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
     recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
@@ -454,6 +458,11 @@ class _LiveRecState extends State<LiveRec> {
     recordingPartsTimeList.add(segmentDuration);
 
     recordedPart!.endTime = DateTime.now();
+
+    if(_locService.lastKnownPosition == null){
+      await _locService.getCurrentLocation();
+    }
+
     recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
     recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
 

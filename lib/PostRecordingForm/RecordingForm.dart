@@ -28,7 +28,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sqflite/sqlite_api.dart';
 import 'package:strnadi/PostRecordingForm/imageUpload.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
