@@ -203,9 +203,6 @@ class Recording {
     if (identical(this, other)) return true;
     if (other is! Recording) return false;
     bool equal = true;
-    if (this.BEId != null && other.BEId != null) {
-      equal = equal && this.BEId == other.BEId;
-    }
     if (this.mail != null && other.mail != null) {
       equal = equal && this.mail == other.mail;
     }
@@ -432,12 +429,16 @@ class DatabaseNew {
       await insertRecording(recording);
     }
 
-    List<RecordingPart> newRecordingParts =
-        List<RecordingPart>.empty(growable: true);
-    newRecordings.forEach((recording) {
-      newRecordingParts.addAll(fetchedRecordingParts!
-          .where((part) => part.recordingId == recording.BEId));
-    });
+    List<RecordingPart> newRecordingParts = fetchedRecordingParts!;
+
+    List<RecordingPart> oldRecordingParts = await getRecordingParts();
+    for (RecordingPart newRecordingPart in fetchedRecordingParts!) {
+      for (RecordingPart oldRecordingPart in oldRecordingParts){
+        if(newRecordingPart==oldRecordingPart){
+          newRecordingParts.remove(newRecordingPart);
+        }
+      }
+    }
 
     for (RecordingPart recordingPart in newRecordingParts) {
       recordingPart.sent = true;
@@ -609,8 +610,6 @@ class DatabaseNew {
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
     // Fetch recordings from backend
-
-
 
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
