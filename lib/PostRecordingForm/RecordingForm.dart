@@ -173,7 +173,6 @@ class _RecordingFormState extends State<RecordingForm> {
       }
       recording.mail = JwtDecoder.decode(token!)['sub'];
       logger.i('Mail set to ${recording.mail}');
-      logger.i("current position: ${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}");
     });
 
     getDeviceModel().then((model) async{
