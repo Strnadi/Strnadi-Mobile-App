@@ -165,7 +165,7 @@ class _LiveRecState extends State<LiveRec> {
 
     try {
       await _audioRecorder.stop();
-      await onStop(filepath);
+      //await onStop(filepath);
     } catch (e, stackTrace) {
       logger.e("Error stopping recorder or processing file: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -178,12 +178,12 @@ class _LiveRecState extends State<LiveRec> {
     recordingPartsTimeList.add(segmentDuration);
 
     Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = data + createWavHeader(data.length, sampleRate, bitRate);
+    final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
     recordedPart!.dataBase64 = base64Encode(dataWithHeader);
 
-    File(filepath).deleteSync();
-    File(filepath).createSync();
-    File(filepath).writeAsBytesSync(dataWithHeader);
+    await File(filepath).delete();
+    File newFile = await File(filepath).create();
+    await newFile.writeAsBytes(dataWithHeader);
 
     recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
     recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
@@ -200,8 +200,9 @@ class _LiveRecState extends State<LiveRec> {
     final String outputPath = await _getPath();
 
     try {
-      await concatWavFiles(paths, outputPath, sampleRate, 16);
+      await concatWavFiles(paths, outputPath, sampleRate, bitRate);
       recordedFilePath = outputPath;
+      logger.i('Recording saved to: $outputPath');
     } catch (e, stackTrace) {
       logger.e("Error concatenating files: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -217,7 +218,7 @@ class _LiveRecState extends State<LiveRec> {
         builder: (context) => Scaffold(
           appBar: AppBar(title: const Text("Recording Form")),
           body: RecordingForm(
-            filepath: outputPath,
+            filepath: recordedFilePath!,
             startTime: overallStartTime!,
             currentPosition: currentPosition,
             recordingParts: recordingPartsList,
@@ -453,15 +454,16 @@ class _LiveRecState extends State<LiveRec> {
     recordingPartsTimeList.add(segmentDuration);
 
     recordedPart!.endTime = DateTime.now();
-    recordedPart!.gpsLongitudeEnd = currentPosition?.longitude;
-    recordedPart!.gpsLatitudeEnd = currentPosition?.latitude;
+    recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
+    recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
+
     Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = data + createWavHeader(data.length, sampleRate, bitRate);
+    final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
     recordedPart!.dataBase64 = base64Encode(dataWithHeader);
 
-    File(filepath).deleteSync();
-    File(filepath).createSync();
-    File(filepath).writeAsBytesSync(dataWithHeader);
+    await File(filepath).delete();
+    File newFile = await File(filepath).create();
+    await newFile.writeAsBytes(dataWithHeader);
 
     recordingPartsList.add(recordedPart!);
 
@@ -565,22 +567,22 @@ class _LiveRecState extends State<LiveRec> {
     });
   }
 
-  Future<void> onStop(String path) async {
-    final _file = File(path);
-    if (!await _file.exists()) {
-      logger.e('File does not exist at path: $path');
-      return;
-    }
-    Uint8List data = await _file.readAsBytes();
-
-    Uint8List header = createWavHeader(data.length, sampleRate, bitRate);
-    final file = header + data;
-    await File(path).delete();
-    final newFile = await File(path).create();
-    await newFile.writeAsBytes(file);
-    logger.i('Recording saved to: $path');
-    setState(() {
-      recordedFilePath = path;
-    });
-  }
+  // Future<void> onStop(String path) async {
+  //   final _file = File(path);
+  //   // if (!await _file.exists()) {
+  //   //   logger.e('File does not exist at path: $path');
+  //   //   return;
+  //   // }
+  //   // Uint8List data = await _file.readAsBytes();
+  //   //
+  //   // Uint8List header = createWavHeader(data.length, sampleRate, bitRate);
+  //   // final file = header + data;
+  //   // await File(path).delete();
+  //   // final newFile = await File(path).create();
+  //   // await newFile.writeAsBytes(file);
+  //   // logger.i('Recording saved to: $path');
+  //   // setState(() {
+  //   //   recordedFilePath = path;
+  //   // });
+  // }
 }
