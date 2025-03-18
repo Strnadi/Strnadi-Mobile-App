@@ -288,8 +288,8 @@ class RecordingPart {
     return RecordingPart(
       BEId: json['id'] as int?,
       recordingId: recordingId,
-      startTime: DateTime.parse(json['startDate'] as String),
-      endTime: DateTime.parse(json['endDate'] as String),
+      startTime: DateTime.parse(json['start'] as String),
+      endTime: DateTime.parse(json['end'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
