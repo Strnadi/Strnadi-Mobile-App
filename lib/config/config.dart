@@ -32,4 +32,17 @@ class Config {
     }
     return _config!["mapy.cz-key"];
   }
+
+  static String get firebaseProjectId{
+    if (_config == null) {
+      throw Exception("Config not loaded. Call loadConfig() first.");
+    }
+    return _config!["firebase-project-id"];
+  }
+  static String get firebaseServiceAccountJson{
+    if (_config == null) {
+      throw Exception("Config not loaded. Call loadConfig() first.");
+    }
+    return _config!["firebase-service-account-json"];
+  }
 }

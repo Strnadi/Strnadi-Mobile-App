@@ -96,7 +96,7 @@ Future<void> main() async {
   // Initialize workmanager with our callback.
   Workmanager().initialize(
     callbackDispatcher, // The top-level function
-    isInDebugMode: true, // Set this to false for production
+    isInDebugMode: kDebugMode, // Set this to false for production
   );
 
   await SentryFlutter.init(

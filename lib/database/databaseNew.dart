@@ -166,9 +166,9 @@ class Recording {
       device: json['device'] as String?,
       byApp: json['byApp'] as bool,
       note: json['note'] as String?,
+      name: json['name'] as String?,
       sent: true,
       downloaded: false,
-      name: null,
       path: null,
       sending: false,
     );
@@ -294,8 +294,8 @@ class RecordingPart {
     return RecordingPart(
       BEId: json['id'] as int?,
       recordingId: recordingId,
-      startTime: DateTime.parse(json['start'] as String),
-      endTime: DateTime.parse(json['end'] as String),
+      startTime: DateTime.parse(json['startDate'] as String),
+      endTime: DateTime.parse(json['endDate'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
@@ -568,9 +568,7 @@ class DatabaseNew {
     logger.i('Uploading recording part (BEId: ${recordingPart.BEId}) with data length: ${recordingPart.dataBase64?.length}');
     final Map<String, Object?> jsonBody = recordingPart.toBEJson();
     final http.Response response = await http.post(
-      Uri(scheme: 'https',
-          host: 'api.strnadi.cz',
-          path: '/recordings/upload-part'),
+      Uri(scheme: 'https', host: 'api.strnadi.cz', path: '/recordings/upload-part'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
@@ -787,6 +785,19 @@ class DatabaseNew {
       'body': message.notification?.body,
       'receivedAt': DateTime.now().toIso8601String(),
     });
+  }
+
+  // New helper method to insert a custom local notification.
+  static Future<void> sendLocalNotification(String title, String message) async {
+    final db = await database;
+    await db.insert('Notifications', {
+      'title': title,
+      'body': message,
+      'receivedAt': DateTime.now().toIso8601String(),
+      'type': 0, // 0 for local notifications
+      'read': 0,
+    });
+    logger.i("Local notification inserted: $title - $message");
   }
 
   static Future<List<NotificationItem>> getNotificationList() async {
