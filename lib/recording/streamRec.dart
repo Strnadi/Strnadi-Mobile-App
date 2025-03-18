@@ -90,6 +90,21 @@ void _showMessage(BuildContext context, String message) {
   );
 }
 
+void exitApp(BuildContext context, String message) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Info'),
+      content: Text(message),
+      actions: [
+        TextButton(
+            onPressed: () => SystemNavigator.pop(),
+            child: const Text('OK')),
+      ],
+    ),
+  );
+}
+
 Future<void> getLocationPermission(BuildContext context) async {
   LocationPermission permission = await Geolocator.requestPermission();
   logger.i("Location permission: $permission");
@@ -99,8 +114,7 @@ Future<void> getLocationPermission(BuildContext context) async {
     permission = await Geolocator.requestPermission();
     logger.i("Location permission: $permission");
     if (permission == LocationPermission.deniedForever) {
-      _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
-      await SystemNavigator.pop();
+      exitApp(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
     }
   }
 }
@@ -326,6 +340,7 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   void _discardRecording() {
+    _pause();
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -337,6 +352,7 @@ class _LiveRecState extends State<LiveRec> {
             TextButton(
                 onPressed: () {
                   clear();
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LiveRec()));
                   Navigator.of(context).pop();
                 },
                 child: const Text('Discard')),
@@ -379,6 +395,9 @@ class _LiveRecState extends State<LiveRec> {
         setState(() {
           recording = true;
         });
+      }
+      else {
+        exitApp(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
       }
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
