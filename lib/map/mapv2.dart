@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import '../config/config.dart';
 import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
@@ -51,7 +52,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   LatLng _currentPosition = LatLng(50.0755, 14.4378);
   double _currentZoom = 13;
 
-  List<Recording> _recordings = [];
+  List<Part> _recordings = [];
 
   Size? _mapSize;
 
@@ -123,6 +124,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     _getCurrentLocation();
 
+    getRecordings();
+
     // Subscribe to the centralized location stream.
     _positionStreamSubscription = LocationService().positionStream.listen((Position position) {
       setState(() {
@@ -145,7 +148,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     try {
       final response = await http.get(
-        Uri.https('api.strnadi.cz', '/recordings?parts=true'),
+        Uri.parse('https://api.strnadi.cz/recordings?parts=true&sound=false'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -153,9 +156,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
       if (response.statusCode == 200) {
         logger.i('Recordings fetched');
         List<dynamic> data = jsonDecode(response.body);
-        List<Recording> recordings = data.map((e) => Recording.fromJson(e)).toList();
+        List<Part> parts = getParts(jsonEncode(data));
         setState(() {
-          _recordings = recordings;
+          _recordings = parts;
         });
       }
       else {
@@ -225,6 +228,50 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                     ],
                   ),
+                  MarkerLayer(
+                    markers: _recordings
+                        .map((part) => Marker(
+                      width: 30.0,
+                      height: 30.0,
+                      point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
+                      child: GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text('Part ID: ${part.id}'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Recording ID: ${part.recordingId}'),
+                                  Text('Start: ${part.start}'),
+                                  Text('End: ${part.end}'),
+                                  if (part.filePath != null)
+                                    Text('File: ${part.filePath}'),
+                                  if (part.square != null)
+                                    Text('Square: ${part.square}'),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.red,
+                          size: 30.0,
+                        ),
+                      ),
+                    ))
+                        .toList(),
+                  )
+
                 ],
               ),
               Positioned(
