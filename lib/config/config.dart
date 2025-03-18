@@ -18,11 +18,17 @@ import 'package:flutter/services.dart' show rootBundle;
 
 class Config {
   static Map<String, dynamic>? _config;
+  static Map<String, dynamic>? _Fconfig;
 
   // Load config.json
   static Future<void> loadConfig() async {
     String jsonString = await rootBundle.loadString('assets/secrets.json');
     _config = json.decode(jsonString);
+  }
+
+  static Future<void> loadFirebaseConfig() async {
+    String jsonString = await rootBundle.loadString('assets/firebase-secrets.json');
+    _Fconfig = json.decode(jsonString);
   }
 
   // Get API Key
@@ -34,15 +40,16 @@ class Config {
   }
 
   static String get firebaseProjectId{
-    if (_config == null) {
+    if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    return _config!["firebase-project-id"];
+    return _Fconfig!["firebase-project-id"];
   }
-  static String get firebaseServiceAccountJson{
-    if (_config == null) {
+
+  static Map<String, dynamic>? get firebaseServiceAccountJson{
+    if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    return _config!["firebase-service-account-json"];
+    return _Fconfig;
   }
 }

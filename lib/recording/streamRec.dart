@@ -352,6 +352,7 @@ class _LiveRecState extends State<LiveRec> {
             TextButton(
                 onPressed: () {
                   clear();
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LiveRec()));
                   Navigator.of(context).pop();
                 },
                 child: const Text('Discard')),

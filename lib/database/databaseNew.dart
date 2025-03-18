@@ -32,6 +32,8 @@ import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
 import 'package:strnadi/recording/waw.dart';
 
+import '../notificationPage/notifications.dart';
+
 final logger = Logger();
 
 /// Models
@@ -278,8 +280,8 @@ class RecordingPart {
       id: json['id'] as int?,
       BEId: json['BEId'] as int?,
       recordingId: json['recordingId'] as int?,
-      startTime: DateTime.parse(json['startDate'] as String),
-      endTime: DateTime.parse(json['endDate'] as String),
+      startTime: DateTime.parse(json['startTime'] as String),
+      endTime: DateTime.parse(json['endTime'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
@@ -512,7 +514,7 @@ class DatabaseNew {
 
   static Future<void> sendRecordingBackground(int recordingId) async {
     await Workmanager().registerOneOffTask(
-      "sendRecording_$recordingId",
+      "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
       "sendRecording",
       inputData: {"recordingId": recordingId},
     );
@@ -789,15 +791,21 @@ class DatabaseNew {
 
   // New helper method to insert a custom local notification.
   static Future<void> sendLocalNotification(String title, String message) async {
-    final db = await database;
-    await db.insert('Notifications', {
-      'title': title,
-      'body': message,
-      'receivedAt': DateTime.now().toIso8601String(),
-      'type': 0, // 0 for local notifications
-      'read': 0,
-    });
-    logger.i("Local notification inserted: $title - $message");
+    final String fcmToken = FlutterSecureStorage().read(key: 'fcmToken') as String? ?? '';
+    if(fcmToken == ''){
+      logger.w("Failed to send local notification: FCM token is empty");
+      return;
+    }
+    await sendPushNotificationV1(fcmToken, title, message);
+    // final db = await database;
+    // await db.insert('Notifications', {
+    //   'title': title,
+    //   'body': message,
+    //   'receivedAt': DateTime.now().toIso8601String(),
+    //   'type': 0, // 0 for local notifications
+    //   'read': 0,
+    // });
+    // logger.i("Local notification inserted: $title - $message");
   }
 
   static Future<List<NotificationItem>> getNotificationList() async {

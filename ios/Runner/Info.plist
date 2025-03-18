@@ -69,6 +69,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
         <string>sendRecording</string>
+        <string>com.delta.strnadi.sendRecording</string>
     </array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
     <false/>

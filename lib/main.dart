@@ -91,6 +91,8 @@ Future<void> main() async {
 
   await Config.loadConfig();
 
+  await Config.loadFirebaseConfig();
+
   initFirebase();
 
   // Initialize workmanager with our callback.

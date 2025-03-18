@@ -114,7 +114,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                             constraints: const BoxConstraints(),
                             padding: EdgeInsets.zero,
                             onPressed: () {
-                              DatabaseNew.sendRecordingBackground(records[index].id!)
+                              DatabaseNew.sendRecording(records[index], DatabaseNew.getPartsById(records[index].id!))
                                   .onError((e, stackTrace) {
                                 logger.e("An error has occurred: $e", stackTrace: stackTrace);
                                 Sentry.captureException(e, stackTrace: stackTrace);
