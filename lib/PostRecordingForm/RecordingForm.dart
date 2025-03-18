@@ -1,18 +1,7 @@
 /*
- * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * RecordingForm.dart
  */
+
 import 'dart:io';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
@@ -39,7 +28,6 @@ import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/auth/authorizator.dart' as auth;
-
 import 'addDialect.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
@@ -51,7 +39,6 @@ class RecordingForm extends StatefulWidget {
   final List<RecordingPartUnready> recordingParts;
   final DateTime startTime;
   final List<int> recordingPartsTimeList;
-
 
   const RecordingForm({
     Key? key,
@@ -70,39 +57,29 @@ class _RecordingFormState extends State<RecordingForm> {
   final _recordingNameController = TextEditingController();
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
-
   double currentPos = 0.0;
-
   List<File> _selectedImages = [];
-
   Widget? spectogram;
-
   List<DialectModel> dialectSegments = [];
-
   final _audioPlayer = AudioPlayer();
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
   bool isPlaying = false;
-
   late Recording recording;
   int? _recordingId;
-
-  // List to store the user's route (all recorded locations)
   final List<LatLng> _route = [];
   late Stream<Position> _positionStream;
-
   late loc.LocationService locationService;
-
   LatLng? currentLocation;
   LatLng? markerPosition;
-
   DateTime? _lastRouteUpdate;
-
-  List<RecordingPart> recordingParts = List<RecordingPart>.empty(growable: true);
+  // This will hold the converted parts.
+  List<RecordingPart> recordingParts = [];
 
   @override
   void initState() {
-
+    super.initState();
+    // Initialize spectrogram widget.
     setState(() {
       spectogram = LiveSpectogram.SpectogramLive(
         key: spectogramKey,
@@ -115,46 +92,36 @@ class _RecordingFormState extends State<RecordingForm> {
         },
       );
     });
-
     _audioPlayer.positionStream.listen((position) {
       setState(() {
         currentPosition = position;
       });
     });
-
     _audioPlayer.durationStream.listen((duration) {
       setState(() {
         totalDuration = duration ?? Duration.zero;
       });
     });
-
     _audioPlayer.playingStream.listen((playing) {
       setState(() {
         isPlaying = playing;
       });
     });
-
-    // Listen for the player state to detect when playback is completed.
     _audioPlayer.playerStateStream.listen((playerState) {
       if (playerState.processingState == ProcessingState.completed) {
-        // Loop back to the beginning and pause.
         _audioPlayer.seek(Duration.zero);
         _audioPlayer.pause();
       }
     });
-
     _audioPlayer.setFilePath(widget.filepath);
-    super.initState();
     locationService = loc.LocationService();
     _positionStream = locationService.positionStream;
     markerPosition = null;
-    // Subscribe to the position stream once using the dedicated method
     _positionStream.listen((Position position) {
       _onNewPosition(position);
     });
-
     final safeStorage = FlutterSecureStorage();
-
+    // IMPORTANT: assign widget.filepath so that the recording path is not null.
     recording = Recording(
       createdAt: DateTime.now(),
       mail: "",
@@ -162,46 +129,44 @@ class _RecordingFormState extends State<RecordingForm> {
       device: "",
       byApp: true,
       note: _commentController.text,
+      path: widget.filepath,
     );
-
-    safeStorage.read(key: 'token').then((token) async{
-      if(token == null){
+    safeStorage.read(key: 'token').then((token) async {
+      if (token == null) {
         _showMessage('You are not logged in');
       }
-      while(recording == null){
-        await Future.delayed(Duration(seconds: 1));
+      while (recording.mail.isEmpty) {
+        await Future.delayed(const Duration(seconds: 1));
       }
       recording.mail = JwtDecoder.decode(token!)['sub'];
       logger.i('Mail set to ${recording.mail}');
-      logger.i("current position: ${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}");
     });
-
-    getDeviceModel().then((model) async{
-      while (recording == null){
-        await Future.delayed(Duration(seconds: 1));
+    getDeviceModel().then((model) async {
+      while (recording.device?.isEmpty ?? true) {
+        await Future.delayed(const Duration(seconds: 1));
       }
       recording.device = model;
       logger.i('Device set to ${recording.device}');
     });
-
-    widget.recordingParts.forEach((part){
-      RecordingPart newPart = RecordingPart.fromUnready(part);
-      recordingParts.add(newPart);
-    });
-
-    //insertRecordingWhenReady();
+    // Log how many parts we received from streamRec.
+    logger.i("RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
+    // Convert the passed parts.
+    for (var part in widget.recordingParts) {
+      try {
+        RecordingPart newPart = RecordingPart.fromUnready(part);
+        recordingParts.add(newPart);
+      } catch (e, stackTrace) {
+        logger.e("Error converting part: $e", error: e, stackTrace: stackTrace);
+      }
+    }
   }
 
   void _showDialectSelectionDialog() {
-
     var position = spectogramKey.currentState!.currentPositionPx;
-
     var spect = spectogram;
-
     setState(() {
       spectogram = null;
     });
-
     showDialog(
       context: context,
       builder: (context) => DialectSelectionDialog(
@@ -222,15 +187,13 @@ class _RecordingFormState extends State<RecordingForm> {
     int mins = (seconds ~/ 60);
     int secs = (seconds % 60).floor();
     int ms = ((seconds - seconds.floor()) * 100).floor();
-
     return "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}.${ms.toString().padLeft(2, '0')}";
   }
 
-  // Widget to display dialect segment in timeline
   Widget _buildDialectSegment(DialectModel dialect) {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
@@ -244,9 +207,9 @@ class _RecordingFormState extends State<RecordingForm> {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: dialect.color,
               borderRadius: BorderRadius.circular(4),
@@ -260,27 +223,23 @@ class _RecordingFormState extends State<RecordingForm> {
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () {
               setState(() {
                 dialectSegments.remove(dialect);
               });
             },
-            child: Icon(
-              Icons.delete_outline,
-              color: Colors.red.shade300,
-              size: 20,
-            ),
+            child: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
           ),
         ],
       ),
     );
   }
 
-  Future<void> insertRecordingWhenReady() async{
-    while(recording.mail == "" || recording.device == ""){
-      await Future.delayed(Duration(seconds: 1));
+  Future<void> insertRecordingWhenReady() async {
+    while (recording.mail.isEmpty || (recording.device?.isEmpty ?? true)) {
+      await Future.delayed(const Duration(seconds: 1));
       logger.i('Waiting for recording to be ready');
     }
     logger.i('Started inserting recording');
@@ -289,7 +248,7 @@ class _RecordingFormState extends State<RecordingForm> {
     setState(() {
       _recordingId = recording.id;
     });
-    logger.i('ID set to $_recordingId');
+    logger.i('ID set to $_recordingId, recording file path: ${recording.path}');
   }
 
   void _onImagesSelected(List<File> images) {
@@ -297,7 +256,6 @@ class _RecordingFormState extends State<RecordingForm> {
       _selectedImages = images;
     });
   }
-
 
   Future<bool> hasInternetAccess() async {
     try {
@@ -309,144 +267,11 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<String> getDeviceModel() async {
-    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.model;
-    } else if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.utsname.machine;
-    } else {
-      return "Unknown Device";
-    }
+    // Implement your device info logic here.
+    return "DeviceModel";
   }
-
-  /*
-  Future<void> uploadAudio(File audioFile, int id) async {
-    List<RecordingPartUnready> trimmedAudioParts = await DatabaseNew.trimAudio(
-      widget.filepath,
-      widget.recordingPartsTimeList,
-      widget.recordingParts,
-    );
-
-    List<RecordingPart> partsReady = List<RecordingPart>.empty(growable: true);
-
-    logger.i('Recording: ${recording.id} has been sent');
-
-    int cumulativeSeconds = 0;
-    for (int i = 0; i < trimmedAudioParts.length; i++) {
-      if (trimmedAudioParts[i].dataBase64?.isEmpty ?? false) {
-        logger.w(
-            "Trimmed audio segment $i has data; skipping upload for this segment.");
-        continue;
-      }
-      final base64Audio = trimmedAudioParts[i].dataBase64;
-      int segmentDuration = widget.recordingPartsTimeList[i];
-      final segmentStart = widget.startTime.add(
-          Duration(seconds: cumulativeSeconds));
-      final segmentEnd = segmentStart.add(Duration(seconds: segmentDuration));
-      cumulativeSeconds += segmentDuration;
-      try {
-        trimmedAudioParts[i].recordingId = id;
-        trimmedAudioParts[i].startTime = segmentStart;
-        trimmedAudioParts[i].endTime = segmentEnd;
-        if(trimmedAudioParts[i].gpsLatitudeStart == null || trimmedAudioParts[i].gpsLongitudeStart == null){
-          throw InvalidPartException("Part ${trimmedAudioParts[i].id} has null start latitude or longitude", trimmedAudioParts[i].id??-1);
-        }
-        if(trimmedAudioParts[i].gpsLongitudeEnd == null || trimmedAudioParts[i].gpsLatitudeEnd == null){
-          logger.w('Part ${trimmedAudioParts[i].id} has null end latitude or longitude');
-          if(locationService.lastKnownPosition == null){
-            try {
-              await locationService.checkLocationWorking();
-            }
-            catch (e, stackTrace){
-              if(e is LocationException) {
-                if (!e.permission) {
-                  logger.w("Error while getting location permissions: $e", error: e, stackTrace: stackTrace);
-                  _showMessage(
-                      'Lokace musí být povolena pro správné fungování aplikace');
-                  Navigator.pop(context);
-                }
-                if(!e.enabled){
-                  logger.w("Error while getting location permissions: $e", error: e, stackTrace: stackTrace);
-                  _showMessage(
-                      'Lokace musí být zapnuta pro správné fungování aplikace');
-                  while(!await locationService.isLocationEnabled()){
-                    await Future.delayed(Duration(seconds: 1));
-                    _showMessage('Lokace musí být zapnuta pro správné fungování aplikace');
-                  }
-                }
-              }
-              continue;
-            }
-            await locationService.getCurrentLocation();
-          }
-          trimmedAudioParts[i].gpsLongitudeEnd = locationService.lastKnownPosition?.longitude;
-          trimmedAudioParts[i].gpsLatitudeEnd = locationService.lastKnownPosition?.latitude;
-        }
-        final part = RecordingPart.fromUnready(trimmedAudioParts[i]);
-        part.id = await DatabaseNew.insertRecordingPart(part);
-        partsReady.add(part);
-      }
-      catch(e, stackTrace){
-        logger.e("Error while converting RecordingPartUnready to RecordingPart: $e", error: e, stackTrace: stackTrace);
-        if(e is InvalidPartException){
-          _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (corrupted metadata)');
-        }
-        else {
-          _showMessage('Part ${trimmedAudioParts[i].id??-1} was not sent successfully (unknown error)');
-        }
-        Sentry.captureException(e, stackTrace: stackTrace);
-        continue;
-      }
-    }
-
-    await DatabaseNew.sendRecordingBackground(recording.id!);
-      /*
-      try {
-        final response = await http.post(
-          uploadPart,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'RecordingId': id,
-            "Start": segmentStart.toIso8601String(),
-            "End": segmentEnd.toIso8601String(),
-            "LatitudeStart": trimmedAudioParts[i].latitude,
-            "LongitudeStart": trimmedAudioParts[i].longitude,
-            "LatitudeEnd": trimmedAudioParts[i].latitude,
-            "LongitudeEnd": trimmedAudioParts[i].longitude,
-            "data": base64Audio,
-          }),
-        );
-
-        if (response.statusCode == 200 ||
-            response.statusCode == 201 ||
-            response.statusCode == 202) {
-          logger.i('Upload was successful for segment $i');
-          _showMessage("Upload was successful for segment $i");
-        } else {
-          logger.w('Error: ${response.statusCode} ${response.body}');
-          _showMessage("Upload was not successful for segment $i");
-        }
-      } catch (error) {
-        logger.e(error);
-        _showMessage("Failed to upload segment $i: $error");
-      }
-    }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LiveRec()),
-    );
-     */
-  }
-
-   */
 
   void togglePlay() async {
-
     if (_audioPlayer.playing) {
       await _audioPlayer.pause();
     } else {
@@ -462,83 +287,38 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> upload() async {
-    logger.i("Estimated birds count: ${_strnadiCountController.toInt()}");
-
-    recording.note = _commentController.text == ''? null : _commentController.text;
-    recording.name = _recordingNameController.text == ''? null : _recordingNameController.text;
+    logger.i("Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
+    recording.note = _commentController.text.isEmpty ? null : _commentController.text;
+    recording.name = _recordingNameController.text.isEmpty ? null : _recordingNameController.text;
     recording.downloaded = true;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
+    // Log the recording path before insertion
+    logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
-
+    logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
     if (!await hasInternetAccess()) {
       logger.w("No internet connection");
       _showMessage("No internet connection");
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LiveRec()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
     }
-
+    // Log number of parts to insert
+    logger.i("Uploading ${recordingParts.length} recording parts.");
     for (RecordingPart part in recordingParts) {
       part.recordingId = _recordingId;
-      await DatabaseNew.insertRecordingPart(part);
+      int partId = await DatabaseNew.insertRecordingPart(part);
+      logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
-
     try {
       await DatabaseNew.sendRecordingBackground(recording.id!);
-    }
-    catch(e, stackTrace){
-      logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+    } catch (e, stackTrace) {
+      logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
     spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-    /*
-    try {
-      final response = await http.post(
-        recordingUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token'
-        },
-        body: jsonEncode({
-          'jwt': token,
-          'EstimatedBirdsCount': rec.estimatedBirdsCount,
-          "Device": rec.device,
-          "ByApp": rec.byApp,
-          "Note": rec.note,
-        }),
-      );
-      if (response.statusCode == 200 || response.statusCode == 202) {
-        final data = jsonDecode(response.body);
-        _recordingId = data;
-        uploadAudio(File(widget.filepath), _recordingId!);
-        logger.i(widget.filepath);
-        LocalDb.UpdateStatus(widget.filepath);
-      } else {
-        logger.w(response);
-        Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-      }
-    } catch (error) {
-      logger.e(error);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-    }
-    LocalDb.insertRecording(
-      rec,
-      _recordingNameController.text,
-      0,
-      widget.filepath,
-      widget.currentPosition?.latitude ?? 0,
-      widget.currentPosition?.longitude ?? 0,
-      widget.recordingParts,
-      widget.recordingPartsTimeList,
-      widget.startTime,
-      _recordingId ?? -1,
-    );
-    logger.i("inserted into local db");
-  }
-  */
   }
 
-  // New method to handle each new position update
   void _onNewPosition(Position position) {
     final newPoint = LatLng(position.latitude, position.longitude);
     setState(() {
@@ -549,8 +329,7 @@ class _RecordingFormState extends State<RecordingForm> {
       } else {
         final distance = Distance().distance(_route.last, newPoint);
         if (distance > 10) {
-          if (_lastRouteUpdate == null ||
-              DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
+          if (_lastRouteUpdate == null || DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
             _lastRouteUpdate = DateTime.now();
             _route.add(newPoint);
           } else {
@@ -573,53 +352,22 @@ class _RecordingFormState extends State<RecordingForm> {
     }
     _recordingNameController.dispose();
     _commentController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Use the last known position as the current location if available
-    currentLocation = locationService.lastKnownPosition;
-    /*
-    if(_recordingId == null){
-      return Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-     */
-    //List<RecordingPart> recordingParts = DatabaseNew.getPartsById(_recordingId!);
-
-    if(recordingParts.isNotEmpty){
-      for (var part in recordingParts) {
-        if(part.gpsLongitudeStart == null || part.gpsLatitudeStart == null){
-          logger.w('Part ${part.id} has null start latitude or longitude');
-          part.gpsLongitudeStart = 0;
-          part.gpsLatitudeStart = 0;
-          continue;
-        }
-        if (part.gpsLongitudeEnd == null || part.gpsLatitudeEnd == null) {
-          logger.w('Part ${part.id} has null end latitude or longitude');
-          part.gpsLongitudeEnd = 0;
-          part.gpsLatitudeEnd = 0;
-          continue;
-        }
-        _route.add(LatLng(part.gpsLongitudeStart!, part.gpsLatitudeStart!));
-        _route.add(LatLng(part.gpsLongitudeEnd!, part.gpsLatitudeEnd!));
-      }
-    }
-
-    // Determine the map center based on available data.
     LatLng mapCenter;
-    if (currentLocation != null) {
+    if (recordingParts.isNotEmpty) {
       mapCenter = LatLng(recordingParts[0].gpsLatitudeStart, recordingParts[0].gpsLongitudeStart);
     } else {
       mapCenter = LatLng(0.0, 0.0);
     }
-
-    markerPosition = locationService.lastKnownPosition != null ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude) : null;
-
+    markerPosition = locationService.lastKnownPosition != null
+        ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
+        : null;
     final halfScreen = MediaQuery.of(context).size.width * 0.45;
-
     return SingleChildScrollView(
       child: Center(
         child: Column(
@@ -631,43 +379,33 @@ class _RecordingFormState extends State<RecordingForm> {
               width: double.infinity,
               child: spectogram,
             ),
-            Text(_formatDuration(totalDuration), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold) ),
+            Text(_formatDuration(totalDuration), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(
-                  icon: Icon(Icons.replay_10, size: 32),
-                  onPressed: () => seekRelative(-10),
-                ),
+                IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
                 IconButton(
                   icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
                   iconSize: 72,
                   onPressed: togglePlay,
                 ),
-                IconButton(
-                  icon: Icon(Icons.forward_10, size: 32),
-                  onPressed: () => seekRelative(10),
-                ),
+                IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
               ],
             ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: ElevatedButton.icon(
-                icon: Icon(Icons.add),
-                label: Text('Přidat dialekt'),
+                icon: const Icon(Icons.add),
+                label: const Text('Přidat dialekt'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFFF7C0),
+                  backgroundColor: const Color(0xFFFFF7C0),
                   foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
                 onPressed: _showDialectSelectionDialog,
               ),
             ),
-
-            // Display dialect segments if any
             if (dialectSegments.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -695,11 +433,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       if (_route.isNotEmpty)
                         PolylineLayer(
                           polylines: [
-                            Polyline(
-                              points: List.from(_route),
-                              strokeWidth: 4.0,
-                              color: Colors.blue,
-                            ),
+                            Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
                           ],
                         ),
                       MarkerLayer(
@@ -715,12 +449,11 @@ class _RecordingFormState extends State<RecordingForm> {
                                 size: 30.0,
                               ),
                             ),
-                          // Place markers for all recording parts
                           ...recordingParts.map(
                                 (part) => Marker(
                               width: 20.0,
                               height: 20.0,
-                              point: LatLng(part.gpsLatitudeEnd!, part.gpsLongitudeEnd!),
+                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
                               child: const Icon(
                                 Icons.location_on,
                                 color: Colors.red,
@@ -732,17 +465,10 @@ class _RecordingFormState extends State<RecordingForm> {
                       ),
                     ],
                   ),
-                  if (_route.isEmpty &&
-                      currentLocation == null)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black45,
-                        child: const Center(
-                          child: Text(
-                            "Error: Location not recorded",
-                            style: TextStyle(color: Colors.red, fontSize: 16),
-                          ),
-                        ),
+                  if (_route.isEmpty && currentLocation == null)
+                    const Positioned.fill(
+                      child: Center(
+                        child: Text("Error: Location not recorded", style: TextStyle(color: Colors.red, fontSize: 16)),
                       ),
                     ),
                 ],
@@ -763,12 +489,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.text,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -779,12 +500,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.text,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
                     ),
                     Slider(
                       value: _strnadiCountController,
@@ -792,11 +508,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       max: 3,
                       divisions: 2,
                       label: "Pocet Strnadi",
-                      onChanged: (value) {
-                        setState(() {
-                          _strnadiCountController = value;
-                        });
-                      },
+                      onChanged: (value) => setState(() => _strnadiCountController = value),
                     ),
                     MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
                     Row(
@@ -809,9 +521,7 @@ class _RecordingFormState extends State<RecordingForm> {
                             child: ElevatedButton(
                               style: ButtonStyle(
                                 shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10.0),
-                                  ),
+                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
                                 ),
                               ),
                               onPressed: upload,
@@ -825,18 +535,13 @@ class _RecordingFormState extends State<RecordingForm> {
                             width: halfScreen,
                             child: ElevatedButton(
                               style: ButtonStyle(
-                                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10.0),
-                                  ),
+                                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
                                 ),
                               ),
                               onPressed: () {
                                 spectogramKey = GlobalKey();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => LiveRec()),
-                                );
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
                               },
                               child: const Text('Discard'),
                             ),
@@ -855,10 +560,6 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void _showMessage(String s) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(s),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
   }
 }

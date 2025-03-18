@@ -1,5 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:logger/logger.dart';
+
+Logger logger = Logger();
 
 /// Searches for the "data" chunk in a WAV file and returns the offset to the audio data.
 /// This function finds the first occurrence of the ASCII bytes for "data"
@@ -83,4 +86,5 @@ Future<void> concatWavFiles(
   // Write the new header and the concatenated audio data to the output file.
   final outputFile = File(outputPath);
   await outputFile.writeAsBytes(newHeader + concatenatedData);
+  logger.i('WAV files concatenated successfully. to $outputPath');
 }

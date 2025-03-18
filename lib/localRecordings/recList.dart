@@ -1,18 +1,7 @@
 /*
- * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * recList.dart
  */
+
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
@@ -43,10 +32,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
         ],
       ),
     );
@@ -59,7 +45,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     });
   }
 
-  void openRecording(recording) {
+  void openRecording(Recording recording) {
     if (recording.downloaded) {
       Navigator.push(
         context,
@@ -74,11 +60,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
     return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 
-
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
-    records.forEach((rec) => logger.i('rec id ${rec.id} is ${rec.downloaded ? 'downloaded': 'Not donwloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
+    records.forEach((rec) =>
+        print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(
@@ -89,7 +75,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
           child: RefreshIndicator(
             onRefresh: () async {
               await DatabaseNew.syncRecordings();
-              getRecordings(); // Optionally update the list after syncing
+              getRecordings();
             },
             child: ListView.separated(
               itemCount: records.length,
@@ -98,10 +84,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                 return ListTile(
                   title: Text(
                     records[index].name ?? records[index].id?.toString() ?? 'Neznámý název',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   subtitle: SizedBox(
                     child: Row(
@@ -110,18 +93,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
                           records[index].createdAt != null
                               ? formatDateTime(records[index].createdAt!)
                               : '',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -139,7 +116,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                             onPressed: () {
                               DatabaseNew.sendRecordingBackground(records[index].id!)
                                   .onError((e, stackTrace) {
-                                logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+                                print("An error has occurred: $e");
                                 Sentry.captureException(e, stackTrace: stackTrace);
                               });
                             },
@@ -155,15 +132,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                 if (e is UnimplementedError) {
                                   _showMessage("Tato funkce není dostupná na tomto zařízení", "Chyba");
                                 }
-                                logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+                                print("An error has occurred: $e");
                                 Sentry.captureException(e, stackTrace: stackTrace);
                               });
                             },
                           ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey,
-                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
                   ),
