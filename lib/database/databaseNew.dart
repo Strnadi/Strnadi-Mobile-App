@@ -26,6 +26,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/exceptions.dart';
 // Missing import added:
@@ -514,8 +515,8 @@ class DatabaseNew {
 
   static Future<void> sendRecordingBackground(int recordingId) async {
     await Workmanager().registerOneOffTask(
+      (Platform.isIOS)? "com.delta.strnadi.sendRecording" : "sendRecording",
       "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
-      "sendRecording",
       inputData: {"recordingId": recordingId},
     );
   }
@@ -791,7 +792,7 @@ class DatabaseNew {
 
   // New helper method to insert a custom local notification.
   static Future<void> sendLocalNotification(String title, String message) async {
-    final String fcmToken = FlutterSecureStorage().read(key: 'fcmToken') as String? ?? '';
+    final String fcmToken = ((await FlutterSecureStorage().read(key: 'fcmToken'))) ?? '';
     if(fcmToken == ''){
       logger.w("Failed to send local notification: FCM token is empty");
       return;

@@ -310,7 +310,7 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
     try {
-      await DatabaseNew.sendRecording(recording, recordingParts);
+      await DatabaseNew.sendRecordingBackground(recording.id!);
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);

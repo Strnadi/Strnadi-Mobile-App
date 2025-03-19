@@ -266,6 +266,12 @@ Future<void> initFirebaseMessaging() async{
     logger.i("User granted permission: ${settings.authorizationStatus}");
   });
 
+  FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   await refreshToken();
 
   // Listen for token refresh.
