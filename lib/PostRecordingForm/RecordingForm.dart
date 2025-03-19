@@ -29,6 +29,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/auth/authorizator.dart' as auth;
 import 'addDialect.dart';
+import 'dart:math' as math;
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
@@ -39,6 +40,7 @@ class RecordingForm extends StatefulWidget {
   final List<RecordingPartUnready> recordingParts;
   final DateTime startTime;
   final List<int> recordingPartsTimeList;
+  final List<LatLng> route;
 
   const RecordingForm({
     Key? key,
@@ -47,6 +49,7 @@ class RecordingForm extends StatefulWidget {
     required this.currentPosition,
     required this.recordingParts,
     required this.recordingPartsTimeList,
+    required this.route,
   }) : super(key: key);
 
   @override
@@ -151,7 +154,7 @@ class _RecordingFormState extends State<RecordingForm> {
     // Log how many parts we received from streamRec.
     logger.i("RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
     // Convert the passed parts.
-    for (var part in widget.recordingParts) {
+    for (RecordingPartUnready part in widget.recordingParts) {
       try {
         RecordingPart newPart = RecordingPart.fromUnready(part);
         recordingParts.add(newPart);
@@ -159,6 +162,7 @@ class _RecordingFormState extends State<RecordingForm> {
         logger.e("Error converting part: $e", error: e, stackTrace: stackTrace);
       }
     }
+    _route.addAll(widget.route);
   }
 
   void _showDialectSelectionDialog() {
@@ -323,20 +327,7 @@ class _RecordingFormState extends State<RecordingForm> {
     final newPoint = LatLng(position.latitude, position.longitude);
     setState(() {
       markerPosition = newPoint;
-      currentLocation = newPoint;
-      if (_route.isEmpty) {
-        _route.add(newPoint);
-      } else {
-        final distance = Distance().distance(_route.last, newPoint);
-        if (distance > 10) {
-          if (_lastRouteUpdate == null || DateTime.now().difference(_lastRouteUpdate!) > const Duration(seconds: 1)) {
-            _lastRouteUpdate = DateTime.now();
-            _route.add(newPoint);
-          } else {
-            _route.add(newPoint);
-          }
-        }
-      }
+      // Removed currentLocation update to avoid unnecessary rerendering
     });
   }
 
@@ -421,8 +412,9 @@ class _RecordingFormState extends State<RecordingForm> {
                 children: [
                   FlutterMap(
                     options: MapOptions(
-                      initialCenter: mapCenter,
-                      initialZoom: 13.0,
+                      initialCenter: _computedCenter,
+                      initialZoom: _computedZoom,
+                      interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
                     ),
                     children: [
                       TileLayer(
@@ -436,41 +428,35 @@ class _RecordingFormState extends State<RecordingForm> {
                             Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
                           ],
                         ),
-                      MarkerLayer(
-                        markers: [
-                          if (markerPosition != null)
-                            Marker(
-                              width: 20.0,
-                              height: 20.0,
-                              point: markerPosition!,
-                              child: const Icon(
-                                Icons.my_location,
-                                color: Colors.blue,
-                                size: 30.0,
-                              ),
-                            ),
-                          ...recordingParts.map(
-                                (part) => Marker(
-                              width: 20.0,
-                              height: 20.0,
-                              point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                                size: 30.0,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      // MarkerLayer(
+                      //   markers: [
+                      //     if (markerPosition != null)
+                      //       Marker(
+                      //         width: 20.0,
+                      //         height: 20.0,
+                      //         point: markerPosition!,
+                      //         child: const Icon(
+                      //           Icons.my_location,
+                      //           color: Colors.blue,
+                      //           size: 30.0,
+                      //         ),
+                      //       ),
+                      //     ...recordingParts.map(
+                      //           (part) => Marker(
+                      //         width: 20.0,
+                      //         height: 20.0,
+                      //         point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
+                      //         child: const Icon(
+                      //           Icons.location_on,
+                      //           color: Colors.red,
+                      //           size: 30.0,
+                      //         ),
+                      //       ),
+                      //     ),
+                      //   ],
+                      // ),
                     ],
                   ),
-                  if (_route.isEmpty && currentLocation == null)
-                    const Positioned.fill(
-                      child: Center(
-                        child: Text("Error: Location not recorded", style: TextStyle(color: Colors.red, fontSize: 16)),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -502,6 +488,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       keyboardType: TextInputType.text,
                       validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
                     ),
+                    const SizedBox(height: 20),
                     Slider(
                       value: _strnadiCountController,
                       min: 1,
@@ -561,5 +548,40 @@ class _RecordingFormState extends State<RecordingForm> {
 
   void _showMessage(String s) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
+  }
+
+  // Computed getters inserted inside _RecordingFormState:
+  LatLng get _computedCenter {
+    if (_route.isEmpty) return LatLng(0.0, 0.0);
+    double sumLat = 0;
+    double sumLon = 0;
+    for (LatLng p in _route) {
+      sumLat += p.latitude;
+      sumLon += p.longitude;
+    }
+    return LatLng(sumLat / _route.length, sumLon / _route.length);
+  }
+
+  double get _computedZoom {
+    if (_route.isEmpty) return 13.0;
+    double minLat = _route.first.latitude;
+    double maxLat = _route.first.latitude;
+    double minLon = _route.first.longitude;
+    double maxLon = _route.first.longitude;
+    for (LatLng p in _route) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLon) minLon = p.longitude;
+      if (p.longitude > maxLon) maxLon = p.longitude;
+    }
+    double latDiff = maxLat - minLat;
+    double lonDiff = maxLon - minLon;
+    double maxDiff = latDiff > lonDiff ? latDiff : lonDiff;
+    // Compute zoom level based on full world (360°) divided by the extent
+    double idealZoom = math.log(360 / maxDiff) / math.ln2;
+    // Clamp zoom between 10 and 16 for example
+    if (idealZoom < 10) idealZoom = 10;
+    if (idealZoom > 16) idealZoom = 16;
+    return idealZoom;
   }
 }
