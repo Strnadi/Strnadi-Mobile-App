@@ -33,6 +33,8 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 
 final logger = Logger();
 
+bool adding = false;
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
@@ -96,7 +98,7 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
       notification.title,
       notification.body,
       platformChannelSpecifics,
-      payload: 'your_payload_data', // Optional payload to handle taps.
+      //payload: 'your_payload_data', // Optional payload to handle taps.
     );
   }
 }
@@ -131,6 +133,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> addDevice() async{
+  if(adding) return;
+  adding = true;
 
   while(!await auth.isLoggedIn()){
     Future.delayed(Duration(seconds: 1));
@@ -161,12 +165,15 @@ Future<void> addDevice() async{
       if (response.statusCode == 200) {
         logger.i('Device added');
         FlutterSecureStorage().write(key: 'fcmToken', value: token);
+        adding = false;
       }
       else {
+        adding = false;
         logger.e('Failed to add device ${response.statusCode}');
       }
     });
   } catch(e, stackTrace){
+    adding = false;
     logger.e(e, stackTrace: stackTrace);
     Sentry.captureException(e, stackTrace: stackTrace);
   }
@@ -251,6 +258,7 @@ Future<void> refreshToken() async{
     if(newToken != oldToken){
       await updateDevice(oldToken, newToken!);
     }
+    logger.i('Firebase token $newToken');
   }
 }
 
@@ -266,13 +274,23 @@ Future<void> initFirebaseMessaging() async{
     logger.i("User granted permission: ${settings.authorizationStatus}");
   });
 
+  FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   await refreshToken();
 
   // Listen for token refresh.
   messaging.onTokenRefresh.listen((newToken) async{
     logger.i("Token refreshed: $newToken");
     String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
-    await updateDevice(oldToken!, newToken);
+    if(oldToken != null) {
+      await updateDevice(oldToken, newToken);
+    } else {
+      await addDevice();
+    }
   });
 
   // Listen for foreground messages.

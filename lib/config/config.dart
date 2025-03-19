@@ -43,7 +43,7 @@ class Config {
     if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    return _Fconfig!["firebase-project-id"];
+    return _Fconfig!["project_id"];
   }
 
   static Map<String, dynamic>? get firebaseServiceAccountJson{

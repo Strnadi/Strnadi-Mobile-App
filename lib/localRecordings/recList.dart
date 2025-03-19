@@ -77,7 +77,9 @@ class _RecordingScreenState extends State<RecordingScreen> {
               await DatabaseNew.syncRecordings();
               getRecordings();
             },
-            child: ListView.separated(
+            child: records.isEmpty
+                ? Center(child: Text('Zatím nemáte žádné nahrávky'))
+                : ListView.separated(
               itemCount: records.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
@@ -114,8 +116,10 @@ class _RecordingScreenState extends State<RecordingScreen> {
                             constraints: const BoxConstraints(),
                             padding: EdgeInsets.zero,
                             onPressed: () {
-                              DatabaseNew.sendRecording(records[index], DatabaseNew.getPartsById(records[index].id!))
-                                  .onError((e, stackTrace) {
+                              DatabaseNew.sendRecording(
+                                  records[index],
+                                  DatabaseNew.getPartsById(records[index].id!)
+                              ).onError((e, stackTrace) {
                                 logger.e("An error has occurred: $e", stackTrace: stackTrace);
                                 Sentry.captureException(e, stackTrace: stackTrace);
                               });

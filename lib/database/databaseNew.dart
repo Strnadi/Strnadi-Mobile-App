@@ -26,6 +26,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/exceptions.dart';
 // Missing import added:
@@ -454,6 +455,15 @@ class DatabaseNew {
     List<Recording> oldRecordings = await getRecordings();
     List<Recording> sentRecordings = oldRecordings.where((recording) => recording.sent).toList();
 
+    if(fetchedRecordings == null || fetchedRecordingParts == null) {
+      logger.i('No recordings fetched from backend.');
+      return;
+    }
+    if(fetchedRecordings!.isEmpty || fetchedRecordingParts!.isEmpty) {
+      logger.i('No recordings fetched from backend.');
+      return;
+    }
+
     List<Recording> newRecordings = fetchedRecordings!
         .where((recording) => !sentRecordings.any((r) => r.BEId == recording.BEId))
         .toList();
@@ -513,9 +523,10 @@ class DatabaseNew {
   }
 
   static Future<void> sendRecordingBackground(int recordingId) async {
+
     await Workmanager().registerOneOffTask(
-      "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
-      "sendRecording",
+      (Platform.isIOS)? "com.delta.strnadi.sendRecording" : "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
+      (Platform.isIOS)? "sendRecording_${DateTime.now().microsecondsSinceEpoch}": "sendRecording",
       inputData: {"recordingId": recordingId},
     );
   }
@@ -636,8 +647,8 @@ class DatabaseNew {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
       });
-      var body = json.decode(response.body);
       if (response.statusCode == 200) {
+        var body = json.decode(response.body);
         List<Recording> recordings = List<Recording>.generate(body.length, (i) {
           return Recording.fromBEJson(body[i], email);
         });
@@ -791,12 +802,12 @@ class DatabaseNew {
 
   // New helper method to insert a custom local notification.
   static Future<void> sendLocalNotification(String title, String message) async {
-    final String fcmToken = FlutterSecureStorage().read(key: 'fcmToken') as String? ?? '';
+    final String fcmToken = ((await FlutterSecureStorage().read(key: 'fcmToken'))) ?? '';
     if(fcmToken == ''){
       logger.w("Failed to send local notification: FCM token is empty");
       return;
     }
-    await sendPushNotificationV1(fcmToken, title, message);
+    await sendPushNotificationDirectly(fcmToken, title, message);
     // final db = await database;
     // await db.insert('Notifications', {
     //   'title': title,
