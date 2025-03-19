@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 Future<void> sendPushNotificationV1(String deviceToken, String title, String body) async {
   // Read secrets from your config.
   final projectId = Config.firebaseProjectId;
-  final serviceAccountJson = Config.firebaseServiceAccountJson;
+  final Map<String, dynamic>? serviceAccountJson = Config.firebaseServiceAccountJson;
 
   // Define required scopes.
   const scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
@@ -39,10 +42,10 @@ Future<void> sendPushNotificationV1(String deviceToken, String title, String bod
   );
 
   if (response.statusCode == 200) {
-    print("Push notification sent successfully: ${response.body}");
+    logger.i("Push notification sent successfully: ${response.body}");
   } else {
-    print("Failed to send push notification. Status: ${response.statusCode}");
-    print("Response: ${response.body}");
+    logger.i("Failed to send push notification. Status: ${response.statusCode}");
+    logger.i("Response: ${response.body}");
   }
 
   client.close();

@@ -251,6 +251,7 @@ Future<void> refreshToken() async{
     if(newToken != oldToken){
       await updateDevice(oldToken, newToken!);
     }
+    logger.i('Firebase token $newToken');
   }
 }
 

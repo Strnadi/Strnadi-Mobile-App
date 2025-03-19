@@ -455,6 +455,15 @@ class DatabaseNew {
     List<Recording> oldRecordings = await getRecordings();
     List<Recording> sentRecordings = oldRecordings.where((recording) => recording.sent).toList();
 
+    if(fetchedRecordings == null || fetchedRecordingParts == null) {
+      logger.i('No recordings fetched from backend.');
+      return;
+    }
+    if(fetchedRecordings!.isEmpty || fetchedRecordingParts!.isEmpty) {
+      logger.i('No recordings fetched from backend.');
+      return;
+    }
+
     List<Recording> newRecordings = fetchedRecordings!
         .where((recording) => !sentRecordings.any((r) => r.BEId == recording.BEId))
         .toList();
@@ -637,8 +646,8 @@ class DatabaseNew {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
       });
-      var body = json.decode(response.body);
       if (response.statusCode == 200) {
+        var body = json.decode(response.body);
         List<Recording> recordings = List<Recording>.generate(body.length, (i) {
           return Recording.fromBEJson(body[i], email);
         });
