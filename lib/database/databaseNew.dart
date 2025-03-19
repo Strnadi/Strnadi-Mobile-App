@@ -523,9 +523,10 @@ class DatabaseNew {
   }
 
   static Future<void> sendRecordingBackground(int recordingId) async {
+
     await Workmanager().registerOneOffTask(
-      (Platform.isIOS)? "com.delta.strnadi.sendRecording" : "sendRecording",
-      "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
+      (Platform.isIOS)? "com.delta.strnadi.sendRecording" : "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
+      (Platform.isIOS)? "sendRecording_${DateTime.now().microsecondsSinceEpoch}": "sendRecording",
       inputData: {"recordingId": recordingId},
     );
   }
@@ -806,7 +807,7 @@ class DatabaseNew {
       logger.w("Failed to send local notification: FCM token is empty");
       return;
     }
-    await sendPushNotificationV1(fcmToken, title, message);
+    await sendPushNotificationDirectly(fcmToken, title, message);
     // final db = await database;
     // await db.insert('Notifications', {
     //   'title': title,
