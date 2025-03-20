@@ -238,7 +238,7 @@ class _LiveRecState extends State<LiveRec> {
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text("Recording Form")),
+          appBar: AppBar(title: const Text("Recording Form"), automaticallyImplyLeading: false,),
           body: RecordingForm(
             filepath: recordedFilePath!,
             startTime: overallStartTime!,

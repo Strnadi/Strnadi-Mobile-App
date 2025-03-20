@@ -29,11 +29,9 @@ import 'package:strnadi/updateChecker.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'config/config.dart';
-import 'package:strnadi/archived/recordingsDb.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/callback_dispatcher.dart';
 import 'package:workmanager/workmanager.dart';
-
 
 // Create a global logger instance.
 final logger = Logger();

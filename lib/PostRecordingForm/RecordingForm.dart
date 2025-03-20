@@ -2,6 +2,7 @@
  * RecordingForm.dart
  */
 
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
@@ -359,190 +360,194 @@ class _RecordingFormState extends State<RecordingForm> {
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;
     final halfScreen = MediaQuery.of(context).size.width * 0.45;
-    return SingleChildScrollView(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              height: 300,
-              width: double.infinity,
-              child: spectogram,
-            ),
-            Text(_formatDuration(totalDuration), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
-                IconButton(
-                  icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
-                  iconSize: 72,
-                  onPressed: togglePlay,
-                ),
-                IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Přidat dialekt'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFF7C0),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                onPressed: _showDialectSelectionDialog,
+    return PopScope(
+      canPop: false,
+      //onPopInvokedWithResult: Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LiveRec())),
+      child: SingleChildScrollView(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 300,
+                width: double.infinity,
+                child: spectogram,
               ),
-            ),
-            if (dialectSegments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
-                ),
-              ),
-            const SizedBox(height: 50),
-            SizedBox(
-              height: 200,
-              child: Stack(
+              Text(_formatDuration(totalDuration), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FlutterMap(
-                    options: MapOptions(
-                      initialCenter: _computedCenter,
-                      initialZoom: _computedZoom,
-                      interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                        'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                        userAgentPackageName: 'cz.delta.strnadi',
-                      ),
-                      if (_route.isNotEmpty)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
-                          ],
-                        ),
-                      // MarkerLayer(
-                      //   markers: [
-                      //     if (markerPosition != null)
-                      //       Marker(
-                      //         width: 20.0,
-                      //         height: 20.0,
-                      //         point: markerPosition!,
-                      //         child: const Icon(
-                      //           Icons.my_location,
-                      //           color: Colors.blue,
-                      //           size: 30.0,
-                      //         ),
-                      //       ),
-                      //     ...recordingParts.map(
-                      //           (part) => Marker(
-                      //         width: 20.0,
-                      //         height: 20.0,
-                      //         point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
-                      //         child: const Icon(
-                      //           Icons.location_on,
-                      //           color: Colors.red,
-                      //           size: 30.0,
-                      //         ),
-                      //       ),
-                      //     ),
-                      //   ],
-                      // ),
-                    ],
+                  IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
+                  IconButton(
+                    icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                    iconSize: 72,
+                    onPressed: togglePlay,
                   ),
+                  IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
-            Form(
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Přidat dialekt'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFF7C0),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: _showDialectSelectionDialog,
+                ),
+              ),
+              if (dialectSegments.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                  ),
+                ),
+              const SizedBox(height: 50),
+              SizedBox(
+                height: 200,
+                child: Stack(
                   children: [
-                    TextFormField(
-                      controller: _recordingNameController,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        labelText: 'Nazev Nahravky',
-                        border: OutlineInputBorder(),
+                    FlutterMap(
+                      options: MapOptions(
+                        initialCenter: _computedCenter,
+                        initialZoom: _computedZoom,
+                        interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
                       ),
-                      keyboardType: TextInputType.text,
-                      validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      textAlign: TextAlign.center,
-                      controller: _commentController,
-                      decoration: const InputDecoration(
-                        labelText: 'Komentar',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.text,
-                      validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
-                    ),
-                    const SizedBox(height: 20),
-                    Slider(
-                      value: _strnadiCountController,
-                      min: 1,
-                      max: 3,
-                      divisions: 2,
-                      label: "Pocet Strnadi",
-                      onChanged: (value) => setState(() => _strnadiCountController = value),
-                    ),
-                    MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: SizedBox(
-                            width: halfScreen,
-                            child: ElevatedButton(
-                              style: ButtonStyle(
-                                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                ),
-                              ),
-                              onPressed: upload,
-                              child: const Text('Submit'),
-                            ),
-                          ),
+                        TileLayer(
+                          urlTemplate:
+                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                          userAgentPackageName: 'cz.delta.strnadi',
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: SizedBox(
-                            width: halfScreen,
-                            child: ElevatedButton(
-                              style: ButtonStyle(
-                                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                ),
-                              ),
-                              onPressed: () {
-                                spectogramKey = GlobalKey();
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-                              },
-                              child: const Text('Discard'),
-                            ),
+                        if (_route.isNotEmpty)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                            ],
                           ),
-                        ),
+                        // MarkerLayer(
+                        //   markers: [
+                        //     if (markerPosition != null)
+                        //       Marker(
+                        //         width: 20.0,
+                        //         height: 20.0,
+                        //         point: markerPosition!,
+                        //         child: const Icon(
+                        //           Icons.my_location,
+                        //           color: Colors.blue,
+                        //           size: 30.0,
+                        //         ),
+                        //       ),
+                        //     ...recordingParts.map(
+                        //           (part) => Marker(
+                        //         width: 20.0,
+                        //         height: 20.0,
+                        //         point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
+                        //         child: const Icon(
+                        //           Icons.location_on,
+                        //           color: Colors.red,
+                        //           size: 30.0,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ],
+                        // ),
                       ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Form(
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      TextFormField(
+                        controller: _recordingNameController,
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          labelText: 'Nazev Nahravky',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.text,
+                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        textAlign: TextAlign.center,
+                        controller: _commentController,
+                        decoration: const InputDecoration(
+                          labelText: 'Komentar',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.text,
+                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      Slider(
+                        value: _strnadiCountController,
+                        min: 1,
+                        max: 3,
+                        divisions: 2,
+                        label: "Pocet Strnadi",
+                        onChanged: (value) => setState(() => _strnadiCountController = value),
+                      ),
+                      MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: SizedBox(
+                              width: halfScreen,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                  ),
+                                ),
+                                onPressed: upload,
+                                child: const Text('Submit'),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: SizedBox(
+                              width: halfScreen,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  spectogramKey = GlobalKey();
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                },
+                                child: const Text('Discard'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      )
     );
   }
 
