@@ -25,6 +25,7 @@ import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
+import 'package:strnadi/map/searchBar.dart';
 import '../config/config.dart';
 import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
@@ -277,6 +278,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   )
 
                 ],
+              ),
+              Positioned(
+                top: 16,
+                left: 16,
+                right: 16,
+                child: SearchBarWidget(
+                  onLocationSelected: (LatLng location) {
+                    _mapController.move(location, _currentZoom);
+                  },
+                ),
               ),
               Positioned(
                 bottom: 20,
