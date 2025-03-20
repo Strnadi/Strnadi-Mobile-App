@@ -471,6 +471,7 @@ class DatabaseNew {
     for (Recording recording in newRecordings) {
       recording.sent = true;
       recording.downloaded = false;
+      logger.i('Inserting recording with BEId: ${recording.BEId} and name ${recording.name}');
       await insertRecording(recording);
     }
 
