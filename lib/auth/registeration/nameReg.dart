@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur
+ * Copyright (C) 2025 Marian Pecqueur & Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,14 +14,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/auth/registeration/nameReg.dart';
-import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:strnadi/auth/registeration/passwordReg.dart';
 
 class RegName extends StatefulWidget {
-  final email;
+  final String email;
   final bool consent;
 
   const RegName({super.key, required this.email, required this.consent});
@@ -31,167 +28,225 @@ class RegName extends StatefulWidget {
 }
 
 class _RegNameState extends State<RegName> {
-  final _GlobalKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _surnameController = TextEditingController();
   final TextEditingController _nickController = TextEditingController();
 
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Register'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+  /// Form is valid if both required fields (Jméno, Příjmení) are non-empty.
+  bool get _isFormValid =>
+      _nameController.text.trim().isNotEmpty &&
+          _surnameController.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
-
-    final halfScreen = MediaQuery.of(context).size.height * 0.2;
+    // Colors and styling constants
+    const Color textColor = Color(0xFF2D2B18);
+    const Color yellow = Color(0xFFFFD641);
 
     return Scaffold(
-      appBar: AppBar(),
-      body: Center(
-        child: Form(
-          key: _GlobalKey,
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Image.asset(
+            'assets/icons/backButton.png',
+            width: 30,
+            height: 30,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Form(
+            key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: EdgeInsets.only(top: halfScreen),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Jak se jmenujete?',
-                        style: TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          label: RichText(
-                            text: TextSpan(
-                              text: 'Jmeno',
-                              children: const <TextSpan>[
-                                TextSpan(
-                                  text: ' *',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ],
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _surnameController,
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          label: RichText(
-                            text: TextSpan(
-                              text: 'Prijmeni',
-                              children: const <TextSpan>[
-                                TextSpan(
-                                  text: ' *',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ],
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _nickController,
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          label: RichText(
-                            text: TextSpan(
-                              text: 'Nick',
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                    ],
+                // Heading text using textColor
+                const Text(
+                  'Zadejte vaše jméno, příjmení\na zvolte si přezdívku',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+
+                // "Jméno *" label and text field
+                const Text(
+                  'Jméno *',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all<Color>(
-                          Colors.black,
-                        ),
-                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                        ),
-                      ),
-                      onPressed: () {
-                        // Validate the form fields
-                        if (_GlobalKey.currentState?.validate() ?? false) {
-                          // If valid, proceed to the next screen
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegPassword(
-                                email: widget.email,
-                                consent: widget.consent,
-                                name: _nameController.text,
-                                surname: _surnameController.text,
-                                nickname: _nickController.text,
-                              ),
-                            ),
-                          );
-                        } else {
-                          // Optionally, show an error message if validation fails
-                          _showMessage(
-                              'Please fix the errors before proceeding.');
-                        }
-                      },
-                      child: const Text('Submit', style: TextStyle(color: Colors.white)),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _nameController,
+                  keyboardType: TextInputType.name,
+                  decoration: InputDecoration(
+                    fillColor: Colors.grey[200],
+                    filled: true,
+                    contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(16.0),
                     ),
+                    errorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Zadejte jméno';
+                    }
+                    return null;
+                  },
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+
+                // "Příjmení *" label and text field
+                const Text(
+                  'Příjmení *',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _surnameController,
+                  keyboardType: TextInputType.name,
+                  decoration: InputDecoration(
+                    fillColor: Colors.grey[200],
+                    filled: true,
+                    contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Zadejte příjmení';
+                    }
+                    return null;
+                  },
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+
+                // "Přezdívka" label and text field (optional)
+                const Text(
+                  'Přezdívka',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _nickController,
+                  keyboardType: TextInputType.text,
+                  decoration: InputDecoration(
+                    fillColor: Colors.grey[200],
+                    filled: true,
+                    contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // "Pokračovat" button: yellow if valid, otherwise grey.
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Trigger validation; error messages and red outlines will display if fields are invalid.
+                      if (_formKey.currentState?.validate() ?? false) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegPassword(
+                              email: widget.email,
+                              consent: widget.consent,
+                              name: _nameController.text.trim(),
+                              surname: _surnameController.text.trim(),
+                              nickname: _nickController.text.trim(),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      backgroundColor: _isFormValid ? yellow : Colors.grey,
+                      foregroundColor: _isFormValid ? textColor : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: const Text('Pokračovat'),
                   ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+      // Bottom segmented progress bar with larger bottom padding
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        child: Row(
+          children: List.generate(6, (index) {
+            bool completed = index < 2;
+            return Expanded(
+              child: Container(
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: completed ? yellow : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );

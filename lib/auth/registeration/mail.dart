@@ -265,6 +265,24 @@ class _RegMailState extends State<RegMail> {
           ),
         ),
       ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        child: Row(
+          children: List.generate(6, (index) {
+            bool completed = index < 1;
+            return Expanded(
+              child: Container(
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: completed ? yellow : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
     );
   }
 }
