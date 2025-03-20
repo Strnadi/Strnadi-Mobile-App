@@ -181,7 +181,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: 'Mapy.cz Flutter Map V2',
+      appBarTitle: "Mapa Strnadu",
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -199,6 +199,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 options: MapOptions(
                   initialCenter: _currentPosition,
                   initialZoom: 13,
+                  interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   minZoom: 1,
                   maxZoom: 19,
 
@@ -319,7 +320,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       child: const Icon(Icons.add),
                       tooltip: 'Zoom In',
                       onPressed: () {
-                        _mapController.move(_currentCenter, _currentZoom + 1);
+                        _mapController.move(_currentPosition, _currentZoom + 1);
+                        _currentZoom += 1;
                         _updateGrid();
                       },
                     ),
@@ -330,7 +332,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       child: const Icon(Icons.remove),
                       tooltip: 'Zoom Out',
                       onPressed: () {
-                        _mapController.move(_currentCenter, _currentZoom - 1);
+                        _mapController.move(_currentPosition, _currentZoom - 1);
+                        _currentZoom -= 1;
                         _updateGrid();
                       },
                     ),
