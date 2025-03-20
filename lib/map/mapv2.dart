@@ -108,6 +108,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       Position position = await Geolocator.getCurrentPosition();
+      logger.t('current possition initialized');
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
@@ -120,7 +121,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   void initState() {
     super.initState();
-    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 50.0755, LocationService().lastKnownPosition?.longitude ?? 14.4378);
+    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 0.0, LocationService().lastKnownPosition?.longitude ?? 0.0);
 
     _getCurrentLocation();
 
@@ -193,11 +194,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
             children: [
               FlutterMap(
                 mapController: _mapController,
+
                 options: MapOptions(
                   initialCenter: _currentPosition,
                   initialZoom: 13,
                   minZoom: 1,
                   maxZoom: 19,
+
+                  initialRotation: 0,
                 ),
                 children: [
                   TileLayer(
@@ -284,7 +288,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     FloatingActionButton(
                       heroTag: 'reset',
                       mini: true,
-                      child: const Icon(Icons.gps_fixed),
                       tooltip: 'Reset orientation & recenter',
                       onPressed: () async {
                         // Update current location.
@@ -296,6 +299,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         // _mapController.rotate(0);
                         _updateGrid();
                       },
+                      child: const Icon(Icons.gps_fixed),
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton(
