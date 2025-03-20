@@ -353,12 +353,14 @@ class _LiveRecState extends State<LiveRec> {
           actions: <Widget>[
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
             TextButton(
-                onPressed: () {
-                  clear();
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LiveRec()));
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Discard')),
+              onPressed: () {
+                // todo not discording
+                clear();
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LiveRec()));
+              },
+              child: const Text('Discard'),
+            ),
           ],
         );
       },
@@ -393,6 +395,7 @@ class _LiveRecState extends State<LiveRec> {
         logger.i('Recorded part start time: ${recordedPart!.startTime}');
         _elapsedTimer.reset();
         _elapsedTimer.start();
+
         segmentPaths.add(filepath);
         recordStream(_audioRecorder, config, filepath);
         setState(() {

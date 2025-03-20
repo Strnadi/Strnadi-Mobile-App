@@ -25,6 +25,7 @@ import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
+import 'package:strnadi/map/searchBar.dart';
 import '../config/config.dart';
 import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
@@ -108,6 +109,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       Position position = await Geolocator.getCurrentPosition();
+      logger.t('current possition initialized');
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
@@ -120,7 +122,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   void initState() {
     super.initState();
-    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 50.0755, LocationService().lastKnownPosition?.longitude ?? 14.4378);
+    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 0.0, LocationService().lastKnownPosition?.longitude ?? 0.0);
 
     _getCurrentLocation();
 
@@ -179,7 +181,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: 'Mapy.cz Flutter Map V2',
+      appBarTitle: "Mapa Strnadu",
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -193,11 +195,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
             children: [
               FlutterMap(
                 mapController: _mapController,
+
                 options: MapOptions(
                   initialCenter: _currentPosition,
                   initialZoom: 13,
+                  interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   minZoom: 1,
                   maxZoom: 19,
+
+                  initialRotation: 0,
                 ),
                 children: [
                   TileLayer(
@@ -275,6 +281,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ],
               ),
               Positioned(
+                top: 16,
+                left: 16,
+                right: 16,
+                child: SearchBarWidget(
+                  onLocationSelected: (LatLng location) {
+                    _mapController.move(location, _currentZoom);
+                  },
+                ),
+              ),
+              Positioned(
                 bottom: 20,
                 right: 20,
                 child: Column(
@@ -284,7 +300,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     FloatingActionButton(
                       heroTag: 'reset',
                       mini: true,
-                      child: const Icon(Icons.gps_fixed),
                       tooltip: 'Reset orientation & recenter',
                       onPressed: () async {
                         // Update current location.
@@ -296,6 +311,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         // _mapController.rotate(0);
                         _updateGrid();
                       },
+                      child: const Icon(Icons.gps_fixed),
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton(
@@ -304,7 +320,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       child: const Icon(Icons.add),
                       tooltip: 'Zoom In',
                       onPressed: () {
-                        _mapController.move(_currentCenter, _currentZoom + 1);
+                        _mapController.move(_currentPosition, _currentZoom + 1);
+                        _currentZoom += 1;
                         _updateGrid();
                       },
                     ),
@@ -315,7 +332,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       child: const Icon(Icons.remove),
                       tooltip: 'Zoom Out',
                       onPressed: () {
-                        _mapController.move(_currentCenter, _currentZoom - 1);
+                        _mapController.move(_currentPosition, _currentZoom - 1);
+                        _currentZoom -= 1;
                         _updateGrid();
                       },
                     ),

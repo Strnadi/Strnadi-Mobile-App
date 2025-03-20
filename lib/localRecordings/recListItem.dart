@@ -135,7 +135,7 @@ class _RecordingItemState extends State<RecordingItem> {
       );
     }
     return ScaffoldWithBottomBar(
-      appBarTitle: widget.recording.note ?? '',
+      appBarTitle: widget.recording.name ?? '',
       content: RefreshIndicator(
         onRefresh: _fetchRecordings,
         child: SingleChildScrollView(
@@ -168,6 +168,17 @@ class _RecordingItemState extends State<RecordingItem> {
                         ),
                         IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
                       ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(3.0),
+                      width: double.infinity,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child:
+                      Text(widget.recording.note ?? '', style: const TextStyle(fontSize: 16)),
                     ),
                   ],
                 ),
