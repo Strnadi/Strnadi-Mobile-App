@@ -86,6 +86,15 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+  Future<void> _fetchRecordings() async {
+    // TODO: Add your fetch logic here if needed
+    // For now, simply refresh parts and location
+    setState(() {
+      getParts();
+      getLocation();
+    });
+  }
+
   void togglePlay() async {
     if (!isFileLoaded) return;
     try {
@@ -127,85 +136,91 @@ class _RecordingItemState extends State<RecordingItem> {
     }
     return ScaffoldWithBottomBar(
       appBarTitle: widget.recording.note ?? '',
-      content: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          SizedBox(
-            height: 200,
-            width: double.infinity,
-            child: LiveSpectogram.SpectogramLive(
-              data: [],
-              filepath: widget.recording.path,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Column(
-              children: [
-                Text(_formatDuration(totalDuration),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
-                    IconButton(
-                      icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
-                      iconSize: 72,
-                      onPressed: togglePlay,
-                    ),
-                    IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
-                  ],
+      content: RefreshIndicator(
+        onRefresh: _fetchRecordings,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: LiveSpectogram.SpectogramLive(
+                  data: [],
+                  filepath: widget.recording.path,
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              children: [
-                const Row(children: [Text("Location")]),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 300,
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: center,
-                        initialZoom: 13.0,
-                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Column(
+                  children: [
+                    Text(_formatDuration(totalDuration),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
-                          userAgentPackageName: 'cz.delta.strnadi',
+                        IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
+                        IconButton(
+                          icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                          iconSize: 72,
+                          onPressed: togglePlay,
                         ),
-                        MarkerLayer(
-                          markers: [
-                            if (locationService.lastKnownPosition != null)
-                              Marker(
-                                width: 20.0,
-                                height: 20.0,
-                                point: locationService.lastKnownPosition!,
-                                child: const Icon(
-                                  Icons.my_location,
-                                  color: Colors.blue,
-                                  size: 30.0,
-                                ),
-                              ),
-                          ],
-                        ),
+                        IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
                       ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          )
-        ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  children: [
+                    const Row(children: [Text("Location")]),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 300,
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: center,
+                            initialZoom: 13.0,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                              'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
+                              userAgentPackageName: 'cz.delta.strnadi',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                if (locationService.lastKnownPosition != null)
+                                  Marker(
+                                    width: 20.0,
+                                    height: 20.0,
+                                    point: locationService.lastKnownPosition!,
+                                    child: const Icon(
+                                      Icons.my_location,
+                                      color: Colors.blue,
+                                      size: 30.0,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            ],
+          ),
+        ),
       ),
     );
   }
