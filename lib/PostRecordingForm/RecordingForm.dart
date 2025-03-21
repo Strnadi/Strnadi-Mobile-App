@@ -350,12 +350,6 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
-    LatLng mapCenter;
-    if (recordingParts.isNotEmpty) {
-      mapCenter = LatLng(recordingParts[0].gpsLatitudeStart, recordingParts[0].gpsLongitudeStart);
-    } else {
-      mapCenter = LatLng(0.0, 0.0);
-    }
     markerPosition = locationService.lastKnownPosition != null
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;

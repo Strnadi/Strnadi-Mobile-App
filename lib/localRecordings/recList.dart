@@ -3,12 +3,15 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/archived/recordingsDb.dart';
 
+
+final logger = Logger();
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({Key? key}) : super(key: key);
 

@@ -6,12 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:logger/logger.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
+
+final logger = Logger();
 
 class RecordingItem extends StatefulWidget {
   final Recording recording;
@@ -25,7 +28,7 @@ class RecordingItem extends StatefulWidget {
 class _RecordingItemState extends State<RecordingItem> {
   bool loaded = false;
   late LatLng center;
-  late List<RecordingPart> parts;
+  late List<RecordingPart> parts = [];
   late LocationService locationService;
   final AudioPlayer player = AudioPlayer();
   bool isFileLoaded = false;
@@ -38,7 +41,6 @@ class _RecordingItemState extends State<RecordingItem> {
     super.initState();
     locationService = LocationService();
     getParts();
-    getLocation();
 
     if (widget.recording.path != null) {
 
@@ -66,17 +68,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   }
 
-  void getParts() {
-    parts = DatabaseNew.getPartsById(widget.recording.id!);
-  }
 
-  void getLocation() {
-    if (parts.isNotEmpty) {
-      center = LatLng(parts.last.gpsLatitudeEnd ?? 49.1951, parts.last.gpsLongitudeEnd ?? 16.6068);
-    } else {
-      center = LatLng(49.1951, 16.6068);
-    }
-  }
 
   Future<void> getData() async {
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
@@ -91,12 +83,19 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+  Future<void> getParts() async {
+    logger.i('Parts: ${widget.recording.BEId}');
+    var parts = await DatabaseNew.fetchPartsFromDbById(widget.recording.BEId!);
+    setState(() {
+      this.parts = parts;
+    });
+  }
+
   Future<void> _fetchRecordings() async {
     // TODO: Add your fetch logic here if needed
     // For now, simply refresh parts and location
     setState(() {
       getParts();
-      getLocation();
     });
   }
 
@@ -135,7 +134,7 @@ class _RecordingItemState extends State<RecordingItem> {
   Widget build(BuildContext context) {
     if (!loaded && widget.recording.path != null) {
       return ScaffoldWithBottomBar(
-        appBarTitle: widget.recording.note ?? '',
+        appBarTitle: widget.recording.name ?? '',
         content: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -180,15 +179,52 @@ class _RecordingItemState extends State<RecordingItem> {
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.all(3.0),
+                      padding: const EdgeInsets.all(10.0),
                       width: double.infinity,
                       height: 100,
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(3),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child:
-                      Text(widget.recording.note ?? '', style: const TextStyle(fontSize: 16)),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: const TextStyle(fontSize: 16))]),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(3.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [Container(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Column(
+                            children: [
+                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text("Datum a čas")]),
+                              Text(
+                                formatDateTime(widget.recording.createdAt),
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("Predpokladany pocet strnadu: "),
+                          Text(widget.recording.estimatedBirdsCount.toString()),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -208,7 +244,10 @@ class _RecordingItemState extends State<RecordingItem> {
                         height: 300,
                         child: FlutterMap(
                           options: MapOptions(
-                            initialCenter: center,
+                            interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                            initialCenter: parts.isNotEmpty
+                                ? LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart)
+                                : LatLng(0.0, 0.0),
                             initialZoom: 13.0,
                           ),
                           children: [
@@ -219,11 +258,12 @@ class _RecordingItemState extends State<RecordingItem> {
                             ),
                             MarkerLayer(
                               markers: [
-                                if (locationService.lastKnownPosition != null)
                                   Marker(
                                     width: 20.0,
                                     height: 20.0,
-                                    point: locationService.lastKnownPosition!,
+                                    point: parts.isNotEmpty
+                                        ? LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart)
+                                        : LatLng(0.0, 0.0),
                                     child: const Icon(
                                       Icons.my_location,
                                       color: Colors.blue,
@@ -244,5 +284,16 @@ class _RecordingItemState extends State<RecordingItem> {
         ),
       ),
     );
+  }
+
+  void fetchRecPart(int id) async {
+    final part = await DatabaseNew.fetchPartsFromDbById(id);
+    setState(() {
+      parts = part;
+    });
+  }
+
+  String formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 }
