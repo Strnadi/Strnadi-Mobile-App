@@ -39,26 +39,31 @@ class _RecordingItemState extends State<RecordingItem> {
     locationService = LocationService();
     getParts();
     getLocation();
-    player.positionStream.listen((position) {
-      setState(() {
-        currentPosition = position;
+
+    if (widget.recording.path != null) {
+
+      player.positionStream.listen((position) {
+        setState(() {
+          currentPosition = position;
+        });
       });
-    });
-    player.durationStream.listen((duration) {
-      setState(() {
-        totalDuration = duration ?? Duration.zero;
+      player.durationStream.listen((duration) {
+        setState(() {
+          totalDuration = duration ?? Duration.zero;
+        });
       });
-    });
-    player.playingStream.listen((playing) {
-      setState(() {
-        isPlaying = playing;
+      player.playingStream.listen((playing) {
+        setState(() {
+          isPlaying = playing;
+        });
       });
-    });
-    getData().then((_) {
-      setState(() {
-        loaded = true;
+      getData().then((_) {
+        setState(() {
+          loaded = true;
+        });
       });
-    });
+    }
+
   }
 
   void getParts() {
@@ -128,7 +133,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   @override
   Widget build(BuildContext context) {
-    if (!loaded) {
+    if (!loaded && widget.recording.path != null) {
       return ScaffoldWithBottomBar(
         appBarTitle: widget.recording.note ?? '',
         content: const Center(child: CircularProgressIndicator()),
@@ -143,13 +148,18 @@ class _RecordingItemState extends State<RecordingItem> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(
+              widget.recording.path != null && widget.recording.path!.isNotEmpty ?
+                SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: LiveSpectogram.SpectogramLive(
+                    data: [],
+                    filepath: widget.recording.path,
+                  ),
+              ) : const SizedBox(
                 height: 200,
                 width: double.infinity,
-                child: LiveSpectogram.SpectogramLive(
-                  data: [],
-                  filepath: widget.recording.path,
-                ),
+                child: Center(child: Text('Nahrávka není dostupná')),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

@@ -46,14 +46,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
   }
 
   void openRecording(Recording recording) {
-    if (recording.downloaded) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => RecordingItem(recording: recording),
         ),
       );
-    }
   }
 
   String formatDateTime(DateTime dateTime) {
