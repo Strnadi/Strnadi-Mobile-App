@@ -2,9 +2,12 @@
  * recListItem.dart
  */
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/bottomBar.dart';
@@ -36,6 +39,8 @@ class _RecordingItemState extends State<RecordingItem> {
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
 
+  String placeTitle = 'Mapa';
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +64,8 @@ class _RecordingItemState extends State<RecordingItem> {
           isPlaying = playing;
         });
       });
+
+
       getData().then((_) {
         setState(() {
           loaded = true;
@@ -88,6 +95,7 @@ class _RecordingItemState extends State<RecordingItem> {
     var parts = await DatabaseNew.fetchPartsFromDbById(widget.recording.BEId!);
     setState(() {
       this.parts = parts;
+      reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
     });
   }
 
@@ -128,6 +136,36 @@ class _RecordingItemState extends State<RecordingItem> {
   void dispose() {
     player.dispose();
     super.dispose();
+  }
+
+
+  Future<void> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data['result'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+          setState(() {
+            placeTitle = results[0]['title'];
+          });
+        }
+      }
+      else {
+        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+      }
+    } catch (e) {
+      print('Reverse geocode error: $e');
+    }
   }
 
   @override
@@ -233,7 +271,7 @@ class _RecordingItemState extends State<RecordingItem> {
                 padding: const EdgeInsets.all(10.0),
                 child: Column(
                   children: [
-                    const Row(children: [Text("Location")]),
+                    Row(children: [Text(placeTitle)]),
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey),
