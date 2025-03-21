@@ -671,6 +671,12 @@ class DatabaseNew {
     }
   }
 
+  static Future<List<RecordingPart>> fetchPartsFromDbById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> parts = await db.rawQuery("SELECT * FROM recordingParts WHERE RecordingId = $id");
+    return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
+  }
+
   static List<RecordingPart> getPartsById(int id) {
     return recordingParts.where((part) => part.recordingId == id).toList();
   }
