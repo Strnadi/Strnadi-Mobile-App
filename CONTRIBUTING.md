@@ -1,7 +1,3 @@
-Sure! Here’s a general-purpose `CONTRIBUTING.md` file you can include in your GitHub repo. Let me know if you want it tailored for a specific project (like Flutter, Go, Rust, etc.), but here’s a good starting point:
-
----
-
 # Contributing Guidelines
 
 Thank you for considering contributing to this project! We welcome all kinds of contributions, including bug reports, feature requests, documentation improvements, and code.
@@ -95,7 +91,3 @@ Examples:
 By participating in this project, you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Be respectful, constructive, and kind.
-
----
-
-Let me know if you'd like this tailored to your tech stack, like including commands for running tests or linking to an issue template.
