@@ -25,6 +25,7 @@ import 'package:strnadi/recording/streamRec.dart'; // Added missing import for L
 import 'main.dart';
 import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
+import 'package:strnadi/firebase/firebase.dart' as fb;
 
 
 class ScaffoldWithBottomBar extends StatelessWidget {
@@ -42,8 +43,12 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.allawArrowBack = false,
   }) : super(key: key);
 
-  void Logout(BuildContext context) {
+  void Logout(BuildContext context) async {
     final localStorage = const FlutterSecureStorage();
+
+    localStorage.delete(key: 'user');
+    localStorage.delete(key: 'lastname');
+    await fb.deleteToken();
     localStorage.delete(key: 'token');
     Navigator.pushAndRemoveUntil(
       context,

@@ -41,7 +41,7 @@ class LocalDb {
   }
 
   static Future<Database> _initDB() async {
-    String path = join(await getDatabasesPath(), 'recordings.db');
+    //String path = join(await getDatabasesPath(), 'recordings.db');
 
     return await openDatabase(
       path,

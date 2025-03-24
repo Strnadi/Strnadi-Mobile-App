@@ -147,7 +147,7 @@ Future<void> addDevice() async{
 
       Uri url = Uri.https('api.strnadi.cz', '/devices/add');
       DeviceInfo deviceInfo = await getDeviceInfo();
-      String? jwt = await const FlutterSecureStorage().read(key: 'token');
+      String? jwt = await FlutterSecureStorage().read(key: 'token');
       logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
       final response = await http.post(
         url,
@@ -220,8 +220,10 @@ Future<void> updateDevice(String? oldToken, String? newToken) async{
 }
 
 Future<void> deleteToken()async{
-  Uri uri = Uri.https('api.strnadi.cz', '/devices/delete');
+
   String? token = await FlutterSecureStorage().read(key: 'fcmToken');
+  Uri uri = Uri.https('api.strnadi.cz', '/devices/delete/$token');
+
   if(token == null){
     logger.i('No token to delete');
     return;
@@ -232,13 +234,14 @@ Future<void> deleteToken()async{
     final response = await http.delete(uri, headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $jwt'
-    }, body: jsonEncode({'fcmToken': token}));
+    });
     if (response.statusCode == 200){
       logger.i('Token deleted');
       FlutterSecureStorage().delete(key: 'fcmToken');
     }
     else{
       logger.e('Failed to delete token ${response.statusCode} | ${response.body}');
+
     }
   }
   catch (error) {

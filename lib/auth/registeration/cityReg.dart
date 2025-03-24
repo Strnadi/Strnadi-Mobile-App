@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
+import 'package:strnadi/firebase/firebase.dart' as fb;
 
 import 'emailSent.dart';
 
@@ -85,6 +86,7 @@ class _RegLocationState extends State<RegLocation> {
       if ([200, 201, 202].contains(response.statusCode)) {
         // Store the token if returned
         await secureStorage.write(key: 'token', value: response.body.toString());
+        await fb.refreshToken();
 
         // Navigate to the login screen (or next step)
         Navigator.pushReplacement(
