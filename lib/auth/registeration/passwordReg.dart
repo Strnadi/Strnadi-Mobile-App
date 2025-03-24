@@ -15,12 +15,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
-import 'package:strnadi/auth/login.dart';
+import 'package:strnadi/auth/registeration/cityReg.dart';
 
 final logger = Logger();
 
@@ -103,73 +100,6 @@ class _RegPasswordState extends State<RegPassword> {
         confirm.isNotEmpty &&
         pass == confirm &&
         _passwordMeetsRequirements(pass);
-  }
-
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> register() async {
-    final secureStorage = FlutterSecureStorage();
-
-    final url = Uri(
-      scheme: 'https',
-      host: 'api.strnadi.cz',
-      path: '/auth/sign-up',
-    );
-
-    final requestBody = jsonEncode({
-      'email': widget.email,
-      'password': _passwordController.text,
-      'FirstName': widget.name,
-      'LastName': widget.surname,
-      'nickname': widget.nickname.isEmpty ? null : widget.nickname,
-      'consent': widget.consent,
-    });
-
-    logger.i("Sign Up Request Body: $requestBody");
-
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: requestBody,
-      );
-
-      logger.i("Sign Up Response: ${response.body}");
-
-      if ([200, 201, 202].contains(response.statusCode)) {
-        // Store the token if returned
-        await secureStorage.write(key: 'token', value: response.body.toString());
-
-        // Navigate to the login screen (or next step)
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const Login()),
-              (Route<dynamic> route) => false,
-        );
-      } else if (response.statusCode == 409) {
-        _showMessage('Uživatel již existuje');
-      } else {
-        _showMessage('Nastala chyba :( Zkuste to znovu');
-        logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
-      }
-    } catch (error) {
-      logger.e("An error occurred: $error");
-      _showMessage('Nastala chyba :( Zkuste to znovu');
-    }
   }
 
   @override
@@ -378,7 +308,7 @@ class _RegPasswordState extends State<RegPassword> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState?.validate() ?? false) {
-                        register();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegLocation(email: widget.email, consent: widget.consent, name: widget.name, surname: widget.surname, nickname:  widget.nickname,password:  _passwordController.text)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -408,7 +338,7 @@ class _RegPasswordState extends State<RegPassword> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
         child: Row(
-          children: List.generate(6, (index) {
+          children: List.generate(3, (index) {
             // Fill first 2 segments to show "2 out of 6" progress
             final bool completed = index < 2;
             return Expanded(

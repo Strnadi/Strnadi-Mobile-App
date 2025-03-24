@@ -169,7 +169,7 @@ Future<void> addDevice() async{
       }
       else {
         adding = false;
-        logger.e('Failed to add device ${response.statusCode}');
+        logger.e('Failed to add device ${response.statusCode} | ${response.body}');
       }
     });
   } catch(e, stackTrace){
@@ -210,7 +210,7 @@ Future<void> updateDevice(String? oldToken, String? newToken) async{
       FlutterSecureStorage().write(key: 'fcmToken', value: newToken);
     }
     else{
-      logger.e('Failed to update device ${response.statusCode}');
+      logger.e('Failed to update device ${response.statusCode} | ${response.body}');
     }
   }
   catch(e, stackTrace){
@@ -238,7 +238,7 @@ Future<void> deleteToken()async{
       FlutterSecureStorage().delete(key: 'fcmToken');
     }
     else{
-      logger.e('Failed to delete token ${response.statusCode}');
+      logger.e('Failed to delete token ${response.statusCode} | ${response.body}');
     }
   }
   catch (error) {

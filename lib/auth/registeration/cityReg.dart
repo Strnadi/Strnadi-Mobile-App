@@ -1,51 +1,117 @@
-/*
- * Copyright (C) 2025 Marian Pecqueur & Jan Drobílek
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
+import 'dart:convert';
+import 'dart:ffi';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:strnadi/auth/registeration/passwordReg.dart';
+import 'package:logger/logger.dart';
+import 'package:strnadi/auth/login.dart';
 
-class RegName extends StatefulWidget {
+import 'emailSent.dart';
+
+Logger logger = Logger();
+
+class RegLocation extends StatefulWidget {
   final String email;
   final bool consent;
+  final String password;
+  final String name;
+  final String surname;
+  final String nickname;
 
-  const RegName({super.key, required this.email, required this.consent});
+  const RegLocation({super.key, required this.email, required this.consent, required this.password, required this.name, required this.surname, required this.nickname});
 
   @override
-  State<RegName> createState() => _RegNameState();
+  State<RegLocation> createState() => _RegLocationState();
 }
 
-class _RegNameState extends State<RegName> {
+class _RegLocationState extends State<RegLocation> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _surnameController = TextEditingController();
-  final TextEditingController _nickController = TextEditingController();
+  final TextEditingController _pscController = TextEditingController();
+  final TextEditingController _obecController = TextEditingController();
 
-  /// Form is valid if both required fields (Jméno, Příjmení) are non-empty.
-  bool get _isFormValid =>
-      _nameController.text.trim().isNotEmpty &&
-          _surnameController.text.trim().isNotEmpty;
+  // Colors and styling constants
+  static const Color textColor = Color(0xFF2D2B18);
+  static const Color yellow = Color(0xFFFFD641);
+
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chyba'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> register() async {
+    final secureStorage = FlutterSecureStorage();
+
+    final url = Uri(
+      scheme: 'https',
+      host: 'api.strnadi.cz',
+      path: '/auth/sign-up',
+    );
+
+    final requestBody = jsonEncode({
+      'email': widget.email,
+      'password': widget.password,
+      'FirstName': widget.name,
+      'LastName': widget.surname,
+      'nickname': widget.nickname.isEmpty ? null : widget.nickname,
+      'city': _obecController.text,
+      'postCode': _pscController.text.isNotEmpty ? int.parse(_pscController.text).toUnsigned(32) : null,
+      'consent': widget.consent,
+    });
+
+    logger.i("Sign Up Request Body: $requestBody");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: requestBody,
+      );
+
+      logger.i("Sign Up Response: ${response.body}");
+
+      if ([200, 201, 202].contains(response.statusCode)) {
+        // Store the token if returned
+        await secureStorage.write(key: 'token', value: response.body.toString());
+
+        // Navigate to the login screen (or next step)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerifyEmail(userEmail: widget.email),
+          ),
+        );
+      } else if (response.statusCode == 409) {
+        _showMessage('Uživatel již existuje');
+      } else {
+        _showMessage('Nastala chyba :( Zkuste to znovu');
+        logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
+      }
+    } catch (error) {
+      logger.e("An error occurred: $error");
+      _showMessage('Nastala chyba :( Zkuste to znovu');
+    }
+  }
+
+  bool get _isFormValid => true;
 
   @override
   Widget build(BuildContext context) {
-    // Colors and styling constants
-    const Color textColor = Color(0xFF2D2B18);
-    const Color yellow = Color(0xFFFFD641);
-
     return Scaffold(
+      // White background, same as in your example
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -55,10 +121,11 @@ class _RegNameState extends State<RegName> {
             width: 30,
             height: 30,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+          },
         ),
       ),
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -67,21 +134,30 @@ class _RegNameState extends State<RegName> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Heading text using textColor
+                // Title
                 const Text(
-                  'Zadejte vaše jméno, příjmení\na zvolte si přezdívku',
+                  'Kde se nacházíte?',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: textColor,
                   ),
-                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                // Subtitle / Description
+                const Text(
+                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, '
+                      'budeme potřebovat vaše PSČ a obec. Tento krok je nepovinný.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor,
+                  ),
                 ),
                 const SizedBox(height: 32),
 
-                // "Jméno *" label and text field
+                // PSČ label
                 const Text(
-                  'Jméno *',
+                  'PSČ',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -90,8 +166,8 @@ class _RegNameState extends State<RegName> {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: _nameController,
-                  keyboardType: TextInputType.name,
+                  controller: _pscController,
+                  keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     fillColor: Colors.grey[200],
                     filled: true,
@@ -110,19 +186,13 @@ class _RegNameState extends State<RegName> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Zadejte jméno';
-                    }
-                    return null;
-                  },
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 16),
 
-                // "Příjmení *" label and text field
+                // Obec label
                 const Text(
-                  'Příjmení *',
+                  'Obec',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -131,48 +201,7 @@ class _RegNameState extends State<RegName> {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: _surnameController,
-                  keyboardType: TextInputType.name,
-                  decoration: InputDecoration(
-                    fillColor: Colors.grey[200],
-                    filled: true,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Zadejte příjmení';
-                    }
-                    return null;
-                  },
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 16),
-
-                // "Přezdívka" label and text field (optional)
-                const Text(
-                  'Přezdívka',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _nickController,
+                  controller: _obecController,
                   keyboardType: TextInputType.text,
                   decoration: InputDecoration(
                     fillColor: Colors.grey[200],
@@ -183,29 +212,28 @@ class _RegNameState extends State<RegName> {
                       borderSide: BorderSide.none,
                       borderRadius: BorderRadius.circular(16.0),
                     ),
+                    errorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
                   ),
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 32),
 
-                // "Pokračovat" button: yellow if valid, otherwise grey.
+                // Pokračovat button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Trigger validation; error messages and red outlines will display if fields are invalid.
                       if (_formKey.currentState?.validate() ?? false) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegPassword(
-                              email: widget.email,
-                              consent: widget.consent,
-                              name: _nameController.text.trim(),
-                              surname: _surnameController.text.trim(),
-                              nickname: _nickController.text.trim(),
-                            ),
-                          ),
-                        );
+                        register();
+                        // Navigate to the next screen or handle logic
+                        // e.g.: Navigator.push(context, MaterialPageRoute(builder: (_) => NextPage()));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -230,12 +258,14 @@ class _RegNameState extends State<RegName> {
           ),
         ),
       ),
-      // Bottom segmented progress bar with larger bottom padding
+      // Bottom segmented progress bar
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
         child: Row(
           children: List.generate(5, (index) {
-            bool completed = index < 2;
+            // You can customize which segment(s) are considered "completed"
+            // For example, if this page is the 2nd or 3rd step:
+            bool completed = index < 4; // or index < 3, etc.
             return Expanded(
               child: Container(
                 height: 4,

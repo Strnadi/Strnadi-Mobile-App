@@ -283,7 +283,7 @@ class _RegMailState extends State<RegMail> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
         child: Row(
-          children: List.generate(6, (index) {
+          children: List.generate(5, (index) {
             bool completed = index < 1;
             return Expanded(
               child: Container(
