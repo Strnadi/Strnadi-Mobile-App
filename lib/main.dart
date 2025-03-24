@@ -148,6 +148,12 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const HomeScreen(),
+      routes: {
+        'authorizator': (context) => Authorizator(
+          login: const Login(),
+          register: const RegMail(),
+        ),
+      },
     );
   }
 }
