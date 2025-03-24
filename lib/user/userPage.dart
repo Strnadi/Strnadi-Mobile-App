@@ -90,13 +90,13 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
-  void logout(BuildContext context) {
+  Future<void> logout(BuildContext context) async{
     final localStorage = const FlutterSecureStorage();
     localStorage.delete(key: 'token');
     localStorage.delete(key: 'user');
     localStorage.delete(key: 'lastname');
 
-    strnadiFirebase.deleteToken();
+    await strnadiFirebase.deleteToken();
 
     Navigator.pushAndRemoveUntil(
       context,
