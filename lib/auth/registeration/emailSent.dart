@@ -1,6 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:logger/logger.dart';
+
+Logger logger = Logger();
 
 class VerifyEmail extends StatefulWidget {
   final String userEmail;
@@ -48,22 +55,64 @@ class _VerifyEmailState extends State<VerifyEmail> {
     });
   }
 
-  /// Resend email verification link. (Implement your actual logic here.)
-  void _resendEmail() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Feature not implemented'),
-        content: const Text('This feature has not been implemented yet.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  void alreadyVerified(){
+    Navigator.pop(context);
+    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
   }
+
+  Future<void> resendEmail() async {
+    final String? jwt = await FlutterSecureStorage().read(key: 'token');
+    final Uri url = Uri.https('api.strnadi.cz', '/auth/${widget.userEmail}/resend-verify-email');
+    try {
+      final response = await http.get(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $jwt',
+          },
+      );
+      if(response.statusCode == 200){
+        logger.i('Email sent');
+      }
+      else if(response.statusCode == 208){
+        logger.i('Email already verified');
+        showDialog(context: context, builder: (_) => AlertDialog(
+          title: const Text('Email již ověřen'),
+          content: const Text('Tento e-mail již byl ověřen.'),
+          actions: [
+            TextButton(
+              onPressed: alreadyVerified,
+              child: const Text('OK'),
+            ),
+          ],
+        ));
+      }
+      else {
+        logger.e(
+            'Failed to send email ${response.statusCode} | ${response.body}');
+      }
+    } catch(e, stackTrace){
+      logger.e(e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
+  }
+
+  /// Resend email verification link. (Implement your actual logic here.)
+  // void _resendEmail() {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: const Text('Feature not implemented'),
+  //       content: const Text('This feature has not been implemented yet.'),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => alreadyVerified(context),
+  //           child: const Text('OK'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   /// Open the user’s email app. (Implement or use a package like url_launcher.)
   void _openEmailApp() async {
@@ -135,7 +184,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _counter > 0 ? null : _resendEmail,
+                  onPressed: _counter > 0 ? null : resendEmail,
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
                     backgroundColor: yellow,
