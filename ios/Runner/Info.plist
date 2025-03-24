@@ -90,5 +90,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.delta.strnadi</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.delta.strnadi</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
