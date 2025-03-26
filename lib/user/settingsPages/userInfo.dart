@@ -1,7 +1,125 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class ProfileEditPage extends StatelessWidget {
-  const ProfileEditPage({super.key});
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:strnadi/archived/login.dart';
+
+class User {
+  final int id;
+  final String nickname;
+  final String email;
+  final String? password;
+  final String firstName;
+  final String lastName;
+  final int postCode;
+  final String city;
+  final DateTime creationDate;
+  final bool isEmailVerified;
+  final bool consent;
+  final String role;
+
+  User({
+    required this.id,
+    required this.nickname,
+    required this.email,
+    this.password,
+    required this.firstName,
+    required this.lastName,
+    required this.postCode,
+    required this.city,
+    required this.creationDate,
+    required this.isEmailVerified,
+    required this.consent,
+    required this.role,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'],
+      nickname: json['nickname'],
+      email: json['email'],
+      password: json['password'],
+      firstName: json['firstName'],
+      lastName: json['lastName'],
+      postCode: json['postCode'],
+      city: json['city'],
+      creationDate: DateTime.parse(json['creationDate']),
+      isEmailVerified: json['isEmailVerified'],
+      consent: json['consent'],
+      role: json['role'],
+    );
+  }
+
+}
+
+class ProfileEditPage extends StatefulWidget {
+  const ProfileEditPage({Key? key}) : super(key: key);
+
+  @override
+  _ProfileEditPageState createState() => _ProfileEditPageState();
+}
+
+class _ProfileEditPageState extends State<ProfileEditPage> {
+
+  User? user;
+
+  Future<void> fetchUser(String email, String jwt) async {
+    final url = Uri.parse('https://api.strnadi.cz/users/$email');
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        user = User.fromJson(jsonDecode(response.body));
+      });
+    } else {
+      print('Failed to load user: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  Future<String?> extractEmailFromJwt() async {
+
+    final secureStorage = FlutterSecureStorage();
+    String? jwt = await secureStorage.read(key: 'token');
+
+    logger.i("token: $jwt");
+
+
+    try {
+      final parts = jwt!.split('.');
+      if (parts.length != 3) {
+        throw Exception('Invalid token');
+      }
+
+      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final Map<String, dynamic> jsonPayload = jsonDecode(payload);
+
+      fetchUser(jsonPayload['sub'], jwt); // Assuming the email is in "sub
+    } catch (e) {
+      print('Error decoding JWT: $e');
+      return null;
+    }
+  }
+
+  void UpdateUser() {
+    // Update user
+    _showMessage('Nic se nezměnilo');
+  }
+
+
+  @override
+  void initState() {
+    super.initState();
+    extractEmailFromJwt();
+  }
+   
+
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +132,9 @@ class ProfileEditPage extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () {}, // Save action
+            onPressed: () {
+              UpdateUser();
+            }, // Save action
             child: const Text('Uložit', style: TextStyle(color: Colors.grey)),
           ),
         ],
@@ -23,14 +143,14 @@ class ProfileEditPage extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildTextField('Jméno', 'Lenka'),
-            _buildTextField('Příjmení', 'Nováková'),
-            _buildTextField('Přezdívka', 'novolenka'),
-            _buildTextField('E-mail', 'email@example.com'),
-            _buildTextField('PSČ', '530 09'),
+            _buildTextField('Jméno', user?.firstName ?? 'Null'),
+            _buildTextField('Příjmení',  user?.lastName ?? 'Null'),
+            _buildTextField('Přezdívka', user?.nickname ?? 'Null'),
+            _buildTextField('E-mail', user?.email ?? 'Null'),
+            _buildTextField('PSČ', user?.postCode.toString() ?? 'Null'),
             ListTile(
               title: const Text('Kraj'),
-              subtitle: const Text('Pardubický'),
+              subtitle: Text(user?.city ?? 'Null'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {}, // Open region selection
             ),
@@ -60,6 +180,16 @@ class ProfileEditPage extends StatelessWidget {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
         controller: TextEditingController(text: value),
+      ),
+    );
+  }
+
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(message),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
       ),
     );
   }
