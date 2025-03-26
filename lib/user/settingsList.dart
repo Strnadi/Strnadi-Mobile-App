@@ -15,6 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
+import 'package:strnadi/user/settingsPages/userInfo.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MenuScreen extends StatelessWidget {
@@ -62,6 +63,9 @@ class MenuScreen extends StatelessWidget {
   }
 
   void Executor(int index, BuildContext context) {
+    if (index == 0) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileEditPage()));
+    }
     if (index == 1) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
     }
