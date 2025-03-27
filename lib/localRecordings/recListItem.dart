@@ -165,7 +165,7 @@ class _RecordingItemState extends State<RecordingItem> {
       };
       final response = await http.get(url, headers: headers);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final results = data['result'];
         if (results.isNotEmpty) {
