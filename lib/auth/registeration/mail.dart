@@ -225,7 +225,8 @@ class _RegMailState extends State<RegMail> {
 
               const SizedBox(height: 32),
 
-              // Divider with "Nebo"
+              // Google sign-in section
+              const SizedBox(height: 32),
               Row(
                 children: [
                   Expanded(
@@ -246,15 +247,12 @@ class _RegMailState extends State<RegMail> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 32),
-
-              // "Pokračovat přes Google" button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Handle "Continue with Google" logic here
+                    // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(
                     'assets/images/google.webp',
@@ -266,9 +264,11 @@ class _RegMailState extends State<RegMail> {
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    side: const BorderSide(color: Colors.grey),
+                    side: BorderSide(color: Colors.grey[300]!),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
