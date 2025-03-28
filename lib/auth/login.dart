@@ -259,8 +259,8 @@ class _LoginState extends State<Login> {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     logger.i('Button clicked');
-                    google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
-                    _googleSignInService.signInWithGoogle().then((jwt) => {
+                    //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
+                    google.GoogleSignInService.signInWithGoogle().then((jwt) => {
                       if(jwt!=null){
                       FlutterSecureStorage().write(key: 'token', value: jwt),
                       fb.refreshToken(),

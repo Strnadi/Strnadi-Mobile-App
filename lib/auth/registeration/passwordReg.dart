@@ -18,23 +18,20 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/registeration/cityReg.dart';
+import 'package:strnadi/auth/registeration/nameReg.dart';
 
 final logger = Logger();
 
 class RegPassword extends StatefulWidget {
   final String email;
+  final String jwt;
   final bool consent;
-  final String name;
-  final String surname;
-  final String nickname;
 
   const RegPassword({
     super.key,
     required this.email,
+    required this.jwt,
     required this.consent,
-    required this.name,
-    required this.surname,
-    required this.nickname,
   });
 
   @override
@@ -70,25 +67,13 @@ class _RegPasswordState extends State<RegPassword> {
   bool get _hasLength =>
       _passwordController.text.length >= 8;
 
-  /// Checks that the password does NOT contain the user’s name or email.
-  /// Adjust if you prefer a more advanced check (e.g., partial matches).
-  bool get _doesNotContainNameOrEmail {
-    final pass = _passwordController.text.toLowerCase();
-    final name = widget.name.toLowerCase();
-    final email = widget.email.toLowerCase();
-    // If either name or email is empty or short, you may want to skip
-    // but for simplicity, we do a simple substring check:
-    return !pass.contains(name) && !pass.contains(email);
-  }
-
   /// Final check: all partial checks must pass
   bool _passwordMeetsRequirements(String password) {
     return _hasUpper &&
         _hasLower &&
         _hasDigit &&
         //_hasSymbol &&
-        _hasLength &&
-        _doesNotContainNameOrEmail;
+        _hasLength;
   }
 
   /// Overall form is valid if both fields are non-empty, match each other, and meet the requirements.
@@ -289,15 +274,6 @@ class _RegPasswordState extends State<RegPassword> {
                         fontSize: 14,
                       ),
                     ),
-                    Text(
-                      '• Nepoužívejte vaše jméno nebo email',
-                      style: TextStyle(
-                        color: _doesNotContainNameOrEmail
-                            ? Colors.green
-                            : textColor,
-                        fontSize: 14,
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -308,7 +284,7 @@ class _RegPasswordState extends State<RegPassword> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState?.validate() ?? false) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegLocation(email: widget.email, consent: widget.consent, name: widget.name, surname: widget.surname, nickname:  widget.nickname,password:  _passwordController.text)));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegName(email: widget.email, consent: widget.consent,jwt: widget.jwt ,password:  _passwordController.text)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
