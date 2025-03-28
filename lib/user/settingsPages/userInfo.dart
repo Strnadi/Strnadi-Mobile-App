@@ -15,7 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
+import 'package:strnadi/auth/forgottenPassword.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/archived/login.dart';
@@ -94,7 +94,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         user = User.fromJson(jsonDecode(response.body));
       });
     } else {
-      print('Failed to load user: ${response.statusCode} ${response.body}');
+      logger.i('Failed to load user: ${response.statusCode} ${response.body}');
+      _showMessage("Nepodařilo se načíst uživatele");
     }
   }
 
@@ -169,7 +170,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             ListTile(
               title: const Text('Změna hesla'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {}, // Open password change
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ForgottenPassword()),
+                );
+              }, // Open password change
             ),
             ListTile(
               title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
