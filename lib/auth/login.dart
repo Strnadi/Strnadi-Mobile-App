@@ -64,12 +64,6 @@ class _LoginState extends State<Login> {
 
   void login() async {
     final url = Uri.https('api.strnadi.cz', '/auth/login');
-
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
-      _showMessage("Nebud Negr Ty deges");
-      return;
-    }
-
     try {
       final response = await http.post(
         url,
@@ -80,10 +74,7 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      logger.i(response.body);
-
       if (response.statusCode == 200 || response.statusCode == 202) {
-        logger.i("user has logged in with status code ${response.statusCode}");
         await const FlutterSecureStorage()
             .write(key: 'token', value: response.body);
         await fb.refreshToken();

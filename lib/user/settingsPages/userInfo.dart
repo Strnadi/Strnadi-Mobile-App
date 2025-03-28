@@ -1,21 +1,6 @@
-/*
- * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/auth/forgottenPassword.dart';
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/archived/login.dart';
@@ -94,15 +79,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         user = User.fromJson(jsonDecode(response.body));
       });
     } else {
-      logger.i('Failed to load user: ${response.statusCode} ${response.body}');
-      _showMessage("Nepodařilo se načíst uživatele");
+      print('Failed to load user: ${response.statusCode} ${response.body}');
     }
   }
 
-  Future<void> extractEmailFromJwt() async {
+  Future<String?> extractEmailFromJwt() async {
 
     final secureStorage = FlutterSecureStorage();
     String? jwt = await secureStorage.read(key: 'token');
+
+    logger.i("token: $jwt");
+
 
     try {
       final parts = jwt!.split('.');
@@ -115,7 +102,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
       fetchUser(jsonPayload['sub'], jwt); // Assuming the email is in "sub
     } catch (e) {
-      logger.i("Error decoding JWT: $e");
+      print('Error decoding JWT: $e');
+      return null;
     }
   }
 
@@ -170,12 +158,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             ListTile(
               title: const Text('Změna hesla'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ForgottenPassword()),
-                );
-              }, // Open password change
+              onTap: () {}, // Open password change
             ),
             ListTile(
               title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
