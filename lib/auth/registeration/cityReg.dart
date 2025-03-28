@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
@@ -100,13 +101,16 @@ class _RegLocationState extends State<RegLocation> {
           ),
         );
       } else if (response.statusCode == 409) {
+        GoogleSignInService.signOut();
         logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
         _showMessage('Uživatel již existuje');
       } else {
+        GoogleSignInService.signOut();
         _showMessage('Nastala chyba :( Zkuste to znovu');
         logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
       }
     } catch (error) {
+      GoogleSignInService.signOut();
       logger.e("An error occurred: $error");
       _showMessage('Nastala chyba :( Zkuste to znovu');
     }

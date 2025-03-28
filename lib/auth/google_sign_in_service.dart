@@ -38,6 +38,7 @@ class GoogleSignInService {
       }
       else {
         logger.e('Google sign in failed: idToken is null');
+        signOut();
         return null;
       }
 
@@ -62,6 +63,7 @@ class GoogleSignInService {
             'Sign in failed: ${response.statusCode} | ${response.body}');
       }
     } catch(e, stackTrace) {
+      signOut();
       logger.e('Google sign in failed: ${e.toString()}', error: e, stackTrace: stackTrace);
       return null;
     }
