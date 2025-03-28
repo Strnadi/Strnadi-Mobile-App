@@ -89,6 +89,8 @@ dependencies:
       ref: main
   googleapis_auth: ^1.6.0
   app_links: ^6.4.0
+  google_sign_in: ^6.3.0
+  firebase_auth: ^5.5.1
 
 
 dev_dependencies:
