@@ -14,11 +14,19 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/gestures.dart';
+import 'package:http/http.dart' as http;
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:logger/logger.dart';
+import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
+
+Logger logger = Logger();
 
 class RegMail extends StatefulWidget {
   const RegMail({super.key});
@@ -37,6 +45,24 @@ class _RegMailState extends State<RegMail> {
   bool isValidEmail(String email) {
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     return emailRegex.hasMatch(email);
+  }
+
+  Future<String?> _checkEmail(String email) async{
+    final Uri url = Uri(
+      scheme: 'https',
+      host: 'api.strnadi.cz',
+      path: '/users/exists',
+      queryParameters: {
+        'email': email,
+      },
+    );
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return response.body; //Jwt
+    } else {
+      logger.w('Failed to check email: ${response.statusCode} | ${response.body}');
+      return null;
+    }
   }
 
   @override
@@ -186,24 +212,28 @@ class _RegMailState extends State<RegMail> {
                     bool emailValid = isValidEmail(_emailController.text);
                     bool termsAccepted = _isChecked;
 
-                    setState(() {
-                      _emailErrorMessage = emailValid
-                          ? null
-                          : 'Please enter a valid email address';
-                      _termsError = !termsAccepted;
-                    });
+                    _checkEmail(_emailController.text).then((jwt) => {
+                      setState(() {
+                        _emailErrorMessage = emailValid
+                            ? null
+                            : 'Please enter a valid email address';
+                        _emailErrorMessage = jwt != null? 'Email already exists' : null;
+                        _termsError = !termsAccepted;
+                      }),
 
-                    if (emailValid && termsAccepted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RegName(
-                            email: _emailController.text,
-                            consent: true,
+                      if (emailValid && termsAccepted && jwt != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegPassword(
+                              email: _emailController.text,
+                              jwt: jwt,
+                              consent: true,
+                            ),
                           ),
                         ),
-                      );
-                    }
+                      }
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
@@ -225,7 +255,8 @@ class _RegMailState extends State<RegMail> {
 
               const SizedBox(height: 32),
 
-              // Divider with "Nebo"
+              // Google sign-in section
+              const SizedBox(height: 32),
               Row(
                 children: [
                   Expanded(
@@ -246,15 +277,36 @@ class _RegMailState extends State<RegMail> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 32),
-
-              // "Pokračovat přes Google" button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Handle "Continue with Google" logic here
+                    try{
+                      gle.GoogleSignInService.signUpWithGoogle().then((user) => {
+                        if(user != null){
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegName(
+                                email: JwtDecoder.decode(user['jwt'])['sub'],
+                                jwt: user['jwt'],
+                                name: user['firstName'],
+                                surname: user['lastName'],
+                                consent: true,
+                              ),
+                            ),
+                          ),
+                        }
+                      });
+                    } catch(e, stackTrace) {
+                      setState(() {
+                        _emailErrorMessage = 'Google sign in failed';
+                      });
+                      logger.e(e, stackTrace: stackTrace);
+                      Sentry.captureException(e, stackTrace: stackTrace);
+                    }
+                    // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(
                     'assets/images/google.webp',
@@ -266,9 +318,11 @@ class _RegMailState extends State<RegMail> {
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    side: const BorderSide(color: Colors.grey),
+                    side: BorderSide(color: Colors.grey[300]!),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

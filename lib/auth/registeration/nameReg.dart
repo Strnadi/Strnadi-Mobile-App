@@ -17,11 +17,17 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 
+import 'cityReg.dart';
+
 class RegName extends StatefulWidget {
   final String email;
+  final String jwt;
+  final String? name;
+  final String? surname;
+  final String? password;
   final bool consent;
 
-  const RegName({super.key, required this.email, required this.consent});
+  const RegName({super.key, required this.email, required this.consent, required this.jwt, this.password, this.name, this.surname});
 
   @override
   State<RegName> createState() => _RegNameState();
@@ -44,6 +50,13 @@ class _RegNameState extends State<RegName> {
     // Colors and styling constants
     const Color textColor = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
+
+    if(widget.name!=null){
+      _nameController.text = widget.name!;
+    }
+    if(widget.surname!=null){
+      _surnameController.text = widget.surname!;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -197,12 +210,14 @@ class _RegNameState extends State<RegName> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => RegPassword(
+                            builder: (_) => RegLocation(
                               email: widget.email,
                               consent: widget.consent,
                               name: _nameController.text.trim(),
                               surname: _surnameController.text.trim(),
                               nickname: _nickController.text.trim(),
+                              password: widget.password,
+                              jwt: widget.jwt,
                             ),
                           ),
                         );

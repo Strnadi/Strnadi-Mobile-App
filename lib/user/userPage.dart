@@ -22,6 +22,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/HealthCheck/serverHealth.dart';
+import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/user/settingsList.dart';
@@ -97,6 +98,8 @@ class _UserPageState extends State<UserPage> {
     localStorage.delete(key: 'lastname');
 
     await strnadiFirebase.deleteToken();
+
+    GoogleSignInService.signOut();
 
     Navigator.pushAndRemoveUntil(
       context,
