@@ -181,31 +181,6 @@ class _RecordingFormState extends State<RecordingForm> {
     _route.addAll(widget.route);
   }
 
-  void SendDialects() async {
-    for (DialectModel dialect in dialectSegments) {
-      var token = FlutterSecureStorage();
-      var jwt = await token.read(key: 'token');
-      try {
-        final url = Uri.parse('https://api.strnadi.cz/recordings/filtered/upload');
-        final response = await http.post(
-          url,
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer ${jwt!}',
-          },
-          body: jsonEncode(<String, dynamic>{
-            'recordingId': _recordingId,
-            'startTime': dialect.startTime,
-            'endTime': dialect.endTime,
-            'dialect': dialect.label,
-          }),
-        );
-      } catch (e, stackTrace) {
-        logger.e("Error inserting dialect: $e", error: e, stackTrace: stackTrace);
-      }
-    }
-  }
-
   void _showDialectSelectionDialog() {
     var position = spectogramKey.currentState!.currentPositionPx;
     var spect = spectogram;
@@ -535,8 +510,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         label: "Pocet Strnadi",
                         onChanged: (value) => setState(() => _strnadiCountController = value),
                       ),
-                      // MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),w
-
+                      MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
