@@ -30,7 +30,10 @@ class MenuScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.5;
+    final height = MediaQuery
+        .of(context)
+        .size
+        .height * 0.5;
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -64,16 +67,26 @@ class MenuScreen extends StatelessWidget {
 
   void Executor(int index, BuildContext context) {
     if (index == 0) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileEditPage()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => ProfileEditPage()));
     }
-    if (index == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+    else if (index == 1) {
+      _showMessage("Nastavení ještě není dostupné", context);
+      //Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
     }
-    if (index == 3) {
+    else if (index == 3) {
       _launchURL('https://new.strnadi.cz/how-to-record');
     }
-    if (index == 4) {
+    else if (index == 4) {
       _launchURL("https://new.strnadi.cz/about-project");
     }
+    else {
+      _showMessage("tato funkce neni jeste dostupna", context);
+    }
+  }
+
+  void _showMessage(String s, BuildContext context) {
+    showDialog(
+        context: context, builder: (context) => AlertDialog(title: Text(s)));
   }
 }
