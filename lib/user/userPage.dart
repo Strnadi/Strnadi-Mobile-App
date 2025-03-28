@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/HealthCheck/serverHealth.dart';
+import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/user/settingsList.dart';
 import '../main.dart';
@@ -108,6 +109,8 @@ class _UserPageState extends State<UserPage> {
   Future<void> logout(BuildContext context) async {
     await secureStorage.deleteAll();
     await strnadiFirebase.deleteToken();
+
+    GoogleSignInService.signOut();
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),

@@ -230,8 +230,7 @@ class _AuthState extends State<Authorizator> {
       if (token == null) return;
 
       String email = JwtDecoder.decode(token)['sub'];
-      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email')
-          .replace(queryParameters: {'jwt': token});
+      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email').replace(queryParameters: {'jwt': token});
 
       final response = await http.get(
         url,

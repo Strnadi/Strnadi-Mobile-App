@@ -26,6 +26,7 @@ import '../recording/streamRec.dart';
 import 'forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
+import 'package:strnadi/auth/google_sign_in_service.dart' as google;
 
 final logger = Logger();
 
@@ -239,6 +240,66 @@ class _LoginState extends State<Login> {
               ),
 
               const SizedBox(height: 24),
+
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('Nebo'),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    logger.i('Button clicked');
+                    //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
+                    google.GoogleSignInService.signInWithGoogle().then((jwt) => {
+                      if(jwt!=null){
+                      FlutterSecureStorage().write(key: 'token', value: jwt),
+                      fb.refreshToken(),
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()))
+                      }
+                    });
+                    // Handle 'Continue with Google' logic here
+                  },
+                  icon: Image.asset(
+                    'assets/images/google.webp',
+                    height: 24,
+                    width: 24,
+                  ),
+                  label: const Text(
+                    'Pokračovat přes Google',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -253,6 +314,8 @@ class _LoginState extends State<Login> {
               login();
             },
             style: ElevatedButton.styleFrom(
+              elevation: 0,
+              shadowColor: Colors.transparent,
               backgroundColor: yellow,
               foregroundColor: yellowishBlack,
               padding: const EdgeInsets.symmetric(vertical: 16),
