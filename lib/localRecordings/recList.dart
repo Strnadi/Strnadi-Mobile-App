@@ -13,13 +13,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+/*
+ * recList.dart
+ */
+
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/archived/recordingsDb.dart';
 
+
+final logger = Logger();
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({Key? key}) : super(key: key);
 
@@ -43,10 +50,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
         ],
       ),
     );
@@ -59,26 +63,24 @@ class _RecordingScreenState extends State<RecordingScreen> {
     });
   }
 
-  void openRecording(recording) {
-    if (recording.downloaded) {
+  void openRecording(Recording recording) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => RecordingItem(recording: recording),
         ),
       );
-    }
   }
 
   String formatDateTime(DateTime dateTime) {
     return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 
-
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
-    records.forEach((rec) => logger.i('rec id ${rec.id} is ${rec.downloaded ? 'downloaded': 'Not donwloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
+    records.forEach((rec) =>
+        print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
     return ScaffoldWithBottomBar(
       appBarTitle: 'Záznamy',
       content: Padding(
@@ -89,19 +91,18 @@ class _RecordingScreenState extends State<RecordingScreen> {
           child: RefreshIndicator(
             onRefresh: () async {
               await DatabaseNew.syncRecordings();
-              getRecordings(); // Optionally update the list after syncing
+              getRecordings();
             },
-            child: ListView.separated(
+            child: records.isEmpty
+                ? Center(child: Text('Zatím nemáte žádné nahrávky'))
+                : ListView.separated(
               itemCount: records.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 return ListTile(
                   title: Text(
                     records[index].name ?? records[index].id?.toString() ?? 'Neznámý název',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   subtitle: SizedBox(
                     child: Row(
@@ -110,18 +111,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
                           records[index].createdAt != null
                               ? formatDateTime(records[index].createdAt!)
                               : '',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -137,9 +132,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
                             constraints: const BoxConstraints(),
                             padding: EdgeInsets.zero,
                             onPressed: () {
-                              DatabaseNew.sendRecordingBackground(records[index].id!)
-                                  .onError((e, stackTrace) {
-                                logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+                              DatabaseNew.sendRecording(
+                                  records[index],
+                                  DatabaseNew.getPartsById(records[index].id!)
+                              ).onError((e, stackTrace) {
+                                logger.e("An error has occurred: $e", stackTrace: stackTrace);
                                 Sentry.captureException(e, stackTrace: stackTrace);
                               });
                             },
@@ -155,15 +152,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                 if (e is UnimplementedError) {
                                   _showMessage("Tato funkce není dostupná na tomto zařízení", "Chyba");
                                 }
-                                logger.e("An error has eccured $e", error: e, stackTrace: stackTrace);
+                                logger.e("An error has occurred: $e", stackTrace: stackTrace);
                                 Sentry.captureException(e, stackTrace: stackTrace);
                               });
                             },
                           ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey,
-                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
                   ),

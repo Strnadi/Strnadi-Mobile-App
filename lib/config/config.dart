@@ -18,11 +18,17 @@ import 'package:flutter/services.dart' show rootBundle;
 
 class Config {
   static Map<String, dynamic>? _config;
+  static Map<String, dynamic>? _Fconfig;
 
   // Load config.json
   static Future<void> loadConfig() async {
     String jsonString = await rootBundle.loadString('assets/secrets.json');
     _config = json.decode(jsonString);
+  }
+
+  static Future<void> loadFirebaseConfig() async {
+    String jsonString = await rootBundle.loadString('assets/firebase-secrets.json');
+    _Fconfig = json.decode(jsonString);
   }
 
   // Get API Key
@@ -31,5 +37,19 @@ class Config {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
     return _config!["mapy.cz-key"];
+  }
+
+  static String get firebaseProjectId{
+    if (_Fconfig == null) {
+      throw Exception("Config not loaded. Call loadConfig() first.");
+    }
+    return _Fconfig!["project_id"];
+  }
+
+  static Map<String, dynamic>? get firebaseServiceAccountJson{
+    if (_Fconfig == null) {
+      throw Exception("Config not loaded. Call loadConfig() first.");
+    }
+    return _Fconfig;
   }
 }

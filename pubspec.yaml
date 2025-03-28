@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+10
+version: 1.1.6+1
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -60,7 +60,6 @@ dependencies:
   intl: ^0.18.0
   sqflite: any
   connectivity_plus: any
-  ffmpeg_kit_flutter: ^6.0.3
   logger: ^2.0.0
   sentry_flutter: ^8.14.0
   sentry_logging: ^8.14.0
@@ -83,7 +82,15 @@ dependencies:
   version: ^3.0.2
   url_launcher: ^6.3.1
   jwt_decoder: ^2.0.1
-  workmanager: ^0.5.2
+  workmanager:
+    git:
+      url: https://github.com/fluttercommunity/flutter_workmanager.git
+      path: workmanager
+      ref: main
+  googleapis_auth: ^1.6.0
+  app_links: ^6.4.0
+  google_sign_in: ^6.3.0
+  firebase_auth: ^5.5.1
 
 
 dev_dependencies:

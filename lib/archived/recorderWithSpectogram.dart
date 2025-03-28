@@ -24,10 +24,10 @@ import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/AudioSpectogram/editor.dart';
+import 'package:strnadi/archived/editor.dart';
 import 'package:strnadi/bottomBar.dart';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter/return_code.dart';
+//import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+//import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import '../PostRecordingForm/RecordingForm.dart';
@@ -380,15 +380,16 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     await fileList.writeAsString(fileListContent);
 
     String command = "-f concat -safe 0 -i \"$fileListPath\" -c copy \"$outputPath\"";
-    final session = await FFmpegKit.execute(command);
-    final returnCode = await session.getReturnCode();
+    //final session = await FFmpegKit.execute(command);
+    //final returnCode = await session.getReturnCode();
 
     await fileList.delete();
 
-    if (ReturnCode.isSuccess(returnCode)) {
-      return outputPath;
-    } else {
-      throw Exception("FFmpeg merge failed with return code: ${returnCode?.getValue()}");
-    }
+    // if (ReturnCode.isSuccess(returnCode)) {
+    //   return outputPath;
+    // } else {
+    //   throw Exception("FFmpeg merge failed with return code: ${returnCode?.getValue()}");
+    // }
+    return '';
   }
 }

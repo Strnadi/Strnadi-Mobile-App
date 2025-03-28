@@ -24,44 +24,13 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-
   List<NotificationItem> notifications = [];
 
   void getNotifications() async {
-
     setState(() async {
       notifications = await DatabaseNew.getNotificationList();
     });
   }
-
-
-
-  // final List<NotificationItem> notifications = [
-  //   NotificationItem(
-  //     title: 'Nahrávka analyzována!',
-  //     message: 'Ve vaší nahrávce “na chalupě” byl určen dialekt CB',
-  //     time: '3h',
-  //     unread: true,
-  //   ),
-  //   NotificationItem(
-  //     title: 'Váš snímek byl vybrán jako fotka týdne',
-  //     message: 'U vaší nahrávky “na procházce v Praze” byla vybrána fotka, jako fotka týdne!',
-  //     time: '1d',
-  //     unread: true,
-  //   ),
-  //   NotificationItem(
-  //     title: 'Nová aktualizace aplikace',
-  //     message: 'Lorem ipsum dolor sit amet consectetur. Accumsan et hendrerit viverra elit pretium. 👏',
-  //     time: '1m',
-  //     unread: false,
-  //   ),
-  //   NotificationItem(
-  //     title: 'Notification title',
-  //     message: 'Lorem ipsum dolor sit amet consectetur. Accumsan et hendrerit viverra elit pretium.',
-  //     time: '8m',
-  //     unread: false,
-  //   ),
-  // ];
 
   @override
   Widget build(BuildContext context) {

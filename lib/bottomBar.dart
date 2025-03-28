@@ -19,12 +19,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/archived/map.dart';
 import 'package:strnadi/map/mapv2.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart';
 
 import 'main.dart';
 import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
+import 'package:strnadi/firebase/firebase.dart' as fb;
 
 
 class ScaffoldWithBottomBar extends StatelessWidget {
@@ -42,8 +43,12 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.allawArrowBack = false,
   }) : super(key: key);
 
-  void Logout(BuildContext context) {
+  void Logout(BuildContext context) async {
     final localStorage = const FlutterSecureStorage();
+
+    localStorage.delete(key: 'user');
+    localStorage.delete(key: 'lastname');
+    await fb.deleteToken();
     localStorage.delete(key: 'token');
     Navigator.pushAndRemoveUntil(
       context,

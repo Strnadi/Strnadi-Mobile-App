@@ -12,7 +12,20 @@
           "package_name": "com.delta.strnadi"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "287278255232-kmqo4udf4r7muvctc9ccikvr0epk4iff.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.delta.strnadi",
+            "certificate_hash": "06490c50e302bcae268b35b059c60fc46d4a2d72"
+          }
+        },
+        {
+          "client_id": "287278255232-2rfu5vd3j233uhn4ktacpfs7rep0s44d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDbRMVwWF2NmKPLqB08GPbRW72D9ftam40"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "287278255232-25b68pvvimpp5bfja04h401i20thv9rp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "287278255232-5vej27saatn2qhtevu99n2sank371i91.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.delta.strnadi"
+              }
+            }
+          ]
         }
       }
     }

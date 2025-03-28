@@ -15,6 +15,8 @@
  */
 import 'dart:convert';
 
+import 'package:latlong2/latlong.dart';
+
 class Part {
   final int id;
   final int recordingId;
@@ -44,10 +46,10 @@ class Part {
 
   factory Part.fromJson(Map<String, dynamic> json) {
     return Part(
-      id: json['id'],
-      recordingId: json['recordingId'],
-      start: DateTime.parse(json['start']),
-      end: DateTime.parse(json['end']),
+      id: json['id'] ?? -1,
+      recordingId: json['recordingId'] ?? -1,
+      start: DateTime.parse(json['startDate']),
+      end: DateTime.parse(json['endDate']),
       gpsLatitudeStart: (json['gpsLatitudeStart'] ?? 0).toDouble(),
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] ?? 0).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] ?? 0).toDouble(),
@@ -64,10 +66,10 @@ class Recording {
   final int id;
   final int userId;
   final DateTime createdAt;
-  final int estimatedBirdsCount;
+  final int? estimatedBirdsCount;
   final String device;
   final bool byApp;
-  final String note;
+  final String? note;
   final String? notePost;
   final List<Part> parts;
 
@@ -85,27 +87,35 @@ class Recording {
 
   factory Recording.fromJson(Map<String, dynamic> json) {
     return Recording(
-      id: json['id'],
-      userId: json['userId'],
+      id: json['id'] ?? -1,
+      userId: json['userId'] ?? -1,
       createdAt: DateTime.parse(json['createdAt']),
-      estimatedBirdsCount: json['estimatedBirdsCount'],
+      estimatedBirdsCount: (json['estimatedBirdsCount'] ?? 0) as int,
       device: json['device'] ?? '',
-      byApp: json['byApp'],
-      note: json['note'] ?? '',
-      notePost: json['notePost'],
-      parts: (json['parts'] as List<dynamic>)
+      byApp: json['byApp'] ?? false,
+      note: json['note']?.toString(),
+      notePost: json['notePost']?.toString(),
+      parts: (json['parts'] as List<dynamic>? ?? [])
           .map((p) => Part.fromJson(p))
           .toList(),
     );
   }
+
 }
 
-class LatLng {
-  final double latitude;
-  final double longitude;
 
-  LatLng(this.latitude, this.longitude);
-}
+List<Part> getParts(String jsonString) {
+  final List<dynamic> decoded = jsonDecode(jsonString);
+  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+
+  final List<Part> parts = [];
+
+  for (var recording in recordings) {
+    parts.addAll(recording.parts);
+  }
+
+  return parts;
+  }
 
 LatLng? getFirstPartLatLng(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);

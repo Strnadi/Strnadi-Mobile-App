@@ -15,11 +15,11 @@
  */
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:strnadi/AudioSpectogram/audioRecorder.dart';
+import 'package:strnadi/archived/audioRecorder.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/bottomBar.dart';
-import 'package:strnadi/recording/recorderWithSpectogram.dart';
+import 'package:strnadi/archived/recorderWithSpectogram.dart';
 
 class Spectogram extends StatelessWidget {
   final String audioFilePath;
@@ -27,6 +27,7 @@ class Spectogram extends StatelessWidget {
   final List<RecordingPartUnready> recParts;
   final List<int> recTimeStop;
   final DateTime StartTime;
+  //final List<LatLng> route;
 
   const Spectogram(
       {Key? key,
@@ -34,8 +35,11 @@ class Spectogram extends StatelessWidget {
       required this.audioFilePath,
       required this.currentPosition,
       required this.recParts,
-      required this.recTimeStop})
+      required this.recTimeStop,
+      //required this.route
+      })
       : super(key: key);
+
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +54,7 @@ class Spectogram extends StatelessWidget {
               height: 300, // Specify a height for the spectrogram viewer
               child: SpectrogramViewer(audioFilePath: audioFilePath),
             ),
-            RecordingForm(filepath: audioFilePath, currentPosition: currentPosition, recordingParts: recParts, recordingPartsTimeList: recTimeStop, startTime: StartTime,),
+            RecordingForm(filepath: audioFilePath, currentPosition: currentPosition, recordingParts: recParts, recordingPartsTimeList: recTimeStop, startTime: StartTime, route: [],),
           ],
         ),
       ),
