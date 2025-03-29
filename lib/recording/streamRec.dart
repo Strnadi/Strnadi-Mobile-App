@@ -36,6 +36,7 @@ import 'package:path_provider/path_provider.dart';
 import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 final logger = Logger();
 
@@ -198,6 +199,7 @@ class _LiveRecState extends State<LiveRec> {
     if (_recordState == RecordState.record) {
       try {
         await _audioRecorder.stop();
+        WakelockPlus.disable(); // or WakelockPlus.toggle(on: false);
         _elapsedTimer.pause();
         setState(() {
           recording = false;
@@ -383,6 +385,7 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> _start() async {
+    WakelockPlus.enable(); // or WakelockPlus.toggle(on: false);
     try {
       logger.i('Started recording');
       if (await _audioRecorder.hasPermission()) {
