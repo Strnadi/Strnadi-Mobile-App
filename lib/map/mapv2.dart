@@ -113,6 +113,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
+      _mapController.move(_currentPosition, _currentZoom);
     } catch (e) {
       logger.e(e);
       print("Error retrieving location: $e");
