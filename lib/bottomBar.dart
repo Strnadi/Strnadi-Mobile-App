@@ -33,6 +33,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   final Widget content;
   final VoidCallback? logout;
   final allawArrowBack;
+  final IconData? icon;
 
   const ScaffoldWithBottomBar({
     Key? key,
@@ -41,6 +42,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     required this.content,
     this.logout,
     this.allawArrowBack = false,
+    this.icon,
   }) : super(key: key);
 
   void Logout(BuildContext context) async {
@@ -66,9 +68,9 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         actions: [
           if (logout != null)
             IconButton(
-              icon: const Icon(Icons.logout),
+              icon: icon != null ? Icon(icon) : const Icon(Icons.logout),
               onPressed: () {
-                Logout(context);
+                logout!();
               },
             ),
         ],
