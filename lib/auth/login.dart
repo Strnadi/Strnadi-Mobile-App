@@ -66,7 +66,7 @@ class _LoginState extends State<Login> {
     final url = Uri.https('api.strnadi.cz', '/auth/login');
 
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
-      _showMessage("Nebud Negr Ty deges");
+      _showMessage("Vyplňte všechny pole");
       return;
     }
 

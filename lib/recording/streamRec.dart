@@ -143,8 +143,8 @@ class _LiveRecState extends State<LiveRec> {
   StreamSubscription<RecordState>? _recordSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
-  int sampleRate = 44100;
-  int bitRate = calcBitRate(44100, 16);
+  int sampleRate = 0;
+  int bitRate = 0;
   final recordingPartsTimeList = <int>[];
   List<RecordingPartUnready> recordingPartsList = [];
   RecordingPartUnready? recordedPart;
@@ -162,6 +162,7 @@ class _LiveRecState extends State<LiveRec> {
   void initState() {
     super.initState();
     getLocationPermission(context);
+    _initAudioSettings();
     _audioRecorder = AudioRecorder();
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
@@ -182,6 +183,28 @@ class _LiveRecState extends State<LiveRec> {
         _recordDuration = elapsed;
       });
     });
+  }
+
+  static const MethodChannel _platform = MethodChannel('com.yourapp/audio');
+
+  Future<void> _initAudioSettings() async {
+    try {
+      final Map<dynamic, dynamic>? settings = await _platform.invokeMethod('getBestAudioSettings');
+      if (settings != null) {
+        setState(() {
+          sampleRate = settings['sampleRate'] ?? 48000;
+          int depth = 16; // assuming 16-bit depth
+          bitRate = calcBitRate(sampleRate, depth);
+        });
+        logger.i('Audio settings: sampleRate=\$sampleRate, bitRate=\$bitRate');
+      }
+    } catch (e) {
+      logger.e('Failed to get audio settings, using defaults: \$e');
+      setState(() {
+        sampleRate = 48000;
+        bitRate = calcBitRate(48000, 16);
+      });
+    }
   }
 
   void _toggleRecording() {
