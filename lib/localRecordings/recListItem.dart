@@ -183,6 +183,7 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     if (!loaded && widget.recording.path != null) {

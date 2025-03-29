@@ -18,12 +18,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
-import 'package:strnadi/archived/recordingsDb.dart';
 
 
 final logger = Logger();
@@ -34,8 +34,13 @@ class RecordingScreen extends StatefulWidget {
   _RecordingScreenState createState() => _RecordingScreenState();
 }
 
+/// name | date | estimatedBirdsCount | downloaded
+enum SortBy { name, date, ebc, downloaded, none }
+
 class _RecordingScreenState extends State<RecordingScreen> {
   List<Recording> list = List<Recording>.empty(growable: true);
+
+  SortBy sortOptions = SortBy.none;
 
   @override
   void initState() {
@@ -76,12 +81,94 @@ class _RecordingScreenState extends State<RecordingScreen> {
     return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 
+  void FilterDownloaded() {
+    List<Recording> recordings = list.where((element) => element.downloaded).toList();
+    setState(() {
+      list = recordings;
+    });
+  }
+
+
+  void _showSortFilterOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Sort & Filter', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.sort_by_alpha),
+              title: const Text('Sort by Name'),
+              onTap: () => {
+                list.sort((a, b) => (b.name ?? '').toLowerCase().compareTo((a.name ?? '').toLowerCase())),
+                setState(() {
+                  sortOptions = SortBy.name;
+                })
+              }
+            ),
+            ListTile(
+              leading: const Icon(Icons.date_range),
+              title: const Text('Sort by Date'),
+              onTap: () =>
+              {
+                list.sort((a, b) => a.createdAt!.compareTo(b.createdAt!)),
+                setState(() {
+                  sortOptions = SortBy.date;
+                })
+              }
+            ),
+            ListTile(
+              leading: const Icon(Icons.filter_list),
+              title: const Text('Pocet ptaku'),
+              onTap: () => {
+                list.sort((a, b) => a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!)),
+                setState(() {
+                  sortOptions = SortBy.ebc;
+                })
+              }
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Downloaded'),
+              onTap: () => {
+                FilterDownloaded(),
+                setState(() {
+                  sortOptions = SortBy.downloaded;
+                })
+              }
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.clear),
+              title: const Text('Clear Filter'),
+              onTap: () => {
+                getRecordings(),
+                setState(() {
+                  sortOptions = SortBy.none;
+                })
+              }
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
     records.forEach((rec) =>
         print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
     return ScaffoldWithBottomBar(
+      logout: () => _showSortFilterOptions(context),
+      icon: Icons.sort,
       appBarTitle: 'Záznamy',
       content: Padding(
         padding: const EdgeInsets.all(10.0),
