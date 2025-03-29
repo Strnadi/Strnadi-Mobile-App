@@ -72,6 +72,7 @@ class _UserPageState extends State<UserPage> {
     final String email = JwtDecoder.decode(jwt!)['sub'];
     final url = Uri.parse(
         'https://api.strnadi.cz/users/${email}/getProfilePhoto');
+    logger.i(url);
 
     try {
       http.get(url,
@@ -87,6 +88,8 @@ class _UserPageState extends State<UserPage> {
               profileImagePath = value.path;
             });
           });
+        }else{
+          logger.e("Profile picture download failed with status code ${value.statusCode}");
         }
       });
     }
@@ -97,19 +100,13 @@ class _UserPageState extends State<UserPage> {
 
   void getUserData() async {
     final usernameExists = await secureStorage.containsKey(key: 'user');
-    final profileImageExists =
-        await secureStorage.containsKey(key: 'profileImage');
 
     if (usernameExists) {
       var storedUserName = await secureStorage.read(key: 'user');
       var storedLastName = await secureStorage.read(key: 'lastname');
-      var storedProfileImage = profileImageExists
-          ? await secureStorage.read(key: 'profileImage')
-          : null;
       setState(() {
         userName = storedUserName!;
         lastName = storedLastName!;
-        profileImagePath = storedProfileImage;
       });
       logger.i("User data loaded from cache");
       return;

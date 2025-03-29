@@ -551,7 +551,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                   ),
                                 ),
                                 onPressed: upload,
-                                child: const Text('Submit'),
+                                child: const Text('Odeslat'),
                               ),
                             ),
                           ),
@@ -569,7 +569,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                   spectogramKey = GlobalKey();
                                   Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
                                 },
-                                child: const Text('Discard'),
+                                child: const Text('Zahodit'),
                               ),
                             ),
                           ),

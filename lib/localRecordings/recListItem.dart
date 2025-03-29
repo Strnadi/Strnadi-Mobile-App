@@ -155,9 +155,8 @@ class _RecordingItemState extends State<RecordingItem> {
 
 
   Future<void> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon");
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
-    logger.i("reverse geocode url: $url");
     try {
       final headers = {
         'Content-Type': 'application/json',
@@ -167,16 +166,16 @@ class _RecordingItemState extends State<RecordingItem> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        final results = data['result'];
+        final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
           setState(() {
-            placeTitle = results[0]['title'];
+            placeTitle = results[0]['name'];
           });
         }
       }
       else {
-        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+        logger.e("Reverse geocode failed with status code ${response.statusCode} and body ${response.body}");
       }
     } catch (e) {
       print('Reverse geocode error: $e');
@@ -186,6 +185,13 @@ class _RecordingItemState extends State<RecordingItem> {
   @override
   Widget build(BuildContext context) {
     if (!loaded && widget.recording.path != null) {
+      return ScaffoldWithBottomBar(
+        appBarTitle: widget.recording.name ?? '',
+        content: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (parts.isEmpty) {
       return ScaffoldWithBottomBar(
         appBarTitle: widget.recording.name ?? '',
         content: const Center(child: CircularProgressIndicator()),
@@ -314,9 +320,7 @@ class _RecordingItemState extends State<RecordingItem> {
                                   Marker(
                                     width: 20.0,
                                     height: 20.0,
-                                    point: parts.isNotEmpty
-                                        ? LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart)
-                                        : LatLng(0.0, 0.0),
+                                    point: LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart),
                                     child: const Icon(
                                       Icons.my_location,
                                       color: Colors.blue,
