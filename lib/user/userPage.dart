@@ -21,6 +21,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/HealthCheck/serverHealth.dart';
@@ -49,16 +50,62 @@ class _UserPageState extends State<UserPage> {
   void initState() {
     super.initState();
     getUserData();
+    getProfilePic();
+  }
+
+  Future<File> convertBase64ToImage(String base64String, String fileName) async {
+    // Decode the base64 string to bytes
+    final bytes = base64Decode(base64String);
+
+    // Get the directory to save the file
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/$fileName');
+
+    // Write the bytes to the file
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+
+  Future<void> getProfilePic() async {
+    final jwt = await secureStorage.read(key: 'token');
+    final String email = JwtDecoder.decode(jwt!)['sub'];
+    final url = Uri.parse(
+        'https://api.strnadi.cz/users/${email}/getProfilePhoto');
+
+    try {
+      http.get(url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $jwt'
+          }).then((value) {
+        if (value.statusCode == 200) {
+          final Map<String, dynamic> data = jsonDecode(value.body);
+          convertBase64ToImage(data['photoBase64'], 'profilePic.${data['format']}').then((value) {
+            logger.i("Profile picture downloaded");
+            setState(() {
+              profileImagePath = value.path;
+            });
+          });
+        }
+      });
+    }
+    catch (e) {
+      throw UnimplementedError();
+    }
   }
 
   void getUserData() async {
     final usernameExists = await secureStorage.containsKey(key: 'user');
-    final profileImageExists = await secureStorage.containsKey(key: 'profileImage');
+    final profileImageExists =
+        await secureStorage.containsKey(key: 'profileImage');
 
     if (usernameExists) {
       var storedUserName = await secureStorage.read(key: 'user');
       var storedLastName = await secureStorage.read(key: 'lastname');
-      var storedProfileImage = profileImageExists ? await secureStorage.read(key: 'profileImage') : null;
+      var storedProfileImage = profileImageExists
+          ? await secureStorage.read(key: 'profileImage')
+          : null;
       setState(() {
         userName = storedUserName!;
         lastName = storedLastName!;
@@ -102,7 +149,38 @@ class _UserPageState extends State<UserPage> {
       setState(() {
         profileImagePath = pickedFile.path;
       });
+      UploadProfilePic();
+
       await secureStorage.write(key: 'profileImage', value: pickedFile.path);
+    }
+  }
+
+  Future<void> UploadProfilePic() async {
+    final jwt = await secureStorage.read(key: 'token');
+    final String email = JwtDecoder.decode(jwt!)['sub'];
+
+    final url = Uri.parse("https://api.strnadi.cz/users/${email}/uploadProfilePhoto");
+    final body = jsonEncode({
+      'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
+      'format': profileImagePath!.split('.').last
+    });
+    try {
+      http.post(url, headers: {
+        'Authorization': 'Bearer $jwt',
+        'Accept': '*/*',
+        'Content-Type': 'application/json'
+      }, body: body,
+      ).then((value) {
+        if (value.statusCode == 200) {
+          _showMessage("Profile picture uploaded", context);
+          logger.i("Profile picture uploaded");
+        } else {
+          _showMessage("Profile picture upload failed", context);
+          logger.e("Profile picture upload failed with status code ${value.statusCode}");
+        }
+      });
+    } catch (e) {
+      throw UnimplementedError();
     }
   }
 
@@ -114,7 +192,7 @@ class _UserPageState extends State<UserPage> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -139,7 +217,8 @@ class _UserPageState extends State<UserPage> {
                     radius: 50,
                     backgroundImage: profileImagePath != null
                         ? FileImage(File(profileImagePath!))
-                        : const AssetImage('./assets/images/default.jpg') as ImageProvider,
+                        : const AssetImage('./assets/images/default.jpg')
+                            as ImageProvider,
                   ),
                 ),
                 Text(
@@ -156,5 +235,11 @@ class _UserPageState extends State<UserPage> {
         ],
       ),
     );
+  }
+
+  void _showMessage(String s, BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(s),
+    ));
   }
 }
