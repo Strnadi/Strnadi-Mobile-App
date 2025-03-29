@@ -213,6 +213,8 @@ class _RecordingFormState extends State<RecordingForm> {
       spectogram = null;
     });
     showDialog(
+      // disable tap out hide
+      barrierDismissible: false,
       context: context,
       builder: (context) => DialectSelectionDialog(
         spectogram: spect!,
