@@ -24,7 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:record/record.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
@@ -159,18 +159,16 @@ class _LiveRecState extends State<LiveRec> {
   late LocationService _locService;
   bool recording = false;
 
+
   @override
   void initState() {
     super.initState();
+
     getLocationPermission(context);
     _initAudioSettings();
     _audioRecorder = AudioRecorder();
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
-    });
-    _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 300))
-        .listen((amp) {
-      // Optionally update spectrogram data.
     });
     _locService = LocationService();
     _locationSub = _locService.positionStream.listen((position) {
@@ -186,7 +184,7 @@ class _LiveRecState extends State<LiveRec> {
     });
   }
 
-  static const MethodChannel _platform = MethodChannel('com.yourapp/audio');
+  static const MethodChannel _platform = MethodChannel('com.delta.strnadi/audio');
 
   Future<void> _initAudioSettings() async {
     try {
@@ -197,10 +195,10 @@ class _LiveRecState extends State<LiveRec> {
           int depth = 16; // assuming 16-bit depth
           bitRate = calcBitRate(sampleRate, depth);
         });
-        logger.i('Audio settings: sampleRate=\$sampleRate, bitRate=\$bitRate');
+        logger.i('Audio settings: sampleRate=$sampleRate, bitRate=$bitRate');
       }
-    } catch (e) {
-      logger.e('Failed to get audio settings, using defaults: \$e');
+    } catch (e, stackTrace) {
+      logger.e('Failed to get audio settings, using defaults: $e', error: e, stackTrace: stackTrace);
       setState(() {
         sampleRate = 48000;
         bitRate = calcBitRate(48000, 16);
@@ -309,12 +307,7 @@ class _LiveRecState extends State<LiveRec> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 80),
-          Expanded(
-            child: Container(
-              color: Colors.grey,
-              width: double.infinity,
-            ),
-          ),
+          Container(),
           const SizedBox(height: 40),
           Text(
             _formatTime(totalTime),

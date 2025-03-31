@@ -542,21 +542,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: SizedBox(
-                              width: halfScreen,
-                              child: ElevatedButton(
-                                style: ButtonStyle(
-                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                  ),
-                                ),
-                                onPressed: upload,
-                                child: const Text('Submit'),
-                              ),
-                            ),
-                          ),
+                          // Discard button (now on the left) with confirmation pop-up
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             child: SizedBox(
@@ -568,10 +554,49 @@ class _RecordingFormState extends State<RecordingForm> {
                                   ),
                                 ),
                                 onPressed: () {
-                                  spectogramKey = GlobalKey();
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('Potvrzení'),
+                                        content: const Text('Opravdu chcete zahodit nahrávku?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                            },
+                                            child: const Text('Ne'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              spectogramKey = GlobalKey();
+                                              Navigator.of(context).pop();
+                                              Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                            },
+                                            child: const Text('Ano'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
                                 },
-                                child: const Text('Discard'),
+                                child: const Text('Zahodit'),
+                              ),
+                            ),
+                          ),
+                          // Submit button (now on the right)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: SizedBox(
+                              width: halfScreen,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                  ),
+                                ),
+                                onPressed: upload,
+                                child: const Text('Odeslat'),
                               ),
                             ),
                           ),
