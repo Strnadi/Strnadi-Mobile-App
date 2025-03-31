@@ -118,6 +118,7 @@ class _RegMailState extends State<RegMail> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
                 decoration: InputDecoration(
                   fillColor: Colors.grey[200],
                   filled: true,
