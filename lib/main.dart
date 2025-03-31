@@ -145,12 +145,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
-        ),
-      ),
+      theme: ThemeData.light(),
       home: const HomeScreen(),
       routes: {
         'authorizator': (context) => Authorizator(
