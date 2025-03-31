@@ -500,7 +500,9 @@ class DatabaseNew {
 
   static Future<List<Recording>> getRecordings() async {
     final db = await database;
-    final List<Map<String, dynamic>> recs = await db.query("recordings");
+    final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
+    final String email = JwtDecoder.decode(jwt)['sub'];
+    final List<Map<String, dynamic>> recs = await db.query("recordings", where: "mail = ?", whereArgs: [email]);
     return List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
   }
 

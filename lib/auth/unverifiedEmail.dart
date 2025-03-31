@@ -14,7 +14,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -24,20 +23,18 @@ import 'package:logger/logger.dart';
 
 Logger logger = Logger();
 
-class VerifyEmail extends StatefulWidget {
+class EmailNotVerified extends StatefulWidget {
   final String userEmail;
-
-  const VerifyEmail({
+  const EmailNotVerified({
     Key? key,
     required this.userEmail,
   }) : super(key: key);
 
   @override
-  State<VerifyEmail> createState() => _VerifyEmailState();
+  State<EmailNotVerified> createState() => _EmailNotVerifiedState();
 }
 
-class _VerifyEmailState extends State<VerifyEmail> {
-  // Reuse your existing color and styling constants
+class _EmailNotVerifiedState extends State<EmailNotVerified> {
   static const Color textColor = Color(0xFF2D2B18);
   static const Color yellow = Color(0xFFFFD641);
 
@@ -70,49 +67,51 @@ class _VerifyEmailState extends State<VerifyEmail> {
     });
   }
 
-  void alreadyVerified(){
+  /// Navigates back to the login/authorization page when email is verified.
+  void alreadyVerified() {
     Navigator.pop(context);
     Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
   }
 
+  /// Resend verification email.
   Future<void> resendEmail() async {
     final String? jwt = await FlutterSecureStorage().read(key: 'token');
     final Uri url = Uri.https('api.strnadi.cz', '/auth/${widget.userEmail}/resend-verify-email');
     try {
       final response = await http.get(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt',
-          },
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
       );
-      if(response.statusCode == 200){
-        logger.i('Email sent');
-      }
-      else if(response.statusCode == 208){
+      if (response.statusCode == 200) {
+        logger.i('Verification email sent');
+      } else if (response.statusCode == 208) {
         logger.i('Email already verified');
-        showDialog(context: context, builder: (_) => AlertDialog(
-          title: const Text('Email již ověřen'),
-          content: const Text('Tento e-mail již byl ověřen.'),
-          actions: [
-            TextButton(
-              onPressed: alreadyVerified,
-              child: const Text('OK'),
-            ),
-          ],
-        ));
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Email již ověřen'),
+            content: const Text('Tento e-mail již byl ověřen.'),
+            actions: [
+              TextButton(
+                onPressed: alreadyVerified,
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        logger.e('Failed to send email ${response.statusCode} | ${response.body}');
       }
-      else {
-        logger.e(
-            'Failed to send email ${response.statusCode} | ${response.body}');
-      }
-    } catch(e, stackTrace){
+    } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
-  /// Open the user’s email app. (Implement or use a package like url_launcher.)
+  /// Opens the email app using url_launcher with externalApplication mode.
   void _openEmailApp() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
@@ -130,7 +129,6 @@ class _VerifyEmailState extends State<VerifyEmail> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // White background
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -149,16 +147,13 @@ class _VerifyEmailState extends State<VerifyEmail> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
               const Text(
-                'Ověřte svůj e-mail',
+                'Email není ověřen',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -167,9 +162,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Na „${widget.userEmail}” jsme vám poslali odkaz na ověření '
-                    'e-mailové adresy. Kliknutím na odkaz potvrdíte svoji '
-                    'emailovou adresu.',
+                'Pro pokračování se přihlášením ověřte prosím svůj e-mail (${widget.userEmail}).\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení.',
                 style: const TextStyle(
                   fontSize: 14,
                   color: textColor,
@@ -177,7 +170,6 @@ class _VerifyEmailState extends State<VerifyEmail> {
               ),
               const SizedBox(height: 32),
               const Spacer(),
-
               // Resend button (disabled while countdown is running)
               SizedBox(
                 width: double.infinity,
@@ -188,23 +180,17 @@ class _VerifyEmailState extends State<VerifyEmail> {
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
                   child: Text(
-                    _counter > 0
-                        ? 'Poslat znovu ($_counter s)'
-                        : 'Poslat znovu',
+                    _counter > 0 ? 'Poslat znovu ($_counter s)' : 'Poslat znovu',
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-
               // Open email app button
               SizedBox(
                 width: double.infinity,
@@ -214,15 +200,9 @@ class _VerifyEmailState extends State<VerifyEmail> {
                     elevation: 0,
                     backgroundColor: Colors.white,
                     foregroundColor: textColor,
-                    side: const BorderSide(
-                      color: yellow,
-                      width: 2,
-                    ),
+                    side: const BorderSide(color: yellow, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
@@ -231,8 +211,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Pokračovat button that returns the user to the Authorizator page
+              // Continue button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -244,10 +223,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
@@ -262,15 +238,10 @@ class _VerifyEmailState extends State<VerifyEmail> {
       ),
       // Bottom segmented progress bar
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: 32,
-        ),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
         child: Row(
           children: List.generate(5, (index) {
-            // Example: first segment is completed
+            // All segments shown as complete
             bool completed = index < 5;
             return Expanded(
               child: Container(

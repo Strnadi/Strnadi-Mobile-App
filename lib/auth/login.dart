@@ -25,6 +25,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
 import 'forgottenPassword.dart';
 import 'registeration/mail.dart';
+import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
 
@@ -84,10 +85,16 @@ class _LoginState extends State<Login> {
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         logger.i("user has logged in with status code ${response.statusCode}");
-        await const FlutterSecureStorage()
-            .write(key: 'token', value: response.body);
+        await const FlutterSecureStorage().write(key: 'token', value: response.body);
         await fb.refreshToken();
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
+      } else if (response.statusCode == 403) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+          ),
+        );
       } else if (response.statusCode == 401) {
         _showMessage('Špatné jméno nebo heslo');
       } else {

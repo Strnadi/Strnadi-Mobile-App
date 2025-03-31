@@ -47,7 +47,7 @@ class _RegMailState extends State<RegMail> {
     return emailRegex.hasMatch(email);
   }
 
-  Future<String?> _checkEmail(String email) async{
+  Future<bool> _checkEmail(String email) async{
     final Uri url = Uri(
       scheme: 'https',
       host: 'api.strnadi.cz',
@@ -58,10 +58,10 @@ class _RegMailState extends State<RegMail> {
     );
     final response = await http.get(url);
     if (response.statusCode == 200) {
-      return response.body; //Jwt
+      return true; //Jwt
     } else {
       logger.w('Failed to check email: ${response.statusCode} | ${response.body}');
-      return null;
+      return false;
     }
   }
 
@@ -199,7 +199,7 @@ class _RegMailState extends State<RegMail> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    'You must accept the terms to continue.',
+                    'Pro pokračování musíte souhlasit s podmínkami.',
                     style: TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
@@ -213,22 +213,22 @@ class _RegMailState extends State<RegMail> {
                     bool emailValid = isValidEmail(_emailController.text);
                     bool termsAccepted = _isChecked;
 
-                    _checkEmail(_emailController.text).then((jwt) => {
+                    _checkEmail(_emailController.text).then((emailExists) => {
                       setState(() {
                         _emailErrorMessage = emailValid
                             ? null
-                            : 'Please enter a valid email address';
-                        _emailErrorMessage = jwt != null? 'Email already exists' : null;
+                            : 'Prosim zadejte platný e-mail';
+                        _emailErrorMessage = emailExists? 'Email již existuje' : null;
                         _termsError = !termsAccepted;
                       }),
 
-                      if (emailValid && termsAccepted && jwt != null) {
+                      if (emailValid && termsAccepted && emailExists) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => RegPassword(
                               email: _emailController.text,
-                              jwt: jwt,
+                              jwt: '',
                               consent: true,
                             ),
                           ),
@@ -283,6 +283,12 @@ class _RegMailState extends State<RegMail> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    if (!_isChecked) {
+                      setState(() {
+                        _termsError = true;
+                      });
+                      return;
+                    }
                     try{
                       gle.GoogleSignInService.signUpWithGoogle().then((user) => {
                         if(user != null){
@@ -302,7 +308,7 @@ class _RegMailState extends State<RegMail> {
                       });
                     } catch(e, stackTrace) {
                       setState(() {
-                        _emailErrorMessage = 'Google sign in failed';
+                        _emailErrorMessage = 'Přihlášení přes Google selhalo';
                       });
                       logger.e(e, stackTrace: stackTrace);
                       Sentry.captureException(e, stackTrace: stackTrace);
