@@ -27,6 +27,8 @@ import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 
+import 'package:strnadi/auth/google_sign_in_service.dart';
+
 
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String appBarTitle;
@@ -43,12 +45,13 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.allawArrowBack = false,
   }) : super(key: key);
 
-  void Logout(BuildContext context) async {
+  Future<void> Logout(BuildContext context) async {
     final localStorage = const FlutterSecureStorage();
 
     localStorage.delete(key: 'user');
     localStorage.delete(key: 'lastname');
     await fb.deleteToken();
+    await GoogleSignInService.signOut();
     localStorage.delete(key: 'token');
     Navigator.pushAndRemoveUntil(
       context,

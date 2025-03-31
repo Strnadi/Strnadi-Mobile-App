@@ -95,40 +95,10 @@ extension LiveActivitiesAppAttributes {
   }
 }
 
-// Create shared default with custom group
-let sharedDefault = UserDefaults(suiteName: "group.delta.strnadi")!
 
-struct RecordingActivity: Widget {
-  var body: some WidgetConfiguration {
-    ActivityConfiguration(for: LiveActivitiesAppAttributes.self) { context in
-      // Main view for the live activity
-      let testText = sharedDefault.string(forKey: context.attributes.prefixedKey("testText"))!
-      Text("Live Activity: \(myVariableFromFlutter)")
-    } dynamicIsland: { context in
-      DynamicIsland {
-        // Expanded regions for the Dynamic Island
-        DynamicIslandExpandedRegion(.leading) {
-          Text("Leading")
-        }
-        DynamicIslandExpandedRegion(.trailing) {
-          Text("Trailing")
-        }
-        DynamicIslandExpandedRegion(.bottom) {
-          Text("Bottom")
-        }
-      } compactLeading: {
-        Text("CL")
-      } compactTrailing: {
-        Text("CT")
-      } minimal: {
-        Text("Min")
-      }
-    }
-  }
-}
 
 #Preview(as: .systemSmall) {
-    StrnadiLiveActivity()
+    RecordingActivity()
 } timeline: {
     SimpleEntry(date: .now, configuration: .smiley)
     SimpleEntry(date: .now, configuration: .starEyes)

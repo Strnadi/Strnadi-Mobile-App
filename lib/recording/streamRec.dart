@@ -37,6 +37,7 @@ import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'ios/recordingLiveActivity.dart' as liveActivities;
 
 final logger = Logger();
 

@@ -29,6 +29,7 @@ import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/user/settingsList.dart';
 import '../main.dart';
 import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
+import 'package:strnadi/debug_menu.dart';
 
 class UserPage extends StatefulWidget {
   const UserPage({Key? key}) : super(key: key);
@@ -151,6 +152,15 @@ class _UserPageState extends State<UserPage> {
                 ),
               ],
             ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DebugMenuPage()),
+              );
+            },
+            child: const Text('Open Debug Menu'),
           ),
           MenuScreen(),
         ],

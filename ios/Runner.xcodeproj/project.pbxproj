@@ -8,9 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		122F24432D761E6A0075568D /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 122F24422D761E6A0075568D /* GoogleService-Info.plist */; };
-		1236C2062D9878C800681B4E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1236C2052D9878C800681B4E /* WidgetKit.framework */; };
-		1236C2082D9878C800681B4E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1236C2072D9878C800681B4E /* SwiftUI.framework */; };
-		1236C2192D9878C900681B4E /* StrnadiLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1236C2042D9878C800681B4E /* StrnadiLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		12D798212D99A96C005C4BA3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1236C2052D9878C800681B4E /* WidgetKit.framework */; };
+		12D798222D99A96C005C4BA3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1236C2072D9878C800681B4E /* SwiftUI.framework */; };
+		12D7982F2D99A96E005C4BA3 /* LiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 12D798202D99A96C005C4BA3 /* LiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
@@ -23,12 +23,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		1236C2172D9878C900681B4E /* PBXContainerItemProxy */ = {
+		12D7982D2D99A96E005C4BA3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 1236C2032D9878C800681B4E;
-			remoteInfo = StrnadiLiveActivityExtension;
+			remoteGlobalIDString = 12D7981F2D99A96C005C4BA3;
+			remoteInfo = LiveActivityExtension;
 		};
 		331C8085294A63A400263BE5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -46,9 +46,18 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				1236C2192D9878C900681B4E /* StrnadiLiveActivityExtension.appex in Embed Foundation Extensions */,
+				12D7982F2D99A96E005C4BA3 /* LiveActivityExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		12EEF9C02D996D4400FE74C1 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
@@ -66,10 +75,12 @@
 /* Begin PBXFileReference section */
 		122F24412D761D050075568D /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		122F24422D761E6A0075568D /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		1236C2042D9878C800681B4E /* StrnadiLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StrnadiLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		1236C2052D9878C800681B4E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		1236C2072D9878C800681B4E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		1236C2202D9879C800681B4E /* StrnadiLiveActivityExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StrnadiLiveActivityExtension.entitlements; sourceTree = "<group>"; };
+		12D797C92D99A1CA005C4BA3 /* LiveActivityExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LiveActivityExtension.entitlements; sourceTree = "<group>"; };
+		12D798202D99A96C005C4BA3 /* LiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		12DD80692D996EB7008B2CD9 /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 		137296D6F9C272954F8CF0E2 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
@@ -96,26 +107,26 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1236C21E2D9878C900681B4E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		12D798302D99A96E005C4BA3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 1236C2032D9878C800681B4E /* StrnadiLiveActivityExtension */;
+			target = 12D7981F2D99A96C005C4BA3 /* LiveActivityExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1236C2092D9878C800681B4E /* StrnadiLiveActivity */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (1236C21E2D9878C900681B4E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = StrnadiLiveActivity; sourceTree = "<group>"; };
+		12D798232D99A96C005C4BA3 /* LiveActivity */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (12D798302D99A96E005C4BA3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = LiveActivity; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		1236C2012D9878C800681B4E /* Frameworks */ = {
+		12D7981D2D99A96C005C4BA3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1236C2082D9878C800681B4E /* SwiftUI.framework in Frameworks */,
-				1236C2062D9878C800681B4E /* WidgetKit.framework in Frameworks */,
+				12D798222D99A96C005C4BA3 /* SwiftUI.framework in Frameworks */,
+				12D798212D99A96C005C4BA3 /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,6 +152,7 @@
 		0CF5A092ED0F697104222666 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				12DD80692D996EB7008B2CD9 /* ActivityKit.framework */,
 				90DD03ECCE8A51D13D7E8E39 /* Pods_Runner.framework */,
 				D2F925296F94E509F30EF36A /* Pods_RunnerTests.framework */,
 				1236C2052D9878C800681B4E /* WidgetKit.framework */,
@@ -184,10 +196,11 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				12D797C92D99A1CA005C4BA3 /* LiveActivityExtension.entitlements */,
 				1236C2202D9879C800681B4E /* StrnadiLiveActivityExtension.entitlements */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
-				1236C2092D9878C800681B4E /* StrnadiLiveActivity */,
+				12D798232D99A96C005C4BA3 /* LiveActivity */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				74B4C87EAC8F615E18AD2FC1 /* Pods */,
@@ -200,7 +213,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
-				1236C2042D9878C800681B4E /* StrnadiLiveActivityExtension.appex */,
+				12D798202D99A96C005C4BA3 /* LiveActivityExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -225,26 +238,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1236C2032D9878C800681B4E /* StrnadiLiveActivityExtension */ = {
+		12D7981F2D99A96C005C4BA3 /* LiveActivityExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1236C21F2D9878C900681B4E /* Build configuration list for PBXNativeTarget "StrnadiLiveActivityExtension" */;
+			buildConfigurationList = 12D798312D99A96E005C4BA3 /* Build configuration list for PBXNativeTarget "LiveActivityExtension" */;
 			buildPhases = (
-				1236C2002D9878C800681B4E /* Sources */,
-				1236C2012D9878C800681B4E /* Frameworks */,
-				1236C2022D9878C800681B4E /* Resources */,
+				12D7981C2D99A96C005C4BA3 /* Sources */,
+				12D7981D2D99A96C005C4BA3 /* Frameworks */,
+				12D7981E2D99A96C005C4BA3 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1236C2092D9878C800681B4E /* StrnadiLiveActivity */,
+				12D798232D99A96C005C4BA3 /* LiveActivity */,
 			);
-			name = StrnadiLiveActivityExtension;
-			packageProductDependencies = (
-			);
-			productName = StrnadiLiveActivityExtension;
-			productReference = 1236C2042D9878C800681B4E /* StrnadiLiveActivityExtension.appex */;
+			name = LiveActivityExtension;
+			productName = LiveActivityExtension;
+			productReference = 12D798202D99A96C005C4BA3 /* LiveActivityExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		331C8080294A63A400263BE5 /* RunnerTests */ = {
@@ -271,6 +282,7 @@
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
 				28FDAAC91950E95C92E7FBCB /* [CP] Check Pods Manifest.lock */,
+				1236C21A2D9878C900681B4E /* Embed Foundation Extensions */,
 				9740EEB61CF901F6004384FC /* Run Script */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
@@ -279,12 +291,12 @@
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				132A1AC06F117BE8BF74A175 /* [CP] Embed Pods Frameworks */,
 				837E5930375422B974E1EB03 /* [CP] Copy Pods Resources */,
-				1236C21A2D9878C900681B4E /* Embed Foundation Extensions */,
+				12EEF9C02D996D4400FE74C1 /* CopyFiles */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				1236C2182D9878C900681B4E /* PBXTargetDependency */,
+				12D7982E2D99A96E005C4BA3 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
@@ -307,7 +319,7 @@
 					};
 				};
 				TargetAttributes = {
-					1236C2032D9878C800681B4E = {
+					12D7981F2D99A96C005C4BA3 = {
 						CreatedOnToolsVersion = 16.3;
 					};
 					331C8080294A63A400263BE5 = {
@@ -335,13 +347,13 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
-				1236C2032D9878C800681B4E /* StrnadiLiveActivityExtension */,
+				12D7981F2D99A96C005C4BA3 /* LiveActivityExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		1236C2022D9878C800681B4E /* Resources */ = {
+		12D7981E2D99A96C005C4BA3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -449,7 +461,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin\n";
 		};
 		837E5930375422B974E1EB03 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -485,12 +497,12 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1236C2002D9878C800681B4E /* Sources */ = {
+		12D7981C2D99A96C005C4BA3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -517,10 +529,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		1236C2182D9878C900681B4E /* PBXTargetDependency */ = {
+		12D7982E2D99A96E005C4BA3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 1236C2032D9878C800681B4E /* StrnadiLiveActivityExtension */;
-			targetProxy = 1236C2172D9878C900681B4E /* PBXContainerItemProxy */;
+			target = 12D7981F2D99A96C005C4BA3 /* LiveActivityExtension */;
+			targetProxy = 12D7982D2D99A96E005C4BA3 /* PBXContainerItemProxy */;
 		};
 		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -549,7 +561,7 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		1236C21B2D9878C900681B4E /* Debug */ = {
+		12D798322D99A96E005C4BA3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -561,7 +573,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = StrnadiLiveActivityExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = LiveActivityExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -569,8 +581,8 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = StrnadiLiveActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = StrnadiLiveActivity;
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -582,7 +594,7 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.delta.strnadi.StrnadiLiveActivity;
+				PRODUCT_BUNDLE_IDENTIFIER = com.delta.strnadi.LiveActivity;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -593,7 +605,7 @@
 			};
 			name = Debug;
 		};
-		1236C21C2D9878C900681B4E /* Release */ = {
+		12D798332D99A96E005C4BA3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -605,7 +617,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = StrnadiLiveActivityExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = LiveActivityExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -613,8 +625,8 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = StrnadiLiveActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = StrnadiLiveActivity;
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -625,7 +637,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.delta.strnadi.StrnadiLiveActivity;
+				PRODUCT_BUNDLE_IDENTIFIER = com.delta.strnadi.LiveActivity;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -634,7 +646,7 @@
 			};
 			name = Release;
 		};
-		1236C21D2D9878C900681B4E /* Profile */ = {
+		12D798342D99A96E005C4BA3 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -646,7 +658,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = StrnadiLiveActivityExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = LiveActivityExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -654,8 +666,8 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = StrnadiLiveActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = StrnadiLiveActivity;
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -666,7 +678,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.delta.strnadi.StrnadiLiveActivity;
+				PRODUCT_BUNDLE_IDENTIFIER = com.delta.strnadi.LiveActivity;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -973,12 +985,12 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1236C21F2D9878C900681B4E /* Build configuration list for PBXNativeTarget "StrnadiLiveActivityExtension" */ = {
+		12D798312D99A96E005C4BA3 /* Build configuration list for PBXNativeTarget "LiveActivityExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1236C21B2D9878C900681B4E /* Debug */,
-				1236C21C2D9878C900681B4E /* Release */,
-				1236C21D2D9878C900681B4E /* Profile */,
+				12D798322D99A96E005C4BA3 /* Debug */,
+				12D798332D99A96E005C4BA3 /* Release */,
+				12D798342D99A96E005C4BA3 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

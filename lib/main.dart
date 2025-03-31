@@ -34,6 +34,7 @@ import 'package:strnadi/callback_dispatcher.dart';
 import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
+import 'package:strnadi/recording/ios/recordingLiveActivity.dart' as recLA;
 
 // Create a global logger instance.
 final logger = Logger();
@@ -94,6 +95,7 @@ Future<void> main() async {
   await Config.loadFirebaseConfig();
 
   initFirebase();
+  recLA.init();
 
   // Initialize workmanager with our callback.
   Workmanager().initialize(
