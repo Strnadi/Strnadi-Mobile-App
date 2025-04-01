@@ -515,7 +515,14 @@ class _RecordingFormState extends State<RecordingForm> {
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.text,
-                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter some text';
+                        } else if (value.length > 49) {
+                          return 'Název nahrávky nesmí být delší než 49 znaků';
+                        }
+                        return null;
+                      },
                       ),
                       const SizedBox(height: 20),
                       TextFormField(
@@ -534,7 +541,9 @@ class _RecordingFormState extends State<RecordingForm> {
                         min: 1,
                         max: 3,
                         divisions: 2,
-                        label: "Pocet Strnadi",
+                        label: _strnadiCountController.toInt() == 3
+                            ? "3 a více strnadů"
+                            : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "y"}",
                         onChanged: (value) => setState(() => _strnadiCountController = value),
                       ),
                       // MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),w

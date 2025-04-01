@@ -47,7 +47,25 @@ class _RegMailState extends State<RegMail> {
     return emailRegex.hasMatch(email);
   }
 
-  Future<bool> _checkEmail(String email) async{
+  void _showUserExistsPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Uživatel již existuje'),
+        content: const Text('Uživatel s tímto e-mailem již existuje.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _checkEmail(String email) async {
     final Uri url = Uri(
       scheme: 'https',
       host: 'api.strnadi.cz',
@@ -58,7 +76,10 @@ class _RegMailState extends State<RegMail> {
     );
     final response = await http.get(url);
     if (response.statusCode == 200) {
-      return true; //Jwt
+      return true; // Email exists (or JWT received)
+    } else if (response.statusCode == 409) {
+      _showUserExistsPopup();
+      return false;
     } else {
       logger.w('Failed to check email: ${response.statusCode} | ${response.body}');
       return false;
@@ -71,7 +92,7 @@ class _RegMailState extends State<RegMail> {
     const Color yellow = Color(0xFFFFD641);
 
     // Whether all fields are valid
-    final bool formValid = isValidEmail(_emailController.text) && _isChecked;
+    final bool formValid = isValidEmail(_emailController.text) && _isChecked && _emailErrorMessage == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -119,11 +140,26 @@ class _RegMailState extends State<RegMail> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
+                onChanged: (value) {
+                  setState(() {
+                    // Validate email format
+                    if (!isValidEmail(value)) {
+                      _emailErrorMessage = 'Email není v platném formátu';
+                    } else {
+                      // Clear the format error and check if email exists
+                      _emailErrorMessage = null;
+                      _checkEmail(value).then((emailExists) {
+                        setState(() {
+                          _emailErrorMessage = emailExists ? 'Email již existuje' : null;
+                        });
+                      });
+                    }
+                  });
+                },
                 decoration: InputDecoration(
                   fillColor: Colors.grey[200],
                   filled: true,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   border: OutlineInputBorder(
                     borderSide: BorderSide.none,
                     borderRadius: BorderRadius.circular(16.0),
@@ -136,8 +172,7 @@ class _RegMailState extends State<RegMail> {
               // Smaller grey background for terms
               Container(
                 width: double.infinity,
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(16),
@@ -210,19 +245,18 @@ class _RegMailState extends State<RegMail> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    bool emailValid = isValidEmail(_emailController.text);
-                    bool termsAccepted = _isChecked;
-
-                    _checkEmail(_emailController.text).then((emailExists) => {
+                    _checkEmail(_emailController.text).then((emailExists) {
                       setState(() {
-                        _emailErrorMessage = emailValid
-                            ? null
-                            : 'Prosim zadejte platný e-mail';
-                        _emailErrorMessage = emailExists? 'Email již existuje' : null;
-                        _termsError = !termsAccepted;
-                      }),
-
-                      if (emailValid && termsAccepted && emailExists) {
+                        if (!isValidEmail(_emailController.text)) {
+                          _emailErrorMessage = 'Email není v platném formátu';
+                        } else if (emailExists) {
+                          _emailErrorMessage = 'Email již existuje';
+                        } else {
+                          _emailErrorMessage = null;
+                        }
+                        _termsError = !_isChecked;
+                      });
+                      if (isValidEmail(_emailController.text) && _isChecked && _emailErrorMessage == null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -232,7 +266,7 @@ class _RegMailState extends State<RegMail> {
                               consent: true,
                             ),
                           ),
-                        ),
+                        );
                       }
                     });
                   },
@@ -289,30 +323,32 @@ class _RegMailState extends State<RegMail> {
                       });
                       return;
                     }
-                    try{
-                      gle.GoogleSignInService.signUpWithGoogle().then((user) => {
-                        if(user != null){
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegName(
-                                email: JwtDecoder.decode(user['jwt'])['sub'],
-                                jwt: user['jwt'],
-                                name: user['firstName'],
-                                surname: user['lastName'],
-                                consent: true,
-                              ),
+                    gle.GoogleSignInService.signUpWithGoogle().then((user) {
+                      if (user != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              email: JwtDecoder.decode(user['jwt'])['sub'],
+                              jwt: user['jwt'],
+                              name: user['firstName'],
+                              surname: user['lastName'],
+                              consent: true,
                             ),
                           ),
-                        }
-                      });
-                    } catch(e, stackTrace) {
-                      setState(() {
-                        _emailErrorMessage = 'Přihlášení přes Google selhalo';
-                      });
-                      logger.e(e, stackTrace: stackTrace);
-                      Sentry.captureException(e, stackTrace: stackTrace);
-                    }
+                        );
+                      }
+                    }).catchError((error) {
+                      if (error.toString().contains('409')) {
+                        _showUserExistsPopup();
+                      } else {
+                        setState(() {
+                          _emailErrorMessage = 'Přihlášení přes Google selhalo';
+                        });
+                        logger.e(error);
+                        Sentry.captureException(error);
+                      }
+                    });
                     // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(

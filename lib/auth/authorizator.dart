@@ -26,6 +26,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
+import 'package:strnadi/md_renderer.dart';
 
 enum AuthType { login, register }
 
@@ -279,9 +280,9 @@ class _AuthState extends State<Authorizator> {
   }
 
   Future<void> _launchURL() async {
-    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
-    if (!await launchUrl(url)) {
-      throw Exception('Could not launch $url');
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => MDRender(mdPath: 'assets/docs/terms-of-services.md')),
+    );
   }
 }
