@@ -515,7 +515,14 @@ class _RecordingFormState extends State<RecordingForm> {
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.text,
-                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter some text';
+                        } else if (value.length > 49) {
+                          return 'Název nahrávky nesmí být delší než 49 znaků';
+                        }
+                        return null;
+                      },
                       ),
                       const SizedBox(height: 20),
                       TextFormField(

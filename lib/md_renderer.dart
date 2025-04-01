@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// A widget that renders a Markdown file from the given asset path.
 class MDRender extends StatefulWidget {
@@ -59,6 +60,18 @@ class _MDRenderState extends State<MDRender> {
         child: Markdown(
           data: _markdownContent!,
           styleSheet: markdownStyle,
+          onTapLink: (text, href, title) async {
+            if (href != null) {
+              final Uri url = Uri.parse(href);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not launch $href')),
+                );
+              }
+            }
+          },
         ),
       ),
     );

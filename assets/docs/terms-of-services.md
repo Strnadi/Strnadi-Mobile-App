@@ -1,5 +1,5 @@
-# Podmínky užití a GDPR
-## Podmínky v kostce
+### Podmínky užití a GDPR
+#### Podmínky v kostce
 
 Zapojením do projektu občanské vědy Nářečí českých strnadů souhlasíte: 
 
@@ -14,11 +14,11 @@ Svůj uživatelský účet můžete kdykoliv zrušit. Poskytnuté nahrávky a s�
 
 Uživatelské účty porušující podmínky, zejména účty vkládající nezákonný, obscénní urážlivý nebo pro projekt irelevantní obsah, mohou být zablokovány.
 
-## Podmínky podrobně
+#### Podmínky podrobně
 Webová stránka strnadi.cz slouží ke sběru a prezentaci dat v rámci projektu občanské vědy Nářečí českých strnadů. Přístupem na tento web nebo instalací stejnojmenné mobilní aplikace souhlasíte s níže uvedenými podmínkami použití.  
 
 
-### Licence pro obsah neosobních dat
+##### Licence pro obsah neosobních dat
 
 Používáním mobilní aplikace Nářečí českých strnadů nebo vkládáním dat prostřednictvím webu  vytváříte a nahráváte obsah: zvukové nahrávky, fotografie přírody a další doprovodné údaje.  
 
@@ -33,27 +33,27 @@ Všechny záznamy nahrané do projektu Nářečí českých strnadů prostředni
 
 Svůj uživatelský účet v projektu Nářečí českých strnadů můžete zrušit po přihlášení na webových stránkách nebo v mobilní aplikaci. Veškeré záznamy, které jste v rámci projektu vložili (zvukové nahrávky, obrazové podklady a související informace o místu a čase pořízení nahrávky), zůstanou zachovány jako součást dlouhodobého souboru vědeckých dat, který bude využíván pro výzkum ptačího zpěvu a bude uchováván na dobu neurčitou. Se záznamy bude i po zrušení uživatelského účtu spojeno vaše jméno pro určení autorství nahrávek. 
 
-### Zrušení uživatelského účtu 
+##### Zrušení uživatelského účtu 
 
 Uživatelský účet, jehož přezdívka, profilový obrázek nebo poskytnutý obsah budou nezákonné, obscénní, urážlivé nebo irelevantní pro projekt, může být administrátory projektu dočasně či trvale zablokován.
 
-### Osobní data
+##### Osobní data
 
 Zpracování osobních údajů, které od vás shromažďujeme nebo které nám poskytnete, se řídí naším **[Oznámením o ochraně soukromí](https://www.strnadi.cz/ochrana-osobnich-udaju)**.
 
-### Odmítnutí odpovědnosti 
+##### Odmítnutí odpovědnosti 
 
-#### Přesnost informací
+###### Přesnost informací
 
 Informace na webu strnadi.cz a v aplikaci Nářečí českých strnadů jsou poskytovány v dobré víře pro účely projektu občanské vědy a popularizace ochrany a výzkumu ptáků. Mohou se měnit bez předchozího upozornění. Žádný ze subjektů zapojených do projektu (Univerzita Karlova, Česká společnost ornitologická, DELTA – Střední škola informatiky a ekonomie) nezodpovídá za případné nepřesnosti a nenese odpovědnost za jakékoli chyby aopomenutí ani za použití nebo výsledky získané použitím těchto informací. Žádný obsah webu a aplikace není právně závaznou nabídkou ke smluvnímu vztahu.  
 
 Odkazy, které propojují tento web s jinými webovými stránkami, jsou pouze pro informaci a usnadnění navigace. Nezaručujeme jejich trvalou funkčnost a nemáme kontrolu nad jejich obsahem či dostupností. Uživatel je odpovědný za to, aby sám rozhodoval o přesnosti, spolehlivosti a správnosti informací, které se nacházejí na odkazovaných stránkách. 
 
-#### Ochrana proti virům a malware
+###### Ochrana proti virům a malware
 
 Vynakládáme maximální úsilí na kontrolu a testování obsahu a funkcí webu i a aplikace ve všech fázích vývoje. Aplikace neobsahuje malware a nejsme si vědomi žádných rizikových funkcí. Je ale vždy vhodné, abyste používali antivirový program na veškerý materiál stažený z internetu. Neneseme žádnou odpovědnost za ztrátu, narušení nebo poškození vašich dat nebo vašeho zařízení, které mohou vzniknout použitím webu nebo aplikace Nářečí českých strnadů. 
 
-### Změny těchto podmínek
+##### Změny těchto podmínek
 
 Tato podmínky mohou být v případě potřeby aktualizovány. Nejnovější verze bude vždy dostupná na adrese **[https://www.strnadi.cz/podminky-pouzivani](https://www.strnadi.cz/podminky-pouzivani)**. Pokud dojde k podstatným změnám těchto podmínek, na webu projektu bude uveřejněno oznámení. V případě významných změn budou registrovaní uživatelé projektu informování formou e-mailové zprávy a notifikace v mobilní aplikaci. 
 

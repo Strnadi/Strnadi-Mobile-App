@@ -95,7 +95,7 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Info'),
+      title: const Text('Informace'),
       content: Text(message),
       actions: [
         TextButton(
@@ -110,7 +110,7 @@ void exitApp(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Info'),
+      title: const Text('Informace'),
       content: Text(message),
       actions: [
         TextButton(
@@ -381,10 +381,10 @@ class _LiveRecState extends State<LiveRec> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirm Discard'),
-          content: const Text('Are you sure you want to discard the current recording?'),
+          title: const Text('Potvrdit zahození'),
+          content: const Text('Opravdu chcete zahodit aktuální nahrávání?'),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Zrušit')),
             TextButton(
               onPressed: () {
                 // todo not discording
@@ -392,7 +392,7 @@ class _LiveRecState extends State<LiveRec> {
                 Navigator.of(context).pop();
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LiveRec()));
               },
-              child: const Text('Discard'),
+              child: const Text('Zahodit'),
             ),
           ],
         );
