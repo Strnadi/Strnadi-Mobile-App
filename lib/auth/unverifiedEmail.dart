@@ -141,6 +141,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
             height: 30,
           ),
           onPressed: () {
+            FlutterSecureStorage().delete(key: 'token');
             Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
           },
         ),
