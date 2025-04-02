@@ -107,77 +107,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                   // Spectrogram background
                   widget.spectogram!,
 
-                  // Left handle/marker
-                  Positioned(
-                    left: (startTime / widget.duration) * MediaQuery.of(context).size.width * 0.8,
-                    child: _buildMarker(Colors.blue),
-                  ),
-
-                  // Right handle/marker
-                  Positioned(
-                    left: (endTime / widget.duration) * MediaQuery.of(context).size.width * 0.8,
-                    child: _buildMarker(Colors.blue),
-                  ),
-
-                  // Vertical line for left marker
-                  Positioned(
-                    left: (startTime / widget.duration) * MediaQuery.of(context).size.width * 0.8,
-                    child: Container(
-                      width: 2,
-                      height: 200,
-                      color: Colors.blue,
-                    ),
-                  ),
-
-                  // Vertical line for right marker
-                  Positioned(
-                    left: (endTime / widget.duration) * MediaQuery.of(context).size.width * 0.8,
-                    child: Container(
-                      width: 2,
-                      height: 200,
-                      color: Colors.blue,
-                    ),
-                  ),
-
-                  // Center selection bar
-                  Positioned(
-                    left: (startTime / widget.duration) * MediaQuery.of(context).size.width * 0.8,
-                    child: Container(
-                      width: ((endTime - startTime) / widget.duration) * MediaQuery.of(context).size.width * 0.8,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        color: selectedDialect != null
-                            ? dialectColors[selectedDialect]!.withOpacity(0.3)
-                            : Colors.red.withOpacity(0.2),
-                      ),
-                    ),
-                  ),
-
                   // The invisible slider on top for interaction
-                  Positioned.fill(
-                    child: SliderTheme(
-                      data: SliderThemeData(
-                        thumbShape: SliderComponentShape.noThumb,
-                        overlayShape: SliderComponentShape.noOverlay,
-                        trackShape: CustomTrackShape(),
-                        trackHeight: 200,
-                      ),
-                      child: RangeSlider(
-                        values: RangeValues(startTime, endTime),
-                        min: 0.0,
-                        max: widget.duration,
-                        divisions: widget.duration.toInt() * 10, // 0.1 second precision
-                        onChanged: (RangeValues values) {
-                          setState(() {
-                            startTime = values.start;
-                            endTime = values.end;
-                          });
-                        },
-                        activeColor: Colors.transparent,
-                        inactiveColor: Colors.transparent,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
