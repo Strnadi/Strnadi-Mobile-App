@@ -95,6 +95,8 @@ class _RecordingFormState extends State<RecordingForm> {
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
 
+  var placeTitle = "mapa";
+
   @override
   void initState() {
     super.initState();
@@ -179,6 +181,8 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     }
     _route.addAll(widget.route);
+
+    reverseGeocode(widget.recordingParts[0].gpsLatitudeStart!, widget.recordingParts[0].gpsLongitudeStart!);
   }
 
   void SendDialects() async {
@@ -282,6 +286,35 @@ class _RecordingFormState extends State<RecordingForm> {
         ],
       ),
     );
+  }
+
+  Future<void> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final results = data['items'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+          setState(() {
+            placeTitle = results[0]['name'];
+          });
+        }
+      }
+      else {
+        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+      }
+    } catch (e) {
+      print('Reverse geocode error: $e');
+    }
   }
 
   Future<void> insertRecordingWhenReady() async {
@@ -446,6 +479,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   ),
                 ),
               const SizedBox(height: 50),
+              Row(children: [Text(placeTitle)],),
               SizedBox(
                 height: 200,
                 child: Stack(
