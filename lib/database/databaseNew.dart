@@ -88,7 +88,7 @@ class RecordingPartUnready {
 class Recording {
   int? id;
   int? BEId;
-  String mail;
+  String? mail;
   DateTime createdAt;
   int estimatedBirdsCount;
   String? device;
@@ -103,7 +103,7 @@ class Recording {
   Recording({
     this.id,
     this.BEId,
-    required this.mail,
+    this.mail,
     required this.createdAt,
     required this.estimatedBirdsCount,
     this.device,
@@ -120,7 +120,7 @@ class Recording {
     return Recording(
       id: json['id'] as int?,
       BEId: json['BEId'] as int?,
-      mail: json['mail'] as String,
+      mail: json['mail'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       estimatedBirdsCount: json['estimatedBirdsCount'] as int,
       device: json['device'] as String?,

@@ -155,7 +155,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
 
   Future<void> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon");
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
     logger.i("reverse geocode url: $url");
     try {
@@ -167,11 +167,11 @@ class _RecordingItemState extends State<RecordingItem> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        final results = data['result'];
+        final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
           setState(() {
-            placeTitle = results[0]['title'];
+            placeTitle = results[0]['name'];
           });
         }
       }

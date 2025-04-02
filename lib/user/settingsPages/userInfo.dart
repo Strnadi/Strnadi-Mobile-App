@@ -119,11 +119,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     if (user != null && jwt != null) {
       Map<String, dynamic> updatedData = {
-        'Nickname': _nicknameController.text,
-        'FirstName': _firstnameController.text,
-        'LastName': _lastnameController.text,
-        'PostCode': _pscController.text,
-        'City': user!.city,
+        'nickname': _nicknameController.text,
+        'firstName': _firstnameController.text,
+        'lastName': _lastnameController.text,
+        'postCode': _pscController.text,
+        'city': user!.city,
       };
 
       updateUser(user!.email, updatedData, jwt);

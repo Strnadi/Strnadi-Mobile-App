@@ -154,7 +154,7 @@ class _RecordingFormState extends State<RecordingForm> {
       if (token == null) {
         _showMessage('You are not logged in');
       }
-      while (recording.mail.isEmpty) {
+      while (recording.mail!.isEmpty) {
         await Future.delayed(const Duration(seconds: 1));
       }
       recording.mail = JwtDecoder.decode(token!)['sub'];
@@ -285,7 +285,7 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> insertRecordingWhenReady() async {
-    while (recording.mail.isEmpty || (recording.device?.isEmpty ?? true)) {
+    while (recording.mail!.isEmpty || (recording.device?.isEmpty ?? true)) {
       await Future.delayed(const Duration(seconds: 1));
       logger.i('Waiting for recording to be ready');
     }
