@@ -21,48 +21,30 @@ import 'package:http/http.dart' as http;
 import 'package:strnadi/archived/login.dart';
 
 class User {
-  final int id;
   final String nickname;
   final String email;
-  final String? password;
   final String firstName;
   final String lastName;
   final int postCode;
   final String city;
-  final DateTime creationDate;
-  final bool isEmailVerified;
-  final bool consent;
-  final String role;
 
   User({
-    required this.id,
     required this.nickname,
     required this.email,
-    this.password,
     required this.firstName,
     required this.lastName,
     required this.postCode,
     required this.city,
-    required this.creationDate,
-    required this.isEmailVerified,
-    required this.consent,
-    required this.role,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
       nickname: json['nickname'],
       email: json['email'],
-      password: json['password'],
       firstName: json['firstName'],
       lastName: json['lastName'],
       postCode: json['postCode'],
       city: json['city'],
-      creationDate: DateTime.parse(json['creationDate']),
-      isEmailVerified: json['isEmailVerified'],
-      consent: json['consent'],
-      role: json['role'],
     );
   }
 
@@ -79,6 +61,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   User? user;
 
+  final TextEditingController _nicknameController = TextEditingController();
+  final TextEditingController _firstnameController = TextEditingController();
+  final TextEditingController _lastnameController = TextEditingController();
+  final TextEditingController _pscController = TextEditingController();
+
   Future<void> fetchUser(String email, String jwt) async {
     final url = Uri.parse('https://api.strnadi.cz/users/$email');
     final response = await http.get(
@@ -92,10 +79,56 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     if (response.statusCode == 200) {
       setState(() {
         user = User.fromJson(jsonDecode(response.body));
+        _nicknameController.text = user!.nickname;
+        _firstnameController.text = user!.firstName;
+        _lastnameController.text = user!.lastName;
+        _pscController.text = user!.postCode.toString();
       });
     } else {
       logger.i('Failed to load user: ${response.statusCode} ${response.body}');
       _showMessage("Nepodařilo se načíst uživatele");
+    }
+  }
+
+  Future<void> updateUser(String email, Map<String, dynamic> updatedData, String jwt) async {
+    final url = Uri.parse('https://api.strnadi.cz/users/$email');
+
+
+    logger.i(jsonEncode(updatedData));
+
+    final response = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      },
+      body: jsonEncode(updatedData),
+    );
+
+    if (response.statusCode == 200) {
+      _showMessage("Údaje byly úspěšně aktualizovány");
+    } else {
+      logger.i('Failed to update user: ${response.statusCode} ${response.body}');
+      _showMessage("Nepodařilo se aktualizovat údaje");
+    }
+  }
+
+  void updateUserData() async {
+    final secureStorage = FlutterSecureStorage();
+    String? jwt = await secureStorage.read(key: 'token');
+
+    if (user != null && jwt != null) {
+      Map<String, dynamic> updatedData = {
+        'Nickname': _nicknameController.text,
+        'FirstName': _firstnameController.text,
+        'LastName': _lastnameController.text,
+        'PostCode': _pscController.text,
+        'City': user!.city,
+      };
+
+      updateUser(user!.email, updatedData, jwt);
+    } else {
+      _showMessage('Nepodařilo se načíst uživatele nebo token');
     }
   }
 
@@ -144,51 +177,59 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(backgroundColor: Colors.amber),
             onPressed: () {
-              UpdateUser();
+              updateUserData();
             }, // Save action
-            child: const Text('Uložit', style: TextStyle(color: Colors.grey)),
+            child: const Text('Uložit', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          children: [
-            _buildTextField('Jméno', user?.firstName ?? 'Null'),
-            _buildTextField('Příjmení',  user?.lastName ?? 'Null'),
-            _buildTextField('Přezdívka', user?.nickname ?? 'Null'),
-            _buildTextField('E-mail', user?.email ?? 'Null'),
-            _buildTextField('PSČ', user?.postCode.toString() ?? 'Null'),
-            ListTile(
-              title: const Text('Kraj'),
-              subtitle: Text(user?.city ?? 'Null'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {}, // Open region selection
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Změna hesla'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ForgottenPassword()),
-                );
-              }, // Open password change
-            ),
-            ListTile(
-              title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {}, // Open delete account confirmation
-            ),
-          ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Text("Profilové údaje", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 20),
+                  _buildTextField('Jméno', _firstnameController),
+                  _buildTextField('Příjmení', _lastnameController),
+                  _buildTextField('Přezdívka', _nicknameController),
+                  _buildTextField('PSČ', _pscController),
+                  ListTile(
+                    title: const Text('Kraj'),
+                    subtitle: Text(user?.city ?? 'Null'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {}, // Open region selection
+                  ),
+                ],
+              ),
+              const Divider(),
+              ListTile(
+                title: const Text('Změna hesla'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ForgottenPassword()),
+                  );
+                }, // Open password change
+              ),
+              ListTile(
+                title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {}, // Open delete account confirmation
+              ),
+            ],
+          ),
         ),
-      ),
     );
   }
 
-  Widget _buildTextField(String label, String value) {
+  Widget _buildTextField(String label, TextEditingController txt) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextField(
@@ -196,7 +237,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
-        controller: TextEditingController(text: value),
+        controller: txt,
       ),
     );
   }

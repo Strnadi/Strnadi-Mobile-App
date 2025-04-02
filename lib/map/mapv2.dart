@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
 import '../config/config.dart';
@@ -243,6 +244,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
                       child: GestureDetector(
                         onTap: () {
+                          // TODO proper show of the recording
                           showDialog(
                             context: context,
                             builder: (ctx) => AlertDialog(
