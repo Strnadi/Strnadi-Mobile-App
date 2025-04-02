@@ -34,6 +34,7 @@ import 'package:http/http.dart' as http;
 
 import '../database/databaseNew.dart';
 
+
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
@@ -55,6 +56,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
   double _currentZoom = 13;
 
   List<Part> _recordings = [];
+
+  List<Recording> _fullRecordings = [];
 
   Size? _mapSize;
 
@@ -164,6 +167,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
         setState(() {
           _recordings = parts;
         });
+        List<Recording> recordings = await GetRecordings(response.body);
+        setState(() {
+          _fullRecordings = recordings;
+        });
       }
       else {
         logger.e('Failed to fetch recordings ${response.statusCode}');
@@ -172,6 +179,21 @@ class _MapScreenV2State extends State<MapScreenV2> {
     catch (error) {
       logger.e(error);
     }
+  }
+
+  void getRecordingFromPartId(int id) {
+
+    var rec =  _fullRecordings.indexWhere((element) => element.BEId == id,);
+
+    if (rec == -1) {
+      logger.e('Recording not found');
+    }
+    else {
+      logger.i('Recording found ${_fullRecordings[rec].BEId}');
+    }
+
+    showDialog
+     (context: context, builder: (context) => RecordingItem(recording: _fullRecordings[rec],));
   }
 
   @override
@@ -244,32 +266,33 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
                       child: GestureDetector(
                         onTap: () {
+                          getRecordingFromPartId(part.id);
                           // TODO proper show of the recording
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text('Part ID: ${part.id}'),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Recording ID: ${part.recordingId}'),
-                                  Text('Start: ${part.start}'),
-                                  Text('End: ${part.end}'),
-                                  if (part.filePath != null)
-                                    Text('File: ${part.filePath}'),
-                                  if (part.square != null)
-                                    Text('Square: ${part.square}'),
-                                ],
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(),
-                                  child: const Text('Close'),
-                                ),
-                              ],
-                            ),
-                          );
+                          // showDialog(
+                          //   context: context,
+                          //   builder: (ctx) => AlertDialog(
+                          //     title: Text('Part ID: ${part.id}'),
+                          //     content: Column(
+                          //       mainAxisSize: MainAxisSize.min,
+                          //       crossAxisAlignment: CrossAxisAlignment.start,
+                          //       children: [
+                          //         Text('Recording ID: ${part.recordingId}'),
+                          //         Text('Start: ${part.start}'),
+                          //         Text('End: ${part.end}'),
+                          //         if (part.filePath != null)
+                          //           Text('File: ${part.filePath}'),
+                          //         if (part.square != null)
+                          //           Text('Square: ${part.square}'),
+                          //       ],
+                          //     ),
+                          //     actions: [
+                          //       TextButton(
+                          //         onPressed: () => Navigator.of(ctx).pop(),
+                          //         child: const Text('Close'),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // );
                         },
                         child: const Icon(
                           Icons.location_on,

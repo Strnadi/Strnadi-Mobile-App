@@ -44,7 +44,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
       final url =
           'https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=5';
       final res = await http.get(Uri.parse(url), headers: {
-        'User-Agent': 'FlutterMapApp/1.0 (your.email@example.com)'
+        'User-Agent': 'FlutterMapApp/1.0 (marpecqueur@gmail.com)'
       });
 
       if (res.statusCode == 200) {

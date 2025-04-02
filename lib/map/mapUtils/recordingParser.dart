@@ -15,7 +15,11 @@
  */
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
+
+import '../../database/databaseNew.dart';
 
 class Part {
   final int id;
@@ -62,7 +66,7 @@ class Part {
 }
 
 
-class Recording {
+class RecordingSec {
   final int id;
   final int userId;
   final DateTime createdAt;
@@ -73,7 +77,7 @@ class Recording {
   final String? notePost;
   final List<Part> parts;
 
-  Recording({
+  RecordingSec({
     required this.id,
     required this.userId,
     required this.createdAt,
@@ -85,8 +89,8 @@ class Recording {
     required this.parts,
   });
 
-  factory Recording.fromJson(Map<String, dynamic> json) {
-    return Recording(
+  factory RecordingSec.fromJson(Map<String, dynamic> json) {
+    return RecordingSec(
       id: json['id'] ?? -1,
       userId: json['userId'] ?? -1,
       createdAt: DateTime.parse(json['createdAt']),
@@ -106,7 +110,7 @@ class Recording {
 
 List<Part> getParts(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
-  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+  final recordings = decoded.map((r) => RecordingSec.fromJson(r)).toList();
 
   final List<Part> parts = [];
 
@@ -119,7 +123,7 @@ List<Part> getParts(String jsonString) {
 
 LatLng? getFirstPartLatLng(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
-  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+  final recordings = decoded.map((r) => RecordingSec.fromJson(r)).toList();
 
   if (recordings.isNotEmpty && recordings.first.parts.isNotEmpty) {
     final firstPart = recordings.first.parts.first;
@@ -128,9 +132,19 @@ LatLng? getFirstPartLatLng(String jsonString) {
   return null; // no data
 }
 
+Future<List<Recording>> GetRecordings(String jsonString) async {
+  var token = await FlutterSecureStorage().read(key: 'token');
+  var mail = JwtDecoder.decode(token!)['sub'];
+
+  logger.i(mail);
+
+  final List<dynamic> decoded = jsonDecode(jsonString);
+  return decoded.map((r) => Recording.fromBEJson(r, mail)).toList();
+}
+
 List<LatLng> getAllLatLngs(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
-  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+  final recordings = decoded.map((r) => RecordingSec.fromJson(r)).toList();
 
   final List<LatLng> latLngList = [];
 
