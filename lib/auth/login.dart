@@ -81,7 +81,7 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      logger.i(response.body);
+      logger.i('Login response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         logger.i("user has logged in with status code ${response.statusCode}");
@@ -89,6 +89,15 @@ class _LoginState extends State<Login> {
         await fb.refreshToken();
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
       } else if (response.statusCode == 403) {
+        FlutterSecureStorage().write(key: 'token', value: response.body.toString());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+          ),
+        );
+      } else if(response.statusCode == 403){
+        FlutterSecureStorage().write(key: 'token', value: response.body.toString());
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -241,6 +250,12 @@ class _LoginState extends State<Login> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgottenPassword(),
+                      ),
+                    );
                     // Handle "Forgot password" here
                   },
                   child: const Text('Zapomenuté heslo?'),
