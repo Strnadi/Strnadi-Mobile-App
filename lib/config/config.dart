@@ -39,6 +39,13 @@ class Config {
     return _config!["mapy.cz-key"];
   }
 
+  static String get host{
+    if (_config == null) {
+      throw Exception("Config not loaded. Call loadConfig() first.");
+    }
+    return _config!["host"];
+  }
+
   static String get firebaseProjectId{
     if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");

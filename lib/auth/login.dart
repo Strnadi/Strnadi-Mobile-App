@@ -21,6 +21,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/config/config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
 import 'forgottenPassword.dart';
@@ -64,7 +65,7 @@ class _LoginState extends State<Login> {
   }
 
   void login() async {
-    final url = Uri.https('api.strnadi.cz', '/auth/login');
+    final url = Uri.https(Config.host, '/auth/login');
 
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
       _showMessage("Vyplňte všechny pole");

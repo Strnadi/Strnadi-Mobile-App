@@ -26,6 +26,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 
+import '../../config/config.dart';
+
 Logger logger = Logger();
 
 class RegMail extends StatefulWidget {
@@ -68,7 +70,7 @@ class _RegMailState extends State<RegMail> {
   Future<bool> _checkEmail(String email) async {
     final Uri url = Uri(
       scheme: 'https',
-      host: 'api.strnadi.cz',
+      host: Config.host,
       path: '/users/exists',
       queryParameters: {
         'email': email,

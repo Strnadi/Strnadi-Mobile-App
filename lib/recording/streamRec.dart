@@ -337,168 +337,174 @@ class _LiveRecState extends State<LiveRec> {
       ];
     }
 
-    return ScaffoldWithBottomBar(
-      appBarTitle: "",
-      content: SingleChildScrollView(
-        child: Column(
-          children: [
-            SizedBox(
-              height: 220,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/images/bird_example.jpg',
-                    fit: BoxFit.cover,
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    child: Container(
-                      color: Colors.black54,
-                      padding: const EdgeInsets.all(4),
-                      child: const Text(
-                        'Foto: Snímek Jana S.',
-                        style: TextStyle(color: Colors.white),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        // Always forbid the Android back button by doing nothing
+      },
+      child: ScaffoldWithBottomBar(
+        appBarTitle: "",
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              SizedBox(
+                height: 220,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      'assets/images/bird_example.jpg',
+                      fit: BoxFit.cover,
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        color: Colors.black54,
+                        padding: const EdgeInsets.all(4),
+                        child: const Text(
+                          'Foto: Snímek Jana S.',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 40),
+              const SizedBox(height: 40),
 
-            // Recording button
-            Semantics(
-              label: _recordState == RecordState.stop
-                  ? "Start recording"
-                  : _recordState == RecordState.record
-                  ? "Pause recording"
-                  : "Resume recording",
-              button: true,
-              child: GestureDetector(
-                onTap: _toggleRecording,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: fillColor,
-                    border: border,
-                    boxShadow: boxShadows,
-                  ),
-                  child: Icon(
-                    iconData,
-                    color: iconColor,
-                    size: 40,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Timer with a round border (red when recording, gray otherwise)
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: _recordState == RecordState.record ? primaryRed : Colors.grey,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: Text(
-                _formatTime(totalTime),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                  fontFamily: 'Bricolage Grotesque',
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Status text
-            if (_recordState == RecordState.stop) ...[
-              Text(
-                "Stisknutím zahájíte nahrávání",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                  fontFamily: 'Bricolage Grotesque',
-                ),
-              ),
-            ] else if (_recordState == RecordState.record) ...[
-              Text(
-                "Nahrává se…",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                  fontFamily: 'Bricolage Grotesque',
-                ),
-              ),
-            ] else if (_recordState == RecordState.pause) ...[
-              Text(
-                "Nahrávání pozastaveno – klepněte pro obnovení",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                  fontFamily: 'Bricolage Grotesque',
-                ),
-              ),
-            ],
-            const SizedBox(height: 40),
-
-            // Finish button is visible when recording or paused
-            if (_recordState == RecordState.record || _recordState == RecordState.pause)
+              // Recording button
               Semantics(
-                label: "Finish and continue",
+                label: _recordState == RecordState.stop
+                    ? "Start recording"
+                    : _recordState == RecordState.record
+                    ? "Pause recording"
+                    : "Resume recording",
                 button: true,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _stop,
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        backgroundColor: secondaryRed,
-                        foregroundColor: primaryRed,
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Bricolage Grotesque',
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 16,
-                          horizontal: 24,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.stop, color: primaryRed),
-                          const SizedBox(width: 8),
-                          const Text(
-                            "Dokončit a pokračovat",
-                            style: TextStyle(fontFamily: 'Bricolage Grotesque'),
-                          ),
-                        ],
-                      ),
+                child: GestureDetector(
+                  onTap: _toggleRecording,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: fillColor,
+                      border: border,
+                      boxShadow: boxShadows,
+                    ),
+                    child: Icon(
+                      iconData,
+                      color: iconColor,
+                      size: 40,
                     ),
                   ),
                 ),
               ),
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 20),
+
+              // Timer with a round border (red when recording, gray otherwise)
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: _recordState == RecordState.record ? primaryRed : Colors.grey,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Text(
+                  _formatTime(totalTime),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                    fontFamily: 'Bricolage Grotesque',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Status text
+              if (_recordState == RecordState.stop) ...[
+                Text(
+                  "Stisknutím zahájíte nahrávání",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontFamily: 'Bricolage Grotesque',
+                  ),
+                ),
+              ] else if (_recordState == RecordState.record) ...[
+                Text(
+                  "Nahrává se…",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontFamily: 'Bricolage Grotesque',
+                  ),
+                ),
+              ] else if (_recordState == RecordState.pause) ...[
+                Text(
+                  "Nahrávání pozastaveno – klepněte pro obnovení",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontFamily: 'Bricolage Grotesque',
+                  ),
+                ),
+              ],
+              const SizedBox(height: 40),
+
+              // Finish button is visible when recording or paused
+              if (_recordState == RecordState.record || _recordState == RecordState.pause)
+                Semantics(
+                  label: "Finish and continue",
+                  button: true,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _stop,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: secondaryRed,
+                          foregroundColor: primaryRed,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Bricolage Grotesque',
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 24,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.stop, color: primaryRed),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Dokončit a pokračovat",
+                              style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
-      ),
+      )
     );
   }
 

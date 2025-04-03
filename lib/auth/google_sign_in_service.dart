@@ -8,6 +8,8 @@ import 'dart:io';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../config/config.dart';
+
 Logger logger = Logger();
 
 class GoogleSignInService {
@@ -47,7 +49,7 @@ class GoogleSignInService {
       logger.i('google idToken: $idToken');
 
       //Send to BE
-      Uri url = Uri.parse('https://api.strnadi.cz/auth/login-google');
+      Uri url = Uri.parse('https://${Config.host}/auth/login-google');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
@@ -86,7 +88,7 @@ class GoogleSignInService {
 
     // Call your backend sign-up endpoint.
     // Replace the URL with your actual backend endpoint.
-    final url = 'https://api.strnadi.cz/auth/sign-up-google';
+    final url = 'https://${Config.host}/auth/sign-up-google';
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},

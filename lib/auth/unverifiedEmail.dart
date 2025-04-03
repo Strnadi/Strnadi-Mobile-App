@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/config/config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 
@@ -76,7 +77,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   /// Resend verification email.
   Future<void> resendEmail() async {
     final String? jwt = await FlutterSecureStorage().read(key: 'token');
-    final Uri url = Uri.https('api.strnadi.cz', '/auth/${widget.userEmail}/resend-verify-email');
+    final Uri url = Uri.https(Config.host, '/auth/${widget.userEmail}/resend-verify-email');
     try {
       final response = await http.get(
         url,

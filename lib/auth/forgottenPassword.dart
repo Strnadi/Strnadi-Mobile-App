@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/config.dart';
 import 'login.dart';
 
 class ForgottenPassword extends StatefulWidget {
@@ -175,7 +176,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
   }
 
   Future<void> requestPasswordReset(String email) async {
-    final uri = Uri.parse('https://api.strnadi.cz/users/$email/forgotten-password');
+    final uri = Uri(scheme: 'https', host: Config.host, path: '/users/$email/forgotten-password');
 
     try {
       final response = await http.patch(uri);

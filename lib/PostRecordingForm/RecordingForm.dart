@@ -191,6 +191,63 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
+  Future<bool?> _confirmDiscard() {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Potvrzení'),
+          content: const Text('Opravdu chcete smazat nahrávku?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('Ne'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Ano'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDiscardDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Potvrzení'),
+          content: const Text('Opravdu chcete smazat nahrávku?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Ne'),
+            ),
+            TextButton(
+              onPressed: () {
+                spectogramKey = GlobalKey();
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LiveRec()),
+                );
+              },
+              child: const Text('Ano'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Helper method to seek the audio player relative to current position.
   void seekRelative(int seconds) {
     final currentPos = _audioPlayer.position;
@@ -202,7 +259,7 @@ class _RecordingFormState extends State<RecordingForm> {
       var token = FlutterSecureStorage();
       var jwt = await token.read(key: 'token');
       try {
-        final url = Uri.parse('https://api.strnadi.cz/recordings/filtered/upload');
+        final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
         await http.post(
           url,
           headers: <String, String>{
@@ -416,59 +473,44 @@ class _RecordingFormState extends State<RecordingForm> {
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Recording Form"),
-        actions: [
-          ElevatedButton(
-            onPressed: upload,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: yellow,
-              foregroundColor: yellowishBlack,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        final bool shouldPop = await _confirmDiscard() ?? false;
+        if (shouldPop) {
+          spectogramKey = GlobalKey();
+          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Recording Form"),
+          actions: [
+            ElevatedButton(
+              onPressed: upload,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: yellow,
+                foregroundColor: yellowishBlack,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text("Uložit"),
             ),
-            child: const Text("Uložit"),
+          ],
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final bool shouldPop = await _confirmDiscard() ?? false;
+              if (shouldPop) {
+                spectogramKey = GlobalKey();
+                Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+              }
+            },
           ),
-        ],
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text('Potvrzení'),
-                  content: const Text('Opravdu chcete smazat nahrávku?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Ne'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        spectogramKey = GlobalKey();
-                        Navigator.of(context).pop();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => LiveRec()),
-                        );
-                      },
-                      child: const Text('Ano'),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
         ),
-      ),
-      body: PopScope(
-        canPop: false,
-        child: SingleChildScrollView(
+        body: SingleChildScrollView(
           child: Center(
             child: Column(
               children: [

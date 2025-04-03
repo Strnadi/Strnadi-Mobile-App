@@ -22,6 +22,7 @@ import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/config.dart';
 import '../recording/streamRec.dart';
 import 'package:strnadi/auth/forgottenPassword.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
@@ -62,7 +63,7 @@ class _LoginState extends State<Login> {
   }
 
   void login() async {
-    final url = Uri.https('api.strnadi.cz', '/auth/login');
+    final url = Uri.https(Config.host, '/auth/login');
     try {
       final response = await http.post(
         url,

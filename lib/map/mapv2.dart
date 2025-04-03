@@ -155,7 +155,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://api.strnadi.cz/recordings?parts=true&sound=false'),
+        Uri(scheme: 'https', host: Config.host, path: '/recordings', queryParameters: {
+          'parts': 'true',
+          'sound': 'false',
+        }),
         headers: {
           'Content-Type': 'application/json',
         },

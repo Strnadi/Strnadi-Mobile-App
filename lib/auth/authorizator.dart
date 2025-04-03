@@ -30,6 +30,8 @@ import 'package:strnadi/auth/login.dart';
 import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
 import 'package:strnadi/md_renderer.dart';
 
+import '../config/config.dart';
+
 Logger logger = Logger();
 
 enum AuthType { login, register }
@@ -55,8 +57,8 @@ Future<AuthStatus> isLoggedIn() async {
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
-    final Uri url = Uri.parse('https://api.strnadi.cz/auth/verify-jwt')
-        .replace(queryParameters: {'jwt': token});
+    final Uri url = Uri(scheme: 'https', host: Config.host, path: 'auth/verify-jwt', queryParameters: {'jwt': token});
+
     try {
       final response = await http.get(
         url,
@@ -245,7 +247,7 @@ class _AuthState extends State<Authorizator> {
       if (token == null) return;
 
       String email = JwtDecoder.decode(token)['sub'];
-      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email').replace(queryParameters: {'jwt': token});
+      final Uri url = Uri.parse('https://${Config.host}/users/$email').replace(queryParameters: {'jwt': token});
 
       final response = await http.get(
         url,
