@@ -19,6 +19,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import '../config/config.dart';
 import '../firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
@@ -136,7 +137,7 @@ Future<void> addDevice() async{
   if(adding) return;
   adding = true;
 
-  while(!await auth.isLoggedIn()){
+  while(!(await auth.isLoggedIn()==auth.AuthStatus.loggedIn)){
     Future.delayed(Duration(seconds: 1));
   }
 
@@ -145,7 +146,7 @@ Future<void> addDevice() async{
     messaging.getToken().then((token) async {
       logger.i("Firebase token: $token");
 
-      Uri url = Uri.https('api.strnadi.cz', '/devices/add');
+      Uri url = Uri.https(Config.host, '/devices/add');
       DeviceInfo deviceInfo = await getDeviceInfo();
       String? jwt = await FlutterSecureStorage().read(key: 'token');
       logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
@@ -190,7 +191,7 @@ Future<void> updateDevice(String? oldToken, String? newToken) async{
     deleteToken();
   }
 
-  Uri url = Uri.https('api.strnadi.cz', '/devices/update');
+  Uri url = Uri.https(Config.host, '/devices/update');
 
   try {
     String? jwt = await const FlutterSecureStorage().read(key: 'token');
@@ -222,7 +223,7 @@ Future<void> updateDevice(String? oldToken, String? newToken) async{
 Future<void> deleteToken()async{
 
   String? token = await FlutterSecureStorage().read(key: 'fcmToken');
-  Uri uri = Uri.https('api.strnadi.cz', '/devices/delete/$token');
+  Uri uri = Uri.https(Config.host, '/devices/delete/$token');
 
   if(token == null){
     logger.i('No token to delete');

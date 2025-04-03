@@ -26,6 +26,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/config/config.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/exceptions.dart';
@@ -547,7 +548,7 @@ class DatabaseNew {
       throw FetchException('Failed to send recording to backend', 401);
     }
     final http.Response response = await http.post(
-      Uri.https('api.strnadi.cz', '/recordings/upload'),
+      Uri.https(Config.host, '/recordings/upload'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
@@ -584,7 +585,7 @@ class DatabaseNew {
     logger.i('Uploading recording part (BEId: ${recordingPart.BEId}) with data length: ${recordingPart.dataBase64?.length}');
     final Map<String, Object?> jsonBody = recordingPart.toBEJson();
     final http.Response response = await http.post(
-      Uri(scheme: 'https', host: 'api.strnadi.cz', path: '/recordings/upload-part'),
+      Uri(scheme: 'https', host: Config.host, path: '/recordings/upload-part'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
@@ -642,7 +643,7 @@ class DatabaseNew {
       final String email = JwtDecoder.decode(jwt)['sub'];
       Uri url = Uri(
         scheme: 'https',
-        host: 'api.strnadi.cz',
+        host: Config.host,
         path: '/recordings',
         queryParameters: {'parts': 'true', 'email': email},
       );
@@ -692,7 +693,7 @@ class DatabaseNew {
     }
     Uri url = Uri(
       scheme: 'https',
-      host: 'api.strnadi.cz',
+      host: Config.host,
       path: '/recordings/${recording.BEId}',
       queryParameters: {'parts': 'true', 'sound': 'true'},
     );

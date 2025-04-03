@@ -20,6 +20,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/archived/login.dart';
 
+import '../../config/config.dart';
+
 class User {
   final String nickname;
   final String email;
@@ -67,7 +69,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _pscController = TextEditingController();
 
   Future<void> fetchUser(String email, String jwt) async {
-    final url = Uri.parse('https://api.strnadi.cz/users/$email');
+    final url = Uri.parse('https://${Config.host}/users/$email');
     final response = await http.get(
       url,
       headers: {
@@ -91,7 +93,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> updateUser(String email, Map<String, dynamic> updatedData, String jwt) async {
-    final url = Uri.parse('https://api.strnadi.cz/users/$email');
+    final url = Uri.parse('https://${Config.host}/users/$email');
 
 
     logger.i(jsonEncode(updatedData));

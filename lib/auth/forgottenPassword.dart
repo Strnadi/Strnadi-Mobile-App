@@ -3,7 +3,7 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/config.dart';
 import 'login.dart';
 
 class ForgottenPassword extends StatefulWidget {
@@ -28,127 +29,146 @@ class ForgottenPassword extends StatefulWidget {
 }
 
 class _ForgottenPasswordState extends State<ForgottenPassword> {
-
   final TextEditingController _emailController = TextEditingController();
-
   final _GlobalKey = GlobalKey<FormState>();
+
+  // Example color constants (match these to the ones in your Login screen)
+  static const Color yellowishBlack = Color(0xFF2D2B18);
+  static const Color yellow = Color(0xFFFFD641);
 
   @override
   Widget build(BuildContext context) {
-
-    // this doesn't makes sense but it works so i will leave it here
-    final halfScreen = MediaQuery.of(context).size.height * 0.2;
-
     return Scaffold(
-      body: Center(
-        child: Form(
-          key: _GlobalKey,
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+      backgroundColor: Colors.white,
+
+      // AppBar with custom back button
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Image.asset(
+            'assets/icons/backButton.png',
+            width: 30,
+            height: 30,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Form(
+            key: _GlobalKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: EdgeInsets.only(top: halfScreen),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      const Text(
-                        'Zadejte Váš Email Pro Resetování Hesla',
-                        style: TextStyle(fontSize: 40, color: Colors.black),
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _emailController,
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          label: RichText(
-                            text: TextSpan(
-                              text: 'Email',
-                              children: const <TextSpan>[
-                                TextSpan(
-                                  text: ' *',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ],
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          if (!RegExp(
-                              r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                              .hasMatch(value)) {
-                            return 'Enter valid email';
-                          }
-                          return null;
-                        },
-                        onFieldSubmitted: (value) {
-                          if (_GlobalKey.currentState?.validate() ?? false) {
-                            requestPasswordReset(_emailController.text);
-                          } else {
-                            // Optionally, show an error message if validation fails
-                          }
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                              backgroundColor: WidgetStateProperty.all<Color>(
-                                Colors.black,
-                              ),
-                              shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                ),
-                              ),
-                            ),
-                            onPressed: () {
-                              if (_GlobalKey.currentState?.validate() ?? false) {
-                                // Proceed to the next screen if the form is valid
-                                requestPasswordReset(_emailController.text);
-                              } else {
-                                // Optionally, show an error message if validation fails
-                                _showMessage('Please fix the errors before proceeding.');
-                              }
-                            },
-                            child: const Text('Resetovat Heslo', style: TextStyle(color: Colors.white)),
-                          ),
-                        ),
-                      ),
-                    ],
+                // Some spacing from top
+                const SizedBox(height: 20),
+
+                // Heading
+                const Text(
+                  'Zadejte váš e-mail pro změnu hesla',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20.0),
-                  child: RichText(
-                    text: TextSpan(
-                      text: 'By continuing, you agree to the ',
-                      style: const TextStyle(color: Colors.black),
-                      children: [
-                        TextSpan(
-                          text: 'Terms of Service',
-                          style: const TextStyle(color: Colors.blue),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              launchUrl(Uri.parse('https://new.strnadi.cz/podminky-pouzivani'));
-                            },
-                        ),
-                      ],
+                const SizedBox(height: 8),
+
+                // Subheading
+                Text(
+                  'Na tento e-mail vám pošleme instrukce pro reset hesla',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // Label for Email
+                Text(
+                  'E-mail',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // E-mail text field
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textAlign: TextAlign.start,
+                  decoration: InputDecoration(
+                    fillColor: Colors.grey[200],
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vyplňte prosím e-mail';
+                    }
+                    if (!RegExp(
+                      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+                    ).hasMatch(value)) {
+                      return 'Zadejte platný e-mail';
+                    }
+                    return null;
+                  },
+                  onFieldSubmitted: (value) {
+                    if (_GlobalKey.currentState?.validate() ?? false) {
+                      requestPasswordReset(_emailController.text);
+                    }
+                  },
                 ),
+
+                // Spacing for bottom
+                const SizedBox(height: 40),
               ],
             ),
+          ),
+        ),
+      ),
+
+      // Button pinned to the bottom
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              if (_GlobalKey.currentState?.validate() ?? false) {
+                requestPasswordReset(_emailController.text);
+              } else {
+                _showMessage('Zadejte platný e-mail před odesláním.');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              shadowColor: Colors.transparent,
+              backgroundColor: yellow,
+              foregroundColor: yellowishBlack,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+            ),
+            child: const Text('Poslat odkaz'),
           ),
         ),
       ),
@@ -156,26 +176,35 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
   }
 
   Future<void> requestPasswordReset(String email) async {
-    final uri = Uri.parse('https://api.strnadi.cz/auth/request-password-reset?email=$email');
+    final uri = Uri(scheme: 'https', host: Config.host, path: '/users/$email/forgotten-password');
 
     try {
-      final response = await http.get(uri);
+      final response = await http.patch(uri);
 
       if (response.statusCode == 200) {
-        _showMessage("Email byl odeslán");
+        _showMessage("E-mail s pokyny pro reset hesla byl odeslán.");
         Navigator.push(context, MaterialPageRoute(builder: (_) => const Login()));
+      } else if(response.statusCode == 401) {
+        logger.w('Unregistred email: ${response.statusCode} | ${response.body}');
+        _showMessage("Zadaný e-mail není registrován.");
+      } else if(response.statusCode == 500) {
+        logger.w('Server error: ${response.statusCode} | ${response.body}');
+        _showMessage("Server je momentálně nedostupný. Zkuste to prosím později.");
       } else {
-        print('Failed to send password reset: ${response.statusCode}');
+        logger.i('Failed to send password reset: ${response.statusCode}');
+        _showMessage("Nepodařilo se odeslat reset hesla. Zkuste to prosím znovu.");
       }
-    } catch (e) {
-      print('Error sending password reset request: $e');
+    } catch (e, stackTrace) {
+      logger.e('Error sending password reset request: $e', error: e, stackTrace: stackTrace);
+      _showMessage("Chyba při odesílání požadavku. Zkontrolujte připojení.");
     }
   }
+
   void _showMessage(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Register'),
+        title: const Text('Reset hesla'),
         content: Text(message),
         actions: [
           TextButton(
@@ -186,5 +215,4 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
       ),
     );
   }
-
 }

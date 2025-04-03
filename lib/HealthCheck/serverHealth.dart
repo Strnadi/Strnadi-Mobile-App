@@ -17,6 +17,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
+import '../config/config.dart';
+
 final logger = Logger();
 
 class ServerHealth extends StatefulWidget {
@@ -30,7 +32,7 @@ class _ServerHealthState extends State<ServerHealth> {
   bool _isServerHealthy = false;
 
   void checkServerHealth() async {
-    final url = Uri.parse('https://api.strnadi.cz/utils/health');
+    final url = Uri(scheme: 'https', host: Config.host, path: 'utils/health');
 
     try {
       final response = await http.head(url);

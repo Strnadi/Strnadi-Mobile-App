@@ -16,7 +16,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:logger/logger.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
+import 'package:strnadi/auth/unverifiedEmail.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -27,6 +29,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
 import 'package:strnadi/md_renderer.dart';
+
+import '../config/config.dart';
+
+Logger logger = Logger();
 
 enum AuthType { login, register }
 
@@ -44,12 +50,15 @@ class Authorizator extends StatefulWidget {
   State<Authorizator> createState() => _AuthState();
 }
 
-Future<bool> isLoggedIn() async {
+enum AuthStatus { loggedIn, loggedOut, notVerified }
+
+
+Future<AuthStatus> isLoggedIn() async {
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
-    final Uri url = Uri.parse('https://api.strnadi.cz/auth/verify-jwt')
-        .replace(queryParameters: {'jwt': token});
+    final Uri url = Uri(scheme: 'https', host: Config.host, path: 'auth/verify-jwt', queryParameters: {'jwt': token});
+
     try {
       final response = await http.get(
         url,
@@ -58,17 +67,23 @@ Future<bool> isLoggedIn() async {
           'Authorization': 'Bearer $token',
         },
       );
+
+      logger.i('Response: ${response.statusCode} | ${response.body}');
+
       if (response.statusCode == 200) {
-        return true;
-      } else {
-        return false;
+        return AuthStatus.loggedIn;
+      } else if (response.statusCode == 403) {
+        return AuthStatus.notVerified;
+      }
+      else {
+        return AuthStatus.loggedOut;
       }
     } catch (error) {
       Sentry.captureException(error);
-      return false;
+      return AuthStatus.loggedOut;
     }
   }
-  return false;
+  return AuthStatus.loggedOut;
 }
 
 class _AuthState extends State<Authorizator> {
@@ -226,12 +241,13 @@ class _AuthState extends State<Authorizator> {
 
   Future<void> checkLoggedIn() async {
     final secureStorage = FlutterSecureStorage();
-    if (await isLoggedIn()) {
+    final AuthStatus status = await isLoggedIn();
+    if (status == AuthStatus.loggedIn) {
       String? token = await secureStorage.read(key: 'token');
       if (token == null) return;
 
       String email = JwtDecoder.decode(token)['sub'];
-      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email').replace(queryParameters: {'jwt': token});
+      final Uri url = Uri.parse('https://${Config.host}/users/$email').replace(queryParameters: {'jwt': token});
 
       final response = await http.get(
         url,
@@ -249,6 +265,13 @@ class _AuthState extends State<Authorizator> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LiveRec()),
+      );
+    } else if(status == AuthStatus.notVerified) {
+      String? token = await secureStorage.read(key: 'token');
+      if (token == null) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'])),
       );
     } else {
       // If there is a token but user is not logged in (invalid token),

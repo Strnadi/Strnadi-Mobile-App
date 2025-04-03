@@ -23,6 +23,8 @@ import 'dart:convert';
 
 import 'package:strnadi/archived/recorderWithSpectogram.dart';
 
+import '../config/config.dart';
+
 class Register extends StatefulWidget {
   const Register({super.key});
 
@@ -62,7 +64,7 @@ class _RegisterState extends State<Register> {
     }
 
     // TODO add consent field to the registration form
-    final url = Uri.parse('https://api.strnadi.cz/auth/sign-up');
+    final url = Uri.parse('https://${Config.host}/auth/sign-up');
 
     try {
       final response = await http.post(

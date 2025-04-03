@@ -1,23 +1,7 @@
 /*
- * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-/*
  * RecordingForm.dart
  */
 
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
@@ -81,7 +65,7 @@ class _RecordingFormState extends State<RecordingForm> {
   Widget? spectogram;
   List<DialectModel> dialectSegments = [];
   final _audioPlayer = AudioPlayer();
-  Duration currentPosition = Duration.zero;
+  Duration currentPositionDuration = Duration.zero;
   Duration totalDuration = Duration.zero;
   bool isPlaying = false;
   late Recording recording;
@@ -115,7 +99,7 @@ class _RecordingFormState extends State<RecordingForm> {
     });
     _audioPlayer.positionStream.listen((position) {
       setState(() {
-        currentPosition = position;
+        currentPositionDuration = position;
       });
     });
     _audioPlayer.durationStream.listen((duration) {
@@ -135,12 +119,14 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     });
     _audioPlayer.setFilePath(widget.filepath);
+
     locationService = loc.LocationService();
     _positionStream = locationService.positionStream;
     markerPosition = null;
     _positionStream.listen((Position position) {
       _onNewPosition(position);
     });
+
     final safeStorage = FlutterSecureStorage();
     // IMPORTANT: assign widget.filepath so that the recording path is not null.
     recording = Recording(
@@ -152,6 +138,7 @@ class _RecordingFormState extends State<RecordingForm> {
       note: _commentController.text,
       path: widget.filepath,
     );
+
     safeStorage.read(key: 'token').then((token) async {
       if (token == null) {
         _showMessage('You are not logged in');
@@ -162,6 +149,7 @@ class _RecordingFormState extends State<RecordingForm> {
       recording.mail = JwtDecoder.decode(token!)['sub'];
       logger.i('Mail set to ${recording.mail}');
     });
+
     getDeviceModel().then((model) async {
       while (recording.device?.isEmpty ?? true) {
         await Future.delayed(const Duration(seconds: 1));
@@ -169,8 +157,10 @@ class _RecordingFormState extends State<RecordingForm> {
       recording.device = model;
       logger.i('Device set to ${recording.device}');
     });
+
     // Log how many parts we received from streamRec.
     logger.i("RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
+
     // Convert the passed parts.
     for (RecordingPartUnready part in widget.recordingParts) {
       try {
@@ -180,9 +170,92 @@ class _RecordingFormState extends State<RecordingForm> {
         logger.e("Error converting part: $e", error: e, stackTrace: stackTrace);
       }
     }
+
     _route.addAll(widget.route);
 
     reverseGeocode(widget.recordingParts[0].gpsLatitudeStart!, widget.recordingParts[0].gpsLongitudeStart!);
+  }
+
+  // Helper method to display a simple message dialog.
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Message'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool?> _confirmDiscard() {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Potvrzení'),
+          content: const Text('Opravdu chcete smazat nahrávku?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('Ne'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Ano'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDiscardDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Potvrzení'),
+          content: const Text('Opravdu chcete smazat nahrávku?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Ne'),
+            ),
+            TextButton(
+              onPressed: () {
+                spectogramKey = GlobalKey();
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LiveRec()),
+                );
+              },
+              child: const Text('Ano'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Helper method to seek the audio player relative to current position.
+  void seekRelative(int seconds) {
+    final currentPos = _audioPlayer.position;
+    _audioPlayer.seek(currentPos + Duration(seconds: seconds));
   }
 
   void SendDialects() async {
@@ -191,8 +264,8 @@ class _RecordingFormState extends State<RecordingForm> {
       var jwt = await token.read(key: 'token');
       logger.i("token is $jwt");
       try {
-        final url = Uri.parse('https://api.strnadi.cz/recordings/filtered/upload');
-        final response = await http.post(
+        final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
+        await http.post(
           url,
           headers: <String, String>{
             'Content-Type': 'application/json',
@@ -379,10 +452,12 @@ class _RecordingFormState extends State<RecordingForm> {
     recording.name = _recordingNameController.text.isEmpty ? null : _recordingNameController.text;
     recording.downloaded = true;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
+
     // Log the recording path before insertion
     logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
+
     if (!await hasInternetAccess()) {
       logger.w("No internet connection");
       _showMessage("No internet connection");
@@ -412,13 +487,7 @@ class _RecordingFormState extends State<RecordingForm> {
     final newPoint = LatLng(position.latitude, position.longitude);
     setState(() {
       markerPosition = newPoint;
-      // Removed currentLocation update to avoid unnecessary rerendering
     });
-  }
-
-  void seekRelative(int seconds) {
-    final newPosition = currentPosition + Duration(seconds: seconds);
-    _audioPlayer.seek(newPosition);
   }
 
   @override
@@ -434,239 +503,275 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryRed = const Color(0xFFFF3B3B);
+    final Color secondaryRed = const Color(0xFFFFEDED);
+    final Color yellowishBlack = const Color(0xFF2D2B18);
+    final Color yellow = const Color(0xFFFFD641);
+
+    // Compute half screen width for buttons.
+    final halfScreen = MediaQuery.of(context).size.width * 0.45;
     markerPosition = locationService.lastKnownPosition != null
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;
-    final halfScreen = MediaQuery.of(context).size.width * 0.45;
-    return PopScope(
-      canPop: false,
-      //onPopInvokedWithResult: Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LiveRec())),
-      child: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                height: 300,
-                width: double.infinity,
-                child: spectogram,
-              ),
-              Text(_formatDuration(totalDuration), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
-                  IconButton(
-                    icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
-                    iconSize: 72,
-                    onPressed: togglePlay,
-                  ),
-                  IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Přidat dialekt'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFF7C0),
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  onPressed: _showDialectSelectionDialog,
-                ),
-              ),
-              if (dialectSegments.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
-                  ),
-                ),
-              const SizedBox(height: 50),
-              Row(children: [Text(placeTitle)],),
-              SizedBox(
-                height: 200,
-                child: Stack(
-                  children: [
-                    FlutterMap(
-                      options: MapOptions(
-                        initialCenter: _computedCenter,
-                        initialZoom: _computedZoom,
-                        interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                          userAgentPackageName: 'cz.delta.strnadi',
-                        ),
-                        if (_route.isNotEmpty)
-                          PolylineLayer(
-                            polylines: [
-                              Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
-                            ],
-                          ),
-                        // MarkerLayer(
-                        //   markers: [
-                        //     if (markerPosition != null)
-                        //       Marker(
-                        //         width: 20.0,
-                        //         height: 20.0,
-                        //         point: markerPosition!,
-                        //         child: const Icon(
-                        //           Icons.my_location,
-                        //           color: Colors.blue,
-                        //           size: 30.0,
-                        //         ),
-                        //       ),
-                        //     ...recordingParts.map(
-                        //           (part) => Marker(
-                        //         width: 20.0,
-                        //         height: 20.0,
-                        //         point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
-                        //         child: const Icon(
-                        //           Icons.location_on,
-                        //           color: Colors.red,
-                        //           size: 30.0,
-                        //         ),
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Form(
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      TextFormField(
-                        controller: _recordingNameController,
-                        textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          labelText: 'Nazev Nahravky',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.text,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        } else if (value.length > 49) {
-                          return 'Název nahrávky nesmí být delší než 49 znaků';
-                        }
-                        return null;
-                      },
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        textAlign: TextAlign.center,
-                        controller: _commentController,
-                        decoration: const InputDecoration(
-                          labelText: 'Komentar',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.text,
-                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
-                      ),
-                      const SizedBox(height: 20),
-                      Slider(
-                        value: _strnadiCountController,
-                        min: 1,
-                        max: 3,
-                        divisions: 2,
-                        label: _strnadiCountController.toInt() == 3
-                            ? "3 a více strnadů"
-                            : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "y"}",
-                        onChanged: (value) => setState(() => _strnadiCountController = value),
-                      ),
-                      // MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),w
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Discard button (now on the left) with confirmation pop-up
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: SizedBox(
-                              width: halfScreen,
-                              child: ElevatedButton(
-                                style: ButtonStyle(
-                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: const Text('Potvrzení'),
-                                        content: const Text('Opravdu chcete zahodit nahrávku?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.of(context).pop();
-                                            },
-                                            child: const Text('Ne'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              spectogramKey = GlobalKey();
-                                              Navigator.of(context).pop();
-                                              Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-                                            },
-                                            child: const Text('Ano'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                                child: const Text('Zahodit'),
-                              ),
-                            ),
-                          ),
-                          // Submit button (now on the right)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: SizedBox(
-                              width: halfScreen,
-                              child: ElevatedButton(
-                                style: ButtonStyle(
-                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                  ),
-                                ),
-                                onPressed: upload,
-                                child: const Text('Odeslat'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        final bool shouldPop = await _confirmDiscard() ?? false;
+        if (shouldPop) {
+          spectogramKey = GlobalKey();
+          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Recording Form"),
+          actions: [
+            ElevatedButton(
+              onPressed: upload,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: yellow,
+                foregroundColor: yellowishBlack,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-            ],
+              child: const Text("Uložit"),
+            ),
+          ],
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final bool shouldPop = await _confirmDiscard() ?? false;
+              if (shouldPop) {
+                spectogramKey = GlobalKey();
+                Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+              }
+            },
           ),
         ),
-      )
+        body: SingleChildScrollView(
+          child: Center(
+            child: Column(
+              children: [
+                // Spectrogram and playback controls remain unchanged.
+                SizedBox(
+                  height: 300,
+                  width: double.infinity,
+                  child: spectogram,
+                ),
+                Text(
+                  _formatDuration(totalDuration),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
+                    IconButton(
+                      icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                      iconSize: 72,
+                      onPressed: togglePlay,
+                    ),
+                    IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Přidat dialekt'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFF7C0),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onPressed: _showDialectSelectionDialog,
+                  ),
+                ),
+                if (dialectSegments.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                    ),
+                  ),
+                const SizedBox(height: 50),
+                Form(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Název nahrávky field
+                        Text('Název nahrávky', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: TextFormField(
+                            controller: _recordingNameController,
+                            textAlign: TextAlign.start,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                            ),
+                            keyboardType: TextInputType.text,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Prosím zadejte název nahrávky';
+                              } else if (value.length > 49) {
+                                return 'Název nahrávky nesmí být delší než 49 znaků';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Počet strnadů slider
+                        Text('Počet strnadů', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        // Display current slider value above the slider.
+                        Text(
+                          _strnadiCountController.toInt() == 3
+                              ? "3 a více strnadů"
+                              : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 5),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: yellow,
+                            inactiveTrackColor: Colors.yellow.shade200,
+                            thumbColor: yellow,
+                            overlayColor: Colors.yellow.withOpacity(0.3),
+                          ),
+                          child: Slider(
+                            value: _strnadiCountController,
+                            min: 1,
+                            max: 3,
+                            divisions: 2,
+                            onChanged: (value) => setState(() => _strnadiCountController = value),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Komentář field (multiline)
+                        Text('Komentář', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: TextFormField(
+                            controller: _commentController,
+                            textAlign: TextAlign.start,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                            ),
+                            keyboardType: TextInputType.multiline,
+                            maxLines: null,
+                            validator: (value) => (value == null || value.isEmpty)
+                                ? 'Prosím zadejte komentář'
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Mapa label and map widget with same padding as text fields.
+                        Text('Mapa', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Container(
+                              height: 200,
+                              child: FlutterMap(
+                                options: MapOptions(
+                                  initialCenter: _computedCenter,
+                                  initialZoom: _computedZoom,
+                                  interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate:
+                                    'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                    userAgentPackageName: 'cz.delta.strnadi',
+                                  ),
+                                  if (_route.isNotEmpty)
+                                    PolylineLayer(
+                                      polylines: [
+                                        Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Zahodit button at bottom.
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('Potvrzení'),
+                                      content: const Text('Opravdu chcete smazat nahrávku?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: const Text('Ne'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            spectogramKey = GlobalKey();
+                                            Navigator.of(context).pop();
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(builder: (context) => LiveRec()),
+                                            );
+                                          },
+                                          child: const Text('Ano'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: secondaryRed,
+                                foregroundColor: primaryRed,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Smazat nahrávku'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-  }
-
-  void _showMessage(String s) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
   }
 
   // Computed getters inserted inside _RecordingFormState:
@@ -696,9 +801,7 @@ class _RecordingFormState extends State<RecordingForm> {
     double latDiff = maxLat - minLat;
     double lonDiff = maxLon - minLon;
     double maxDiff = latDiff > lonDiff ? latDiff : lonDiff;
-    // Compute zoom level based on full world (360°) divided by the extent
     double idealZoom = math.log(360 / maxDiff) / math.ln2;
-    // Clamp zoom between 10 and 16 for example
     if (idealZoom < 10) idealZoom = 10;
     if (idealZoom > 16) idealZoom = 16;
     return idealZoom;

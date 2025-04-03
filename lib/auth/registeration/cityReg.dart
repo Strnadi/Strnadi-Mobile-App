@@ -24,6 +24,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 
+import '../../config/config.dart';
 import 'emailSent.dart';
 
 Logger logger = Logger();
@@ -74,7 +75,7 @@ class _RegLocationState extends State<RegLocation> {
 
     final url = Uri(
       scheme: 'https',
-      host: 'api.strnadi.cz',
+      host: Config.host,
       path: '/auth/sign-up',
     );
 

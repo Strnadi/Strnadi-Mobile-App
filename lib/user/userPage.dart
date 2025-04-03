@@ -28,6 +28,7 @@ import 'package:strnadi/HealthCheck/serverHealth.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/user/settingsList.dart';
+import '../config/config.dart';
 import '../main.dart';
 import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
 
@@ -114,7 +115,7 @@ class _UserPageState extends State<UserPage> {
 
     final jwt = await secureStorage.read(key: 'token');
     final String email = JwtDecoder.decode(jwt!)['sub'];
-    final Uri url = Uri.parse('https://api.strnadi.cz/users/$email');
+    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$email');
 
     try {
       final response = await http.get(
