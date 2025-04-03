@@ -458,18 +458,19 @@ class _RecordingFormState extends State<RecordingForm> {
     _recordingId = await DatabaseNew.insertRecording(recording);
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
 
-    if (!await hasInternetAccess()) {
-      logger.w("No internet connection");
-      _showMessage("No internet connection");
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-      return;
-    }
     // Log number of parts to insert
     logger.i("Uploading ${recordingParts.length} recording parts.");
     for (RecordingPart part in recordingParts) {
       part.recordingId = _recordingId;
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
+    }
+    // Check internet connectivity after inserting recording parts
+    if (!await hasInternetAccess()) {
+      logger.w("No internet connection, recording saved offline");
+      _showMessage("Recording saved offline");
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
     }
     try {
       await DatabaseNew.sendRecordingBackground(recording.id!);
