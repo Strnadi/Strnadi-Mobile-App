@@ -301,7 +301,7 @@ Future<void> initFirebaseMessaging() async{
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     logger.i("Received a foreground message: ${message.messageId}");
     if (message.notification != null) {
-      logger.i("Message contains notification: ${message.notification}");
+      logger.i("Message contains notification: ${message.notification?.body ?? "Empty"}");
       _showLocalNotification(message);
     }
   });
