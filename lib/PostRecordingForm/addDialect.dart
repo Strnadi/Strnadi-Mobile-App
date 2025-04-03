@@ -71,6 +71,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     endTime = (widget.currentPosition + 3.0).clamp(0.0, widget.duration);
   }
 
+
   String _formatDuration(double seconds) {
     int mins = (seconds / 60).floor();
     int secs = (seconds % 60).floor();

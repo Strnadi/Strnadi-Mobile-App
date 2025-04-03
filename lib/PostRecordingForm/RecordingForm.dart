@@ -189,21 +189,28 @@ class _RecordingFormState extends State<RecordingForm> {
     for (DialectModel dialect in dialectSegments) {
       var token = FlutterSecureStorage();
       var jwt = await token.read(key: 'token');
+      logger.i("token is $jwt");
       try {
         final url = Uri.parse('https://api.strnadi.cz/recordings/filtered/upload');
         final response = await http.post(
           url,
           headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
+            'Content-Type': 'application/json',
             'Authorization': 'Bearer ${jwt!}',
           },
           body: jsonEncode(<String, dynamic>{
             'recordingId': _recordingId,
-            'startTime': dialect.startTime,
-            'endTime': dialect.endTime,
-            'dialect': dialect.label,
+            'EndDate': dialect.startTime,
+            'StartDate': dialect.endTime,
+            'dialectCode': dialect.label,
           }),
-        );
+        ).then((value) {
+          if (value.statusCode == 200) {
+            logger.i("Dialect sent successfully");
+          } else {
+            logger.e("Dialect sending failed with status code ${value.statusCode}");
+          }
+        });
       } catch (e, stackTrace) {
         logger.e("Error inserting dialect: $e", error: e, stackTrace: stackTrace);
       }
@@ -395,6 +402,8 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
+    SendDialects();
+    logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
   }
