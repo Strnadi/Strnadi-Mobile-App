@@ -80,15 +80,16 @@ class _RegNameState extends State<RegName> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Heading text using textColor
-                const Text(
-                  'Zadejte vaše jméno, příjmení\na zvolte si přezdívku',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
+                Center(
+                  child: const Text(
+                    'Zadejte vaše jméno, příjmení\na zvolte si přezdívku',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
 
@@ -197,6 +198,14 @@ class _RegNameState extends State<RegName> {
                       borderSide: BorderSide.none,
                       borderRadius: BorderRadius.circular(16.0),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
                   ),
                 ),
                 const SizedBox(height: 32),
