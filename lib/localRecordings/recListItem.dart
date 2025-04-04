@@ -54,6 +54,8 @@ class _RecordingItemState extends State<RecordingItem> {
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
 
+  final MapController _mapController = MapController();
+
   String placeTitle = 'Mapa';
 
   @override
@@ -112,6 +114,7 @@ class _RecordingItemState extends State<RecordingItem> {
       this.parts = parts;
       reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
     });
+    _mapController.move(LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart), 13.0);
   }
 
   Future<void> _fetchRecordings() async {
@@ -297,6 +300,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         width: double.infinity,
                         height: 300,
                         child: FlutterMap(
+                          mapController: _mapController,
                           options: MapOptions(
                             interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
                             initialCenter: parts.isNotEmpty

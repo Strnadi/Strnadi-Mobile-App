@@ -348,17 +348,17 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  onTap: () => openRecording(records[index]),
-                );
-              },
-            ),
+                  ]
+                  )
+                )
+              );
+            },
           ),
         ),
-      ),
+      )
     );
   }
+
 
   String getDialectName(int id) {
     //TODO Load dialect name from database
