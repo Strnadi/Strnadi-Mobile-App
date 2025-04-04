@@ -216,17 +216,17 @@ class _LiveRecState extends State<LiveRec> {
         await _audioRecorder.stop();
         WakelockPlus.disable();
         _elapsedTimer.pause();
-        setState(() {
-          recording = false;
-        });
       } catch (e, stackTrace) {
-        logger.e("Error stopping recorder: $e",
-            error: e, stackTrace: stackTrace);
+        logger.e("Error stopping recorder: $e", error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         return;
       }
       int segmentDuration = _recordDuration.inSeconds;
-      _totalRecordedTime += _recordDuration;
+      setState(() {
+        _totalRecordedTime += _recordDuration;
+        _recordDuration = Duration.zero;
+        recording = false;
+      });
       recordingPartsTimeList.add(segmentDuration);
       recordedPart!.endTime = DateTime.now();
       logger.i('Segment end time: ${recordedPart!.endTime}');
@@ -378,33 +378,36 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
 
-              // Recording button
-              AbsorbPointer(
-                absorbing: !_hasMicPermission,
-                child: Opacity(
-                  opacity: _hasMicPermission ? 1.0 : 0.5,
-                  child: Semantics(
-                    label: _recordState == RecordState.stop
-                        ? "Start recording"
-                        : _recordState == RecordState.record
-                        ? "Pause recording"
-                        : "Resume recording",
-                    button: true,
-                    child: GestureDetector(
-                      onTap: _toggleRecording,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: fillColor,
-                          border: border,
-                          boxShadow: boxShadows,
-                        ),
-                        child: Icon(
-                          iconData,
-                          color: iconColor,
-                          size: 40,
+              // Recording button with vertical padding
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: AbsorbPointer(
+                  absorbing: !_hasMicPermission,
+                  child: Opacity(
+                    opacity: _hasMicPermission ? 1.0 : 0.5,
+                    child: Semantics(
+                      label: _recordState == RecordState.stop
+                          ? "Start recording"
+                          : _recordState == RecordState.record
+                              ? "Pause recording"
+                              : "Resume recording",
+                      button: true,
+                      child: GestureDetector(
+                        onTap: _toggleRecording,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: fillColor,
+                            border: border,
+                            boxShadow: boxShadows,
+                          ),
+                          child: Icon(
+                            iconData,
+                            color: iconColor,
+                            size: 40,
+                          ),
                         ),
                       ),
                     ),
@@ -472,7 +475,7 @@ class _LiveRecState extends State<LiveRec> {
                   label: "Finish and continue",
                   button: true,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -513,7 +516,7 @@ class _LiveRecState extends State<LiveRec> {
               // Inserted discard recording button moved to bottom of UI
               if (_recordState == RecordState.record || _recordState == RecordState.pause)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
