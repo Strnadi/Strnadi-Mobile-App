@@ -176,7 +176,7 @@ class _RegNameState extends State<RegName> {
 
                 // "Přezdívka" label and text field (optional)
                 const Text(
-                  'Přezdívka',
+                  'Přezdívka (volitelné)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -188,6 +188,7 @@ class _RegNameState extends State<RegName> {
                   controller: _nickController,
                   keyboardType: TextInputType.text,
                   decoration: InputDecoration(
+                    hintText: 'Volitelné',
                     fillColor: Colors.grey[200],
                     filled: true,
                     contentPadding:
