@@ -261,7 +261,9 @@ class _AuthState extends State<Authorizator> {
       secureStorage.write(key: 'user', value: data['firstName']);
       secureStorage.write(key: 'lastname', value: data['lastName']);
 
+      logger.i('Syncing recordings on login');
       DatabaseNew.syncRecordings();
+      logger.i('Syncing recordings on login done');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LiveRec()),
