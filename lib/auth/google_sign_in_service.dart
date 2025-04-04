@@ -97,7 +97,11 @@ class GoogleSignInService {
       })
     );
 
-    if (response.statusCode != 200) {
+    if(response.statusCode == 409){
+      GoogleSignInService.signOut();
+      logger.w('User already exists');
+      return {'status': 409};
+    } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
       logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
       return null;
