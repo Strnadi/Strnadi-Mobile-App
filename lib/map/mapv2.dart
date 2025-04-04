@@ -15,6 +15,7 @@
  */
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -188,8 +189,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
       for (int rec = 0; rec < _fullRecordings.length; rec++) {
           if (_fullRecordings[rec].BEId == id) {
-            showDialog
-              (context: context, builder: (context) => RecordingItem(recording: _fullRecordings[rec],));
+            showCupertinoSheet
+              (context: context, pageBuilder: (context) => RecordingItem(recording: _fullRecordings[rec],));
             return;
           }
       }

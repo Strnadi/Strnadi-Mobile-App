@@ -262,6 +262,7 @@ class _RecordingFormState extends State<RecordingForm> {
     for (DialectModel dialect in dialectSegments) {
       var token = FlutterSecureStorage();
       var jwt = await token.read(key: 'token');
+      logger.i("jwt is $jwt");
       logger.i("token is $jwt");
       try {
         final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
@@ -269,19 +270,19 @@ class _RecordingFormState extends State<RecordingForm> {
           url,
           headers: <String, String>{
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${jwt!}',
+            'Authorization': 'Bearer $jwt',
           },
           body: jsonEncode(<String, dynamic>{
             'recordingId': _recordingId,
-            'EndDate': dialect.startTime,
-            'StartDate': dialect.endTime,
+            'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
+            'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
             'dialectCode': dialect.label,
           }),
         ).then((value) {
           if (value.statusCode == 200) {
             logger.i("Dialect sent successfully");
           } else {
-            logger.e("Dialect sending failed with status code ${value.statusCode}");
+            logger.e("Dialect sending failed with status code ${value.statusCode} and body ${value.body}");
           }
         });
       } catch (e, stackTrace) {
@@ -711,6 +712,12 @@ class _RecordingFormState extends State<RecordingForm> {
                                         Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
                                       ],
                                     ),
+
+                                  MarkerLayer(markers: widget.recordingParts
+                                      .map((part) => Marker(
+                                    point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!), child: Icon(Icons.place, color: Colors.red, size: 30),
+                                  ))
+                                      .toList()),
                                 ],
                               ),
                             ),
