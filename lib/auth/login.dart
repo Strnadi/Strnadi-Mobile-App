@@ -68,7 +68,7 @@ class _LoginState extends State<Login> {
     final url = Uri.https(Config.host, '/auth/login');
 
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
-      _showMessage("Vyplňte všechny pole");
+      _showMessage("Vyplňte jméno i heslo");
       return;
     }
 

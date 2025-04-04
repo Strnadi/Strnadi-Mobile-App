@@ -3,6 +3,7 @@
  */
 
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -15,7 +16,6 @@ import 'package:record/record.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,8 +23,43 @@ import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 final logger = Logger();
+
+class RecordingTaskHandler extends TaskHandler {
+  int counter = 0;
+
+  @override
+  Future<void> onStart(DateTime timestamp, TaskStarter taskStarter) async {
+    counter = 0;
+    logger.i("Foreground task started at \$timestamp");
+  }
+
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    counter++;
+    // Update the notification to reflect the elapsed recording time
+    FlutterForegroundTask.updateService(
+      notificationTitle: 'Recording in progress',
+      notificationText: 'Recording for ' + counter.toString() + ' seconds',
+    );
+  }
+
+  @override
+  Future<void> onDestroy(DateTime timestamp) async {
+    logger.i("Foreground task destroyed at \$timestamp");
+  }
+
+  @override
+  void onRepeatEvent(DateTime timestamp) {
+    logger.i("Repeat event at \$timestamp");
+  }
+}
+
+void startRecordingCallback() {
+  FlutterForegroundTask.setTaskHandler(RecordingTaskHandler());
+}
 
 class ElapsedTimer {
   final Stopwatch _stopwatch = Stopwatch();
@@ -146,6 +181,7 @@ class _LiveRecState extends State<LiveRec> {
   StreamSubscription? _locationSub;
   late LocationService _locService;
   bool recording = false;
+  bool _hasMicPermission = false;
 
   @override
   void initState() {
@@ -154,6 +190,11 @@ class _LiveRecState extends State<LiveRec> {
     getLocationPermission(context);
     _initAudioSettings();
     _audioRecorder = AudioRecorder();
+    _audioRecorder.hasPermission().then((allowed) {
+      setState(() {
+        _hasMicPermission = allowed;
+      });
+    });
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
     });
@@ -211,17 +252,17 @@ class _LiveRecState extends State<LiveRec> {
         await _audioRecorder.stop();
         WakelockPlus.disable();
         _elapsedTimer.pause();
-        setState(() {
-          recording = false;
-        });
       } catch (e, stackTrace) {
-        logger.e("Error stopping recorder: $e",
-            error: e, stackTrace: stackTrace);
+        logger.e("Error stopping recorder: $e", error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         return;
       }
       int segmentDuration = _recordDuration.inSeconds;
-      _totalRecordedTime += _recordDuration;
+      setState(() {
+        _totalRecordedTime += _recordDuration;
+        _recordDuration = Duration.zero;
+        recording = false;
+      });
       recordingPartsTimeList.add(segmentDuration);
       recordedPart!.endTime = DateTime.now();
       logger.i('Segment end time: ${recordedPart!.endTime}');
@@ -259,6 +300,7 @@ class _LiveRecState extends State<LiveRec> {
       Sentry.captureException(e, stackTrace: stackTrace);
       return;
     }
+    await FlutterForegroundTask.stopService();
     if (overallStartTime == null) return;
     Navigator.push(
       context,
@@ -345,64 +387,93 @@ class _LiveRecState extends State<LiveRec> {
       child: ScaffoldWithBottomBar(
         appBarTitle: "",
         content: SingleChildScrollView(
+          child: ConstrainedBox(constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
+          ),
           child: Column(
+            mainAxisAlignment: _recordState == RecordState.stop ? MainAxisAlignment.start : MainAxisAlignment.center,
             children: [
-              SizedBox(
-                height: 220,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      'assets/images/bird_example.jpg',
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        color: Colors.black54,
-                        padding: const EdgeInsets.all(4),
-                        child: const Text(
-                          'Foto: Snímek Jana S.',
-                          style: TextStyle(color: Colors.white),
+              if (_recordState == RecordState.stop) ...[
+                SizedBox(
+                  height: 220,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/images/bird_example.jpg',
+                        fit: BoxFit.cover,
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: Container(
+                          color: Colors.black54,
+                          padding: const EdgeInsets.all(4),
+                          child: const Text(
+                            'Foto: Snímek Jana S.',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
-
-              // Recording button
-              Semantics(
-                label: _recordState == RecordState.stop
-                    ? "Start recording"
-                    : _recordState == RecordState.record
-                    ? "Pause recording"
-                    : "Resume recording",
-                button: true,
-                child: GestureDetector(
-                  onTap: _toggleRecording,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: fillColor,
-                      border: border,
-                      boxShadow: boxShadows,
-                    ),
-                    child: Icon(
-                      iconData,
-                      color: iconColor,
-                      size: 40,
+                const SizedBox(height: 20),
+              ],
+              // Recording button with vertical padding
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: AbsorbPointer(
+                  absorbing: !_hasMicPermission,
+                  child: Opacity(
+                    opacity: _hasMicPermission ? 1.0 : 0.5,
+                    child: Semantics(
+                      label: _recordState == RecordState.stop
+                          ? "Start recording"
+                          : _recordState == RecordState.record
+                              ? "Pause recording"
+                              : "Resume recording",
+                      button: true,
+                      child: GestureDetector(
+                        onTap: _toggleRecording,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: fillColor,
+                            border: border,
+                            boxShadow: boxShadows,
+                          ),
+                          child: _recordState == RecordState.pause
+                              ? Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.play_arrow,
+                                      size: 40,
+                                      color: iconColor,
+                                    ),
+                                    Icon(
+                                      Icons.mic,
+                                      size: 20,
+                                      color: iconColor,
+                                    ),
+                                  ],
+                                )
+                              : Icon(
+                                  iconData,
+                                  color: iconColor,
+                                  size: 40,
+                                ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-
               // Timer with a round border (red when recording, gray otherwise)
               Container(
                 decoration: BoxDecoration(
@@ -462,7 +533,7 @@ class _LiveRecState extends State<LiveRec> {
                   label: "Finish and continue",
                   button: true,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -500,8 +571,49 @@ class _LiveRecState extends State<LiveRec> {
                     ),
                   ),
                 ),
+              // Inserted discard recording button moved to bottom of UI
+              if (_recordState == RecordState.record || _recordState == RecordState.pause)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _discardRecording,
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: Colors.grey,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Bricolage Grotesque',
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 24,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "Zahodit nahrávání",
+                            style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 40),
             ],
+          ),
           ),
         ),
       )
@@ -555,6 +667,11 @@ class _LiveRecState extends State<LiveRec> {
 
   Future<void> _start() async {
     WakelockPlus.enable();
+    await FlutterForegroundTask.startService(
+      notificationTitle: 'Strnadi',
+      notificationText: 'Aplikace Strnadi nahrává',
+      callback: startRecordingCallback,
+    );
     try {
       logger.i('Started recording');
       if (await _audioRecorder.hasPermission()) {
@@ -589,7 +706,8 @@ class _LiveRecState extends State<LiveRec> {
           _recordState = RecordState.record;
         });
       } else {
-        exitApp(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+        _showMessage(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+        return;
       }
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
