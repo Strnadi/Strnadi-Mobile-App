@@ -377,7 +377,6 @@ class _LiveRecState extends State<LiveRec> {
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
 
               // Recording button
               AbsorbPointer(
@@ -507,6 +506,46 @@ class _LiveRecState extends State<LiveRec> {
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Inserted discard recording button moved to bottom of UI
+              if (_recordState == RecordState.record || _recordState == RecordState.pause)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _discardRecording,
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: Colors.grey,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Bricolage Grotesque',
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 24,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "Zahodit nahrávání",
+                            style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
