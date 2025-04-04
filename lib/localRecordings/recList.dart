@@ -25,8 +25,8 @@ import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
-
 final logger = Logger();
+
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({Key? key}) : super(key: key);
 
@@ -39,7 +39,6 @@ enum SortBy { name, date, ebc, downloaded, none }
 
 class _RecordingScreenState extends State<RecordingScreen> {
   List<Recording> list = List<Recording>.empty(growable: true);
-
   SortBy sortOptions = SortBy.none;
 
   @override
@@ -69,12 +68,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
   }
 
   void openRecording(Recording recording) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RecordingItem(recording: recording),
-        ),
-      );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RecordingItem(recording: recording),
+      ),
+    );
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -87,7 +86,6 @@ class _RecordingScreenState extends State<RecordingScreen> {
       list = recordings;
     });
   }
-
 
   void _showSortFilterOptions(BuildContext context) {
     showModalBottomSheet(
@@ -105,55 +103,59 @@ class _RecordingScreenState extends State<RecordingScreen> {
             ListTile(
               leading: const Icon(Icons.sort_by_alpha),
               title: const Text('Sort by Name'),
-              onTap: () => {
-                list.sort((a, b) => (b.name ?? '').toLowerCase().compareTo((a.name ?? '').toLowerCase())),
+              onTap: () {
+                list.sort((a, b) => (b.name ?? '').toLowerCase().compareTo((a.name ?? '').toLowerCase()));
                 setState(() {
                   sortOptions = SortBy.name;
-                })
-              }
+                });
+                Navigator.pop(context);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.date_range),
               title: const Text('Sort by Date'),
-              onTap: () =>
-              {
-                list.sort((a, b) => a.createdAt!.compareTo(b.createdAt!)),
+              onTap: () {
+                list.sort((a, b) => a.createdAt!.compareTo(b.createdAt!));
                 setState(() {
                   sortOptions = SortBy.date;
-                })
-              }
+                });
+                Navigator.pop(context);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.filter_list),
               title: const Text('Pocet ptaku'),
-              onTap: () => {
-                list.sort((a, b) => a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!)),
+              onTap: () {
+                list.sort((a, b) => a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!));
                 setState(() {
                   sortOptions = SortBy.ebc;
-                })
-              }
+                });
+                Navigator.pop(context);
+              },
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.download),
               title: const Text('Downloaded'),
-              onTap: () => {
-                FilterDownloaded(),
+              onTap: () {
+                FilterDownloaded();
                 setState(() {
                   sortOptions = SortBy.downloaded;
-                })
-              }
+                });
+                Navigator.pop(context);
+              },
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.clear),
               title: const Text('Clear Filter'),
-              onTap: () => {
-                getRecordings(),
+              onTap: () {
+                getRecordings();
                 setState(() {
                   sortOptions = SortBy.none;
-                })
-              }
+                });
+                Navigator.pop(context);
+              },
             ),
           ],
         ),
@@ -164,98 +166,130 @@ class _RecordingScreenState extends State<RecordingScreen> {
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
-    records.forEach((rec) =>
-        print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
+    // Debug prints
+    records.forEach((rec) => print(
+        'rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
+
     return ScaffoldWithBottomBar(
       logout: () => _showSortFilterOptions(context),
       icon: Icons.sort,
       appBarTitle: 'Záznamy',
       content: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          child: RefreshIndicator(
-            onRefresh: () async {
-              await DatabaseNew.syncRecordings();
-              getRecordings();
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await DatabaseNew.syncRecordings();
+            getRecordings();
+          },
+          child: records.isEmpty
+              ? const Center(child: Text('Zatím nemáte žádné nahrávky'))
+              : ListView.separated(
+            itemCount: records.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final rec = records[index];
+              final dialectName = getDialectName(rec.id!);
+              final statusText = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+              final statusColor = rec.sent ? Colors.green : Colors.orange;
+              final dateText = rec.createdAt != null
+                  ? formatDateTime(rec.createdAt!)
+                  : '';
+
+              return InkWell(
+                onTap: () => openRecording(rec),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left Column
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rec.name ?? rec.id?.toString() ?? 'Neznámý název',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  image: DecorationImage(
+                                    image: getDialectImage(dialectName),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                dialectName ?? 'Default Dialect',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      // Right Column
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            statusText,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dateText,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
-            child: records.isEmpty
-                ? Center(child: Text('Zatím nemáte žádné nahrávky'))
-                : ListView.separated(
-              itemCount: records.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(
-                    records[index].name ?? records[index].id?.toString() ?? 'Neznámý název',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: SizedBox(
-                    child: Row(
-                      children: [
-                        Text(
-                          records[index].createdAt != null
-                              ? formatDateTime(records[index].createdAt!)
-                              : '',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          records[index].sent ? 'Odesláno' : 'Čeká na odeslání',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                  trailing: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!records[index].sending && !records[index].sent)
-                          IconButton(
-                            icon: const Icon(Icons.file_upload, size: 20),
-                            constraints: const BoxConstraints(),
-                            padding: EdgeInsets.zero,
-                            onPressed: () {
-                              DatabaseNew.sendRecording(
-                                  records[index],
-                                  DatabaseNew.getPartsById(records[index].id!)
-                              ).onError((e, stackTrace) {
-                                logger.e("An error has occurred: $e", stackTrace: stackTrace);
-                                Sentry.captureException(e, stackTrace: stackTrace);
-                              });
-                            },
-                          ),
-                        if (!records[index].downloaded)
-                          IconButton(
-                            icon: const Icon(Icons.file_download, size: 20),
-                            constraints: const BoxConstraints(),
-                            padding: EdgeInsets.zero,
-                            onPressed: () {
-                              DatabaseNew.downloadRecording(records[index].id!)
-                                  .onError((e, stackTrace) {
-                                if (e is UnimplementedError) {
-                                  _showMessage("Tato funkce není dostupná na tomto zařízení", "Chyba");
-                                }
-                                logger.e("An error has occurred: $e", stackTrace: stackTrace);
-                                Sentry.captureException(e, stackTrace: stackTrace);
-                              });
-                            },
-                          ),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                      ],
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  onTap: () => openRecording(records[index]),
-                );
-              },
-            ),
           ),
         ),
       ),
     );
+  }
+
+  String getDialectName(int id) {
+    //TODO Load dialect name from database
+    return 'Default Dialect'; // Placeholder for actual dialect name retrieval
+  }
+
+  AssetImage getDialectImage(dialectName) {
+    //TODO load actual image
+    return AssetImage('assets/images/dialect.png');
   }
 }

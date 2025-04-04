@@ -124,7 +124,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         'nickname': _nicknameController.text,
         'firstName': _firstnameController.text,
         'lastName': _lastnameController.text,
-        'postCode': _pscController.text,
+        'postCode': int.parse(_pscController.text),
         'city': user!.city,
       };
 

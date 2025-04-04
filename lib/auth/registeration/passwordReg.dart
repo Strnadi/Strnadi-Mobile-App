@@ -223,6 +223,7 @@ class _RegPasswordState extends State<RegPassword> {
                       },
                     ),
                   ),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Zopakujte heslo';

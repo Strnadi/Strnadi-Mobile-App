@@ -79,6 +79,8 @@ class _RecordingFormState extends State<RecordingForm> {
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
 
+  var placeTitle = "mapa";
+
   @override
   void initState() {
     super.initState();
@@ -170,6 +172,8 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     _route.addAll(widget.route);
+
+    reverseGeocode(widget.recordingParts[0].gpsLatitudeStart!, widget.recordingParts[0].gpsLongitudeStart!);
   }
 
   // Helper method to display a simple message dialog.
@@ -258,21 +262,28 @@ class _RecordingFormState extends State<RecordingForm> {
     for (DialectModel dialect in dialectSegments) {
       var token = FlutterSecureStorage();
       var jwt = await token.read(key: 'token');
+      logger.i("token is $jwt");
       try {
         final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
         await http.post(
           url,
           headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
+            'Content-Type': 'application/json',
             'Authorization': 'Bearer ${jwt!}',
           },
           body: jsonEncode(<String, dynamic>{
             'recordingId': _recordingId,
-            'startTime': dialect.startTime,
-            'endTime': dialect.endTime,
-            'dialect': dialect.label,
+            'EndDate': dialect.startTime,
+            'StartDate': dialect.endTime,
+            'dialectCode': dialect.label,
           }),
-        );
+        ).then((value) {
+          if (value.statusCode == 200) {
+            logger.i("Dialect sent successfully");
+          } else {
+            logger.e("Dialect sending failed with status code ${value.statusCode}");
+          }
+        });
       } catch (e, stackTrace) {
         logger.e("Error inserting dialect: $e", error: e, stackTrace: stackTrace);
       }
@@ -357,6 +368,35 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
+  Future<void> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final results = data['items'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+          setState(() {
+            placeTitle = results[0]['name'];
+          });
+        }
+      }
+      else {
+        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+      }
+    } catch (e) {
+      print('Reverse geocode error: $e');
+    }
+  }
+
   Future<void> insertRecordingWhenReady() async {
     while (recording.mail!.isEmpty || (recording.device?.isEmpty ?? true)) {
       await Future.delayed(const Duration(seconds: 1));
@@ -418,12 +458,6 @@ class _RecordingFormState extends State<RecordingForm> {
     _recordingId = await DatabaseNew.insertRecording(recording);
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
 
-    if (!await hasInternetAccess()) {
-      logger.w("No internet connection");
-      _showMessage("No internet connection");
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-      return;
-    }
     // Log number of parts to insert
     logger.i("Uploading ${recordingParts.length} recording parts.");
     for (RecordingPart part in recordingParts) {
@@ -431,13 +465,21 @@ class _RecordingFormState extends State<RecordingForm> {
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
+    // Check internet connectivity after inserting recording parts
+    if (!await hasInternetAccess()) {
+      logger.w("No internet connection, recording saved offline");
+      _showMessage("Recording saved offline");
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
     try {
       await DatabaseNew.sendRecordingBackground(recording.id!);
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
-
+    SendDialects();
+    logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
   }

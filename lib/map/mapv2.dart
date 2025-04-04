@@ -186,17 +186,26 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   void getRecordingFromPartId(int id) {
 
-    var rec =  _fullRecordings.indexWhere((element) => element.BEId == id,);
+      for (int rec = 0; rec < _fullRecordings.length; rec++) {
+          if (_fullRecordings[rec].BEId == id) {
+            showDialog
+              (context: context, builder: (context) => RecordingItem(recording: _fullRecordings[rec],));
+            return;
+          }
+      }
 
-    if (rec == -1) {
-      logger.e('Recording not found');
-    }
-    else {
-      logger.i('Recording found ${_fullRecordings[rec].BEId}');
-    }
+      showDialog(context: context, builder: (context) => AlertDialog(
+        title: const Text('Chyba'),
+        content: Text('Nahrávka nenalezena $id'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Zavřít'),
+          ),
+        ],
+      ));
 
-    showDialog
-     (context: context, builder: (context) => RecordingItem(recording: _fullRecordings[rec],));
+
   }
 
   @override

@@ -87,6 +87,7 @@ class _LoginState extends State<Login> {
       if (response.statusCode == 200 || response.statusCode == 202) {
         logger.i("user has logged in with status code ${response.statusCode}");
         await const FlutterSecureStorage().write(key: 'token', value: response.body);
+        logger.i(response.body);
         await fb.refreshToken();
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
       } else if (response.statusCode == 403) {

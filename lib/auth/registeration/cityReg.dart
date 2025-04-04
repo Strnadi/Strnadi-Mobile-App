@@ -26,6 +26,7 @@ import 'package:strnadi/firebase/firebase.dart' as fb;
 
 import '../../config/config.dart';
 import 'emailSent.dart';
+import 'overview.dart';
 
 Logger logger = Logger();
 
@@ -173,8 +174,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 8),
                 // Subtitle / Description
                 const Text(
-                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, '
-                      'budeme potřebovat vaše PSČ a obec. Tento krok je nepovinný.',
+                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.',
                   style: TextStyle(
                     fontSize: 14,
                     color: textColor,
@@ -258,7 +258,8 @@ class _RegLocationState extends State<RegLocation> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState?.validate() ?? false) {
-                        register();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegOverview(name: widget.name, surname: widget.surname, nickname: widget.nickname, email: widget.email, postCode: _pscController.text, city: _obecController.text, password: widget.password, consent: widget.consent, jwt: widget.jwt)));
+                        //register();
                         // Navigate to the next screen or handle logic
                         // e.g.: Navigator.push(context, MaterialPageRoute(builder: (_) => NextPage()));
                       }

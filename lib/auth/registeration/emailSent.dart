@@ -115,7 +115,10 @@ class _VerifyEmailState extends State<VerifyEmail> {
   }
 
   /// Open the user’s email app. (Implement or use a package like url_launcher.)
-  void _openEmailApp() async {
+  Future<void> _openEmailApp() async {
+    // Add a brief delay to ensure any navigation transitions are complete
+    await Future.delayed(const Duration(milliseconds: 500));
+
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
       path: widget.userEmail,
