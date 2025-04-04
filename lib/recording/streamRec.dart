@@ -15,7 +15,6 @@ import 'package:record/record.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -146,6 +145,7 @@ class _LiveRecState extends State<LiveRec> {
   StreamSubscription? _locationSub;
   late LocationService _locService;
   bool recording = false;
+  bool _hasMicPermission = false;
 
   @override
   void initState() {
@@ -154,6 +154,11 @@ class _LiveRecState extends State<LiveRec> {
     getLocationPermission(context);
     _initAudioSettings();
     _audioRecorder = AudioRecorder();
+    _audioRecorder.hasPermission().then((allowed) {
+      setState(() {
+        _hasMicPermission = allowed;
+      });
+    });
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
     });
@@ -375,28 +380,34 @@ class _LiveRecState extends State<LiveRec> {
               const SizedBox(height: 40),
 
               // Recording button
-              Semantics(
-                label: _recordState == RecordState.stop
-                    ? "Start recording"
-                    : _recordState == RecordState.record
-                    ? "Pause recording"
-                    : "Resume recording",
-                button: true,
-                child: GestureDetector(
-                  onTap: _toggleRecording,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: fillColor,
-                      border: border,
-                      boxShadow: boxShadows,
-                    ),
-                    child: Icon(
-                      iconData,
-                      color: iconColor,
-                      size: 40,
+              AbsorbPointer(
+                absorbing: !_hasMicPermission,
+                child: Opacity(
+                  opacity: _hasMicPermission ? 1.0 : 0.5,
+                  child: Semantics(
+                    label: _recordState == RecordState.stop
+                        ? "Start recording"
+                        : _recordState == RecordState.record
+                        ? "Pause recording"
+                        : "Resume recording",
+                    button: true,
+                    child: GestureDetector(
+                      onTap: _toggleRecording,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: fillColor,
+                          border: border,
+                          boxShadow: boxShadows,
+                        ),
+                        child: Icon(
+                          iconData,
+                          color: iconColor,
+                          size: 40,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -589,7 +600,8 @@ class _LiveRecState extends State<LiveRec> {
           _recordState = RecordState.record;
         });
       } else {
-        exitApp(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+        _showMessage(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+        return;
       }
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
