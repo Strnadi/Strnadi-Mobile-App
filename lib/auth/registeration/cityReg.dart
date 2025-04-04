@@ -173,8 +173,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 8),
                 // Subtitle / Description
                 const Text(
-                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, '
-                      'budeme potřebovat vaše PSČ a obec. Tento krok je nepovinný.',
+                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.',
                   style: TextStyle(
                     fontSize: 14,
                     color: textColor,
