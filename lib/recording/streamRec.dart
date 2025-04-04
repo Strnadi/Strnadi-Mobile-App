@@ -3,6 +3,7 @@
  */
 
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -22,8 +23,43 @@ import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 final logger = Logger();
+
+class RecordingTaskHandler extends TaskHandler {
+  int counter = 0;
+
+  @override
+  Future<void> onStart(DateTime timestamp, TaskStarter taskStarter) async {
+    counter = 0;
+    logger.i("Foreground task started at \$timestamp");
+  }
+
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    counter++;
+    // Update the notification to reflect the elapsed recording time
+    FlutterForegroundTask.updateService(
+      notificationTitle: 'Recording in progress',
+      notificationText: 'Recording for ' + counter.toString() + ' seconds',
+    );
+  }
+
+  @override
+  Future<void> onDestroy(DateTime timestamp) async {
+    logger.i("Foreground task destroyed at \$timestamp");
+  }
+
+  @override
+  void onRepeatEvent(DateTime timestamp) {
+    logger.i("Repeat event at \$timestamp");
+  }
+}
+
+void startRecordingCallback() {
+  FlutterForegroundTask.setTaskHandler(RecordingTaskHandler());
+}
 
 class ElapsedTimer {
   final Stopwatch _stopwatch = Stopwatch();
@@ -264,6 +300,7 @@ class _LiveRecState extends State<LiveRec> {
       Sentry.captureException(e, stackTrace: stackTrace);
       return;
     }
+    await FlutterForegroundTask.stopService();
     if (overallStartTime == null) return;
     Navigator.push(
       context,
@@ -352,29 +389,32 @@ class _LiveRecState extends State<LiveRec> {
         content: SingleChildScrollView(
           child: Column(
             children: [
-              SizedBox(
-                height: 220,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      'assets/images/bird_example.jpg',
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        color: Colors.black54,
-                        padding: const EdgeInsets.all(4),
-                        child: const Text(
-                          'Foto: Snímek Jana S.',
-                          style: TextStyle(color: Colors.white),
+              Visibility(
+                visible: _recordState == RecordState.stop,
+                child: SizedBox(
+                  height: 220,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/images/bird_example.jpg',
+                        fit: BoxFit.cover,
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: Container(
+                          color: Colors.black54,
+                          padding: const EdgeInsets.all(4),
+                          child: const Text(
+                            'Foto: Snímek Jana S.',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -608,6 +648,11 @@ class _LiveRecState extends State<LiveRec> {
 
   Future<void> _start() async {
     WakelockPlus.enable();
+    await FlutterForegroundTask.startService(
+      notificationTitle: 'Strnadi',
+      notificationText: 'Aplikace Strnadi nahrává',
+      callback: startRecordingCallback,
+    );
     try {
       logger.i('Started recording');
       if (await _audioRecorder.hasPermission()) {
