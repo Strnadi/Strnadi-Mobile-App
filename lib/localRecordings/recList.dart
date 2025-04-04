@@ -39,7 +39,11 @@ enum SortBy { name, date, ebc, downloaded, none }
 
 class _RecordingScreenState extends State<RecordingScreen> {
   List<Recording> list = List<Recording>.empty(growable: true);
+
   SortBy sortOptions = SortBy.none;
+
+  bool isAscending = true; // Add
+
 
   @override
   void initState() {
@@ -87,6 +91,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     });
   }
 
+
   void _showSortFilterOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -98,64 +103,87 @@ class _RecordingScreenState extends State<RecordingScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Sort & Filter', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.sort_by_alpha),
-              title: const Text('Sort by Name'),
-              onTap: () {
-                list.sort((a, b) => (b.name ?? '').toLowerCase().compareTo((a.name ?? '').toLowerCase()));
-                setState(() {
-                  sortOptions = SortBy.name;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.date_range),
-              title: const Text('Sort by Date'),
-              onTap: () {
-                list.sort((a, b) => a.createdAt!.compareTo(b.createdAt!));
-                setState(() {
-                  sortOptions = SortBy.date;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.filter_list),
-              title: const Text('Pocet ptaku'),
-              onTap: () {
-                list.sort((a, b) => a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!));
-                setState(() {
-                  sortOptions = SortBy.ebc;
-                });
-                Navigator.pop(context);
-              },
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Sort & Filter', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Downloaded'),
-              onTap: () {
-                FilterDownloaded();
-                setState(() {
-                  sortOptions = SortBy.downloaded;
-                });
-                Navigator.pop(context);
-              },
+                leading: const Icon(Icons.sort_by_alpha),
+                title: const Text('Sort by Name'),
+                // Highlight active sort option
+                tileColor: sortOptions == SortBy.name ? Colors.grey.withOpacity(0.2) : null,
+                onTap: () {
+                  if (sortOptions == SortBy.name) {
+                    isAscending = !isAscending; // Toggle sorting order
+                  }
+                  setState(() {
+                    sortOptions = SortBy.name;
+                    _applySorting();
+                  });
+                  Navigator.pop(context);
+                }
+            ),
+            ListTile(
+                leading: const Icon(Icons.date_range),
+                title: const Text('Sort by Date'),
+                tileColor: sortOptions == SortBy.date ? Colors.grey.withOpacity(0.2) : null,
+                onTap: () {
+                  setState(() {
+                    if (sortOptions == SortBy.date) {
+                      isAscending = !isAscending; // Toggle sorting order
+                    }
+                    sortOptions = SortBy.date;
+                    _applySorting();
+                  });
+                  Navigator.pop(context);
+                }
+            ),
+            ListTile(
+                leading: const Icon(Icons.filter_list),
+                title: const Text('Počet ptáků'),
+                tileColor: sortOptions == SortBy.ebc ? Colors.grey.withOpacity(0.2) : null,
+                onTap: () {
+                  if (sortOptions == SortBy.ebc) {
+                    isAscending = !isAscending; // Toggle sorting order
+                  }
+                  setState(() {
+                    sortOptions = SortBy.ebc;
+                    _applySorting();
+                  });
+                  Navigator.pop(context);
+                }
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.clear),
-              title: const Text('Clear Filter'),
-              onTap: () {
-                getRecordings();
-                setState(() {
-                  sortOptions = SortBy.none;
-                });
-                Navigator.pop(context);
-              },
+                leading: const Icon(Icons.download),
+                title: const Text('Downloaded'),
+                tileColor: sortOptions == SortBy.downloaded ? Colors.grey.withOpacity(0.2) : null,
+                onTap: () {
+                  FilterDownloaded();
+                  setState(() {
+                    if (sortOptions == SortBy.downloaded) {
+                      isAscending = !isAscending; // Toggle sorting order
+                    }
+                    sortOptions = SortBy.downloaded;
+                  });
+                  Navigator.pop(context);
+                }
+            ),
+            const Divider(),
+            ListTile(
+                leading: const Icon(Icons.clear),
+                title: const Text('Clear Filter'),
+                onTap: () {
+                  getRecordings();
+                  setState(() {
+                    sortOptions = SortBy.none;
+                    isAscending = true; // Reset to default
+                  });
+                  Navigator.pop(context);
+                }
             ),
           ],
         ),
@@ -163,17 +191,64 @@ class _RecordingScreenState extends State<RecordingScreen> {
     );
   }
 
+  void _applySorting() {
+    switch (sortOptions) {
+      case SortBy.name:
+        list.sort((a, b) {
+          int result = (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase());
+          return isAscending ? result : -result;
+        });
+        break;
+      case SortBy.date:
+        list.sort((a, b) {
+          int result = a.createdAt!.compareTo(b.createdAt!);
+          return isAscending ? result : -result;
+        });
+        break;
+      case SortBy.ebc:
+        list.sort((a, b) {
+          int result = a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!);
+          return isAscending ? result : -result;
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
-    // Debug prints
-    records.forEach((rec) => print(
-        'rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
+    records.forEach((rec) =>
+        print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
+
+    // Create a title that shows current filter
+    String appBarTitle = 'Záznamy';
+    if (sortOptions != SortBy.none) {
+      String sortName = '';
+      switch (sortOptions) {
+        case SortBy.name: sortName = 'Name'; break;
+        case SortBy.date: sortName = 'Date'; break;
+        case SortBy.ebc: sortName = 'Birds Count'; break;
+        case SortBy.downloaded: sortName = 'Downloaded'; break;
+        default: sortName = '';
+      }
+
+      if (sortName.isNotEmpty) {
+        if (sortOptions != SortBy.downloaded) {
+          appBarTitle = 'Záznamy (by $sortName ${isAscending ? '↑' : '↓'})';
+        } else {
+          appBarTitle = 'Záznamy (Downloaded only)';
+        }
+      }
+    }
 
     return ScaffoldWithBottomBar(
       logout: () => _showSortFilterOptions(context),
       icon: Icons.sort,
-      appBarTitle: 'Záznamy',
+      appBarTitle:appBarTitle,
       content: Padding(
         padding: const EdgeInsets.all(10.0),
         child: RefreshIndicator(
@@ -270,13 +345,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
                               color: Colors.grey,
                             ),
                           ),
-                        ],
-                      ),
-                    ],
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  onTap: () => openRecording(records[index]),
+                );
+              },
+            ),
           ),
         ),
       ),
