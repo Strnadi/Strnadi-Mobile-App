@@ -387,11 +387,14 @@ class _LiveRecState extends State<LiveRec> {
       child: ScaffoldWithBottomBar(
         appBarTitle: "",
         content: SingleChildScrollView(
+          child: ConstrainedBox(constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
+          ),
           child: Column(
+            mainAxisAlignment: _recordState == RecordState.stop ? MainAxisAlignment.start : MainAxisAlignment.center,
             children: [
-              Visibility(
-                visible: _recordState == RecordState.stop,
-                child: SizedBox(
+              if (_recordState == RecordState.stop) ...[
+                SizedBox(
                   height: 220,
                   width: double.infinity,
                   child: Stack(
@@ -416,8 +419,8 @@ class _LiveRecState extends State<LiveRec> {
                     ],
                   ),
                 ),
-              ),
-
+                const SizedBox(height: 20),
+              ],
               // Recording button with vertical padding
               Padding(
                 padding: const EdgeInsets.only(top: 20),
@@ -443,11 +446,27 @@ class _LiveRecState extends State<LiveRec> {
                             border: border,
                             boxShadow: boxShadows,
                           ),
-                          child: Icon(
-                            iconData,
-                            color: iconColor,
-                            size: 40,
-                          ),
+                          child: _recordState == RecordState.pause
+                              ? Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.play_arrow,
+                                      size: 40,
+                                      color: iconColor,
+                                    ),
+                                    Icon(
+                                      Icons.mic,
+                                      size: 20,
+                                      color: iconColor,
+                                    ),
+                                  ],
+                                )
+                              : Icon(
+                                  iconData,
+                                  color: iconColor,
+                                  size: 40,
+                                ),
                         ),
                       ),
                     ),
@@ -455,7 +474,6 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
               const SizedBox(height: 20),
-
               // Timer with a round border (red when recording, gray otherwise)
               Container(
                 decoration: BoxDecoration(
@@ -595,6 +613,7 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               const SizedBox(height: 40),
             ],
+          ),
           ),
         ),
       )
