@@ -106,13 +106,13 @@ class _RecordingScreenState extends State<RecordingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Sort & Filter', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('Třídění a filtry', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.sort_by_alpha),
-                title: const Text('Sort by Name'),
+                title: const Text('Třídit podle názvu'),
                 // Highlight active sort option
                 tileColor: sortOptions == SortBy.name ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
@@ -128,7 +128,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             ),
             ListTile(
                 leading: const Icon(Icons.date_range),
-                title: const Text('Sort by Date'),
+                title: const Text('Třídit podle data'),
                 tileColor: sortOptions == SortBy.date ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   setState(() {
@@ -159,7 +159,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.download),
-                title: const Text('Downloaded'),
+                title: const Text('Stažené'),
                 tileColor: sortOptions == SortBy.downloaded ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   FilterDownloaded();
@@ -175,7 +175,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.clear),
-                title: const Text('Clear Filter'),
+                title: const Text('Zrušit filtr'),
                 onTap: () {
                   getRecordings();
                   setState(() {
@@ -229,10 +229,10 @@ class _RecordingScreenState extends State<RecordingScreen> {
     if (sortOptions != SortBy.none) {
       String sortName = '';
       switch (sortOptions) {
-        case SortBy.name: sortName = 'Name'; break;
-        case SortBy.date: sortName = 'Date'; break;
-        case SortBy.ebc: sortName = 'Birds Count'; break;
-        case SortBy.downloaded: sortName = 'Downloaded'; break;
+        case SortBy.name: sortName = 'Název'; break;
+        case SortBy.date: sortName = 'Datum'; break;
+        case SortBy.ebc: sortName = 'Počet ptáků'; break;
+        case SortBy.downloaded: sortName = 'Pouze stažené'; break;
         default: sortName = '';
       }
 
@@ -240,7 +240,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
         if (sortOptions != SortBy.downloaded) {
           appBarTitle = 'Záznamy (by $sortName ${isAscending ? '↑' : '↓'})';
         } else {
-          appBarTitle = 'Záznamy (Downloaded only)';
+          appBarTitle = 'Záznamy (Pouze stažené)';
         }
       }
     }
@@ -257,7 +257,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             getRecordings();
           },
           child: records.isEmpty
-              ? const Center(child: Text('Zatím nemáte žádné nahrávky'))
+              ? const Center(child: Text('Zatím nemáte žádné záznamy'))
               : ListView.separated(
             itemCount: records.length,
             separatorBuilder: (context, index) => const SizedBox(height: 8),
@@ -315,7 +315,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                dialectName ?? 'Default Dialect',
+                                dialectName ?? 'Výchozí dialekt',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey,
