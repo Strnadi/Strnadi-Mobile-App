@@ -17,13 +17,18 @@
  * recList.dart
  */
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
+import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
+
+import '../config/config.dart';
 
 final logger = Logger();
 
@@ -49,6 +54,36 @@ class _RecordingScreenState extends State<RecordingScreen> {
   void initState() {
     super.initState();
     getRecordings();
+  }
+
+  Future<String?> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final results = data['items'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+            return results[0]['name'];
+        }
+      }
+      else {
+        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+        return null;
+      }
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+
+    }
   }
 
   void _showMessage(String message, String title) {
@@ -263,7 +298,6 @@ class _RecordingScreenState extends State<RecordingScreen> {
             separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final rec = records[index];
-              final dialectName = getDialectName(rec.id!);
               final statusText = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
               final statusColor = rec.sent ? Colors.green : Colors.orange;
               final dateText = rec.createdAt != null
@@ -288,40 +322,52 @@ class _RecordingScreenState extends State<RecordingScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Left Column
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            rec.name ?? rec.id?.toString() ?? 'Neznámý název',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  image: DecorationImage(
-                                    image: getDialectImage(dialectName),
-                                    fit: BoxFit.cover,
+                          rec.name != null
+                              ? Text(
+                                  rec.name!,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                   ),
+                                )
+                              : FutureBuilder<String?> (
+                                  future: () async {
+                                    var parts = DatabaseNew.getPartsById(rec.id!);
+                                    if (parts.isEmpty) {
+                                      return rec.id?.toString();
+                                    }
+                                    String? text = await reverseGeocode(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart) ?? rec.id?.toString();
+                                    rec.name = text;
+                                    return text;
+                                  }(),
+                                  builder: (context, snapshot) {
+                                    String topText;
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      topText = 'Načítání...';
+                                    } else if (snapshot.hasError || snapshot.data == null) {
+                                      topText = rec.id?.toString() ?? 'Neznámý název';
+                                    } else {
+                                      topText = snapshot.data!;
+                                    }
+                                    return Text(
+                                      topText,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    );
+                                  },
                                 ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                dialectName ?? 'Výchozí dialekt',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 4),
+                          Text(
+                            getDialectName(rec.id!),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
                           ),
                         ],
                       ),
@@ -345,7 +391,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                               color: Colors.grey,
                             ),
                           ),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
+                          const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
                   ]

@@ -307,7 +307,7 @@ class _AuthState extends State<Authorizator> {
   Future<void> _launchURL() async {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MDRender(mdPath: 'assets/docs/terms-of-services.md')),
+      MaterialPageRoute(builder: (_) => MDRender(mdPath: 'assets/docs/terms-of-services.md', title: 'Podmínky používání',)),
     );
   }
 }

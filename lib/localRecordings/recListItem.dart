@@ -25,6 +25,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/locationService.dart';
@@ -65,7 +66,6 @@ class _RecordingItemState extends State<RecordingItem> {
     getParts();
 
     if (widget.recording.path != null) {
-
       player.positionStream.listen((position) {
         setState(() {
           currentPosition = position;
@@ -89,7 +89,15 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       });
     }
-
+    else{
+      if(widget.recording.downloaded) {
+        DatabaseNew.concatRecordingParts(widget.recording.id!).then((value) {
+          setState(() {
+            loaded = true;
+          });
+        });
+      }
+    }
   }
 
 
@@ -108,8 +116,8 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> getParts() async {
-    logger.i('Parts: ${widget.recording.BEId}');
-    var parts = await DatabaseNew.fetchPartsFromDbById(widget.recording.BEId!);
+    logger.i('Recording ID: ${widget.recording.id}');
+    var parts = DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
       reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
@@ -181,8 +189,9 @@ class _RecordingItemState extends State<RecordingItem> {
       else {
         logger.e("Reverse geocode failed with status code ${response.statusCode}");
       }
-    } catch (e) {
-      print('Reverse geocode error: $e');
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -195,9 +204,17 @@ class _RecordingItemState extends State<RecordingItem> {
         content: const Center(child: CircularProgressIndicator()),
       );
     }
-    return ScaffoldWithBottomBar(
-      appBarTitle: widget.recording.name ?? '',
-      content: RefreshIndicator(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.recording.name ?? ''),
+        leading: IconButton(
+          icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          onPressed: () async {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: RefreshIndicator(
         onRefresh: _fetchRecordings,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),

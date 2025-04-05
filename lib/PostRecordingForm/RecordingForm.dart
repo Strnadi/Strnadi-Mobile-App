@@ -543,7 +543,7 @@ class _RecordingFormState extends State<RecordingForm> {
             ),
           ],
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
             onPressed: () async {
               final bool shouldPop = await _confirmDiscard() ?? false;
               if (shouldPop) {
