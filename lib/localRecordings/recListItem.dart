@@ -186,6 +186,23 @@ class _RecordingItemState extends State<RecordingItem> {
     super.dispose();
   }
 
+  Future<void> _downloadRecording() async {
+    try {
+      logger.i("Initiating download for recording id: ${widget.recording.id}");
+      await DatabaseNew.downloadRecording(widget.recording.id!);
+      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
+      setState(() {
+        widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+      });
+      logger.i("Downloaded recording updated: ${widget.recording.path}");
+    } catch (e, stackTrace) {
+      logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error downloading recording")),
+      );
+    }
+  }
+
 
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
@@ -243,19 +260,32 @@ class _RecordingItemState extends State<RecordingItem> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              widget.recording.path != null && widget.recording.path!.isNotEmpty ?
-                SizedBox(
-                  height: 200,
-                  width: double.infinity,
-                  child: LiveSpectogram.SpectogramLive(
-                    data: [],
-                    filepath: widget.recording.path,
-                  ),
-              ) : const SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: Center(child: Text('Nahrávka není dostupná')),
-              ),
+              widget.recording.path != null && widget.recording.path!.isNotEmpty
+                  ? SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: LiveSpectogram.SpectogramLive(
+                        data: [],
+                        filepath: widget.recording.path,
+                      ),
+                    )
+                  : SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Nahrávka není dostupná'),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: _downloadRecording,
+                              child: const Text('Stáhnout nahrávku'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
