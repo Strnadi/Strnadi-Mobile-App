@@ -406,6 +406,10 @@ class _RecordingFormState extends State<RecordingForm> {
     logger.i('Started inserting recording');
     recording.downloaded = true;
     recording.id = await DatabaseNew.insertRecording(recording);
+
+    // Update the recording in the database with the final file path and downloaded flag
+    await DatabaseNew.updateRecording(recording);
+
     setState(() {
       _recordingId = recording.id;
     });

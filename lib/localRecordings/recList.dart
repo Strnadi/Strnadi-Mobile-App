@@ -32,6 +32,8 @@ import '../config/config.dart';
 
 final logger = Logger();
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({Key? key}) : super(key: key);
 
@@ -42,13 +44,34 @@ class RecordingScreen extends StatefulWidget {
 /// name | date | estimatedBirdsCount | downloaded
 enum SortBy { name, date, ebc, downloaded, none }
 
-class _RecordingScreenState extends State<RecordingScreen> {
+class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   List<Recording> list = List<Recording>.empty(growable: true);
 
   SortBy sortOptions = SortBy.none;
 
   bool isAscending = true; // Add
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ensure that the route is a PageRoute before subscribing.
+    final ModalRoute? route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when the current route has been popped back to.
+    getRecordings();
+  }
 
   @override
   void initState() {

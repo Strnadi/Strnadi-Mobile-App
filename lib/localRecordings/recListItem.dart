@@ -64,8 +64,9 @@ class _RecordingItemState extends State<RecordingItem> {
     super.initState();
     locationService = LocationService();
     getParts();
+    logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
 
-    if (widget.recording.path != null) {
+    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
       player.positionStream.listen((position) {
         setState(() {
           currentPosition = position;
@@ -89,12 +90,31 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       });
     }
-    else{
-      if(widget.recording.downloaded) {
-        DatabaseNew.concatRecordingParts(widget.recording.id!).then((value) {
-          setState(() {
-            loaded = true;
+    else {
+      // Check if any parts exist for this recording
+      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.id!);
+      if (parts.isNotEmpty) {
+        logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
+        DatabaseNew.concatRecordingParts(widget.recording.id!).then((_) {
+          logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+          DatabaseNew.getRecordingFromDbById(widget.recording.id!).then((updatedRecording) {
+            logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
+            logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
+            if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
+              logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
+            } else {
+              logger.w("[RecordingItem] Updated recording path is null or empty.");
+            }
+            setState(() {
+              widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+              loaded = true;
+            });
           });
+        });
+      } else {
+        logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
+        setState(() {
+          loaded = true;
         });
       }
     }
@@ -120,10 +140,12 @@ class _RecordingItemState extends State<RecordingItem> {
     var parts = DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
-      reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
     });
+    await reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
     _mapController.move(LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart), 13.0);
-  }
+  });
+}
 
   Future<void> _fetchRecordings() async {
     // TODO: Add your fetch logic here if needed
@@ -177,7 +199,7 @@ class _RecordingItemState extends State<RecordingItem> {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
