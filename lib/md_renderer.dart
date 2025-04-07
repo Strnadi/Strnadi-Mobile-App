@@ -7,8 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 class MDRender extends StatefulWidget {
   /// The asset path to the Markdown file.
   final String mdPath;
+  final String title;
 
-  const MDRender({Key? key, required this.mdPath}) : super(key: key);
+  const MDRender({Key? key, required this.mdPath, required this.title}) : super(key: key);
 
   @override
   _MDRenderState createState() => _MDRenderState();
@@ -53,7 +54,7 @@ class _MDRenderState extends State<MDRender> {
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(),
-        title: const Text('Markdown'),
+        title: Text(widget.title),
       ),
       body: Container(
         color: Colors.white,

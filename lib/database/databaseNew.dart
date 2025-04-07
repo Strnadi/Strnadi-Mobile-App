@@ -252,6 +252,7 @@ class RecordingPart {
   int? id;
   int? BEId;
   int? recordingId;
+  int? backendRecordingId;
   DateTime startTime;
   DateTime endTime;
   double gpsLatitudeStart;
@@ -294,10 +295,10 @@ class RecordingPart {
     );
   }
 
-  factory RecordingPart.fromBEJson(Map<String, Object?> json, int recordingId) {
+  factory RecordingPart.fromBEJson(Map<String, Object?> json, int backendRecordingId) {
     return RecordingPart(
       BEId: json['id'] as int?,
-      recordingId: recordingId,
+      recordingId: null, // will be updated later
       startTime: DateTime.parse(json['startDate'] as String),
       endTime: DateTime.parse(json['endDate'] as String),
       gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
@@ -307,7 +308,7 @@ class RecordingPart {
       dataBase64: json['dataBase64'] as String?,
       square: json['square'] as String?,
       sent: true,
-    );
+    )..backendRecordingId = backendRecordingId;
   }
 
   factory RecordingPart.fromUnready(RecordingPartUnready unready) {
@@ -341,7 +342,7 @@ class RecordingPart {
   Map<String, Object?> toBEJson() {
     return {
       'id': BEId,
-      'recordingId': recordingId,
+      'recordingId': backendRecordingId,
       'startDate': startTime.toIso8601String(),
       'endDate': endTime.toIso8601String(),
       'gpsLatitudeStart': gpsLatitudeStart,
@@ -355,7 +356,7 @@ class RecordingPart {
   Map<String, Object?> toJson() {
     return {
       'id': id,
-      'BEId': BEId,
+      'backendRecordingId': backendRecordingId, // new field
       'recordingId': recordingId,
       'startTime': startTime.toString(),
       'endTime': endTime.toString(),
@@ -423,9 +424,9 @@ class DatabaseNew {
   static Future<int> insertRecordingPart(RecordingPart recordingPart) async {
     try {
       final db = await database;
-      if (recordingPart.BEId != null) {
+      if (recordingPart.id != null) {
         List<Map<String, dynamic>> existing =
-        await db.query("recordingParts", where: "BEId = ?", whereArgs: [recordingPart.BEId]);
+        await db.query("recordingParts", where: "id = ?", whereArgs: [recordingPart.id]);
         if (existing.isNotEmpty) {
           int id = existing.first["id"];
           recordingPart.id = id;
@@ -436,7 +437,7 @@ class DatabaseNew {
           } else {
             recordingParts.add(recordingPart);
           }
-          logger.i('Recording part with BEId ${recordingPart.BEId} updated (id: $id). Data length: ${recordingPart.dataBase64?.length}');
+          logger.i('Recording part with backendRecordingId ${recordingPart.backendRecordingId} updated (id: $id). Data length: ${recordingPart.dataBase64?.length}');
           return id;
         }
       }
@@ -483,6 +484,15 @@ class DatabaseNew {
 
     for (RecordingPart recordingPart in newRecordingParts) {
       recordingPart.sent = true;
+      Recording? localRecording;
+      try {
+        localRecording = recordings.firstWhere((r) => r.BEId == recordingPart.backendRecordingId);
+      } catch (e) {
+        localRecording = null;
+      }
+      if (localRecording != null) {
+        recordingPart.recordingId = localRecording.id;
+      }
       await insertRecordingPart(recordingPart);
     }
   }
@@ -527,7 +537,6 @@ class DatabaseNew {
   }
 
   static Future<void> sendRecordingBackground(int recordingId) async {
-
     await Workmanager().registerOneOffTask(
       (Platform.isIOS)? "com.delta.strnadi.sendRecording" : "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
       (Platform.isIOS)? "sendRecording_${DateTime.now().microsecondsSinceEpoch}": "sendRecording",
@@ -537,6 +546,7 @@ class DatabaseNew {
 
   static Future<void> sendRecording(Recording recording, List<RecordingPart> recordingParts) async {
     if (!await hasInternetAccess()) {
+      logger.i('No internet connection. Recording will not be sent.');
       recording.sending = false;
       await updateRecording(recording);
       return;
@@ -556,11 +566,13 @@ class DatabaseNew {
       body: jsonEncode(recording.toBEJson()),
     );
     if (response.statusCode == 200) {
+      logger.i('Recording sent successfully. Sending parts. Response: ${response.body}');
       recording.BEId = jsonDecode(response.body);
       final db = await database;
       await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
       for (RecordingPart part in recordingParts) {
-        part.recordingId = recording.BEId;
+        part.recordingId = recording.id;
+        part.backendRecordingId = recording.BEId;
         await sendRecordingPart(part);
       }
       recording.sent = true;
@@ -582,7 +594,12 @@ class DatabaseNew {
     if (jwt == null) {
       throw UploadException('Failed to send recording part to backend', 401);
     }
-    logger.i('Uploading recording part (BEId: ${recordingPart.BEId}) with data length: ${recordingPart.dataBase64?.length}');
+    logger.i('Uploading recording part (backendRecordingId: ${recordingPart.backendRecordingId}) with data length: ${recordingPart.dataBase64?.length}');
+    // Retrieve the parent recording to obtain its backend ID
+    Recording? parentRecording = await getRecordingFromDbById(recordingPart.recordingId!);
+    recordingPart.backendRecordingId  = parentRecording?.BEId ?? 0;
+    Database db = await database;
+    db.update('recordingParts', recordingPart.toJson(), where: 'id = ?', whereArgs: [recordingPart.id]);
     final Map<String, Object?> jsonBody = recordingPart.toBEJson();
     final http.Response response = await http.post(
       Uri(scheme: 'https', host: Config.host, path: '/recordings/upload-part'),
@@ -593,6 +610,9 @@ class DatabaseNew {
       body: jsonEncode(jsonBody),
     );
     if (response.statusCode == 200) {
+      logger.i(response.body);
+      int returnedId = jsonDecode(response.body);
+      recordingPart.BEId = returnedId;
       recordingPart.sent = true;
       await updateRecordingPart(recordingPart);
       logger.i('Recording part id: ${recordingPart.id} uploaded successfully.');
@@ -727,8 +747,38 @@ class DatabaseNew {
     logger.i('Downloaded recording id: $id. File saved to: $outputPath');
   }
 
+  static Future<void> concatRecordingParts(int recordingId) async{
+    List<RecordingPart> parts = await getPartsById(recordingId);
+    if (parts.isEmpty) {
+      logger.i('No parts found for recording id: $recordingId');
+      return;
+    }
+    List<String> paths = [];
+    for (RecordingPart part in parts) {
+      if (part.dataBase64 != null) {
+        String partFilePath = '${(await getApplicationDocumentsDirectory()).path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+        File partFile = File(partFilePath);
+        await partFile.writeAsBytes(base64Decode(part.dataBase64!));
+        paths.add(partFilePath);
+      } else {
+        logger.w('Part id: ${part.id} has no dataBase64. Skipping.');
+      }
+    }
+    if (paths.isEmpty) {
+      logger.w('No valid parts found for recording id: $recordingId');
+      return;
+    }
+    String outputPath = '${(await getApplicationDocumentsDirectory()).path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+    await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
+    Recording recording = recordings.firstWhere((r) => r.id == recordingId);
+    recording.path = outputPath;
+    recording.downloaded = true;
+    await updateRecording(recording);
+    logger.i('Concatenated recording parts for id: $recordingId. File saved to: $outputPath');
+  }
+
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 1, onCreate: (Database db, int version) async {
+    return openDatabase('soundNew.db', version: 2, onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,
@@ -751,6 +801,7 @@ class DatabaseNew {
         id INTEGER PRIMARY KEY,
         BEId INTEGER UNIQUE,
         recordingId INTEGER,
+        backendRecordingId INTEGER,
         startTime TEXT,
         endTime TEXT,
         gpsLatitudeStart REAL,
@@ -788,6 +839,12 @@ class DatabaseNew {
       final List<Map<String, dynamic>> parts = await db.query("recordingParts");
       recordingParts = List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
       loadedRecordings = true;
+    }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
+      if (oldVersion == 1) {
+        // Add the new backendRecordingId column to recordingParts table
+        await db.execute('ALTER TABLE recordingParts ADD COLUMN backendRecordingId INTEGER;');
+        await db.setVersion(newVersion);
+      }
     });
   }
 
