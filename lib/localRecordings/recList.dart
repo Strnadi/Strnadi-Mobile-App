@@ -274,6 +274,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
   }
 
+  String _truncateName(String name, {int maxLength = 20}) {
+    if (name.length <= maxLength) {
+      return name;
+    }
+    return name.substring(0, maxLength) + '...';
+  }
+
 
 
   @override
@@ -350,7 +357,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                         children: [
                           rec.name != null
                               ? Text(
-                                  rec.name!,
+                                  _truncateName(rec.name!),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -376,7 +383,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                       topText = snapshot.data!;
                                     }
                                     return Text(
-                                      topText,
+                                      _truncateName(topText),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -428,6 +435,34 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     );
   }
 
+  Future<String?> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final results = data['items'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+          setState(() {
+            return results[0]['name'];
+          });
+        }
+      }
+      else {
+        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+      }
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: ${e.toString()}', error: e, stackTrace: stackTrace);
+    }
+  }
 
   String getDialectName(int id) {
     //TODO Load dialect name from database
