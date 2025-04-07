@@ -186,7 +186,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   void getRecordingFromPartId(int id) {
-
       for (int rec = 0; rec < _fullRecordings.length; rec++) {
           if (_fullRecordings[rec].BEId == id) {
             showCupertinoSheet
@@ -194,7 +193,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
             return;
           }
       }
-
       showDialog(context: context, builder: (context) => AlertDialog(
         title: const Text('Chyba'),
         content: Text('Nahrávka nenalezena $id'),
@@ -205,8 +203,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
           ),
         ],
       ));
-
-
   }
 
   @override

@@ -25,6 +25,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/locationService.dart';
@@ -63,9 +64,9 @@ class _RecordingItemState extends State<RecordingItem> {
     super.initState();
     locationService = LocationService();
     getParts();
+    logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
 
-    if (widget.recording.path != null) {
-
+    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
       player.positionStream.listen((position) {
         setState(() {
           currentPosition = position;
@@ -89,7 +90,34 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       });
     }
-
+    else {
+      // Check if any parts exist for this recording
+      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.id!);
+      if (parts.isNotEmpty) {
+        logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
+        DatabaseNew.concatRecordingParts(widget.recording.id!).then((_) {
+          logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+          DatabaseNew.getRecordingFromDbById(widget.recording.id!).then((updatedRecording) {
+            logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
+            logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
+            if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
+              logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
+            } else {
+              logger.w("[RecordingItem] Updated recording path is null or empty.");
+            }
+            setState(() {
+              widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+              loaded = true;
+            });
+          });
+        });
+      } else {
+        logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
+        setState(() {
+          loaded = true;
+        });
+      }
+    }
   }
 
 
@@ -108,14 +136,16 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> getParts() async {
-    logger.i('Parts: ${widget.recording.BEId}');
-    var parts = await DatabaseNew.fetchPartsFromDbById(widget.recording.BEId!);
+    logger.i('Recording ID: ${widget.recording.id}');
+    var parts = DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
-      reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
     });
+    await reverseGeocode(this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
     _mapController.move(LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart), 13.0);
-  }
+  });
+}
 
   Future<void> _fetchRecordings() async {
     // TODO: Add your fetch logic here if needed
@@ -156,6 +186,23 @@ class _RecordingItemState extends State<RecordingItem> {
     super.dispose();
   }
 
+  Future<void> _downloadRecording() async {
+    try {
+      logger.i("Initiating download for recording id: ${widget.recording.id}");
+      await DatabaseNew.downloadRecording(widget.recording.id!);
+      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
+      setState(() {
+        widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+      });
+      logger.i("Downloaded recording updated: ${widget.recording.path}");
+    } catch (e, stackTrace) {
+      logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error downloading recording")),
+      );
+    }
+  }
+
 
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
@@ -169,7 +216,7 @@ class _RecordingItemState extends State<RecordingItem> {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
@@ -181,8 +228,9 @@ class _RecordingItemState extends State<RecordingItem> {
       else {
         logger.e("Reverse geocode failed with status code ${response.statusCode}");
       }
-    } catch (e) {
-      print('Reverse geocode error: $e');
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -195,28 +243,49 @@ class _RecordingItemState extends State<RecordingItem> {
         content: const Center(child: CircularProgressIndicator()),
       );
     }
-    return ScaffoldWithBottomBar(
-      appBarTitle: widget.recording.name ?? '',
-      content: RefreshIndicator(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.recording.name ?? ''),
+        leading: IconButton(
+          icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          onPressed: () async {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: RefreshIndicator(
         onRefresh: _fetchRecordings,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              widget.recording.path != null && widget.recording.path!.isNotEmpty ?
-                SizedBox(
-                  height: 200,
-                  width: double.infinity,
-                  child: LiveSpectogram.SpectogramLive(
-                    data: [],
-                    filepath: widget.recording.path,
-                  ),
-              ) : const SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: Center(child: Text('Nahrávka není dostupná')),
-              ),
+              widget.recording.path != null && widget.recording.path!.isNotEmpty
+                  ? SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: LiveSpectogram.SpectogramLive(
+                        data: [],
+                        filepath: widget.recording.path,
+                      ),
+                    )
+                  : SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Nahrávka není dostupná'),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: _downloadRecording,
+                              child: const Text('Stáhnout nahrávku'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
