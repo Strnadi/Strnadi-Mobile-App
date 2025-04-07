@@ -216,6 +216,13 @@ class _RecordingScreenState extends State<RecordingScreen> {
     }
   }
 
+  String _truncateName(String name, {int maxLength = 20}) {
+    if (name.length <= maxLength) {
+      return name;
+    }
+    return name.substring(0, maxLength) + '...';
+  }
+
 
 
   @override
@@ -292,6 +299,43 @@ class _RecordingScreenState extends State<RecordingScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          rec.name != null
+                              ? Text(
+                                  _truncateName(rec.name!),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              : FutureBuilder<String?> (
+                                  future: () async {
+                                    var parts = DatabaseNew.getPartsById(rec.id!);
+                                    if (parts.isEmpty) {
+                                      return rec.id?.toString();
+                                    }
+                                    String? text = await reverseGeocode(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart) ?? rec.id?.toString();
+                                    rec.name = text;
+                                    return text;
+                                  }(),
+                                  builder: (context, snapshot) {
+                                    String topText;
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      topText = 'Načítání...';
+                                    } else if (snapshot.hasError || snapshot.data == null) {
+                                      topText = rec.id?.toString() ?? 'Neznámý název';
+                                    } else {
+                                      topText = snapshot.data!;
+                                    }
+                                    return Text(
+                                      _truncateName(topText),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    );
+                                  },
+                                ),
+                          const SizedBox(height: 4),
                           Text(
                             rec.name ?? rec.id?.toString() ?? 'Neznámý název',
                             style: const TextStyle(
