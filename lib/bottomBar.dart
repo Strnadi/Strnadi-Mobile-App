@@ -20,7 +20,7 @@ import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/archived/map.dart';
 import 'package:strnadi/map/mapv2.dart';
 import 'package:strnadi/archived/recorderWithSpectogram.dart';
-import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart';
+import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart;
 
 import 'main.dart';
 import 'notificationPage/notifList.dart';
@@ -38,7 +38,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   const ScaffoldWithBottomBar({
     Key? key,
 
-    required this.appBarTitle,
+    this.appBarTitle,
     required this.content,
     this.logout,
     this.allawArrowBack = false,
@@ -54,7 +54,12 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     localStorage.delete(key: 'token');
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => MyApp()),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => MyApp(),
+        settings: const RouteSettings(name: '/'),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
       (route) => false, // Remove all previous routes
     );
   }
@@ -111,9 +116,11 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => MapScreenV2(),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => MapScreenV2(),
                     settings: const RouteSettings(name: '/map'),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
                   ),
                 );
               }
@@ -126,9 +133,11 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => RecordingScreen(),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => RecordingScreen(),
                     settings: const RouteSettings(name: '/list'),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
                   ),
                 );
               }
@@ -141,9 +150,11 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (ModalRoute.of(context)?.settings.name != '/Recorder') {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => LiveRec(),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
                     settings: const RouteSettings(name: '/Recorder'),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
                   ),
                 );
               }
@@ -156,9 +167,11 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => NotificationScreen(),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => NotificationScreen(),
                     settings: const RouteSettings(name: '/notification'),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
                   ),
                 );
               }
@@ -171,9 +184,11 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (ModalRoute.of(context)?.settings.name != '/user') {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => UserPage(),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => UserPage(),
                     settings: const RouteSettings(name: '/user'),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
                   ),
                 );
               }

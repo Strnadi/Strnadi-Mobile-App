@@ -550,7 +550,7 @@ class _RecordingFormState extends State<RecordingForm> {
         : null;
 
     return PopScope(
-      canPop: true,
+      canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
         final bool shouldPop = await _confirmDiscard() ?? false;

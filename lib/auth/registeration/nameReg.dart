@@ -257,10 +257,10 @@ class _RegNameState extends State<RegName> {
       ),
       // Bottom segmented progress bar with larger bottom padding
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
           children: List.generate(5, (index) {
-            bool completed = index < 2;
+            bool completed = index < 3;
             return Expanded(
               child: Container(
                 height: 4,

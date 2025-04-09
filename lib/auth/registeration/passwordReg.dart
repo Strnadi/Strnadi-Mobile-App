@@ -313,9 +313,9 @@ class _RegPasswordState extends State<RegPassword> {
 
       // Bottom segmented progress bar with extra bottom padding
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
-          children: List.generate(3, (index) {
+          children: List.generate(5, (index) {
             // Fill first 2 segments to show "2 out of 6" progress
             final bool completed = index < 2;
             return Expanded(

@@ -50,7 +50,7 @@ class _LoginState extends State<Login> {
     super.initState();
     _registerTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const RegMail()),
         );
@@ -87,6 +87,9 @@ class _LoginState extends State<Login> {
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         logger.i("user has logged in with status code ${response.statusCode}");
+        if (await FlutterSecureStorage().read(key: 'token') != null){
+          FlutterSecureStorage().delete(key: 'token');
+        }
         await const FlutterSecureStorage().write(key: 'token', value: response.body);
         logger.i(response.body);
         await fb.refreshToken();
@@ -173,79 +176,88 @@ class _LoginState extends State<Login> {
 
               const SizedBox(height: 40),
 
-              // --- E-mail label and TextField ---
-              Text(
-                'E-mail',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  fillColor: Colors.grey[200],
-                  filled: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  // More rounded border
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // --- Heslo (Password) label and TextField ---
-              Text(
-                'Heslo',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  fillColor: Colors.grey[200],
-                  filled: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                  suffixIcon: IconButton(
-                    icon: _obscurePassword
-                        ? Image.asset(
-                      'assets/icons/visOn.png',
-                      width: 30,
-                      height: 30,
-                    )
-                        : Image.asset(
-                      'assets/icons/visOff.png',
-                      width: 30,
-                      height: 30,
+              AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // --- E-mail label and TextField ---
+                    Text(
+                      'E-mail',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: InputDecoration(
+                        fillColor: Colors.grey[200],
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        // More rounded border
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // --- Heslo (Password) label and TextField ---
+                    Text(
+                      'Heslo',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      autofillHints: const [AutofillHints.password],
+                      decoration: InputDecoration(
+                        fillColor: Colors.grey[200],
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: _obscurePassword
+                              ? Image.asset(
+                                  'assets/icons/visOn.png',
+                                  width: 30,
+                                  height: 30,
+                                )
+                              : Image.asset(
+                                  'assets/icons/visOff.png',
+                                  width: 30,
+                                  height: 30,
+                                ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 

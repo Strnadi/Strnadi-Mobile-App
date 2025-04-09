@@ -288,7 +288,7 @@ class _RegLocationState extends State<RegLocation> {
       ),
       // Bottom segmented progress bar
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
           children: List.generate(5, (index) {
             // You can customize which segment(s) are considered "completed"

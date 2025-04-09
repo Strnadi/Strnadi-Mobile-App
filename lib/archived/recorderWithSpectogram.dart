@@ -122,7 +122,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
     locationService = LocationService();
 
     locationService.checkLocationWorking().then((_){
-
+      locationService.init();
     },onError: (e){
       if(e is LocationException){
         if(e.enabled){

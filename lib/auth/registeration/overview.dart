@@ -242,6 +242,26 @@ class _RegOverviewState extends State<RegOverview> {
           ),
         ),
       ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+        child: Row(
+          children: List.generate(5, (index) {
+            // You can customize which segment(s) are considered "completed"
+            // For example, if this page is the 2nd or 3rd step:
+            bool completed = index < 5; // or index < 3, etc.
+            return Expanded(
+              child: Container(
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: completed ? yellow : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
     );
   }
 }
