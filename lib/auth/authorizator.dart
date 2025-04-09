@@ -261,7 +261,9 @@ class _AuthState extends State<Authorizator> {
       secureStorage.write(key: 'user', value: data['firstName']);
       secureStorage.write(key: 'lastname', value: data['lastName']);
 
+      logger.i('Syncing recordings on login');
       DatabaseNew.syncRecordings();
+      logger.i('Syncing recordings on login done');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LiveRec()),
@@ -305,7 +307,7 @@ class _AuthState extends State<Authorizator> {
   Future<void> _launchURL() async {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MDRender(mdPath: 'assets/docs/terms-of-services.md')),
+      MaterialPageRoute(builder: (_) => MDRender(mdPath: 'assets/docs/terms-of-services.md', title: 'Podmínky používání',)),
     );
   }
 }

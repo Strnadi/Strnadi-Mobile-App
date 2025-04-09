@@ -76,13 +76,13 @@ class MenuScreen extends StatelessWidget {
           context,
           MaterialPageRoute(
               builder: (context) =>
-                  MDRender(mdPath: 'assets/docs/how-to-record.md')));
+                  MDRender(mdPath: 'assets/docs/how-to-record.md', title: 'Jak nahrávat',)));
     } else if (index == 4) {
       Navigator.push(
           context,
           MaterialPageRoute(
               builder: (context) =>
-                  MDRender(mdPath: 'assets/docs/about-project.md')));
+                  MDRender(mdPath: 'assets/docs/about-project.md', title: 'O projektu',)));
     } else if (index == 5) {
       _showAboutDialog(context);
     } else {

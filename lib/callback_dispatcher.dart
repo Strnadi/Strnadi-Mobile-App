@@ -54,7 +54,18 @@ void callbackDispatcher() {
         recording = await DatabaseNew.getRecordingFromDbById(
             recordingId);
       } catch(e, stackTrace) {
-        logger.e("BG Failed to get recording from DB: $e", error: e, stackTrace: stackTrace);Sentry.captureException(e, stackTrace: stackTrace);
+        logger.e("BG Failed to get recording from DB: $e", error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+      }
+      if (recording != null && (recording.path == null || recording.path!.isEmpty || !recording.downloaded)) {
+        logger.i("Recording path is empty or not downloaded. Attempting to concatenate parts for recording id $recordingId.");
+        await DatabaseNew.concatRecordingParts(recording.id!);
+        recording = await DatabaseNew.getRecordingFromDbById(recording.id!);
+        if (recording != null && (recording.path != null && recording.path!.isNotEmpty && recording.downloaded)) {
+          logger.i("Recording updated after concatenation: path = ${recording.path}, downloaded = ${recording.downloaded}");
+        } else {
+          logger.w("Recording still not downloaded after attempting concatenation.");
+        }
       }
       logger.i('Got recording from DB with id $recordingId');
       if (recording != null) {
