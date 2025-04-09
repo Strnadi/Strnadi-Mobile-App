@@ -29,7 +29,7 @@ import 'package:strnadi/firebase/firebase.dart' as fb;
 
 
 class ScaffoldWithBottomBar extends StatelessWidget {
-  final String appBarTitle;
+  final String? appBarTitle;
   final Widget content;
   final VoidCallback? logout;
   final allawArrowBack;
@@ -62,8 +62,9 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Center(child: Text(appBarTitle)),
+      appBar: appBarTitle != null
+          ? AppBar(
+        title: Center(child: Text(appBarTitle!)),
         backgroundColor: Colors.white,
         actions: [
           if (logout != null)
@@ -75,7 +76,8 @@ class ScaffoldWithBottomBar extends StatelessWidget {
             ),
         ],
         automaticallyImplyLeading: allawArrowBack,
-      ),
+      )
+          : null,
       backgroundColor: Colors.white,
       body: SizedBox(
         height: MediaQuery.of(context).size.height -

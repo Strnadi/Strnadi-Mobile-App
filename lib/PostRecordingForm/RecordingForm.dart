@@ -1,4 +1,19 @@
 /*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+/*
  * RecordingForm.dart
  */
 
@@ -259,11 +274,25 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void SendDialects() async {
+
+    var id = await DatabaseNew.getRecordingBEIDbyID(recording.id!);
+
+    if (id == null) {
+      logger.e("Recording BEID is null");
+      return;
+    }
+
     for (DialectModel dialect in dialectSegments) {
       var token = FlutterSecureStorage();
       var jwt = await token.read(key: 'token');
       logger.i("jwt is $jwt");
       logger.i("token is $jwt");
+      var body = jsonEncode(<String, dynamic>{
+        'recordingId': id,
+        'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
+        'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
+        'dialectCode': dialect.label,
+      });
       try {
         final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
         await http.post(
@@ -273,7 +302,7 @@ class _RecordingFormState extends State<RecordingForm> {
             'Authorization': 'Bearer $jwt',
           },
           body: jsonEncode(<String, dynamic>{
-            'recordingId': _recordingId,
+            'recordingId': id,
             'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
             'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
             'dialectCode': dialect.label,
@@ -282,7 +311,7 @@ class _RecordingFormState extends State<RecordingForm> {
           if (value.statusCode == 200) {
             logger.i("Dialect sent successfully");
           } else {
-            logger.e("Dialect sending failed with status code ${value.statusCode} and body ${value.body}");
+            logger.e("Dialect sending failed with status code ${value.statusCode} and body $body");
           }
         });
       } catch (e, stackTrace) {

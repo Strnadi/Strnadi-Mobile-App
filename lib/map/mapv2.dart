@@ -214,7 +214,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: "Mapa Strnadu",
+      appBarTitle: null,
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -275,7 +275,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
                       child: GestureDetector(
                         onTap: () {
-                          getRecordingFromPartId(part.id);
+                          getRecordingFromPartId(part.recordingId);
                           // TODO proper show of the recording
                           // showDialog(
                           //   context: context,
@@ -316,7 +316,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ],
               ),
               Positioned(
-                top: 16,
+                top: 75,
                 left: 16,
                 right: 16,
                 child: SearchBarWidget(
