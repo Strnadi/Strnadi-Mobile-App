@@ -18,6 +18,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -26,6 +27,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/PostRecordingForm/addDialect.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
@@ -39,6 +41,42 @@ import '../notificationPage/notifications.dart';
 final logger = Logger();
 
 /// Models
+
+class RecordingDialect{
+  int RecordingId;
+  String dialect;
+  DateTime StartDate;
+  DateTime EndDate;
+
+  RecordingDialect({
+    required this.RecordingId,
+    required this.dialect,
+    required this.StartDate,
+    required this.EndDate,
+  });
+
+  factory RecordingDialect.fromJson(Map<String, Object?> json) {
+    return RecordingDialect(
+      RecordingId: json['RecordingId'] as int,
+      dialect: json['dialect'] as String,
+      StartDate: DateTime.parse(json['StartDate'] as String),
+      EndDate: DateTime.parse(json['EndDate'] as String),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'RecordingId': RecordingId,
+      'dialect': dialect,
+      'StartDate': StartDate.toString(),
+      'EndDate': EndDate.toString(),
+    };
+  }
+
+  List<RecordingDialect> fromJsonList(List<dynamic> jsonList) {
+    return jsonList.map((json) => RecordingDialect.fromJson(json)).toList();
+  }
+}
 
 class RecordingUnready {
   int? id;
@@ -570,6 +608,7 @@ class DatabaseNew {
       recording.BEId = jsonDecode(response.body);
       final db = await database;
       await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+
       for (RecordingPart part in recordingParts) {
         part.recordingId = recording.id;
         part.backendRecordingId = recording.BEId;
@@ -585,6 +624,20 @@ class DatabaseNew {
       throw UploadException('Failed to send recording to backend', response.statusCode);
     }
   }
+
+  static Future<int?> getRecordingBEIDbyID(int id) async {
+    var db = await database;
+
+    db.query("recordings", where: "id = ?", whereArgs: [id]).then((value) {
+      if (value.isNotEmpty) {
+        return value.first["BEId"];
+      } else {
+        return -1;
+      }
+    });
+  }
+
+
 
   static Future<void> sendRecordingPart(RecordingPart recordingPart) async {
     String? jwt = await FlutterSecureStorage().read(key: 'token');
@@ -833,6 +886,16 @@ class DatabaseNew {
         read INTEGER DEFAULT 0
       )
       ''');
+      await db.execute('''
+      CREATE TABLE Dialects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        RecordingId INTEGER NOT NULL,
+        dialect TEXT NOT NULL,
+        StartDate TEXT NOT NULL,
+        EndDate TEXT NOT NULL,
+        FOREIGN KEY(RecordingId) REFERENCES recordings(id)
+      )
+      ''');
     }, onOpen: (Database db) async {
       final List<Map<String, dynamic>> recs = await db.query("recordings");
       recordings = List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
@@ -909,5 +972,17 @@ class DatabaseNew {
       return Recording.fromJson(results.first);
     }
     return null;
+  }
+
+  static Future<void> InsertRecordingDialect(RecordingDialect recordingDialect) async {
+    final db = await database;
+    await db.insert('Dialects', recordingDialect.toJson());
+  }
+
+  static Future<List<RecordingDialect>> getRecordingDialects(int recordingId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> results =
+    await db.query("Dialects", where: "RecordingId = ?", whereArgs: [recordingId]);
+    return List.generate(results.length, (i) => RecordingDialect.fromJson(results[i]));
   }
 }

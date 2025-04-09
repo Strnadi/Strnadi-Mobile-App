@@ -1,4 +1,19 @@
 /*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+/*
  * streamRec.dart
  */
 
@@ -24,6 +39,7 @@ import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 final logger = Logger();
 
@@ -183,6 +199,8 @@ class _LiveRecState extends State<LiveRec> {
   bool recording = false;
   bool _hasMicPermission = false;
 
+  bool _isProcessingRecording = false;
+
   @override
   void initState() {
     super.initState();
@@ -236,13 +254,41 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  void _toggleRecording() {
-    if (_recordState == RecordState.record) {
-      _pause();
-    } else if (_recordState == RecordState.pause) {
-      _resume();
-    } else {
-      _start();
+  Future<void> _toggleRecording() async {
+    if (_isProcessingRecording) return; // Prevent reentry
+
+    setState(() {
+      _isProcessingRecording = true;
+    });
+    try{
+      if (!_hasMicPermission) {
+        // Request microphone permission
+        var status = await Permission.microphone.request();
+        if (status.isGranted) {
+          setState(() {
+            _hasMicPermission = true;
+          });
+        } else {
+          _showMessage(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+          return;
+        }
+      }
+      if (_recordState == RecordState.record) {
+        _pause();
+      } else if (_recordState == RecordState.pause) {
+        _resume();
+      } else {
+        _start();
+      }
+    }
+    catch(e, stackTrace){
+      logger.e("Error toggling recording: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
+    finally {
+      setState(() {
+        _isProcessingRecording = false;
+      });
     }
   }
 
@@ -385,7 +431,6 @@ class _LiveRecState extends State<LiveRec> {
         // Always forbid the Android back button by doing nothing
       },
       child: ScaffoldWithBottomBar(
-        appBarTitle: "",
         content: SingleChildScrollView(
           child: ConstrainedBox(constraints: BoxConstraints(
             minHeight: MediaQuery.of(context).size.height,
@@ -393,25 +438,32 @@ class _LiveRecState extends State<LiveRec> {
           child: Column(
             mainAxisAlignment: _recordState == RecordState.stop ? MainAxisAlignment.start : MainAxisAlignment.center,
             children: [
+              SizedBox(height: 64),
               if (_recordState == RecordState.stop) ...[
                 SizedBox(
-                  height: 220,
+                  height: 300,
                   width: double.infinity,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.asset(
-                        'assets/images/bird_example.jpg',
-                        fit: BoxFit.cover,
+                      Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20.0),
+                            child: Image.asset(
+                              'assets/images/bird_example.jpg',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                       ),
                       Positioned(
-                        bottom: 8,
-                        left: 8,
+                        bottom: 12,
+                        left: 32,
                         child: Container(
                           color: Colors.black54,
                           padding: const EdgeInsets.all(4),
                           child: const Text(
-                            'Foto: Snímek Jana S.',
+                            'Foto: Tomáš Bělka',
                             style: TextStyle(color: Colors.white),
                           ),
                         ),
@@ -423,17 +475,17 @@ class _LiveRecState extends State<LiveRec> {
               ],
               // Recording button with vertical padding
               Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: AbsorbPointer(
-                  absorbing: !_hasMicPermission,
-                  child: Opacity(
-                    opacity: _hasMicPermission ? 1.0 : 0.5,
+                padding: _recordState == RecordState.stop? const EdgeInsets.only(top: 20) : const EdgeInsets.only(top: 240),
+                child: Opacity(
+                  opacity: _hasMicPermission ? 1.0 : 0.5,
+                  child: AbsorbPointer(
+                    absorbing: _isProcessingRecording, // disable when processing
                     child: Semantics(
                       label: _recordState == RecordState.stop
                           ? "Start recording"
                           : _recordState == RecordState.record
-                              ? "Pause recording"
-                              : "Resume recording",
+                          ? "Pause recording"
+                          : "Resume recording",
                       button: true,
                       child: GestureDetector(
                         onTap: _toggleRecording,
@@ -448,25 +500,25 @@ class _LiveRecState extends State<LiveRec> {
                           ),
                           child: _recordState == RecordState.pause
                               ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.play_arrow,
-                                      size: 40,
-                                      color: iconColor,
-                                    ),
-                                    Icon(
-                                      Icons.mic,
-                                      size: 20,
-                                      color: iconColor,
-                                    ),
-                                  ],
-                                )
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.play_arrow,
+                                size: 40,
+                                color: iconColor,
+                              ),
+                              Icon(
+                                Icons.mic,
+                                size: 20,
+                                color: iconColor,
+                              ),
+                            ],
+                          )
                               : Icon(
-                                  iconData,
-                                  color: iconColor,
-                                  size: 40,
-                                ),
+                            iconData,
+                            color: iconColor,
+                            size: 40,
+                          ),
                         ),
                       ),
                     ),
