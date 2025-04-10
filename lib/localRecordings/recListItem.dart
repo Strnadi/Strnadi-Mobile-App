@@ -92,12 +92,12 @@ class _RecordingItemState extends State<RecordingItem> {
     }
     else {
       // Check if any parts exist for this recording
-      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.id!);
+      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.BEId!);
       if (parts.isNotEmpty) {
         logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
-        DatabaseNew.concatRecordingParts(widget.recording.id!).then((_) {
+        DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {
           logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
-          DatabaseNew.getRecordingFromDbById(widget.recording.id!).then((updatedRecording) {
+          DatabaseNew.getRecordingFromDbById(widget.recording.BEId!).then((updatedRecording) {
             logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
             logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
             if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
@@ -136,8 +136,8 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> getParts() async {
-    logger.i('Recording ID: ${widget.recording.id}');
-    var parts = DatabaseNew.getPartsById(widget.recording.id!);
+    logger.i('Recording ID: ${widget.recording.BEId}');
+    var parts = DatabaseNew.getPartsById(widget.recording.BEId!);
     setState(() {
       this.parts = parts;
     });
