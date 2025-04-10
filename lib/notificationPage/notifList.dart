@@ -35,6 +35,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
+      selectedPage: BottomBarItem.notification,
       appBarTitle: 'Oznámení',
       content: ListView.separated(
         padding: const EdgeInsets.all(16),

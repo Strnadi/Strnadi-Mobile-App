@@ -431,6 +431,7 @@ class _LiveRecState extends State<LiveRec> {
         // Always forbid the Android back button by doing nothing
       },
       child: ScaffoldWithBottomBar(
+        selectedPage: BottomBarItem.recorder,
         content: SingleChildScrollView(
           child: ConstrainedBox(constraints: BoxConstraints(
             minHeight: MediaQuery.of(context).size.height,

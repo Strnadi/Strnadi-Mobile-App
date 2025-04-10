@@ -213,7 +213,7 @@ class _LoginState extends State<Login> {
   }
 
   _launchURL() async {
-    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
+    final Uri url = Uri.parse('https://strnadi.cz/podminky-pouzivani');
     if (!await launchUrl(url)) {
       throw Exception('Could not launch $url');
     }

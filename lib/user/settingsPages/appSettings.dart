@@ -61,6 +61,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
+      selectedPage: BottomBarItem.user,
       allawArrowBack: true,
       appBarTitle: 'Nastavení',
       content: Padding(

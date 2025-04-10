@@ -239,6 +239,7 @@ class _RecordingItemState extends State<RecordingItem> {
   Widget build(BuildContext context) {
     if (!loaded && widget.recording.path != null) {
       return ScaffoldWithBottomBar(
+        selectedPage: BottomBarItem.list,
         appBarTitle: widget.recording.name ?? '',
         content: const Center(child: CircularProgressIndicator()),
       );

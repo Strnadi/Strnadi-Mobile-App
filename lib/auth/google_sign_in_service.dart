@@ -119,10 +119,11 @@ class GoogleSignInService {
     } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
       logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
-      return null;
+      return {'status': response.statusCode};
     }
 
     Map<String,dynamic> user = jsonDecode(response.body);
+    user.addEntries({'status': response.statusCode}.entries);
     return user;
   }
 

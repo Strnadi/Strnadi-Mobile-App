@@ -214,6 +214,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
+      selectedPage: BottomBarItem.map,
       appBarTitle: null,
       content: LayoutBuilder(
         builder: (context, constraints) {

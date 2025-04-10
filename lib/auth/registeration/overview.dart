@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:logger/logger.dart';
@@ -115,12 +116,17 @@ class _RegOverviewState extends State<RegOverview> {
         await secureStorage.write(key: 'token', value: response.body.toString());
         await fb.refreshToken();
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VerifyEmail(userEmail: widget.email),
-          ),
-        );
+        if(widget.jwt == null){
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VerifyEmail(userEmail: widget.email),
+            ),
+          );
+        }
+        else{
+          Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+        }
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
         logger.w('Sign up failed: ${response.statusCode} | ${response.body}');

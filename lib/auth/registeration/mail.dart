@@ -258,7 +258,7 @@ class _RegMailState extends State<RegMail> {
                         }
                         _termsError = !_isChecked;
                       });
-                      if (isValidEmail(_emailController.text) && _isChecked && _emailErrorMessage == null) {
+                      if (isValidEmail(_emailController.text) && _isChecked && !emailExists) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -326,7 +326,7 @@ class _RegMailState extends State<RegMail> {
                       return;
                     }
                     gle.GoogleSignInService.signUpWithGoogle().then((user) {
-                      if (user != null) {
+                      if (user != null && user['status']==409) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -340,17 +340,17 @@ class _RegMailState extends State<RegMail> {
                           ),
                         );
                       }
-                    }).catchError((error) {
-                      if (error.toString().contains('409')) {
+                      else if(user != null && user['status']==409){
                         _showUserExistsPopup();
-                      } else {
+                      }
+                    }).catchError((error) {
                         setState(() {
                           _emailErrorMessage = 'Přihlášení přes Google selhalo';
                         });
                         logger.e(error);
                         Sentry.captureException(error);
                       }
-                    });
+                    );
                     // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(

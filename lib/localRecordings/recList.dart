@@ -311,6 +311,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
 
     return ScaffoldWithBottomBar(
+      selectedPage: BottomBarItem.list,
       logout: () => _showSortFilterOptions(context),
       icon: Icons.sort,
       appBarTitle:appBarTitle,

@@ -197,6 +197,7 @@ class _UserPageState extends State<UserPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
+      selectedPage: BottomBarItem.user,
       appBarTitle: 'User Page',
       logout: () => logout(context),
       content: Column(

@@ -300,6 +300,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
+      selectedPage: BottomBarItem.recorder,
       appBarTitle: 'Recorder',
       content: Center(
         child: Column(
