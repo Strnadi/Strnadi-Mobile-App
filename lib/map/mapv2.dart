@@ -14,20 +14,24 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
+import 'package:strnadi/map/RecordingPage.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
+import 'package:strnadi/user/userPage.dart';
 import '../config/config.dart';
 import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
@@ -50,6 +54,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
   final MapController _mapController = MapController();
   bool _isSatelliteView = false;
   List<Polyline> _gridLines = [];
+
+
+  final secureStorage = const FlutterSecureStorage();
 
   // Store the current camera values.
   LatLng _currentCenter = LatLng(50.0755, 14.4378);
@@ -185,14 +192,92 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
   }
 
-  void getRecordingFromPartId(int id) {
+  Future<(String?, String?)?> getProfilePic(String? mail) async {
+    var email;
+    final jwt = await secureStorage.read(key: 'token');
+
+    if (mail == null){
+      final jwt = await secureStorage.read(key: 'token');
+      email = JwtDecoder.decode(jwt!)['sub'];
+    }
+    else {
+      email = mail;
+    }
+    final url = Uri.parse(
+        'https://api.strnadi.cz/users/${email}/get-profile-photo');
+    logger.i(url);
+
+    try {
+      http.get(url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $jwt'
+          }).then((value) {
+        if (value.statusCode == 200) {
+          final Map<String, dynamic> data = jsonDecode(value.body);
+          return (data['photoBase64'], data['format']);
+        }else{
+          logger.e("Profile picture download failed with status code ${value.statusCode} $url");
+          return null;
+        }
+      });
+    }
+    catch (e) {
+      return null;
+    }
+    return null;
+  }
+
+  Future<UserData?> getUser(Recording rec) async {
+    var mail = rec.mail;
+
+    var url = Uri(scheme: 'https', host: Config.host, path: '/users/$mail');
+
+    var jwt = await FlutterSecureStorage().read(key: 'token');
+
+    logger.i("mail: $mail url: $url");
+
+    try{
+      final resp = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt'
+      }).then((val) => UserData.fromJson(json.decode(val.body)));
+      logger.i(resp.NickName);
+      // (String?, String?)? profilePicData = await getProfilePic(mail);
+      logger.i(resp.NickName);
+      return resp;
+      // if (profilePicData!.$1 == null || profilePicData.$2 == null){
+      //   logger.i(resp);
+      //   return resp;
+      // }
+      // else{
+      //   resp.ProfilePic = profilePicData.$1;
+      //   resp.format = profilePicData.$2;
+      //   return resp;
+      // }
+    }
+    catch(e){
+      Sentry.captureException(e, stackTrace: StackTrace.current);
+      return null;
+    }
+  }
+
+  void getRecordingFromPartId(int id) async {
       for (int rec = 0; rec < _fullRecordings.length; rec++) {
           if (_fullRecordings[rec].BEId == id) {
+            UserData? user = await getUser(_fullRecordings[rec]);
+            logger.i("user is $user");
+            List<RecordingPart?> parts = List.empty(growable: true);
+            parts.add(await DatabaseNew.getRecordingPartByBEID(_fullRecordings[rec].BEId!));
+
+            logger.i(parts[0]);
+
             showCupertinoSheet
-              (context: context, pageBuilder: (context) => RecordingItem(recording: _fullRecordings[rec],));
+              (context: context, pageBuilder: (context) => RecordingFromMap(recording: _fullRecordings[rec], user: user,));
             return;
           }
       }
+      
       showDialog(context: context, builder: (context) => AlertDialog(
         title: const Text('Chyba'),
         content: Text('Nahrávka nenalezena $id'),

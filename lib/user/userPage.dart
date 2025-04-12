@@ -77,9 +77,18 @@ class _UserPageState extends State<UserPage> {
     return file;
   }
 
-  Future<void> getProfilePic() async {
+
+  Future<void> getProfilePic(String? mail) async {
+    var email;
     final jwt = await secureStorage.read(key: 'token');
-    final String email = JwtDecoder.decode(jwt!)['sub'];
+
+    if (mail == null){
+      final jwt = await secureStorage.read(key: 'token');
+      email = JwtDecoder.decode(jwt!)['sub'];
+    }
+    else {
+      email = mail;
+    }
     final url = Uri.parse(
         'https://api.strnadi.cz/users/${email}/get-profile-photo');
     logger.i(url);

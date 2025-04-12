@@ -1,1 +1,3 @@
 Add the bottom bar side icon with method to be passed in (filter at the local recs, logout etc)
+
+remake the recording page since till now its trying to find parts in local db for map recordings

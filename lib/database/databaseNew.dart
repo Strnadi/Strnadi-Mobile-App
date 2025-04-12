@@ -42,6 +42,28 @@ final logger = Logger();
 
 /// Models
 
+class UserData{
+  String FirstName;
+  String LastName;
+  String? NickName;
+
+  String? ProfilePic;
+
+  String? format;
+
+  UserData({
+    required this.FirstName,
+    required this.LastName,
+    this.NickName,
+    this.ProfilePic,
+    this.format
+  });
+
+  factory UserData.fromJson(Map<String, Object?> json){
+    return UserData(FirstName: json['firstName'] as String, LastName: json['lastName'] as String, NickName: json['nickname'] as String?);
+  }
+}
+
 class RecordingDialect{
   int RecordingId;
   String dialect;
@@ -755,6 +777,28 @@ class DatabaseNew {
 
   static List<RecordingPart> getPartsById(int id) {
     return recordingParts.where((part) => part.recordingId == id).toList();
+  }
+
+  static Future<RecordingPart?> getRecordingPartByBEID(int id) async {
+  final url = Uri(scheme: "https", host: Config.host, path: "/recordings/$id", query: "parts=true&sound=false");
+
+    logger.i(url);
+
+    try{
+      final resp = await http.get(url);
+
+      if (resp.statusCode == 200) {
+        logger.i("sending req was succesfull");
+        var part = RecordingPart.fromBEJson(json.decode(resp.body)['parts'][0], id);
+        return part;
+      }
+      else{
+        logger.i("req failed with statuscode ${resp.statusCode} -> ${resp.body}");
+      }
+    }
+    catch (e){
+      return null;
+    }
   }
 
   static Future<void> downloadRecording(int id) async {
