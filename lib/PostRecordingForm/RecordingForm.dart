@@ -19,6 +19,7 @@
 
 import 'dart:io';
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
@@ -94,7 +95,7 @@ class _RecordingFormState extends State<RecordingForm> {
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
 
-  var placeTitle = "mapa";
+  var placeTitle = "";
 
   @override
   void initState() {
@@ -443,7 +444,7 @@ class _RecordingFormState extends State<RecordingForm> {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
         final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
@@ -485,11 +486,21 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<bool> hasInternetAccess() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+
+    if (connectivityResult == ConnectivityResult.none) {
+      return false; // No network
+    }
+
     try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
+      final result = await http.get(Uri.parse('https://www.google.com'))
+          .timeout(const Duration(seconds: 5));
+      if (result.statusCode == 200) {
+        return true; // Internet is available
+      }
       return false;
+    } catch (_) {
+      return false; // No internet despite having network
     }
   }
 
@@ -594,18 +605,22 @@ class _RecordingFormState extends State<RecordingForm> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text("Recording Form"),
+          centerTitle: true,
+          title: Text(placeTitle),
           actions: [
-            ElevatedButton(
-              onPressed: upload,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: yellow,
-                foregroundColor: yellowishBlack,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: ElevatedButton(
+                onPressed: upload,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: yellow,
+                  foregroundColor: yellowishBlack,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: const Text("Uložit"),
               ),
-              child: const Text("Uložit"),
             ),
           ],
           leading: IconButton(
@@ -758,33 +773,56 @@ class _RecordingFormState extends State<RecordingForm> {
                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(15),
-                            child: Container(
+                            child: SizedBox(
                               height: 200,
-                              child: FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: _computedCenter,
-                                  initialZoom: _computedZoom,
-                                  interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-                                ),
-                                children: [
-                                  TileLayer(
-                                    urlTemplate:
-                                    'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                                    userAgentPackageName: 'cz.delta.strnadi',
-                                  ),
-                                  if (_route.isNotEmpty)
-                                    PolylineLayer(
-                                      polylines: [
-                                        Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                              child: FutureBuilder<bool>(
+                                future: hasInternetAccess(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  } else if (!snapshot.hasData || snapshot.data == false) {
+                                    return Container(
+                                      color: Colors.grey.shade300,
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        "Mapu nelze načíst bez připojení k internetu.",
+                                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                                      ),
+                                    );
+                                  } else {
+                                    return FlutterMap(
+                                      options: MapOptions(
+                                        initialCenter: _computedCenter,
+                                        initialZoom: _computedZoom,
+                                        interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                      ),
+                                      children: [
+                                        TileLayer(
+                                          urlTemplate:
+                                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                          userAgentPackageName: 'cz.delta.strnadi',
+                                        ),
+                                        if (_route.isNotEmpty)
+                                          PolylineLayer(
+                                            polylines: [
+                                              Polyline(
+                                                  points: List.from(_route),
+                                                  strokeWidth: 4.0,
+                                                  color: Colors.blue),
+                                            ],
+                                          ),
+                                        MarkerLayer(
+                                          markers: widget.recordingParts.map((part) {
+                                            return Marker(
+                                              point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
+                                              child: Icon(Icons.place, color: Colors.red, size: 30),
+                                            );
+                                          }).toList(),
+                                        ),
                                       ],
-                                    ),
-
-                                  MarkerLayer(markers: widget.recordingParts
-                                      .map((part) => Marker(
-                                    point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!), child: Icon(Icons.place, color: Colors.red, size: 30),
-                                  ))
-                                      .toList()),
-                                ],
+                                    );
+                                  }
+                                },
                               ),
                             ),
                           ),

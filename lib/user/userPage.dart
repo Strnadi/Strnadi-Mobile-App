@@ -15,6 +15,7 @@
  */
 import 'dart:convert';
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -43,6 +44,7 @@ class _UserPageState extends State<UserPage> {
   late String userName = 'username';
   late String lastName = 'lastname';
   String? profileImagePath;
+  bool _isConnected = true;
 
   final logger = Logger();
   final secureStorage = const FlutterSecureStorage();
@@ -50,8 +52,16 @@ class _UserPageState extends State<UserPage> {
   @override
   void initState() {
     super.initState();
+    checkConnectivity();
     getUserData();
     getProfilePic();
+  }
+
+  Future<void> checkConnectivity() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+    setState(() {
+      _isConnected = connectivityResult != ConnectivityResult.none;
+    });
   }
 
   Future<File> convertBase64ToImage(String base64String, String fileName) async {
@@ -66,7 +76,6 @@ class _UserPageState extends State<UserPage> {
     await file.writeAsBytes(bytes);
     return file;
   }
-
 
   Future<void> getProfilePic() async {
     final jwt = await secureStorage.read(key: 'token');
@@ -230,7 +239,7 @@ class _UserPageState extends State<UserPage> {
               ],
             ),
           ),
-          MenuScreen(),
+          _isConnected ? MenuScreen() : Text('Osobní údaje nejsou dostupné bez připojení k internetu'),
         ],
       ),
     );

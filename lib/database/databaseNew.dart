@@ -447,6 +447,7 @@ class DatabaseNew {
           return id;
         }
       }
+      recording.mail = JwtDecoder.decode(await FlutterSecureStorage().read(key: 'token') ?? '')['sub'];
       final int id = await db.insert("recordings", recording.toJson());
       recording.id = id;
       recordings.add(recording);
@@ -896,7 +897,11 @@ class DatabaseNew {
       )
       ''');
     }, onOpen: (Database db) async {
-      final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
+      final String? jwt = await FlutterSecureStorage().read(key: 'token');
+      if (jwt == null) {
+        logger.i('No JWT token found. Skipping loading recordings.');
+        return;
+      }
       final String email = JwtDecoder.decode(jwt)['sub'];
       final List<Map<String, dynamic>> recs = await db.query("recordings", where: "mail = ?", whereArgs: [email]);
       recordings = List.generate(recs.length, (i) => Recording.fromJson(recs[i]));

@@ -285,7 +285,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
 
     // Create a title that shows current filter
-    String appBarTitle = 'Záznamy';
+    String appBarTitle = 'Moje nahrávky';
     if (sortOptions != SortBy.none) {
       String sortName = '';
       switch (sortOptions) {
@@ -298,19 +298,39 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
       if (sortName.isNotEmpty) {
         if (sortOptions != SortBy.downloaded) {
-          appBarTitle = 'Záznamy (by $sortName ${isAscending ? '↑' : '↓'})';
+          appBarTitle = 'Moje nahrávky (podle $sortName ${isAscending ? '↑' : '↓'})';
         } else {
-          appBarTitle = 'Záznamy (Pouze stažené)';
+          appBarTitle = 'Moje nahrávky (Pouze stažené)';
         }
       }
     }
 
-    return ScaffoldWithBottomBar(
-      selectedPage: BottomBarItem.list,
-      logout: () => _showSortFilterOptions(context),
-      icon: Icons.sort,
-      appBarTitle:appBarTitle,
-      content: Padding(
+    Color yellow = const Color(0xFFFFD641);
+
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Text(
+            appBarTitle,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              fontFamily: 'Bricolage Grotesque',
+            ),
+          ),
+        ),
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Image.asset('assets/icons/sort.png', width: 30, height: 30),
+            onPressed: () => _showSortFilterOptions(context),
+          )
+        ]
+      ),
+      body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: RefreshIndicator(
           onRefresh: () async {
@@ -435,7 +455,11 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             },
           ),
         ),
-      )
+      ),
+      bottomNavigationBar: ReusableBottomAppBar(
+        currentPage: BottomBarItem.list,
+
+      ),
     );
   }
 

@@ -372,6 +372,23 @@ class _RecordingItemState extends State<RecordingItem> {
                         ],
                       ),
                     ),
+                    Visibility(
+                      visible: widget.recording.sent == false && widget.recording.sending == false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.send),
+                          label: const Text('Odeslat záznam'),
+                          onPressed: () {
+                            DatabaseNew.sendRecordingBackground(widget.recording.id!);
+                            // Add your send logic here
+                            logger.i("Sending recording: ${widget.recording.id}");
+                            // For example:
+                            // await sendRecording(widget.recording);
+                          },
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
