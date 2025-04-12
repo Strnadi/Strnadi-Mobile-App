@@ -932,8 +932,8 @@ class DatabaseNew {
       ''');
       await db.execute('''
       CREATE TABLE Dialects (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        RecordingId INTEGER NOT NULL,
+        RecordingId INTEGER PRIMARY KEY AUTOINCREMENT,
+        BEId INTEGER UNIQUE,
         dialect TEXT NOT NULL,
         StartDate TEXT NOT NULL,
         EndDate TEXT NOT NULL,
@@ -1024,9 +1024,10 @@ class DatabaseNew {
     return null;
   }
 
-  static Future<void> InsertRecordingDialect(RecordingDialect recordingDialect) async {
+  static Future<void> insertRecordingDialect(RecordingDialect recordingDialect) async {
     final db = await database;
-    await db.insert('Dialects', recordingDialect.toJson());
+    await db.insert("Dialects", recordingDialect.toJson());
+    logger.i('Recording dialect ${recordingDialect.RecordingId} inserted.');
   }
 
   static Future<List<RecordingDialect>> getRecordingDialects(int recordingId) async {

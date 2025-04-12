@@ -29,6 +29,7 @@ import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localRecordings/dialectBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../PostRecordingForm/RecordingForm.dart';
@@ -56,6 +57,8 @@ class _RecordingItemState extends State<RecordingItem> {
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
 
+  RecordingDialect? dialect;
+
   final MapController _mapController = MapController();
 
   String placeTitle = 'Mapa';
@@ -65,6 +68,7 @@ class _RecordingItemState extends State<RecordingItem> {
     super.initState();
     locationService = LocationService();
     getParts();
+    GetDialect();
     logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
 
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
@@ -83,8 +87,6 @@ class _RecordingItemState extends State<RecordingItem> {
           isPlaying = playing;
         });
       });
-
-
       getData().then((_) {
         setState(() {
           loaded = true;
@@ -119,6 +121,20 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       }
     }
+  }
+
+  Future<void> GetDialect() async {
+    var recordingId = widget.recording.id!;
+    var dialect = await DatabaseNew.getRecordingDialects(recordingId);
+    if (dialect.isEmpty) {
+      setState(() {
+        this.dialect = null;
+      });
+      return;
+    }
+    setState(() {
+      this.dialect = dialect.first;
+    });
   }
 
 
@@ -356,6 +372,10 @@ class _RecordingItemState extends State<RecordingItem> {
                         ),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (dialect != null) DialectBadge(
+                      dialect: dialect!,
                     ),
                     const SizedBox(height: 10),
                     Container(

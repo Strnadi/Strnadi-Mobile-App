@@ -432,210 +432,168 @@ class _LiveRecState extends State<LiveRec> {
       },
       child: ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.recorder,
-        content: SingleChildScrollView(
-          child: ConstrainedBox(constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height,
-          ),
-          child: Column(
-            mainAxisAlignment: _recordState == RecordState.stop ? MainAxisAlignment.start : MainAxisAlignment.center,
-            children: [
-              SizedBox(height: 64),
-              if (_recordState == RecordState.stop) ...[
-                SizedBox(
-                  height: 300,
-                  width: double.infinity,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20.0),
-                            child: Image.asset(
-                              'assets/images/bird_example.jpg',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                      ),
-                      Positioned(
-                        bottom: 12,
-                        left: 32,
-                        child: Container(
-                          color: Colors.black54,
-                          padding: const EdgeInsets.all(4),
-                          child: const Text(
-                            'Foto: Tomáš Bělka',
-                            style: TextStyle(color: Colors.white),
+        content: ConstrainedBox(constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height,
+        ),
+        child: Column(
+          mainAxisAlignment: _recordState == RecordState.stop ? MainAxisAlignment.start : MainAxisAlignment.center,
+          children: [
+            SizedBox(height: 64),
+            if (_recordState == RecordState.stop) ...[
+              SizedBox(
+                height: 300,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20.0),
+                          child: Image.asset(
+                            'assets/images/bird_example.jpg',
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-              // Recording button with vertical padding
-              Padding(
-                padding: _recordState == RecordState.stop? const EdgeInsets.only(top: 20) : const EdgeInsets.only(top: 240),
-                child: Opacity(
-                  opacity: _hasMicPermission ? 1.0 : 0.5,
-                  child: AbsorbPointer(
-                    absorbing: _isProcessingRecording, // disable when processing
-                    child: Semantics(
-                      label: _recordState == RecordState.stop
-                          ? "Start recording"
-                          : _recordState == RecordState.record
-                          ? "Pause recording"
-                          : "Resume recording",
-                      button: true,
-                      child: GestureDetector(
-                        onTap: _toggleRecording,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: fillColor,
-                            border: border,
-                            boxShadow: boxShadows,
-                          ),
-                          child: _recordState == RecordState.pause
-                              ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.play_arrow,
-                                size: 40,
-                                color: iconColor,
-                              ),
-                              Icon(
-                                Icons.mic,
-                                size: 20,
-                                color: iconColor,
-                              ),
-                            ],
-                          )
-                              : Icon(
-                            iconData,
-                            color: iconColor,
-                            size: 40,
-                          ),
+                    ),
+                    Positioned(
+                      bottom: 12,
+                      left: 32,
+                      child: Container(
+                        color: Colors.black54,
+                        padding: const EdgeInsets.all(4),
+                        child: const Text(
+                          'Foto: Tomáš Bělka',
+                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
-              // Timer with a round border (red when recording, gray otherwise)
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: _recordState == RecordState.record ? primaryRed : Colors.grey,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Text(
-                  _formatTime(totalTime),
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                    fontFamily: 'Bricolage Grotesque',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Status text
-              if (_recordState == RecordState.stop) ...[
-                Text(
-                  "Stisknutím zahájíte nahrávání",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                    fontFamily: 'Bricolage Grotesque',
-                  ),
-                ),
-              ] else if (_recordState == RecordState.record) ...[
-                Text(
-                  "Nahrává se…",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                    fontFamily: 'Bricolage Grotesque',
-                  ),
-                ),
-              ] else if (_recordState == RecordState.pause) ...[
-                Text(
-                  "Nahrávání pozastaveno – klepněte pro obnovení",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                    fontFamily: 'Bricolage Grotesque',
-                  ),
-                ),
-              ],
-              const SizedBox(height: 40),
-
-              // Finish button is visible when recording or paused
-              if (_recordState == RecordState.record || _recordState == RecordState.pause)
-                Semantics(
-                  label: "Finish and continue",
-                  button: true,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _stop,
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          backgroundColor: secondaryRed,
-                          foregroundColor: primaryRed,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Bricolage Grotesque',
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                            horizontal: 24,
-                          ),
+            ],
+            // Recording button with vertical padding
+            Padding(
+              padding: _recordState == RecordState.stop? const EdgeInsets.only(top: 20) : const EdgeInsets.only(top: 240),
+              child: Opacity(
+                opacity: _hasMicPermission ? 1.0 : 0.5,
+                child: AbsorbPointer(
+                  absorbing: _isProcessingRecording, // disable when processing
+                  child: Semantics(
+                    label: _recordState == RecordState.stop
+                        ? "Start recording"
+                        : _recordState == RecordState.record
+                        ? "Pause recording"
+                        : "Resume recording",
+                    button: true,
+                    child: GestureDetector(
+                      onTap: _toggleRecording,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: fillColor,
+                          border: border,
+                          boxShadow: boxShadows,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: _recordState == RecordState.pause
+                            ? Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.stop, color: primaryRed),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Dokončit a pokračovat",
-                              style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                            Icon(
+                              Icons.play_arrow,
+                              size: 40,
+                              color: iconColor,
+                            ),
+                            Icon(
+                              Icons.mic,
+                              size: 20,
+                              color: iconColor,
                             ),
                           ],
+                        )
+                            : Icon(
+                          iconData,
+                          color: iconColor,
+                          size: 40,
                         ),
                       ),
                     ),
                   ),
                 ),
-              // Inserted discard recording button moved to bottom of UI
-              if (_recordState == RecordState.record || _recordState == RecordState.pause)
-                Padding(
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Timer with a round border (red when recording, gray otherwise)
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _recordState == RecordState.record ? primaryRed : Colors.grey,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Text(
+                _formatTime(totalTime),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Status text
+            if (_recordState == RecordState.stop) ...[
+              Text(
+                "Stisknutím zahájíte nahrávání",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ] else if (_recordState == RecordState.record) ...[
+              Text(
+                "Nahrává se…",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ] else if (_recordState == RecordState.pause) ...[
+              Text(
+                "Nahrávání pozastaveno – klepněte pro obnovení",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ],
+            const SizedBox(height: 40),
+
+            // Finish button is visible when recording or paused
+            if (_recordState == RecordState.record || _recordState == RecordState.pause)
+              Semantics(
+                label: "Finish and continue",
+                button: true,
+                child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _discardRecording,
+                      onPressed: _stop,
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
-                        backgroundColor: Colors.grey,
-                        foregroundColor: Colors.white,
+                        backgroundColor: secondaryRed,
+                        foregroundColor: primaryRed,
                         textStyle: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -653,10 +611,10 @@ class _LiveRecState extends State<LiveRec> {
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.delete, color: Colors.white),
+                          Icon(Icons.stop, color: primaryRed),
                           const SizedBox(width: 8),
                           const Text(
-                            "Zahodit nahrávání",
+                            "Dokončit a pokračovat",
                             style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                           ),
                         ],
@@ -664,10 +622,50 @@ class _LiveRecState extends State<LiveRec> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 40),
-            ],
-          ),
-          ),
+              ),
+            // Inserted discard recording button moved to bottom of UI
+            if (_recordState == RecordState.record || _recordState == RecordState.pause)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _discardRecording,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Bricolage Grotesque',
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.delete, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "Zahodit nahrávání",
+                          style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 40),
+          ],
+        ),
         ),
       )
     );

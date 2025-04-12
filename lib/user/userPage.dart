@@ -54,7 +54,7 @@ class _UserPageState extends State<UserPage> {
     super.initState();
     checkConnectivity();
     getUserData();
-    getProfilePic();
+    getProfilePic(null);
   }
 
   Future<void> checkConnectivity() async {
@@ -108,7 +108,7 @@ class _UserPageState extends State<UserPage> {
             });
           });
         }else{
-          logger.e("Profile picture download failed with status code ${value.statusCode}");
+          logger.e("Profile picture download failed with status code ${value.statusCode} ${value.body}");
         }
       });
     }

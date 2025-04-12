@@ -295,63 +295,79 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void SendDialects() async {
-    var id = await DatabaseNew.getRecordingBEIDbyID(recording.id!);
+    var id = _recordingId;
 
     if (id == null) {
       logger.e("Recording BEID is null");
       return;
     }
 
-    for (DialectModel dialect in dialectSegments) {
-      var token = FlutterSecureStorage();
-      var jwt = await token.read(key: 'token');
-      logger.i("jwt is $jwt");
-      logger.i("token is $jwt");
-      var body = jsonEncode(<String, dynamic>{
-        'recordingId': id,
-        'StartDate': recording.createdAt
-            .add(
-            Duration(milliseconds: dialect.startTime.toInt()))
-            .toIso8601String(),
-        'endDate': recording.createdAt.add(
-            Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
-        'dialectCode': dialect.label,
-      });
-      try {
-        final url = Uri(scheme: 'https',
-            host: Config.host,
-            path: '/recordings/filtered/upload');
-        await http.post(
-          url,
-          headers: <String, String>{
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt',
-          },
-          body: jsonEncode(<String, dynamic>{
-            'recordingId': id,
-            'StartDate': recording.createdAt
-                .add(
-                Duration(milliseconds: dialect.startTime.toInt()))
-                .toIso8601String(),
-            'endDate': recording.createdAt
-                .add(
-                Duration(milliseconds: dialect.endTime.toInt()))
-                .toIso8601String(),
-            'dialectCode': dialect.label,
-          }),
-        ).then((value) {
-          if (value.statusCode == 200) {
-            logger.i("Dialect sent successfully");
-          } else {
-            logger.e("Dialect sending failed with status code ${value
-                .statusCode} and body $body");
-          }
-        });
-      } catch (e, stackTrace) {
-        logger.e(
-            "Error inserting dialect: $e", error: e, stackTrace: stackTrace);
-      }
-    }
+    var dialect = dialectSegments.first;
+    var body = RecordingDialect(
+      RecordingId: id,
+      StartDate: recording.createdAt
+          .add(
+          Duration(milliseconds: dialect.startTime.toInt())),
+      EndDate: recording.createdAt.add(
+          Duration(milliseconds: dialect.endTime.toInt())),
+      dialect: dialect.type,
+
+
+    );
+
+    DatabaseNew.insertRecordingDialect(body);
+    logger.i("Dialect inserted into database");
+
+    // for (DialectModel dialect in dialectSegments) {
+    //   var token = FlutterSecureStorage();
+    //   var jwt = await token.read(key: 'token');
+    //   logger.i("jwt is $jwt");
+    //   logger.i("token is $jwt");
+    //   var body = jsonEncode(<String, dynamic>{
+    //     'recordingId': id,
+    //     'StartDate': recording.createdAt
+    //         .add(
+    //         Duration(milliseconds: dialect.startTime.toInt()))
+    //         .toIso8601String(),
+    //     'endDate': recording.createdAt.add(
+    //         Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
+    //     'dialectCode': dialect.label,
+    //   });
+    //   try {
+    //     final url = Uri(scheme: 'https',
+    //         host: Config.host,
+    //         path: '/recordings/filtered/upload');
+    //     await http.post(
+    //       url,
+    //       headers: <String, String>{
+    //         'Content-Type': 'application/json',
+    //         'Authorization': 'Bearer $jwt',
+    //       },
+    //       body: jsonEncode(<String, dynamic>{
+    //         'recordingId': id,
+    //         'StartDate': recording.createdAt
+    //             .add(
+    //             Duration(milliseconds: dialect.startTime.toInt()))
+    //             .toIso8601String(),
+    //         'endDate': recording.createdAt
+    //             .add(
+    //             Duration(milliseconds: dialect.endTime.toInt()))
+    //             .toIso8601String(),
+    //         'dialectCode': dialect.label,
+    //       }),
+    //     ).then((value) {
+    //       if (value.statusCode == 200) {
+    //         logger.i("Dialect sent successfully");
+    //       } else {
+    //         logger.e("Dialect sending failed with status code ${value
+    //             .statusCode} and body $body");
+    //       }
+    //     });
+    //   } catch (e, stackTrace) {
+    //     logger.e(
+    //         "Error inserting dialect: $e", error: e, stackTrace: stackTrace);
+    //   }
+    // }
   }
 
   void _showDialectSelectionDialog() {
