@@ -537,10 +537,11 @@ class DatabaseNew {
 
   static Future<void> syncRecordings() async {
     if (fetching) return;
+    logger.i("🔄 Syncing recordings...");
     try {
       await fetchRecordingsFromBE();
       await onFetchFinished();
-      logger.i('Recordings fetched and synced.');
+      logger.i("✅ Recordings fetched and synced.");
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -627,14 +628,12 @@ class DatabaseNew {
 
   static Future<int?> getRecordingBEIDbyID(int id) async {
     var db = await database;
-
-    db.query("recordings", where: "id = ?", whereArgs: [id]).then((value) {
-      if (value.isNotEmpty) {
-        return value.first["BEId"];
-      } else {
-        return -1;
-      }
-    });
+    var value = await db.query("recordings", where: "id = ?", whereArgs: [id]);
+    if (value.isNotEmpty) {
+      return value.first["BEId"] as int?;
+    } else {
+      return null;
+    }
   }
 
 
@@ -897,7 +896,9 @@ class DatabaseNew {
       )
       ''');
     }, onOpen: (Database db) async {
-      final List<Map<String, dynamic>> recs = await db.query("recordings");
+      final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
+      final String email = JwtDecoder.decode(jwt)['sub'];
+      final List<Map<String, dynamic>> recs = await db.query("recordings", where: "mail = ?", whereArgs: [email]);
       recordings = List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
       final List<Map<String, dynamic>> parts = await db.query("recordingParts");
       recordingParts = List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));

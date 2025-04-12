@@ -25,6 +25,7 @@ import 'main.dart';
 import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 // 1. Add enum for bottom bar items
 enum BottomBarItem { map, list, recorder, notification, user }
@@ -125,7 +126,18 @@ class ReusableBottomAppBar extends StatelessWidget {
               height: 40,
             ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              final connectivityResult = await Connectivity().checkConnectivity();
+              if (connectivityResult == ConnectivityResult.none) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                content: Text('Chybí připojení k internetu. Mapa není dostupná.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+
               if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.pushReplacement(
                   context,

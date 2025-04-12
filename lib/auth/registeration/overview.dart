@@ -117,6 +117,7 @@ class _RegOverviewState extends State<RegOverview> {
         await fb.refreshToken();
 
         if(widget.jwt == null){
+          await secureStorage.write(key: 'verified', value: 'false');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

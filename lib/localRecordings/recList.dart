@@ -29,6 +29,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 final logger = Logger();
 
@@ -76,6 +77,25 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    Connectivity().checkConnectivity().then((result) {
+      if (result == ConnectivityResult.none) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Offline režim'),
+              content: const Text('Jste offline. Budou dostupné pouze lokálně uložené záznamy.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        });
+      }
+    });
     getRecordings();
   }
 
@@ -99,13 +119,14 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     });
   }
 
-  void openRecording(Recording recording) {
-    Navigator.push(
+  void openRecording(Recording recording) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RecordingItem(recording: recording),
       ),
     );
+    getRecordings(); // Refresh the list after returning
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -220,21 +241,22 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   }
 
   void _applySorting() {
+    List<Recording> sortedList = List.from(list);
     switch (sortOptions) {
       case SortBy.name:
-        list.sort((a, b) {
+        sortedList.sort((a, b) {
           int result = (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase());
           return isAscending ? result : -result;
         });
         break;
       case SortBy.date:
-        list.sort((a, b) {
+        sortedList.sort((a, b) {
           int result = a.createdAt!.compareTo(b.createdAt!);
           return isAscending ? result : -result;
         });
         break;
       case SortBy.ebc:
-        list.sort((a, b) {
+        sortedList.sort((a, b) {
           int result = a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!);
           return isAscending ? result : -result;
         });
@@ -242,6 +264,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       default:
         break;
     }
+    setState(() {
+      list = sortedList;
+    });
   }
 
   String _truncateName(String name, {int maxLength = 20}) {

@@ -188,6 +188,26 @@ class _RecordingFormState extends State<RecordingForm> {
 
     _route.addAll(widget.route);
 
+    // Fix any parts with invalid (0.0, 0.0) GPS coordinates
+    for (var part in recordingParts) {
+      if (part.gpsLatitudeStart == 0.0 && part.gpsLongitudeStart == 0.0) {
+        // Try to use a previous valid part's location
+        var validParts = recordingParts.where((p) =>
+        p != part &&
+            p.gpsLatitudeStart != 0.0 &&
+            p.gpsLongitudeStart != 0.0);
+        if (validParts.isNotEmpty) {
+          var replacement = validParts.first;
+          part.gpsLatitudeStart = replacement.gpsLatitudeStart;
+          part.gpsLongitudeStart = replacement.gpsLongitudeStart;
+        } else if (_route.isNotEmpty) {
+          // Fallback to route if available
+          part.gpsLatitudeStart = _route.first.latitude;
+          part.gpsLongitudeStart = _route.first.longitude;
+        } // else leave as (0.0, 0.0)
+      }
+    }
+
     reverseGeocode(widget.recordingParts[0].gpsLatitudeStart!, widget.recordingParts[0].gpsLongitudeStart!);
   }
 
@@ -274,7 +294,6 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void SendDialects() async {
-
     var id = await DatabaseNew.getRecordingBEIDbyID(recording.id!);
 
     if (id == null) {
@@ -289,12 +308,18 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i("token is $jwt");
       var body = jsonEncode(<String, dynamic>{
         'recordingId': id,
-        'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
-        'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
+        'StartDate': recording.createdAt
+            .add(
+            Duration(milliseconds: dialect.startTime.toInt()))
+            .toIso8601String(),
+        'endDate': recording.createdAt.add(
+            Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
         'dialectCode': dialect.label,
       });
       try {
-        final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
+        final url = Uri(scheme: 'https',
+            host: Config.host,
+            path: '/recordings/filtered/upload');
         await http.post(
           url,
           headers: <String, String>{
@@ -303,19 +328,27 @@ class _RecordingFormState extends State<RecordingForm> {
           },
           body: jsonEncode(<String, dynamic>{
             'recordingId': id,
-            'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
-            'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
+            'StartDate': recording.createdAt
+                .add(
+                Duration(milliseconds: dialect.startTime.toInt()))
+                .toIso8601String(),
+            'endDate': recording.createdAt
+                .add(
+                Duration(milliseconds: dialect.endTime.toInt()))
+                .toIso8601String(),
             'dialectCode': dialect.label,
           }),
         ).then((value) {
           if (value.statusCode == 200) {
             logger.i("Dialect sent successfully");
           } else {
-            logger.e("Dialect sending failed with status code ${value.statusCode} and body $body");
+            logger.e("Dialect sending failed with status code ${value
+                .statusCode} and body $body");
           }
         });
       } catch (e, stackTrace) {
-        logger.e("Error inserting dialect: $e", error: e, stackTrace: stackTrace);
+        logger.e(
+            "Error inserting dialect: $e", error: e, stackTrace: stackTrace);
       }
     }
   }
@@ -488,7 +521,7 @@ class _RecordingFormState extends State<RecordingForm> {
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
 
     // Log the recording path before insertion
-    logger.i("Recording before insertion: path=${recording.path}");
+    //logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
 

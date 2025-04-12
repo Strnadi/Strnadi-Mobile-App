@@ -88,6 +88,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       );
       if (response.statusCode == 200) {
         logger.i('Verification email sent');
+        _startTimer();
       } else if (response.statusCode == 208) {
         logger.i('Email already verified');
         showDialog(

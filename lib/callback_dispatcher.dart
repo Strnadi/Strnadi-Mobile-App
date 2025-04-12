@@ -80,12 +80,12 @@ void callbackDispatcher() {
           logger.i('Starting to send recording $recordingId in background');
           await DatabaseNew.sendRecording(recording, parts);
           logger.i("Recording $recordingId uploaded successfully in background");
-          await DatabaseNew.sendLocalNotification("Recording Uploaded", "Recording $recordingId uploaded successfully in background");
+          await DatabaseNew.sendLocalNotification("Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
         } catch (e, stackTrace) {
           recording.sending = false;
           await DatabaseNew.updateRecording(recording);
           logger.e("Failed to upload recording $recordingId in background: $e", error: e, stackTrace: stackTrace);
-          await DatabaseNew.sendLocalNotification("Recording Upload Failed", "Recording $recordingId failed to upload: $e");
+          await DatabaseNew.sendLocalNotification("Nahrávání nahrávky selhalo", "Odesílání nahrávky $recordingId selhalo s chybou: $e");
         }
       } else {
         logger.e("Recording $recordingId not found in DB");

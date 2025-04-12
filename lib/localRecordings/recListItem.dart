@@ -19,6 +19,7 @@
 
 import 'dart:convert';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
@@ -187,6 +188,24 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> _downloadRecording() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Stahování nedostupné'),
+          content: const Text('Pro stažení nahrávky je vyžadováno připojení k internetu.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     try {
       logger.i("Initiating download for recording id: ${widget.recording.id}");
       await DatabaseNew.downloadRecording(widget.recording.id!);

@@ -14,9 +14,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'dart:io';
 import 'package:strnadi/auth/authorizator.dart';
@@ -55,11 +57,21 @@ void _showMessage(BuildContext context, String message) {
 }
 
 Future<bool> hasInternetAccess() async {
+  var connectivityResult = await Connectivity().checkConnectivity();
+
+  if (connectivityResult == ConnectivityResult.none) {
+    return false; // No network
+  }
+
   try {
-    final result = await InternetAddress.lookup('google.com');
-    return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-  } on SocketException catch (_) {
+    final result = await http.get(Uri.parse('https://www.google.com'))
+        .timeout(const Duration(seconds: 5));
+    if (result.statusCode == 200) {
+      return true; // Internet is available
+    }
     return false;
+  } catch (_) {
+    return false; // No internet despite having network
   }
 }
 
@@ -133,8 +145,8 @@ Future<void> checkInternetConnection(BuildContext context) async {
     logger.i("Has Internet access");
   } else {
     logger.e("Does not have internet access");
-    _showMessage(
-        context, "Nemáte připojení k internetu aplikace nebude fungovat");
+    // _showMessage(
+    //     context, "Nemáte připojení k internetu aplikace nebude fungovat");
   }
 }
 

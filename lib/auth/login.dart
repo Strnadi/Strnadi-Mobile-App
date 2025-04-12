@@ -86,24 +86,37 @@ class _LoginState extends State<Login> {
       logger.i('Login response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 202) {
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
-        if (await FlutterSecureStorage().read(key: 'token') != null){
-          FlutterSecureStorage().delete(key: 'token');
+        if (await secureStorage.read(key: 'token') != null){
+          secureStorage.delete(key: 'token');
         }
-        await const FlutterSecureStorage().write(key: 'token', value: response.body);
+        await secureStorage.write(key: 'token', value: response.body);
+        final verifyUrl = Uri.https(Config.host, '/auth/verify-jwt');
+        final verifyResponse = await http.get(
+          verifyUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${response.body}',
+          },
+        );
+
+        if (verifyResponse.statusCode == 403) {
+          // If the JWT check returns 403, the account is not verified.
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+            ),
+          );
+          return;
+        }
+        await secureStorage.write(key: 'verified', value: 'true');
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
       } else if (response.statusCode == 403) {
-        FlutterSecureStorage().write(key: 'token', value: response.body.toString());
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => EmailNotVerified(userEmail: _emailController.text),
-          ),
-        );
-      } else if(response.statusCode == 403){
         FlutterSecureStorage().write(key: 'token', value: response.body.toString());
         Navigator.pushReplacement(
           context,

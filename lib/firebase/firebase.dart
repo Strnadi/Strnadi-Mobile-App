@@ -138,7 +138,7 @@ Future<void> addDevice() async{
   adding = true;
 
   while(!(await auth.isLoggedIn()==auth.AuthStatus.loggedIn)){
-    Future.delayed(Duration(seconds: 1));
+    await Future.delayed(Duration(seconds: 10));
   }
 
   try {
