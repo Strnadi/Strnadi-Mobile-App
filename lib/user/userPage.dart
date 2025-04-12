@@ -192,22 +192,40 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> logout(BuildContext context) async {
-    await secureStorage.deleteAll();
-    await strnadiFirebase.deleteToken();
 
-    GoogleSignInService.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false,
-    );
+    showDialog(context: context, builder: (context) {
+      return AlertDialog(
+        title: const Text('Odhlásit se'),
+        content: const Text('Opravde se chcete odhlásit?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Zrušit'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              GoogleSignInService.signOut();
+              await secureStorage.deleteAll();
+              await strnadiFirebase.deleteToken();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => MyApp()),
+                    (route) => false,
+              );
+            },
+            child: const Text('Odhlásit se'),
+          ),
+        ],
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
-      appBarTitle: 'User Page',
+      appBarTitle: '',
       logout: () => logout(context),
       content: Column(
         mainAxisAlignment: MainAxisAlignment.spaceAround,

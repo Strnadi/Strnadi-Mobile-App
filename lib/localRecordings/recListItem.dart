@@ -138,7 +138,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Future<void> getParts() async {
     logger.i('Recording ID: ${widget.recording.BEId}');
-    var parts = DatabaseNew.getPartsById(widget.recording.BEId!);
+    var parts = DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
     });
