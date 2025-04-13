@@ -326,7 +326,7 @@ class _RegMailState extends State<RegMail> {
                       return;
                     }
                     gle.GoogleSignInService.signUpWithGoogle().then((user) {
-                      if (user != null && user['status']==409) {
+                      if (user != null && user['status']!=409) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(

@@ -53,6 +53,9 @@ class MapScreenV2 extends StatefulWidget {
 class _MapScreenV2State extends State<MapScreenV2> {
   final MapController _mapController = MapController();
   bool _isSatelliteView = false;
+  String _recordingAuthorFilter = 'all';
+  String _dataFilter = 'new';
+  bool _showConqueredSectors = true;
   List<Polyline> _gridLines = [];
 
 
@@ -162,11 +165,23 @@ class _MapScreenV2State extends State<MapScreenV2> {
   void getRecordings() async {
 
     try {
+      String? email;
+      if (_recordingAuthorFilter == 'me') {
+        final jwt = await secureStorage.read(key: 'token');
+        email = JwtDecoder.decode(jwt!)['sub'];
+      }
+
       final response = await http.get(
-        Uri(scheme: 'https', host: Config.host, path: '/recordings', queryParameters: {
-          'parts': 'true',
-          'sound': 'false',
-        }),
+        Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: '/recordings',
+          queryParameters: {
+            'parts': 'true',
+            'sound': 'false',
+            if (email != null) 'email': email,
+          },
+        ),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -321,7 +336,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   minZoom: 1,
                   maxZoom: 19,
-
                   initialRotation: 0,
                 ),
                 children: [
@@ -402,13 +416,40 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ],
               ),
               Positioned(
-                top: 75,
+                top: 36,
                 left: 16,
                 right: 16,
-                child: SearchBarWidget(
-                  onLocationSelected: (LatLng location) {
-                    _mapController.move(location, _currentZoom);
-                  },
+                child: Row(
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final height = 48.0; // match the SearchBar height
+                        return SizedBox(
+                          width: height,
+                          height: height,
+                          child: FloatingActionButton(
+                            heroTag: 'info',
+                            mini: true,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            backgroundColor: Colors.white,
+                              onPressed: _showLegendDialog,
+                            child: Image.asset('assets/icons/info.png', width: 30, height: 30),
+                            tooltip: 'Info',
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SearchBarWidget(
+                        onLocationSelected: (LatLng location) {
+                          _mapController.move(location, _currentZoom);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Positioned(
@@ -417,60 +458,40 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Reset button: recenter the map to current location and reset orientation to north.
-                    FloatingActionButton(
-                      heroTag: 'reset',
-                      mini: true,
-                      tooltip: 'Reset orientation & recenter',
-                      onPressed: () async {
-                        // Update current location.
-                        await _getCurrentLocation();
-                        // Recenter the map to the updated current location with the current zoom level.
-                        _mapController.move(_currentPosition, _currentZoom);
-                        // If your map supports rotation (and you’ve enabled it in MapOptions),
-                        // you can reset the orientation to north by uncommenting the next line.
-                        // _mapController.rotate(0);
-                        _updateGrid();
-                      },
-                      child: const Icon(Icons.gps_fixed),
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: FloatingActionButton(
+                        heroTag: 'mapSettings',
+                        mini: true,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Image.asset('assets/icons/sort.png', width: 24, height: 24),
+                        backgroundColor: Colors.white,
+                        onPressed: _openMapFilter,
+                        tooltip: 'Map Settings',
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    FloatingActionButton(
-                      heroTag: 'zoomIn',
-                      mini: true,
-                      child: const Icon(Icons.add),
-                      tooltip: 'Zoom In',
-                      onPressed: () {
-                        _mapController.move(_currentPosition, _currentZoom + 1);
-                        _currentZoom += 1;
-                        _updateGrid();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton(
-                      heroTag: 'zoomOut',
-                      mini: true,
-                      child: const Icon(Icons.remove),
-                      tooltip: 'Zoom Out',
-                      onPressed: () {
-                        _mapController.move(_currentPosition, _currentZoom - 1);
-                        _currentZoom -= 1;
-                        _updateGrid();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton(
-                      heroTag: 'toggleSatellite',
-                      mini: true,
-                      child: Icon(_isSatelliteView ? Icons.map : Icons.satellite),
-                      onPressed: () {
-                        setState(() {
-                          _isSatelliteView = !_isSatelliteView;
-                        });
-                      },
-                      tooltip: _isSatelliteView
-                          ? 'Switch to Map View'
-                          : 'Switch to Satellite View',
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: FloatingActionButton(
+                        heroTag: 'reset',
+                        mini: true,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        tooltip: 'Reset orientation & recenter',
+                        onPressed: () async {
+                          await _getCurrentLocation();
+                          _mapController.move(_currentPosition, _currentZoom);
+                          _updateGrid();
+                        },
+                        child: Image.asset('assets/icons/location.png', width: 24, height: 24),
+                        backgroundColor: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -534,6 +555,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   void _updateGrid() {
+    if (_currentZoom < 7) {
+      setState(() {
+        _gridLines = [];
+      });
+      return;
+    }
     if (_mapSize == null) return;
     final bounds = calculateBounds();
     final double northBound = bounds.north;
@@ -576,6 +603,322 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
+  void _openMapFilter() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.2,
+          maxChildSize: 0.9,
+          builder: (BuildContext context, ScrollController controller) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setModalState) {
+                  return ListView(
+                    controller: controller,
+                    children: [
+                      Container(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 80,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Center(
+                        child: Text(
+                          'Nastavení mapy',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Zobrazení mapy:'),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _isSatelliteView = false;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(color: !_isSatelliteView ? Colors.black : Colors.grey.shade200),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                  ),
+                                  child: const Text('Klasické'),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _isSatelliteView = true;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(color: _isSatelliteView ? Colors.black : Colors.grey.shade200),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                  ),
+                                  child: const Text('Letecké'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Autor nahrávky:'),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _recordingAuthorFilter = 'all';
+                                    });
+                                    setState(() {
+                                      _recordings.clear();
+                                      _fullRecordings.clear();
+                                    });
+                                    getRecordings();
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(color: _recordingAuthorFilter == 'all' ? Colors.black : Colors.grey.shade200),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                  ),
+                                  child: const Text('Všichni'),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _recordingAuthorFilter = 'me';
+                                    });
+                                    setState(() {
+                                      _recordings.clear();
+                                      _fullRecordings.clear();
+                                    });
+                                    getRecordings();
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(color: _recordingAuthorFilter == 'me' ? Colors.black : Colors.grey.shade200),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                  ),
+                                  child: const Text('Pouze já'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      // const SizedBox(height: 8),
+                      // Column(
+                      //   crossAxisAlignment: CrossAxisAlignment.start,
+                      //   children: [
+                      //     const Text('Data:'),
+                      //     const SizedBox(height: 8),
+                      //     Row(
+                      //       children: [
+                      //         Padding(
+                      //           padding: EdgeInsets.only(right: 8),
+                      //           child: OutlinedButton(
+                      //             onPressed: () {
+                      //               setModalState(() {
+                      //                 _dataFilter = 'new';
+                      //               });
+                      //             },
+                      //             style: OutlinedButton.styleFrom(
+                      //                 backgroundColor: Colors.transparent,
+                      //                 side: BorderSide(color: _dataFilter == 'new' ? Colors.black : Colors.grey.shade200),
+                      //                 foregroundColor: Colors.black,
+                      //                 shape: RoundedRectangleBorder(
+                      //                   borderRadius: BorderRadius.circular(12),
+                      //                 ),
+                      //             ),
+                      //             child: const Text('Nová'),
+                      //           ),
+                      //         ),
+                      //         Padding(
+                      //           padding: EdgeInsets.only(right: 8),
+                      //           child: OutlinedButton(
+                      //             onPressed: () {
+                      //               setModalState(() {
+                      //                 _dataFilter = '2017';
+                      //               });
+                      //             },
+                      //             style: OutlinedButton.styleFrom(
+                      //                 backgroundColor: Colors.transparent,
+                      //                 side: BorderSide(color: _dataFilter == '2017' ? Colors.black : Colors.grey.shade200),
+                      //                 foregroundColor: Colors.black,
+                      //                 shape: RoundedRectangleBorder(
+                      //                   borderRadius: BorderRadius.circular(12),
+                      //                 ),
+                      //             ),
+                      //             child: const Text('2017'),
+                      //           ),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //   ],
+                      // ),
+                      // Column(
+                      //   crossAxisAlignment: CrossAxisAlignment.start,
+                      //   children: [
+                      //     const Text('Dobyté sektory:'),
+                      //     const SizedBox(height: 8),
+                      //     Row(
+                      //       children: [
+                      //         Padding(
+                      //           padding: EdgeInsets.only(right: 8),
+                      //           child: OutlinedButton(
+                      //             onPressed: () {
+                      //               setModalState(() {
+                      //                 _showConqueredSectors = true;
+                      //               });
+                      //             },
+                      //             style: OutlinedButton.styleFrom(
+                      //                 backgroundColor: Colors.transparent,
+                      //                 side: BorderSide(color: _showConqueredSectors == true ? Colors.black : Colors.grey.shade200),
+                      //                 foregroundColor: Colors.black,
+                      //                 shape: RoundedRectangleBorder(
+                      //                   borderRadius: BorderRadius.circular(12),
+                      //                 ),
+                      //             ),
+                      //             child: const Text('Zobrazit'),
+                      //           ),
+                      //         ),
+                      //         Padding(
+                      //           padding: EdgeInsets.only(right: 8),
+                      //           child: OutlinedButton(
+                      //             onPressed: () {
+                      //               setModalState(() {
+                      //                 _showConqueredSectors = false;
+                      //               });
+                      //             },
+                      //             style: OutlinedButton.styleFrom(
+                      //                 backgroundColor: Colors.transparent,
+                      //                 side: BorderSide(color: _showConqueredSectors == false ? Colors.black : Colors.grey.shade200),
+                      //                 foregroundColor: Colors.black,
+                      //                 shape: RoundedRectangleBorder(
+                      //                   borderRadius: BorderRadius.circular(12),
+                      //                 ),
+                      //             ),
+                      //             child: const Text('Skrýt'),
+                      //           ),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //   ],
+                      // ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                shadowColor: Colors.transparent,
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black,
+                                side: BorderSide(color: Colors.grey[300]!),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              onPressed: () {
+                                setModalState(() {
+                                  _isSatelliteView = false;
+                                  _recordingAuthorFilter = 'all';
+                                });
+                              },
+                              child: const Text('Resetovat'),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                shadowColor: Colors.transparent,
+                                backgroundColor: const Color(0xFFFFD641),
+                                foregroundColor: const Color(0xFF2D2B18),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                ),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  // Apply filters if needed.
+                                });
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Filtrovat'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   int _latToTileY(double lat, int zoom) {
     double latRad = lat * math.pi / 180;
     double nTiles = math.pow(2, zoom).toDouble();
@@ -591,5 +934,178 @@ class _MapScreenV2State extends State<MapScreenV2> {
     double n = math.pi * (1 - 2 * y / nTiles);
     double latRad = math.atan(numdart.sinh(n));
     return latRad * 180 / math.pi;
+  }
+
+  void _showLegendDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+                const Text(
+                  'Legenda',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+                const SizedBox(height: 16),
+
+                Center(
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _buildDialectLegendItem('BC'),
+                      _buildDialectLegendItem('BE'),
+                      _buildDialectLegendItem('BlBh'),
+                      _buildDialectLegendItem('BhBl'),
+                      _buildDialectLegendItem('XB'),
+                      _buildDialectLegendItem('Vzácné'),
+                      _buildDialectLegendItem('Přechodný'),
+                      _buildSymbolLegendItem('Mix', 'Mix'),
+                      _buildSymbolLegendItem('Atypický', 'Atypický'),
+                      _buildSymbolLegendItem('Nedokončený', 'Nedokončený'),
+                      _buildSymbolLegendItem('Nevyhodnoceno', 'Nevyhodnoceno'),
+                      _buildCircleLegendItem(Colors.black, 'Nepoužitelný'),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        backgroundColor: const Color(0xFFFFD641),
+                        foregroundColor: const Color(0xFF2D2B18),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                      ),
+                      child: const Text('Zavřít'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLegendItem(IconData icon, String description) {
+    return Row(
+      children: [
+        Icon(icon, size: 24),
+        const SizedBox(width: 8),
+        Text(description),
+      ],
+    );
+  }
+
+  Widget _buildColoredLegendItem(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          margin: const EdgeInsets.only(right: 8, bottom: 8),
+          decoration: BoxDecoration(
+            color: color,
+            border: Border.all(color: Colors.black), // Added black border
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        Text(label),
+      ],
+    );
+  }
+
+  Widget _buildSymbolLegendItem(String assetName, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            "assets/dialects/$assetName.png",
+            width: 24,
+            height: 24,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialectLegendItem(String dialectName) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            "assets/dialects/${dialectName}.png",
+            width: 24,
+            height: 24,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 6),
+          Text(dialectName),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCircleLegendItem(Color color, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Text(label),
+        ],
+      ),
+    );
   }
 }

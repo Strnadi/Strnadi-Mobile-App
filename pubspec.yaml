@@ -124,6 +124,7 @@ flutter:
     - assets/secrets.json
     - assets/icons/
     - assets/docs/
+    - assets/dialects/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

@@ -297,6 +297,15 @@ class _AuthState extends State<Authorizator> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                ),
+              ),
             ],
           ),
         ),

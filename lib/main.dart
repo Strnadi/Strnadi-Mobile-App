@@ -158,7 +158,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
-        colorScheme: ColorScheme.fromSwatch().copyWith(primary: Colors.blue),
+        colorScheme: ColorScheme.fromSwatch().copyWith(primary: Colors.blue, secondary: Color(0xFF2D2B18)),
         fontFamily: 'Bricolage Grotesque',
       ),
       home: const HomeScreen(),
