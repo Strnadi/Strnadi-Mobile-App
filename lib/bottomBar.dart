@@ -97,7 +97,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       // Pass the selectedPage to the bottom bar widget:
-      bottomNavigationBar: ReusableBottomAppBar(currentPage: selectedPage),
+      bottomNavigationBar: ReusableBottomAppBar(currentPage: selectedPage, changeConfirmation: () => Future.value(true),),
     );
   }
 }
@@ -105,8 +105,9 @@ class ScaffoldWithBottomBar extends StatelessWidget {
 class ReusableBottomAppBar extends StatelessWidget {
   // New field to capture the current page
   final BottomBarItem currentPage;
+  Future<bool> Function() changeConfirmation;
 
-  const ReusableBottomAppBar({super.key, required this.currentPage});
+  ReusableBottomAppBar({super.key, required this.currentPage, required this.changeConfirmation});
 
   @override
   Widget build(BuildContext context) {
@@ -127,11 +128,13 @@ class ReusableBottomAppBar extends StatelessWidget {
             ),
             iconSize: 30.0,
             onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               final connectivityResult = await Connectivity().checkConnectivity();
               if (connectivityResult == ConnectivityResult.none) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                content: Text('Chybí připojení k internetu. Mapa není dostupná.'),
+                    content: Text('Chybí připojení k internetu. Mapa není dostupná.'),
                     duration: Duration(seconds: 3),
                   ),
                 );
@@ -159,7 +162,9 @@ class ReusableBottomAppBar extends StatelessWidget {
               height: 40,
             ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.pushReplacement(
                   context,
@@ -181,7 +186,9 @@ class ReusableBottomAppBar extends StatelessWidget {
               height: 40,
             ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/Recorder') {
                 Navigator.pushReplacement(
                   context,
@@ -203,7 +210,9 @@ class ReusableBottomAppBar extends StatelessWidget {
               height: 40,
             ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.pushReplacement(
                   context,
@@ -225,7 +234,9 @@ class ReusableBottomAppBar extends StatelessWidget {
               height: 40,
             ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/user') {
                 Navigator.pushReplacement(
                   context,

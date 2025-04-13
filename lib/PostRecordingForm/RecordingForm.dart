@@ -627,7 +627,31 @@ class _RecordingFormState extends State<RecordingForm> {
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
               child: ElevatedButton(
-                onPressed: upload,
+                onPressed: () async {
+                  final shouldSave = await showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text('Potvrzení'),
+                        content: const Text('Opravdu chcete uložit tuto nahrávku?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Ne'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Ano'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (shouldSave == true) {
+                    upload();
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: yellow,
                   foregroundColor: yellowishBlack,

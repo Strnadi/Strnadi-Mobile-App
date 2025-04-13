@@ -458,7 +458,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       ),
       bottomNavigationBar: ReusableBottomAppBar(
         currentPage: BottomBarItem.list,
-
+        changeConfirmation: () => Future.value(true),
       ),
     );
   }
