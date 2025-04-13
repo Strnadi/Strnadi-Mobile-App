@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur && Jan Drobílek
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -12,7 +12,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -24,6 +24,7 @@ import 'dart:io';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
+import 'package:strnadi/auth/passReset/newPassword.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
 import 'package:strnadi/updateChecker.dart';
@@ -38,7 +39,7 @@ import 'package:app_links/app_links.dart';
 
 // Create a global logger instance.
 final logger = Logger();
-
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
@@ -96,7 +97,6 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
   }
 }
 
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -111,6 +111,8 @@ Future<void> main() async {
     callbackDispatcher, // The top-level function
     isInDebugMode: false, // Set this to false for production
   );
+
+  DeepLinkHandler().setNavigatorKey(navigatorKey);
 
   await SentryFlutter.init(
         (options) {
@@ -156,6 +158,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSwatch().copyWith(primary: Colors.blue, secondary: Color(0xFF2D2B18)),
@@ -167,6 +170,11 @@ class MyApp extends StatelessWidget {
           login: const Login(),
           register: const RegMail(),
         ),
+        '/reset-password': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          final token = args?['token'] ?? '';
+          return ChangePassword(jwt: token);
+        },
       },
     );
   }
