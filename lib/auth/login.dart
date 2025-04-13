@@ -25,7 +25,7 @@ import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
-import 'forgottenPassword.dart';
+import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
