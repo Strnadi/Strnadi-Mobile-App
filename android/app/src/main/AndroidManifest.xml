@@ -30,6 +30,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="strnadi.cz" android:path="/ucet/reset-hesla" />
+                <data android:scheme="https" android:host="strnadi.cz" android:path="/ucet/email-verifikovan" />
+                <data android:scheme="https" android:host="strnadi.cz" android:path="/ucet/email-neverifikovan" />
+                <data android:scheme="https" android:host="dev.strnadi.cz" android:path="/ucet/reset-hesla" />
+                <data android:scheme="https" android:host="dev.strnadi.cz" android:path="/ucet/email-verifikovan" />
+                <data android:scheme="https" android:host="dev.strnadi.cz" android:path="/ucet/email-neverifikovan" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

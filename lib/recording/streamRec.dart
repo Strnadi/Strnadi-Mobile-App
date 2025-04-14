@@ -193,6 +193,7 @@ class _LiveRecState extends State<LiveRec> {
   String? recordedFilePath;
   LatLng? currentPosition;
   final List<LatLng> _liveRoute = [];
+  DateTime? _lastRouteUpdateTime;
   final List<String> segmentPaths = [];
   StreamSubscription? _locationSub;
   late LocationService _locService;
@@ -218,10 +219,15 @@ class _LiveRecState extends State<LiveRec> {
     });
     _locService = LocationService();
     _locationSub = _locService.positionStream.listen((position) {
-      setState(() {
-        currentPosition = LatLng(position.latitude, position.longitude);
-        _liveRoute.add(LatLng(position.latitude, position.longitude));
-      });
+      final now = DateTime.now();
+      if (_lastRouteUpdateTime == null ||
+          now.difference(_lastRouteUpdateTime!) >= Duration(seconds: 5)) {
+        setState(() {
+          currentPosition = LatLng(position.latitude, position.longitude);
+          _liveRoute.add(LatLng(position.latitude, position.longitude));
+          _lastRouteUpdateTime = now;
+        });
+      }
     });
     _elapsedTimer = ElapsedTimer(onTick: (elapsed) {
       setState(() {

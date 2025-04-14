@@ -27,6 +27,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 
 import '../../config/config.dart';
+import '../../md_renderer.dart';
 
 Logger logger = Logger();
 
@@ -211,7 +212,7 @@ class _RegMailState extends State<RegMail> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: RichText(
-                        text: const TextSpan(
+                        text: TextSpan(
                           style: TextStyle(color: Colors.black),
                           children: [
                             TextSpan(
@@ -224,6 +225,18 @@ class _RegMailState extends State<RegMail> {
                                 color: Colors.blue,
                                 decoration: TextDecoration.underline,
                               ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MDRender(
+                                        mdPath: 'assets/docs/terms-of-services.md',
+                                        title: 'Podmínky používání',
+                                      ),
+                                    ),
+                                  );
+                                },
                             ),
                           ],
                         ),

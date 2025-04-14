@@ -572,7 +572,12 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
-    SendDialects();
+    try {
+      SendDialects();
+    }
+    catch(e){
+      logger.w('Error sending dialects: $e');
+    }
     logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
@@ -679,10 +684,12 @@ class _RecordingFormState extends State<RecordingForm> {
             child: Column(
               children: [
                 // Spectrogram and playback controls remain unchanged.
-                SizedBox(
-                  height: 300,
-                  width: double.infinity,
-                  child: spectogram,
+                RepaintBoundary(
+                  child: SizedBox(
+                    height: 300,
+                    width: double.infinity,
+                    child: spectogram,
+                  ),
                 ),
                 Text(
                   _formatDuration(totalDuration),
