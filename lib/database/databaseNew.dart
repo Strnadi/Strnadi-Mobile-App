@@ -388,6 +388,7 @@ class RecordingPart {
     String newPath = (await getApplicationDocumentsDirectory()).path + "/recording_${DateTime.now().millisecondsSinceEpoch}.wav";
     File file = await File(newPath).create();
     await file.writeAsBytes(base64Decode(dataBase64Temp!));
+    this.path = newPath;
   }
 
   factory RecordingPart.fromUnready(RecordingPartUnready unready) {
@@ -855,14 +856,15 @@ class DatabaseNew {
     for (int i = 0; i < partsJson.length; i++) {
       final partData = partsJson[i];
       RecordingPart part = RecordingPart.fromBEJson(partData, recording.BEId!);
+      part.BEId = partData['id'];
       part.dataBase64Temp = partData['dataBase64'];
       await part.save();
       part.sent = true;
       await updateRecordingPart(part);
-      String partFilePath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
-      File partFile = File(partFilePath);
-      await partFile.writeAsBytes(base64Decode(partData['dataBase64']));
-      paths.add(partFilePath);
+      // String partFilePath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+      // File partFile = File(partFilePath);
+      // await partFile.writeAsBytes(base64Decode(partData['dataBase64']));
+      paths.add(part.path!);
     }
     String outputPath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
     await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
@@ -981,16 +983,34 @@ class DatabaseNew {
       recordingParts = List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
       loadedRecordings = true;
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
-      if (oldVersion == 1) {
+      if (oldVersion <= 1) {
         // Add the new backendRecordingId column to recordingParts table
         await db.execute('ALTER TABLE recordingParts ADD COLUMN backendRecordingId INTEGER;');
         await db.setVersion(2);
       }
-      if (oldVersion == 2){
+      if (oldVersion <= 2) {
+        // !!! FUCK IT !!!
+
+        logger.w('Old version detected (<=2). Recreating entire database...');
+        // Close and delete the existing database
+        String dbPath = await getDatabasesPath();
+        String fullPath = '$dbPath/soundNew.db';
+        await db.close();
+        await deleteDatabase(fullPath);
+        // Re-initialize the database
+        _database = await initDb();
+        return;
+        await db.setVersion(3);
+
+        // !!! FUCK IT !!!
+
+        /*
         await db.execute('ALTER TABLE recordingParts ADD COLUMN path TEXT;');
         logger.i('Converting old recording parts to new format...');
         List<Map<String, Object?>> oldRecParts = await db.query('recordingParts');
         for(Map<String, Object?> recPartJson in oldRecParts){
+          logger.i('Converting part with id: ${recPartJson['id']}');
+          logger.i('RecPartJson: $recPartJson');
           if (recPartJson['path'] != null) continue;
           if (recPartJson['dataBase64'] == null) continue;
           String newPath = await getPath();
@@ -1001,7 +1021,8 @@ class DatabaseNew {
         }
         logger.i('Old recording parts converted to new format.');
         db.execute('ALTER TABLE recordingParts DROP COLUMN dataBase64;');
-        await db.setVersion(3);
+        await db.setVersion(3);\
+        */
       }
     });
   }
