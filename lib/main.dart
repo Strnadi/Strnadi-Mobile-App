@@ -201,7 +201,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(),
       // Directly include Authorizator which now returns a complete screen.
-      body: Authorizator(),
+      body: Navigator(
+        onGenerateRoute: (settings) {
+          return MaterialPageRoute(
+            settings: const RouteSettings(name: '/authorizator'),
+            builder: (context) => Authorizator(),
+          );
+        },
+      ),
     );
   }
 }

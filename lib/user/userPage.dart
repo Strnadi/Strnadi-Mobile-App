@@ -213,15 +213,11 @@ class _UserPageState extends State<UserPage> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.popUntil(context, ModalRoute.withName('/authorizator'));
-              GoogleSignInService.signOut();
+              await GoogleSignInService.signOut();
               await secureStorage.deleteAll();
               await strnadiFirebase.deleteToken();
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => MyApp()),
-                    (route) => false,
-              );
+
+              Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
             },
             child: const Text('Odhlásit se'),
           ),
@@ -236,38 +232,40 @@ class _UserPageState extends State<UserPage> {
       selectedPage: BottomBarItem.user,
       appBarTitle: '',
       logout: () => logout(context),
-      content: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          SizedBox(
-            height: 200,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                GestureDetector(
-                  onTap: pickProfileImage,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage: profileImagePath != null
-                        ? FileImage(File(profileImagePath!))
-                        : const AssetImage('./assets/images/default.jpg')
-                    as ImageProvider,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            SizedBox(
+              height: 200,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  GestureDetector(
+                    onTap: pickProfileImage,
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundImage: profileImagePath != null
+                          ? FileImage(File(profileImagePath!))
+                          : const AssetImage('./assets/images/default.jpg')
+                      as ImageProvider,
+                    ),
                   ),
-                ),
-                Text(
-                  "$userName $lastName",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                  Text(
+                    "$userName $lastName",
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          _isConnected ? MenuScreen() : Text('Osobní údaje nejsou dostupné bez připojení k internetu'),
-        ],
+            _isConnected ? MenuScreen() : Text('Osobní údaje nejsou dostupné bez připojení k internetu'),
+          ],
+        ),
       ),
     );
   }

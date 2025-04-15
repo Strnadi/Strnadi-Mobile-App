@@ -74,8 +74,11 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     return Scaffold(
       appBar: appBarTitle != null
           ? AppBar(
-        title: Center(child: Text(appBarTitle!)),
+        title: appBarTitle!.isNotEmpty
+            ? Center(child: Text(appBarTitle!))
+            : const SizedBox.shrink(),
         backgroundColor: Colors.white,
+        //toolbarHeight: 40.0,
         actions: [
           if (logout != null)
             IconButton(
