@@ -232,10 +232,11 @@ class Recording {
     );
   }
 
-  factory Recording.fromBEJson(Map<String, Object?> json, String mail) {
+  factory Recording.fromBEJson(Map<String, Object?> json, String? mail) {
+
     return Recording(
       BEId: json['id'] as int?,
-      mail: mail,
+      mail: mail ?? json['userEmail'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       estimatedBirdsCount: json['estimatedBirdsCount'] as int,
       device: json['device'] as String?,

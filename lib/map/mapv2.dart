@@ -244,6 +244,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<UserData?> getUser(Recording rec) async {
+    for (int i = 0; i < _fullRecordings.length; i++) {
+
+      logger.i("rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name}");
+
+    }
     var mail = rec.mail;
 
     var url = Uri(scheme: 'https', host: Config.host, path: '/users/$mail');

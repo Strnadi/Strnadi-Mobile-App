@@ -139,7 +139,7 @@ Future<List<Recording>> GetRecordings(String jsonString) async {
   logger.i(mail);
 
   final List<dynamic> decoded = jsonDecode(jsonString);
-  return decoded.map((r) => Recording.fromBEJson(r, mail)).toList();
+  return decoded.map((r) => Recording.fromBEJson(r, null)).toList();
 }
 
 List<LatLng> getAllLatLngs(String jsonString) {
