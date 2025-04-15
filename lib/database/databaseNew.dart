@@ -95,6 +95,9 @@ class RecordingDialect{
     );
   }
 
+
+
+
   Map<String, Object?> toJson() {
     return {
       'RecordingId': RecordingId,
@@ -476,6 +479,28 @@ class DatabaseNew {
     if (_database != null) return _database!;
     _database = await initDb();
     return _database!;
+  }
+
+
+  static DialectModel ToDialectModel(RecordingDialect dialect){
+
+    final Map<String, Color> dialectColors = {
+      'BC': Colors.yellow,
+      'BE': Colors.green,
+      'BiBh': Colors.lightBlue,
+      'BhBi': Colors.blue,
+      'XB': Colors.red,
+      'Jiné': Colors.white,
+      'Nevím': Colors.grey.shade300,
+    };
+
+    return DialectModel(
+      label: dialect.dialect,
+      startTime: Duration(milliseconds: dialect.StartDate.millisecondsSinceEpoch).inSeconds.toDouble(),
+      endTime: Duration(milliseconds: dialect.EndDate.millisecondsSinceEpoch).inSeconds.toDouble(),
+      type: dialect.dialect,
+      color: dialectColors[dialect.dialect] ?? Colors.white,
+    );
   }
 
   static Future<int> insertRecording(Recording recording) async {

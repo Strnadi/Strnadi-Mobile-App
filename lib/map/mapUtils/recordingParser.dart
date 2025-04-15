@@ -133,12 +133,8 @@ LatLng? getFirstPartLatLng(String jsonString) {
 }
 
 Future<List<Recording>> GetRecordings(String jsonString) async {
-  var token = await FlutterSecureStorage().read(key: 'token');
-  var mail = JwtDecoder.decode(token!)['sub'];
-
-  logger.i(mail);
-
   final List<dynamic> decoded = jsonDecode(jsonString);
+  // passing null to read the mail from the json
   return decoded.map((r) => Recording.fromBEJson(r, null)).toList();
 }
 

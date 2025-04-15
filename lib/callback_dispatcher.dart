@@ -17,15 +17,20 @@
  * Callback_dispatcher.dart
  */
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/config/config.dart';
+
+import 'PostRecordingForm/addDialect.dart';
 
 
 final logger = Logger();
@@ -81,6 +86,63 @@ void callbackDispatcher() {
           await DatabaseNew.sendRecording(recording, parts);
           logger.i("Recording $recordingId uploaded successfully in background");
           await DatabaseNew.sendLocalNotification("Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
+
+          // ---------------------------
+
+          // Send dialects after successful recording upload
+          List<RecordingDialect> dialectSegments = await DatabaseNew.getRecordingDialects(recording.id!);
+          
+          var dialects = dialectSegments.map((e) => DatabaseNew.ToDialectModel(e)).toList();
+          final tokenStorage = FlutterSecureStorage();
+          final jwt = await tokenStorage.read(key: 'token');
+
+          if (jwt == null) {
+            logger.e("JWT token not found in secure storage.");
+          } else {
+            for (DialectModel dialect in dialects) {
+              final dialectBody = {
+                'recordingId': recording.id,
+                'StartDate': recording.createdAt
+                    .add(Duration(milliseconds: dialect.startTime.toInt()))
+                    .toIso8601String(),
+                'endDate': recording.createdAt
+                    .add(Duration(milliseconds: dialect.endTime.toInt()))
+                    .toIso8601String(),
+                'dialectCode': dialect.label,
+              };
+
+              try {
+                final url = Uri(
+                  scheme: 'https',
+                  host: Config.host,
+                  path: '/recordings/filtered/upload',
+                );
+
+                final response = await http.post(
+                  url,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $jwt',
+                  },
+                  body: jsonEncode(dialectBody),
+                );
+
+                if (response.statusCode == 200) {
+                  logger.i("Dialect ${dialect.label} sent successfully");
+                } else {
+                  logger.e(
+                    "Dialect sending failed with status ${response.statusCode}. Response: ${response.body}",
+                  );
+                }
+              } catch (e, stackTrace) {
+                logger.e("Error sending dialect ${dialect.label}: $e", error: e, stackTrace: stackTrace);
+              }
+            }
+          }
+
+
+          // --------------------------
+
         } catch (e, stackTrace) {
           recording.sending = false;
           await DatabaseNew.updateRecording(recording);
