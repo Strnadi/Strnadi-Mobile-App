@@ -989,40 +989,81 @@ class DatabaseNew {
         await db.setVersion(2);
       }
       if (oldVersion <= 2) {
-        // !!! FUCK IT !!!
+        logger.w('Old version detected (<=2). Recreating entire database schema...');
+        // Drop existing tables
+        await db.execute('DROP TABLE IF EXISTS recordings');
+        await db.execute('DROP TABLE IF EXISTS recordingParts');
+        await db.execute('DROP TABLE IF EXISTS images');
+        await db.execute('DROP TABLE IF EXISTS Notifications');
+        await db.execute('DROP TABLE IF EXISTS Dialects');
 
-        logger.w('Old version detected (<=2). Recreating entire database...');
-        // Close and delete the existing database
-        String dbPath = await getDatabasesPath();
-        String fullPath = '$dbPath/soundNew.db';
-        await db.close();
-        await deleteDatabase(fullPath);
-        // Re-initialize the database
-        _database = await initDb();
+        // Recreate tables as defined in the onCreate callback
+        await db.execute('''
+          CREATE TABLE recordings(
+            id INTEGER PRIMARY KEY,
+            BEId INTEGER UNIQUE,
+            mail TEXT,
+            createdAt TEXT,
+            estimatedBirdsCount INTEGER,
+            device TEXT,
+            byApp INTEGER,
+            name TEXT,
+            note TEXT,
+            path TEXT,
+            sent INTEGER,
+            downloaded INTEGER,
+            sending INTEGER
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE recordingParts(
+            id INTEGER PRIMARY KEY,
+            BEId INTEGER UNIQUE,
+            recordingId INTEGER,
+            backendRecordingId INTEGER,
+            startTime TEXT,
+            endTime TEXT,
+            gpsLatitudeStart REAL,
+            gpsLatitudeEnd REAL,
+            gpsLongitudeStart REAL,
+            gpsLongitudeEnd REAL,
+            path TEXT,
+            square TEXT,
+            sent INTEGER,
+            FOREIGN KEY(recordingId) REFERENCES recordings(id)
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE images(
+            id INTEGER PRIMARY KEY,
+            recordingId INTEGER,
+            path TEXT,
+            sent INTEGER,
+            FOREIGN KEY(recordingId) REFERENCES recordings(id)
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE Notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            receivedAt TEXT NOT NULL,
+            type INTEGER NOT NULL,
+            read INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE Dialects (
+            RecordingId INTEGER PRIMARY KEY AUTOINCREMENT,
+            BEId INTEGER UNIQUE,
+            dialect TEXT NOT NULL,
+            StartDate TEXT NOT NULL,
+            EndDate TEXT NOT NULL,
+            FOREIGN KEY(RecordingId) REFERENCES recordings(id)
+          )
+        ''');
+        await db.setVersion(newVersion);
         return;
-        await db.setVersion(3);
-
-        // !!! FUCK IT !!!
-
-        /*
-        await db.execute('ALTER TABLE recordingParts ADD COLUMN path TEXT;');
-        logger.i('Converting old recording parts to new format...');
-        List<Map<String, Object?>> oldRecParts = await db.query('recordingParts');
-        for(Map<String, Object?> recPartJson in oldRecParts){
-          logger.i('Converting part with id: ${recPartJson['id']}');
-          logger.i('RecPartJson: $recPartJson');
-          if (recPartJson['path'] != null) continue;
-          if (recPartJson['dataBase64'] == null) continue;
-          String newPath = await getPath();
-          String base64String = recPartJson['dataBase64'] as String;
-          File newFile = await File(newPath).create();
-          await newFile.writeAsBytes(base64Decode(base64String));
-          await db.update('recordingParts', {'path': newPath}, where: 'id = ?', whereArgs: [recPartJson['id'] as int]);
-        }
-        logger.i('Old recording parts converted to new format.');
-        db.execute('ALTER TABLE recordingParts DROP COLUMN dataBase64;');
-        await db.setVersion(3);\
-        */
       }
     });
   }
