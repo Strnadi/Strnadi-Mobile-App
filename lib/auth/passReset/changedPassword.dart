@@ -12,7 +12,7 @@ class PasswordChangedScreen extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        Navigator.pushReplacementNamed(context, 'authorizator');
+        Navigator.pushReplacementNamed(context, '/authorizator');
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -45,7 +45,7 @@ class PasswordChangedScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pushReplacementNamed(context, 'authorizator');
+                        Navigator.pushReplacementNamed(context, '/authorizator');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: yellow,

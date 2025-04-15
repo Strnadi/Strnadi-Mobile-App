@@ -98,7 +98,7 @@ class _RegPasswordState extends State<ChangePassword> {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        Navigator.of(context).pushReplacementNamed('authorizator');
+        Navigator.of(context).pushReplacementNamed('/authorizator');
       },
       child: Scaffold(
         // Minimal app bar (white background, no shadow)
@@ -109,7 +109,7 @@ class _RegPasswordState extends State<ChangePassword> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.of(context).pushReplacementNamed('authorizator');
+              Navigator.of(context).pushReplacementNamed('/authorizator');
             },
           ),
         ),

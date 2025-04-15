@@ -319,12 +319,13 @@ class _LiveRecState extends State<LiveRec> {
       Uint8List data = await File(filepath).readAsBytes();
       final dataWithHeader =
           createWavHeader(data.length, sampleRate, bitRate) + data;
-      if (recordedPart != null) {
-        recordedPart!.dataBase64 = base64Encode(dataWithHeader);
-      }
+
       await File(filepath).delete();
       File newFile = await File(filepath).create();
       await newFile.writeAsBytes(dataWithHeader);
+      if (recordedPart != null) {
+        recordedPart!.path = filepath;
+      }
       if (_locService.lastKnownPosition == null) {
         await _locService.getCurrentLocation();
       }
@@ -862,10 +863,10 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
     Uint8List data = await File(filepath).readAsBytes();
     final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
-    recordedPart!.dataBase64 = base64Encode(dataWithHeader);
     await File(filepath).delete();
     File newFile = await File(filepath).create();
     await newFile.writeAsBytes(dataWithHeader);
+    recordedPart!.path = filepath;
     recordingPartsList.add(recordedPart!);
     setState(() {
       _recordDuration = Duration.zero;
@@ -893,7 +894,7 @@ class _LiveRecState extends State<LiveRec> {
     recordStream(_audioRecorder, config, filepath);
     // Start a new segment.
     recordedPart = RecordingPartUnready(
-      dataBase64: null,
+      path: null,
       gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
       gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
       startTime: DateTime.now(),

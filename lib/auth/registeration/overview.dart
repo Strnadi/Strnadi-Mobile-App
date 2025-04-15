@@ -126,7 +126,7 @@ class _RegOverviewState extends State<RegOverview> {
           );
         }
         else{
-          Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
         }
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();

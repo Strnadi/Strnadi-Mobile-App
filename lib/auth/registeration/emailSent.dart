@@ -74,7 +74,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
 
   void alreadyVerified(){
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
   }
 
   Future<void> resendEmail() async {
@@ -136,7 +136,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+        Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
         return false;
       },
       child: Scaffold(
@@ -153,7 +153,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
               height: 30,
             ),
             onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+              Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
             },
           ),
         ),
@@ -247,7 +247,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+                      Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
                     },
                     style: ElevatedButton.styleFrom(
                       elevation: 0,

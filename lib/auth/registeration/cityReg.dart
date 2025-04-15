@@ -150,7 +150,7 @@ class _RegLocationState extends State<RegLocation> {
             height: 30,
           ),
           onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
           },
         ),
       ),

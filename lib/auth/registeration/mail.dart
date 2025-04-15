@@ -217,7 +217,7 @@ class _RegMailState extends State<RegMail> {
                           children: [
                             TextSpan(
                               text:
-                              'Zapojením do projektu občanské vědy Nářečí českých stranád ',
+                              'Zapojením do projektu občanské vědy Nářečí českých strnadů ',
                             ),
                             TextSpan(
                               text: 'souhlasím s podmínkami',

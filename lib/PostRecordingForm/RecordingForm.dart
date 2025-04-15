@@ -30,6 +30,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:scidart/numdart.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sqflite/sqlite_api.dart';
 import 'package:strnadi/PostRecordingForm/imageUpload.dart';
@@ -188,28 +189,6 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     _route.addAll(widget.route);
-
-    // Fix any parts with invalid (0.0, 0.0) GPS coordinates
-    for (var part in recordingParts) {
-      if (part.gpsLatitudeStart == 0.0 && part.gpsLongitudeStart == 0.0) {
-        // Try to use a previous valid part's location
-        var validParts = recordingParts.where((p) =>
-        p != part &&
-            p.gpsLatitudeStart != 0.0 &&
-            p.gpsLongitudeStart != 0.0);
-        if (validParts.isNotEmpty) {
-          var replacement = validParts.first;
-          part.gpsLatitudeStart = replacement.gpsLatitudeStart;
-          part.gpsLongitudeStart = replacement.gpsLongitudeStart;
-        } else if (_route.isNotEmpty) {
-          // Fallback to route if available
-          part.gpsLatitudeStart = _route.first.latitude;
-          part.gpsLongitudeStart = _route.first.longitude;
-        } // else leave as (0.0, 0.0)
-      }
-    }
-
-    reverseGeocode(widget.recordingParts[0].gpsLatitudeStart!, widget.recordingParts[0].gpsLongitudeStart!);
   }
 
   // Helper method to display a simple message dialog.
@@ -613,6 +592,14 @@ class _RecordingFormState extends State<RecordingForm> {
     markerPosition = locationService.lastKnownPosition != null
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;
+
+    if (spectogram == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return PopScope(
       canPop: false,

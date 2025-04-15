@@ -213,7 +213,7 @@ class _UserPageState extends State<UserPage> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.of(context).pop();
+              Navigator.popUntil(context, ModalRoute.withName('/authorizator'));
               GoogleSignInService.signOut();
               await secureStorage.deleteAll();
               await strnadiFirebase.deleteToken();

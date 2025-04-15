@@ -38,13 +38,9 @@ Logger logger = Logger();
 enum AuthType { login, register }
 
 class Authorizator extends StatefulWidget {
-  final Widget login;
-  final Widget register;
 
   const Authorizator({
     Key? key,
-    required this.login,
-    required this.register,
   }) : super(key: key);
 
   @override

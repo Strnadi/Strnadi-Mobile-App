@@ -71,7 +71,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   /// Navigates back to the login/authorization page when email is verified.
   void alreadyVerified() {
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
   }
 
   /// Resend verification email.
@@ -144,7 +144,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
           onPressed: () {
             FlutterSecureStorage().delete(key: 'token');
-            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
           },
         ),
       ),
@@ -219,7 +219,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+                    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     elevation: 0,

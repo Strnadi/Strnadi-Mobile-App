@@ -166,10 +166,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const HomeScreen(),
       routes: {
-        'authorizator': (context) => Authorizator(
-          login: const Login(),
-          register: const RegMail(),
-        ),
+        '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
           final token = args?['token'] ?? '';
@@ -204,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(),
       // Directly include Authorizator which now returns a complete screen.
-      body: Authorizator(login: const Login(), register: const RegMail()),
+      body: Authorizator(),
     );
   }
 }

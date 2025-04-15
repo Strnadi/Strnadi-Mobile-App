@@ -41,6 +41,15 @@ import '../notificationPage/notifications.dart';
 final logger = Logger();
 
 /// Models
+///
+///
+
+Future<String> getPath() async {
+  final dir = await getApplicationDocumentsDirectory();
+  String path = dir.path + 'audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+  logger.i('Generated file path: $path');
+  return path;
+}
 
 class UserData{
   String FirstName;
@@ -131,7 +140,8 @@ class RecordingPartUnready {
   double? gpsLatitudeEnd;
   double? gpsLongitudeStart;
   double? gpsLongitudeEnd;
-  String? dataBase64;
+  //String? dataBase64;
+  String? path;
 
   RecordingPartUnready({
     this.id,
@@ -142,7 +152,8 @@ class RecordingPartUnready {
     this.gpsLatitudeEnd,
     this.gpsLongitudeStart,
     this.gpsLongitudeEnd,
-    this.dataBase64,
+    this.path
+    //this.dataBase64,
   });
 }
 
@@ -320,7 +331,8 @@ class RecordingPart {
   double gpsLongitudeStart;
   double gpsLongitudeEnd;
   String? square;
-  String? dataBase64;
+  String? dataBase64Temp;
+  String? path;
   bool sent;
 
   RecordingPart({
@@ -334,7 +346,8 @@ class RecordingPart {
     required this.gpsLongitudeStart,
     required this.gpsLongitudeEnd,
     this.square,
-    this.dataBase64,
+    this.path,
+    this.dataBase64Temp,
     this.sent = false,
   });
 
@@ -351,7 +364,7 @@ class RecordingPart {
       gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
       square: json['square'] as String?,
       sent: (json['sent'] as int) == 1,
-      dataBase64: json['dataBase64'] as String?,
+      path: json['path'] as String?,
     );
   }
 
@@ -365,10 +378,16 @@ class RecordingPart {
       gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
       gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
-      dataBase64: json['dataBase64'] as String?,
+      dataBase64Temp: json['dataBase64'] as String?,
       square: json['square'] as String?,
       sent: true,
     )..backendRecordingId = backendRecordingId;
+  }
+
+  Future<void> save() async{
+    String newPath = (await getApplicationDocumentsDirectory()).path + "/recording_${DateTime.now().millisecondsSinceEpoch}.wav";
+    File file = await File(newPath).create();
+    await file.writeAsBytes(base64Decode(dataBase64Temp!));
   }
 
   factory RecordingPart.fromUnready(RecordingPartUnready unready) {
@@ -378,9 +397,9 @@ class RecordingPart {
         unready.gpsLatitudeEnd == null ||
         unready.gpsLongitudeStart == null ||
         unready.gpsLongitudeEnd == null ||
-        unready.dataBase64 == null) {
+        unready.path == null) {
       logger.i(
-          'Recording part is not ready. Part id: ${unready.id}, recording id: ${unready.recordingId}, start time: ${unready.startTime}, end time: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, dataBase64: ${unready.dataBase64}');
+          'Recording part is not ready. Part id: ${unready.id}, recording id: ${unready.recordingId}, start time: ${unready.startTime}, end time: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, path: ${unready.path}');
       throw UnreadyException('Recording part is not ready');
     }
     return RecordingPart(
@@ -393,7 +412,8 @@ class RecordingPart {
       gpsLatitudeEnd: unready.gpsLatitudeEnd ?? 0.0,
       gpsLongitudeStart: unready.gpsLongitudeStart ?? 0.0,
       gpsLongitudeEnd: unready.gpsLongitudeEnd ?? 0.0,
-      dataBase64: unready.dataBase64,
+      path: unready.path,
+      //dataBase64Temp: unready.dataBase64,
       square: null,
       sent: false,
     );
@@ -424,10 +444,17 @@ class RecordingPart {
       'gpsLatitudeEnd': gpsLatitudeEnd,
       'gpsLongitudeStart': gpsLongitudeStart,
       'gpsLongitudeEnd': gpsLongitudeEnd,
-      'dataBase64': dataBase64,
+      'path': path,
       'square': square,
       'sent': sent ? 1 : 0,
     };
+  }
+
+  String? get dataBase64{
+    if(this.path==null) return null;
+    File file = File(this.path!);
+    String base64String = base64Encode(file.readAsBytesSync());
+    return base64String;
   }
 }
 
@@ -498,14 +525,14 @@ class DatabaseNew {
           } else {
             recordingParts.add(recordingPart);
           }
-          logger.i('Recording part with backendRecordingId ${recordingPart.backendRecordingId} updated (id: $id). Data length: ${recordingPart.dataBase64?.length}');
+          logger.i('Recording part with backendRecordingId ${recordingPart.backendRecordingId} updated (id: $id).');
           return id;
         }
       }
       final int id = await db.insert("recordingParts", recordingPart.toJson());
       recordingPart.id = id;
       recordingParts.add(recordingPart);
-      logger.i('Recording part ${recordingPart.id} inserted. Data length: ${recordingPart.dataBase64?.length}');
+      logger.i('Recording part ${recordingPart.id} inserted.');
       return id;
     } catch (e, stackTrace) {
       logger.e('Failed to insert recording part', error: e, stackTrace: stackTrace);
@@ -828,12 +855,13 @@ class DatabaseNew {
     for (int i = 0; i < partsJson.length; i++) {
       final partData = partsJson[i];
       RecordingPart part = RecordingPart.fromBEJson(partData, recording.BEId!);
-      part.dataBase64 = partData['dataBase64'];
+      part.dataBase64Temp = partData['dataBase64'];
+      await part.save();
       part.sent = true;
       await updateRecordingPart(part);
       String partFilePath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
       File partFile = File(partFilePath);
-      await partFile.writeAsBytes(base64Decode(part.dataBase64!));
+      await partFile.writeAsBytes(base64Decode(partData['dataBase64']));
       paths.add(partFilePath);
     }
     String outputPath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
@@ -852,10 +880,10 @@ class DatabaseNew {
     }
     List<String> paths = [];
     for (RecordingPart part in parts) {
-      if (part.dataBase64 != null) {
+      if (part.path != null) {
         String partFilePath = '${(await getApplicationDocumentsDirectory()).path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
         File partFile = File(partFilePath);
-        await partFile.writeAsBytes(base64Decode(part.dataBase64!));
+        await partFile.writeAsBytes(await File(part.path!).readAsBytes());
         paths.add(partFilePath);
       } else {
         logger.w('Part id: ${part.id} has no dataBase64. Skipping.');
@@ -875,7 +903,7 @@ class DatabaseNew {
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 2, onCreate: (Database db, int version) async {
+    return openDatabase('soundNew.db', version: 3, onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,
@@ -905,7 +933,7 @@ class DatabaseNew {
         gpsLatitudeEnd REAL,
         gpsLongitudeStart REAL,
         gpsLongitudeEnd REAL,
-        dataBase64 TEXT,
+        path TEXT,
         square TEXT,
         sent INTEGER,
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
@@ -956,7 +984,24 @@ class DatabaseNew {
       if (oldVersion == 1) {
         // Add the new backendRecordingId column to recordingParts table
         await db.execute('ALTER TABLE recordingParts ADD COLUMN backendRecordingId INTEGER;');
-        await db.setVersion(newVersion);
+        await db.setVersion(2);
+      }
+      if (oldVersion == 2){
+        await db.execute('ALTER TABLE recordingParts ADD COLUMN path TEXT;');
+        logger.i('Converting old recording parts to new format...');
+        List<Map<String, Object?>> oldRecParts = await db.query('recordingParts');
+        for(Map<String, Object?> recPartJson in oldRecParts){
+          if (recPartJson['path'] != null) continue;
+          if (recPartJson['dataBase64'] == null) continue;
+          String newPath = await getPath();
+          String base64String = recPartJson['dataBase64'] as String;
+          File newFile = await File(newPath).create();
+          await newFile.writeAsBytes(base64Decode(base64String));
+          await db.update('recordingParts', {'path': newPath}, where: 'id = ?', whereArgs: [recPartJson['id'] as int]);
+        }
+        logger.i('Old recording parts converted to new format.');
+        db.execute('ALTER TABLE recordingParts DROP COLUMN dataBase64;');
+        await db.setVersion(3);
       }
     });
   }
