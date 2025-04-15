@@ -62,11 +62,18 @@ class _RecordingItemState extends State<RecordingItem> {
   final MapController _mapController = MapController();
 
   String placeTitle = 'Mapa';
+  Widget? _cachedSpectrogram;
 
   @override
   void initState() {
     super.initState();
     locationService = LocationService();
+    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+      _cachedSpectrogram = LiveSpectogram.SpectogramLive(
+        data: [],
+        filepath: widget.recording.path,
+      );
+    }
     getParts();
     GetDialect();
     logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
@@ -300,9 +307,11 @@ class _RecordingItemState extends State<RecordingItem> {
                   ? SizedBox(
                       height: 200,
                       width: double.infinity,
-                      child: LiveSpectogram.SpectogramLive(
-                        data: [],
-                        filepath: widget.recording.path,
+                      child: RepaintBoundary(
+                        child: _cachedSpectrogram ?? LiveSpectogram.SpectogramLive(
+                          data: [],
+                          filepath: widget.recording.path,
+                        ),
                       ),
                     )
                   : SizedBox(
