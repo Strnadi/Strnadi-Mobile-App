@@ -331,7 +331,12 @@ class _AuthState extends State<Authorizator> {
       }
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LiveRec()),
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+          settings: const RouteSettings(name: '/Recorder'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
       return;
     }
@@ -361,7 +366,12 @@ class _AuthState extends State<Authorizator> {
       logger.i('Syncing recordings on login done');
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LiveRec()),
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+          settings: const RouteSettings(name: '/Recorder'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
     } else if(status == AuthStatus.notVerified) {
       String? token = await secureStorage.read(key: 'token');

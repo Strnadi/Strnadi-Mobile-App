@@ -432,7 +432,7 @@ class _LiveRecState extends State<LiveRec> {
 
     // Create the scaffold widget.
     final scaffoldWidget = Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(automaticallyImplyLeading: false),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenHeight = MediaQuery.of(context).size.height;
@@ -440,54 +440,50 @@ class _LiveRecState extends State<LiveRec> {
             constraints: BoxConstraints(minHeight: screenHeight),
             child: IntrinsicHeight(
               child: Column(
-                mainAxisAlignment: _recordState == RecordState.stop
-                    ? MainAxisAlignment.start
-                    : MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  SizedBox(height: 16),
-                  if (_recordState == RecordState.stop) ...[
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final screenHeight = MediaQuery.of(context).size.height;
-                        final imageHeight = screenHeight * 0.25; // 25% of screen height
-                        return SizedBox(
-                          height: imageHeight,
-                          width: double.infinity,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(20.0),
-                                  child: Image.asset(
-                                    'assets/images/bird_example.jpg',
-                                    fit: BoxFit.cover,
-                                  ),
+                  SizedBox(height: 8),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final screenHeight = MediaQuery.of(context).size.height;
+                      final imageHeight = screenHeight * 0.25; // 25% of screen height
+                      return SizedBox(
+                        height: imageHeight,
+                        width: double.infinity,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20.0),
+                                child: Image.asset(
+                                  'assets/images/bird_example.jpg',
+                                  fit: BoxFit.cover,
                                 ),
                               ),
-                              Positioned(
-                                bottom: 12,
-                                left: 32,
-                                child: Container(
-                                  color: Colors.black54,
-                                  padding: const EdgeInsets.all(4),
-                                  child: const Text(
-                                    'Foto: Tomáš Bělka',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
+                            ),
+                            Positioned(
+                              bottom: 12,
+                              left: 32,
+                              child: Container(
+                                color: Colors.black54,
+                                padding: const EdgeInsets.all(4),
+                                child: const Text(
+                                  'Foto: Tomáš Bělka',
+                                  style: TextStyle(color: Colors.white),
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
                   // Recording button with vertical padding.
                   Padding(
-                    padding: const EdgeInsets.only(top: 100),
+                    padding: EdgeInsets.only(top: 8),
                     child: Opacity(
                       opacity: _hasMicPermission ? 1.0 : 0.5,
                       child: AbsorbPointer(
@@ -547,7 +543,7 @@ class _LiveRecState extends State<LiveRec> {
                       ),
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
                     child: Text(
                       _formatTime(totalTime),
                       style: const TextStyle(
@@ -588,14 +584,14 @@ class _LiveRecState extends State<LiveRec> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 10),
                   // Finish button visible when recording or paused.
                   if (_recordState == RecordState.record || _recordState == RecordState.pause)
                     Semantics(
                       label: "Finish and continue",
                       button: true,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                         child: SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -636,7 +632,7 @@ class _LiveRecState extends State<LiveRec> {
                   // Discard recording button.
                   if (_recordState == RecordState.record || _recordState == RecordState.pause)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 3),
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -689,7 +685,7 @@ class _LiveRecState extends State<LiveRec> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
-        // Callback completes with no return value to satisfy Future<void>
+        _discardRecording();
       },
       child: scaffoldWidget,
     );
@@ -707,7 +703,7 @@ class _LiveRecState extends State<LiveRec> {
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Opustit nahrávání'),
+                child: const Text('Zpět k nahrávání'),
               ),
               TextButton(
                 onPressed: () {
@@ -715,7 +711,7 @@ class _LiveRecState extends State<LiveRec> {
                   discard = true;
                   Navigator.of(context).pop();
                 },
-                child: const Text('Zpět k nahrávání'),
+                child: const Text('Opustit nahrávání'),
               ),
             ],
           );
@@ -741,34 +737,20 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  void _discardRecording() {
+  void _discardRecording() async{
     _pause();
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Potvrdit zahození'),
-          content: const Text('Opravdu chcete zahodit aktuální nahrávání?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Zrušit'),
-            ),
-            TextButton(
-              onPressed: () {
-                clear();
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LiveRec()),
-                );
-              },
-              child: const Text('Zahodit'),
-            ),
-          ],
-        );
-      },
-    );
+    bool discard = await changeConfirmation();
+    if(discard){
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+          settings: const RouteSettings(name: '/Recorder'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
+    }
   }
 
   Future<void> _start() async {

@@ -115,7 +115,15 @@ class _LoginState extends State<Login> {
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+            settings: const RouteSettings(name: '/Recorder'),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
       } else if (response.statusCode == 403) {
         FlutterSecureStorage().write(key: 'token', value: response.body.toString());
         Navigator.pushReplacement(
