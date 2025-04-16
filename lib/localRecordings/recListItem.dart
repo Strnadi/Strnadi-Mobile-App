@@ -409,6 +409,9 @@ class _RecordingItemState extends State<RecordingItem> {
                           icon: const Icon(Icons.send),
                           label: const Text('Odeslat záznam'),
                           onPressed: () {
+                            setState(() {
+                              widget.recording.sending = true;
+                            });
                             DatabaseNew.sendRecordingBackground(widget.recording.id!);
                             // Add your send logic here
                             logger.i("Sending recording: ${widget.recording.id}");

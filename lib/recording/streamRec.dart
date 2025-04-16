@@ -707,7 +707,7 @@ class _LiveRecState extends State<LiveRec> {
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Zrušit'),
+                child: const Text('Opustit nahrávání'),
               ),
               TextButton(
                 onPressed: () {
@@ -715,7 +715,7 @@ class _LiveRecState extends State<LiveRec> {
                   discard = true;
                   Navigator.of(context).pop();
                 },
-                child: const Text('Pokračovat'),
+                child: const Text('Zpět k nahrávání'),
               ),
             ],
           );

@@ -205,7 +205,7 @@ class _UserPageState extends State<UserPage> {
     showDialog(context: context, builder: (context) {
       return AlertDialog(
         title: const Text('Odhlásit se'),
-        content: const Text('Opravde se chcete odhlásit?'),
+        content: const Text('Opravdu se chcete odhlásit?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

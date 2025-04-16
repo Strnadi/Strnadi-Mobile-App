@@ -733,6 +733,7 @@ class _RecordingFormState extends State<RecordingForm> {
                               contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                             ),
                             keyboardType: TextInputType.text,
+                            maxLength: 49,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Prosím zadejte název nahrávky';
