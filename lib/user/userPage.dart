@@ -90,7 +90,7 @@ class _UserPageState extends State<UserPage> {
       email = mail;
     }
     final url = Uri.parse(
-        'https://api.strnadi.cz/users/${email}/get-profile-photo');
+        'https://${Config.host}/users/${email}/get-profile-photo');
     logger.i(url);
 
     try {
@@ -175,7 +175,7 @@ class _UserPageState extends State<UserPage> {
     final jwt = await secureStorage.read(key: 'token');
     final String email = JwtDecoder.decode(jwt!)['sub'];
 
-    final url = Uri.parse("https://api.strnadi.cz/users/${email}/upload-profile-photo");
+    final url = Uri.parse("https://${Config.host}/users/${email}/upload-profile-photo");
     final body = jsonEncode({
       'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
       'format': profileImagePath!.split('.').last

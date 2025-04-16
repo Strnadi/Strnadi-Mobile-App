@@ -219,7 +219,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       email = mail;
     }
     final url = Uri.parse(
-        'https://api.strnadi.cz/users/${email}/get-profile-photo');
+        'https://${Config.host}/users/${email}/get-profile-photo');
     logger.i(url);
 
     try {
@@ -346,13 +346,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 children: [
                   TileLayer(
                     urlTemplate:
-                    'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                    'https://${Config.host}/map/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                     userAgentPackageName: 'cz.delta.strnadi',
                   ),
                   if (_isSatelliteView)
                     TileLayer(
                       urlTemplate:
-                      'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                      'https://${Config.host}/map/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                       userAgentPackageName: 'cz.delta.strnadi',
                     ),
                   PolylineLayer(

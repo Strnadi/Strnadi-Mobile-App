@@ -617,6 +617,15 @@ class DatabaseNew {
     logger.i("🔄 Syncing recordings...");
     try {
       await fetchRecordingsFromBE();
+      final List<Recording> localRecordings = await getRecordings();
+      final Set<int?> beIds = fetchedRecordings?.map((r) => r.BEId).toSet() ?? {};
+      for (var local in localRecordings) {
+        if (local.sent && !beIds.contains(local.BEId)) {
+          local.sent = false;
+          await updateRecording(local);
+          logger.i('Recording id ${local.id} marked as not sent (not found on backend, during sync).');
+        }
+      }
       await onFetchFinished();
       logger.i("✅ Recordings fetched and synced.");
     } catch (e, stackTrace) {
@@ -813,6 +822,16 @@ class DatabaseNew {
         }
         fetchedRecordings = recordings;
         fetchedRecordingParts = parts;
+        final db = await database;
+        final List<Recording> localRecordings = await getRecordings();
+        final Set<int?> beIds = recordings.map((r) => r.BEId).toSet();
+        for (var local in localRecordings) {
+          if (local.sent && !beIds.contains(local.BEId)) {
+            local.sent = false;
+            updateRecording(local);
+            logger.i('Recording id ${local.id} marked as not sent (not found on backend).');
+          }
+        }
       } else if (response.statusCode == 204) {
         logger.i('No recordings found on backend.');
       } else {

@@ -274,23 +274,23 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e("Recording BEID is null");
       return;
     }
+    if(dialectSegments.isNotEmpty) {
+      var dialect = dialectSegments.first;
+      var body = RecordingDialect(
+        RecordingId: id,
+        StartDate: recording.createdAt
+            .add(
+            Duration(milliseconds: dialect.startTime.toInt())),
+        EndDate: recording.createdAt.add(
+            Duration(milliseconds: dialect.endTime.toInt())),
+        dialect: dialect.type,
 
-    var dialect = dialectSegments.first;
-    var body = RecordingDialect(
-      RecordingId: id,
-      StartDate: recording.createdAt
-          .add(
-          Duration(milliseconds: dialect.startTime.toInt())),
-      EndDate: recording.createdAt.add(
-          Duration(milliseconds: dialect.endTime.toInt())),
-      dialect: dialect.type,
 
+      );
 
-    );
-
-    DatabaseNew.insertRecordingDialect(body);
-    logger.i("Dialect inserted into database");
-
+      DatabaseNew.insertRecordingDialect(body);
+      logger.i("Dialect inserted into database");
+    }
     // for (DialectModel dialect in dialectSegments) {
     //   var token = FlutterSecureStorage();
     //   var jwt = await token.read(key: 'token');
