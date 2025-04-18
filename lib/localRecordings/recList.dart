@@ -48,7 +48,7 @@ enum SortBy { name, date, ebc, downloaded, none }
 class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   List<Recording> list = List<Recording>.empty(growable: true);
 
-  SortBy sortOptions = SortBy.none;
+  SortBy sortOptions = SortBy.date;
 
   bool isAscending = true; // Add
 
