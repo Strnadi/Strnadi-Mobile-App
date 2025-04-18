@@ -34,7 +34,7 @@ class DialectModel {
 class DialectSelectionDialog extends StatefulWidget {
   final double currentPosition;
   final double duration;
-  final Function(DialectModel) onDialectAdded;
+  final Function(DialectModel?) onDialectAdded;
   Widget? spectogram;
 
   DialectSelectionDialog({
@@ -84,125 +84,136 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Přidání dialektu',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 24),
-            // Spectogram with overlay markers
-            SizedBox(
-              height: 200,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Spectrogram background
-                  widget.spectogram!,
-
-                  // The invisible slider on top for interaction
-                ],
-              ),
-            ),
-
-            // Playback controls row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                IconButton(
-                  icon: Icon(Icons.replay_10),
-                  onPressed: () {
-                    // Handle rewind
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.play_arrow),
-                  iconSize: 32,
-                  onPressed: () {
-                    // Handle play
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.forward_10),
-                  onPressed: () {
-                    // Handle forward
-                  },
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-
-            // Dialect options arranged in a grid
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 2.5,
-              children: [
-                _dialectOption('BC'),
-                _dialectOption('BE'),
-                _dialectOption('BiBh'),
-                _dialectOption('BhBi'),
-                _dialectOption('XB'),
-                _dialectOption('Jiné'),
-              ],
-            ),
-            SizedBox(height: 16),
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  setState(() {
-                    selectedDialect = 'Nevím';
-                  });
-                },
-                child: Text(
-                  'Nevím',
+                Text(
+                  'Přidání dialektu',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color:
-                    selectedDialect == 'Nevím' ? Colors.blue : Colors.black,
-                    fontWeight: selectedDialect == 'Nevím'
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ),
-            SizedBox(height: 24),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFFCDC4D),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                SizedBox(height: 24),
+                // Spectogram with overlay markers
+                SizedBox(
+                  height: 200,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Spectrogram background
+                      widget.spectogram!,
+                    ],
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: 16),
-              ),
-              onPressed: selectedDialect != null
-                  ? () {
-                widget.onDialectAdded(DialectModel(
-                  type: selectedDialect!,
-                  label: selectedDialect!,
-                  color: dialectColors[selectedDialect]!,
-                  startTime: startTime,
-                  endTime: endTime,
-                ));
+                // Playback controls row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.replay_10),
+                      onPressed: () {
+                        // Handle rewind
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.play_arrow),
+                      iconSize: 32,
+                      onPressed: () {
+                        // Handle play
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.forward_10),
+                      onPressed: () {
+                        // Handle forward
+                      },
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                // Dialect options arranged in a grid
+                GridView.count(
+                  shrinkWrap: true,
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 2.5,
+                  children: [
+                    _dialectOption('BC'),
+                    _dialectOption('BE'),
+                    _dialectOption('BiBh'),
+                    _dialectOption('BhBi'),
+                    _dialectOption('XB'),
+                    _dialectOption('Jiné'),
+                  ],
+                ),
+                SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        selectedDialect = 'Nevím';
+                      });
+                    },
+                    child: Text(
+                      'Nevím',
+                      style: TextStyle(
+                        color: selectedDialect == 'Nevím' ? Colors.blue : Colors.black,
+                        fontWeight: selectedDialect == 'Nevím'
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFFFCDC4D),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: selectedDialect != null
+                      ? () {
+                    widget.onDialectAdded(DialectModel(
+                      type: selectedDialect!,
+                      label: selectedDialect!,
+                      color: dialectColors[selectedDialect]!,
+                      startTime: startTime,
+                      endTime: endTime,
+                    ));
 
-                Navigator.pop(context);
-              }
-                  : null,
-              child: Text('Potvrdit'),
+                    Navigator.pop(context);
+                  }
+                      : null,
+                  child: Text('Potvrdit'),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          // Close button in the top-right corner
+          Positioned(
+            top: 8,
+            right: 8,
+            child: IconButton(
+              icon: Icon(Icons.close),
+              onPressed: () {
+                widget.onDialectAdded(null);
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

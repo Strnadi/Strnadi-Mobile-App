@@ -359,6 +359,10 @@ class _RecordingFormState extends State<RecordingForm> {
         duration: totalDuration.inSeconds.toDouble(),
         onDialectAdded: (dialect) {
           setState(() {
+            if (dialect == null) {
+              spectogram = spect;
+              return;
+            }
             dialectSegments.add(dialect);
             spectogram = spect;
           });
