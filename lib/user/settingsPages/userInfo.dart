@@ -93,7 +93,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> updateUser(String email, Map<String, dynamic> updatedData, String jwt) async {
-    final url = Uri.parse('https://${Config.host}/users/$email');
+
+    final secureStorage = FlutterSecureStorage();
+
+    final id = await secureStorage.read(key: "userId");
+    final url = Uri.parse('https://${Config.host}/users/$id');
 
 
     logger.i(jsonEncode(updatedData));

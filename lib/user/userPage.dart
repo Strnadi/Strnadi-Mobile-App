@@ -82,6 +82,8 @@ class _UserPageState extends State<UserPage> {
     var email;
     final jwt = await secureStorage.read(key: 'token');
 
+    final id = await secureStorage.read(key: "userId");
+
     if (mail == null){
       final jwt = await secureStorage.read(key: 'token');
       email = JwtDecoder.decode(jwt!)['sub'];
@@ -90,7 +92,7 @@ class _UserPageState extends State<UserPage> {
       email = mail;
     }
     final url = Uri.parse(
-        'https://${Config.host}/users/${email}/get-profile-photo');
+        'https://${Config.host}/users/${id}/get-profile-photo');
     logger.i(url);
 
     try {
@@ -119,6 +121,7 @@ class _UserPageState extends State<UserPage> {
 
   void getUserData() async {
     final usernameExists = await secureStorage.containsKey(key: 'user');
+    final id = await secureStorage.read(key: "userId");
 
     if (usernameExists) {
       var storedUserName = await secureStorage.read(key: 'user');
@@ -133,7 +136,7 @@ class _UserPageState extends State<UserPage> {
 
     final jwt = await secureStorage.read(key: 'token');
     final String email = JwtDecoder.decode(jwt!)['sub'];
-    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$email');
+    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$id');
 
     try {
       final response = await http.get(
@@ -174,8 +177,9 @@ class _UserPageState extends State<UserPage> {
   Future<void> UploadProfilePic() async {
     final jwt = await secureStorage.read(key: 'token');
     final String email = JwtDecoder.decode(jwt!)['sub'];
+    final id = await secureStorage.read(key: "userId");
 
-    final url = Uri.parse("https://${Config.host}/users/${email}/upload-profile-photo");
+    final url = Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
     final body = jsonEncode({
       'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
       'format': profileImagePath!.split('.').last

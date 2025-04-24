@@ -21,6 +21,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/launch_warning.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -48,6 +49,7 @@ class _LoginState extends State<Login> {
   @override
   void initState() {
     super.initState();
+
     _registerTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
         Navigator.pushReplacement(
@@ -160,6 +162,7 @@ class _LoginState extends State<Login> {
   }
 
   bool _obscurePassword = true;
+
 
   @override
   Widget build(BuildContext context) {

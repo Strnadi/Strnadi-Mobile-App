@@ -32,6 +32,7 @@ import 'package:strnadi/md_renderer.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../config/config.dart';
+import 'launch_warning.dart';
 
 Logger logger = Logger();
 
@@ -142,6 +143,10 @@ class _AuthState extends State<Authorizator> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showWIPwarning();
+    });
     hasInternetAccess().then((online) {
       setState(() {
         _isOnline = online;
@@ -150,6 +155,12 @@ class _AuthState extends State<Authorizator> {
     checkLoggedIn(); // token check if needed
   }
 
+  void _showWIPwarning() {
+    showDialog(
+      context: context,
+      builder: (context) => WIP_warning(),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     // Example color definitions
