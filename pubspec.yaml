@@ -94,6 +94,7 @@ dependencies:
   wakelock_plus: ^1.2.11
   flutter_markdown: ^0.7.6+2
   flutter_foreground_task: ^8.17.0
+  posthog_flutter: ^4.10.8
 
 
 dev_dependencies:

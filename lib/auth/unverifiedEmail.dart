@@ -25,10 +25,12 @@ import 'package:logger/logger.dart';
 Logger logger = Logger();
 
 class EmailNotVerified extends StatefulWidget {
+  final int userId;
   final String userEmail;
   const EmailNotVerified({
     Key? key,
-    required this.userEmail,
+    required this.userId,
+    required this.userEmail
   }) : super(key: key);
 
   @override
@@ -76,8 +78,9 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
 
   /// Resend verification email.
   Future<void> resendEmail() async {
-    final String? jwt = await FlutterSecureStorage().read(key: 'token');
-    final Uri url = Uri.https(Config.host, '/auth/${widget.userEmail}/resend-verify-email');
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+    final String? jwt = await secureStorage.read(key: 'token');
+    final Uri url = Uri.https(Config.host, '/auth/${await secureStorage.read(key: 'userId')}/resend-verify-email');
     try {
       final response = await http.get(
         url,

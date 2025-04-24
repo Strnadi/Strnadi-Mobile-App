@@ -161,11 +161,10 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i('Mail set to ${recording.mail}');
     });
 
-    getDeviceModel().then((model) async {
-      while (recording.device?.isEmpty ?? true) {
-        await Future.delayed(const Duration(seconds: 1));
-      }
-      recording.device = model;
+    getDeviceModel().then((model) {
+      setState(() {
+        recording.device = model;
+      });
       logger.i('Device set to ${recording.device}');
     });
 
@@ -498,8 +497,19 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<String> getDeviceModel() async {
-    // Implement your device info logic here.
-    return "DeviceModel";
+    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    try {
+      if (Platform.isAndroid) {
+        final android = await deviceInfo.androidInfo;
+        return '${android.manufacturer} ${android.model}';
+      } else if (Platform.isIOS) {
+        final ios = await deviceInfo.iosInfo;
+        return ios.utsname.machine ?? 'iOS';
+      }
+    } catch (_) {
+      // Ignore and fall through to default
+    }
+    return Platform.operatingSystem;
   }
 
   void togglePlay() async {

@@ -165,10 +165,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
   void getRecordings() async {
 
     try {
-      String? email;
+      int? userId;
+      //String? email;
       if (_recordingAuthorFilter == 'me') {
         final jwt = await secureStorage.read(key: 'token');
-        email = JwtDecoder.decode(jwt!)['sub'];
+        userId = int.parse((await secureStorage.read(key: 'userId'))!);
       }
 
       final response = await http.get(
@@ -179,7 +180,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           queryParameters: {
             'parts': 'true',
             'sound': 'false',
-            if (email != null) 'email': email,
+            if (userId != null) 'userId': userId,
           },
         ),
         headers: {
@@ -207,19 +208,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
   }
 
-  Future<(String?, String?)?> getProfilePic(String? mail) async {
-    var email;
+  Future<(String?, String?)?> getProfilePic(int? userId_, String? mail) async {
+    //var email;
+    int? userId;
     final jwt = await secureStorage.read(key: 'token');
 
     if (mail == null){
       final jwt = await secureStorage.read(key: 'token');
-      email = JwtDecoder.decode(jwt!)['sub'];
+      userId = int.parse((await secureStorage.read(key: 'userId'))!);
+      //email = JwtDecoder.decode(jwt!)['sub'];
     }
     else {
-      email = mail;
+      userId = userId_;
+      //email = mail;
     }
     final url = Uri.parse(
-        'https://${Config.host}/users/${email}/get-profile-photo');
+        'https://${Config.host}/users/${userId}/get-profile-photo');
     logger.i(url);
 
     try {
@@ -346,13 +350,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 children: [
                   TileLayer(
                     urlTemplate:
-                    'https://${Config.host}/map/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                    'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                     userAgentPackageName: 'cz.delta.strnadi',
                   ),
                   if (_isSatelliteView)
                     TileLayer(
                       urlTemplate:
-                      'https://${Config.host}/map/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                      'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                       userAgentPackageName: 'cz.delta.strnadi',
                     ),
                   PolylineLayer(

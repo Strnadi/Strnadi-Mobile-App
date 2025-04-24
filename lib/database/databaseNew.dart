@@ -722,6 +722,26 @@ class DatabaseNew {
     }
   }
 
+  /// Deletes a recording and its parts from the local cache.
+  static Future<void> deleteRecordingFromCache(int id) async {
+    final db = await database;
+    // Remove associated parts from in-memory list and DB
+    recordingParts.removeWhere((p) => p.recordingId == id);
+    await db.delete(
+      'recordingParts',
+      where: 'recordingId = ?',
+      whereArgs: [id],
+    );
+    // Remove recording from in-memory list and DB
+    recordings.removeWhere((r) => r.id == id);
+    await db.delete(
+      'recordings',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    logger.i('Recording id $id deleted from cache.');
+  }
+
 
 
   static Future<void> sendRecordingPart(RecordingPart recordingPart) async {
@@ -791,6 +811,52 @@ class DatabaseNew {
     }
   }
 
+  /// Update an existing recording on the backend
+  /// Uses PATCH /recordings/[BEId]/edit
+  static Future<void> updateRecordingBE(Recording recording) async {
+    // Recording must already exist on backend
+    if (recording.BEId == null) {
+      logger.w('Cannot update recording on backend because BEId is null.');
+      return;
+    }
+
+    String? jwt = await FlutterSecureStorage().read(key: 'token');
+    if (jwt == null) {
+      throw UploadException('Failed to update recording on backend', 401);
+    }
+
+    final Uri url = Uri(
+      scheme: 'https',
+      host: Config.host,
+      path: '/recordings/${recording.BEId}/edit',
+    );
+
+    final http.Response response = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      },
+      body: jsonEncode({
+        'name': recording.name,
+        'note': recording.note,
+        'estimatedBirdsCount': recording.estimatedBirdsCount,
+        'device': recording.device,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      logger.i('Recording BEId ${recording.BEId} successfully updated on backend.');
+      // Keep local DB in sync
+      await updateRecording(recording);
+    } else {
+      throw UploadException(
+        'Failed to update recording on backend',
+        response.statusCode,
+      );
+    }
+  }
+
   static Future<void> fetchRecordingsFromBE() async {
     fetching = true;
     try {
@@ -798,12 +864,16 @@ class DatabaseNew {
       if (jwt == null) {
         throw FetchException('Failed to fetch recordings from backend', 401);
       }
-      final String email = JwtDecoder.decode(jwt)['sub'];
+      // Read userId from secure storage instead of using email
+      String? userId = await FlutterSecureStorage().read(key: 'userId');
+      if (userId == null) {
+        throw FetchException('Failed to fetch recordings from backend: userId not found', 401);
+      }
       Uri url = Uri(
         scheme: 'https',
         host: Config.host,
         path: '/recordings',
-        queryParameters: {'parts': 'true', 'email': email},
+        queryParameters: {'parts': 'true', 'userId': userId},
       );
       final http.Response response = await http.get(url, headers: {
         'Content-Type': 'application/json',
@@ -811,8 +881,9 @@ class DatabaseNew {
       });
       if (response.statusCode == 200) {
         var body = json.decode(response.body);
+        // email is not used anymore, but for backward compatibility, pass null
         List<Recording> recordings = List<Recording>.generate(body.length, (i) {
-          return Recording.fromBEJson(body[i], email);
+          return Recording.fromBEJson(body[i], null);
         });
         List<RecordingPart> parts = [];
         for (int i = 0; i < body.length; i++) {

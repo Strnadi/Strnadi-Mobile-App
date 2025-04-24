@@ -108,7 +108,6 @@ Future<AuthStatus> _offlineIsLoggedIn() async{
   FlutterSecureStorage secureStorage = FlutterSecureStorage();
   String? token = await secureStorage.read(key: 'token');
   if (token != null) {
-    Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
     DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
     if (expirationDate.isAfter(DateTime.now())) {
       String? verified = await secureStorage.read(key: 'verified');
@@ -357,8 +356,9 @@ class _AuthState extends State<Authorizator> {
       String? token = await secureStorage.read(key: 'token');
       if (token == null) return;
 
-      String email = JwtDecoder.decode(token)['sub'];
-      final Uri url = Uri.parse('https://${Config.host}/users/$email').replace(queryParameters: {'jwt': token});
+      //String email = JwtDecoder.decode(token)['sub'];
+      int userId = int.parse((await secureStorage.read(key: 'userId'))!);
+      final Uri url = Uri.parse('https://${Config.host}/users/$userId').replace(queryParameters: {'jwt': token});
 
       final response = await http.get(
         url,
@@ -367,6 +367,7 @@ class _AuthState extends State<Authorizator> {
           'Authorization': 'Bearer $token',
         },
       );
+
 
       final Map<String, dynamic> data = jsonDecode(response.body);
       secureStorage.write(key: 'user', value: data['firstName']);
@@ -387,9 +388,20 @@ class _AuthState extends State<Authorizator> {
     } else if(status == AuthStatus.notVerified) {
       String? token = await secureStorage.read(key: 'token');
       if (token == null) return;
+      Uri url = Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: '/users'
+      );
+      var idResponse = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+      int userId = int.parse(idResponse.body);
+      await secureStorage.write(key: 'userId', value: userId.toString());
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'])),
+        MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'], userId: userId,)),
       );
     } else {
       // If there is a token but user is not logged in (invalid token),

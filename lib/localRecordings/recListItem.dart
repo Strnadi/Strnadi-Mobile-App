@@ -33,6 +33,7 @@ import 'package:strnadi/localRecordings/dialectBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../PostRecordingForm/RecordingForm.dart';
+import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 
 final logger = Logger();
@@ -295,6 +296,23 @@ class _RecordingItemState extends State<RecordingItem> {
             Navigator.pop(context);
           },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              final updatedRecording = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditRecordingPage(recording: widget.recording),
+                ),
+              );
+              // If the user saved changes, rebuild to show the latest data
+              if (updatedRecording != null && mounted) {
+                setState(() {});
+              }
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _fetchRecordings,
@@ -419,6 +437,19 @@ class _RecordingItemState extends State<RecordingItem> {
                             // await sendRecording(widget.recording);
                           },
                         ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Delete recording from cache
+                          DatabaseNew.deleteRecordingFromCache(widget.recording.id!);
+                          setState(() {
+                            // Optionally refresh UI or provide feedback
+                          });
+                        },
+                        child: const Text('Smazat z cache'),
                       ),
                     ),
                   ],

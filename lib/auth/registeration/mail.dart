@@ -78,7 +78,7 @@ class _RegMailState extends State<RegMail> {
       },
     );
     final response = await http.get(url);
-    if (response.statusCode == 200) {
+    if ([200, 404].contains(response.statusCode)) {
       return false; // Email exists (or JWT received)
     } else if (response.statusCode == 409) {
       //_showUserExistsPopup();

@@ -15,6 +15,7 @@
  */
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/foundation.dart';
 
 class Config {
   static Map<String, dynamic>? _config;
@@ -39,9 +40,12 @@ class Config {
     return _config!["mapy.cz-key"];
   }
 
-  static String get host{
+  static String get host {
     if (_config == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
+    }
+    if (kDebugMode && _config!.containsKey("devhost")) {
+      return _config!["devhost"];
     }
     return _config!["host"];
   }

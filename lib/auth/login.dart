@@ -93,25 +93,50 @@ class _LoginState extends State<Login> {
         if (await secureStorage.read(key: 'token') != null){
           secureStorage.delete(key: 'token');
         }
-        await secureStorage.write(key: 'token', value: response.body);
+        await secureStorage.write(key: 'token', value: response.body.toString());
         final verifyUrl = Uri.https(Config.host, '/auth/verify-jwt');
         final verifyResponse = await http.get(
           verifyUrl,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${response.body}',
+            'Authorization': 'Bearer ${response.body.toString()}',
           },
         );
 
         if (verifyResponse.statusCode == 403) {
           // If the JWT check returns 403, the account is not verified.
+          Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users'
+          );
+          var response = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
+          });
+          int userId = int.parse(response.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+              builder: (_) => EmailNotVerified(userEmail: _emailController.text, userId: userId,),
             ),
           );
           return;
+        }
+        else{
+          await secureStorage.write(key: 'token', value: response.body.toString());
+          Uri url = Uri(
+              scheme: 'https',
+              host: Config.host,
+              path: '/users'
+          );
+          var idResponse = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${response.body.toString()}',
+          });
+          int userId = int.parse(idResponse.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
         }
         await secureStorage.write(key: 'verified', value: 'true');
         logger.i(response.body);
@@ -127,11 +152,23 @@ class _LoginState extends State<Login> {
           ),
         );
       } else if (response.statusCode == 403) {
-        FlutterSecureStorage().write(key: 'token', value: response.body.toString());
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
+        await secureStorage.write(key: 'token', value: response.body.toString());
+        Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users'
+        );
+        var idResponse = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
+        });
+        int userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+            builder: (_) => EmailNotVerified(userEmail: _emailController.text, userId: userId,),
           ),
         );
       } else if (response.statusCode == 401) {
