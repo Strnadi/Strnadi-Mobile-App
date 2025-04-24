@@ -391,7 +391,7 @@ class _AuthState extends State<Authorizator> {
       Uri url = Uri(
           scheme: 'https',
           host: Config.host,
-          path: '/users'
+          path: '/users/get-id'
       );
       var idResponse = await http.get(url, headers: {
         'Content-Type': 'application/json',

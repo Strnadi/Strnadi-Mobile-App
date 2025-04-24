@@ -108,7 +108,7 @@ class _LoginState extends State<Login> {
           Uri url = Uri(
             scheme: 'https',
             host: Config.host,
-            path: '/users'
+            path: '/users/get-id'
           );
           var response = await http.get(url, headers: {
             'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ class _LoginState extends State<Login> {
           Uri url = Uri(
               scheme: 'https',
               host: Config.host,
-              path: '/users'
+              path: '/users/get-id'
           );
           var idResponse = await http.get(url, headers: {
             'Content-Type': 'application/json',
@@ -157,7 +157,7 @@ class _LoginState extends State<Login> {
         Uri url = Uri(
             scheme: 'https',
             host: Config.host,
-            path: '/users'
+            path: '/users/get-id'
         );
         var idResponse = await http.get(url, headers: {
           'Content-Type': 'application/json',

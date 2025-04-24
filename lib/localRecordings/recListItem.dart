@@ -246,6 +246,27 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+  /// Permanently deletes the current recording both on the server (if already sent)
+  /// and locally in the SQLite database.
+  Future<void> _deleteRecording() async {
+    try {
+      // Always remove it from the local DB.
+      await DatabaseNew.deleteRecording(widget.recording.id!);
+
+      // Return to the previous screen so the list refreshes.
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e, stackTrace) {
+      logger.e('Error deleting recording: $e', error: e, stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error deleting recording')),
+        );
+      }
+    }
+  }
+
 
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
@@ -450,6 +471,36 @@ class _RecordingItemState extends State<RecordingItem> {
                           });
                         },
                         child: const Text('Smazat z cache'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.delete, color: Colors.white,),
+                        label: const Text('Smazat záznam', style: TextStyle(color: Colors.white),),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Potvrdit smazání'),
+                              content: const Text('Opravdu chcete tento záznam natrvalo smazat?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: const Text('Zrušit'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  child: const Text('Smazat'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            _deleteRecording();
+                          }
+                        },
                       ),
                     ),
                   ],

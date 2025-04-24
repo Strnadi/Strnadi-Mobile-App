@@ -649,16 +649,80 @@ class DatabaseNew {
   }
 
   static Future<void> deleteRecording(int id) async {
-    final db = await database;
-    List<RecordingPart> recordingPartsCopy = List<RecordingPart>.from(recordingParts);
-    for (RecordingPart part in recordingPartsCopy) {
-      if (part.recordingId == id) {
-        recordingParts.remove(part);
-        await db.delete("recordingParts", where: "recordingId = ?", whereArgs: [id]);
+    try {
+      // Try to obtain the in‑memory instance of the recording
+      Recording? recording;
+      try {
+        recording = recordings.firstWhere((r) => r.id == id);
+      } catch (_) {
+        recording = null;
       }
+
+      /* ------------------------------------------------------------------
+       * 1) Delete on backend (only if already sent and BEId is known)
+       * ------------------------------------------------------------------ */
+      if (recording != null && recording.sent && recording.BEId != null) {
+        final String? jwt = await FlutterSecureStorage().read(key: 'token');
+        if (jwt != null) {
+          final Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/recordings/${recording.BEId}',
+          );
+          final http.Response resp = await http.delete(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $jwt',
+            },
+          );
+          if (resp.statusCode == 200 || resp.statusCode == 204) {
+            logger.i('Recording BEId ${recording.BEId} deleted on backend.');
+          } else {
+            logger.w(
+              'Backend deletion failed for BEId ${recording.BEId}. '
+              'Status: ${resp.statusCode} – Body: ${resp.body}',
+            );
+          }
+        } else {
+          logger.w('JWT not available – skipping backend delete for BEId ${recording?.BEId}');
+        }
+      }
+
+      /* ------------------------------------------------------------------
+       * 2) Delete locally (DB rows, cached files, in‑memory lists)
+       * ------------------------------------------------------------------ */
+      final Database db = await database;
+
+      // Remove audio part files + rows
+      for (final RecordingPart part in List<RecordingPart>.from(recordingParts)) {
+        if (part.recordingId == id) {
+          if (part.path != null) {
+            try {
+              await File(part.path!).delete();
+            } catch (_) {/* ignore file‑system errors */}
+          }
+          recordingParts.remove(part);
+        }
+      }
+      await db.delete('recordingParts', where: 'recordingId = ?', whereArgs: [id]);
+
+      // Remove main audio file if any
+      if (recording?.path != null) {
+        try {
+          await File(recording!.path!).delete();
+        } catch (_) {/* ignore file‑system errors */}
+      }
+
+      // Remove recording row + in‑memory instance
+      recordings.removeWhere((r) => r.id == id);
+      await db.delete('recordings', where: 'id = ?', whereArgs: [id]);
+
+      logger.i('Recording id $id deleted locally (and on backend if applicable).');
+    } catch (e, stackTrace) {
+      logger.e('Failed to delete recording id $id', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
-    await db.delete("recordings", where: "id = ?", whereArgs: [id]);
-    logger.i('Recording id: $id deleted.');
   }
 
   static Future<void> sendRecordingBackground(int recordingId) async {

@@ -80,18 +80,21 @@ class _VerifyEmailState extends State<VerifyEmail> {
   Future<void> resendEmail() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     final String? jwt = await secureStorage.read(key: 'token');
-    Uri IdUrl = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/users'
-    );
-    var idResponse = await http.get(IdUrl, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $jwt',
-    });
-    int userId = int.parse(idResponse.body);
+    int? userId = int.parse((await secureStorage.read(key: 'userid'))?? '-1');
+    if(userId==-1) {
+      Uri IdUrl = Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: '/users/get-id'
+      );
+      var idResponse = await http.get(IdUrl, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      });
+      userId = int.parse(idResponse.body);
+    }
     await secureStorage.write(key: 'userId', value: userId.toString());
-    final Uri url = Uri.https(Config.host, '/auth/${widget.userEmail}/resend-verify-email');
+    final Uri url = Uri.https(Config.host, '/auth/${userId}/resend-verify-email');
     try {
       final response = await http.get(
           url,

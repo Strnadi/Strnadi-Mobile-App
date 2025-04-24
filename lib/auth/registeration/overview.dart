@@ -116,6 +116,18 @@ class _RegOverviewState extends State<RegOverview> {
         await secureStorage.write(key: 'token', value: response.body.toString());
         await fb.refreshToken();
 
+        Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users/get-id'
+        );
+        var idResponse = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${response.body.toString()}',
+        });
+        int userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
+
         if(widget.jwt == null){
           await secureStorage.write(key: 'verified', value: 'false');
           Navigator.pushReplacement(
