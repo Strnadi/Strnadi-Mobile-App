@@ -18,6 +18,7 @@
  */
 
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
@@ -52,6 +53,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
   bool isAscending = true; // Add
 
+  Timer? _refreshTimer;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -65,6 +68,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -97,6 +101,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       }
     });
     getRecordings();
+    // Periodically refresh to catch sending status updates
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      getRecordings();
+    });
   }
 
   void _showMessage(String message, String title) {
@@ -352,8 +360,6 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final rec = records[index];
-              final statusText = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
-              final statusColor = rec.sent ? Colors.green : Colors.orange;
               final dateText = rec.createdAt != null
                   ? formatDateTime(rec.createdAt!)
                   : '';
@@ -429,13 +435,39 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: statusColor,
-                            ),
+                          FutureBuilder<List<RecordingPart>>(
+                            future: Future.value(DatabaseNew.getPartsById(rec.id!)),
+                            builder: (context, snapshot) {
+                              String status;
+                              Color color;
+                              if (rec.sending) {
+                                status = 'Odesílání...';
+                                color = Colors.blue;
+                              } else if (snapshot.connectionState == ConnectionState.waiting) {
+                                status = 'Kontrola částí...';
+                                color = Colors.grey;
+                              } else if (snapshot.hasError) {
+                                status = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+                                color = rec.sent ? Colors.green : Colors.orange;
+                              } else {
+                                final parts = snapshot.data!;
+                                if (rec.sent && parts.any((p) => !p.sent)) {
+                                  status = 'Neodeslané části';
+                                  color = Colors.red;
+                                } else {
+                                  status = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+                                  color = rec.sent ? Colors.green : Colors.orange;
+                                }
+                              }
+                              return Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: color,
+                                ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 4),
                           Text(

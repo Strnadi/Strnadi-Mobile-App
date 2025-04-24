@@ -338,6 +338,7 @@ class RecordingPart {
   String? dataBase64Temp;
   String? path;
   bool sent;
+  bool sending;
 
   RecordingPart({
     this.id,
@@ -353,6 +354,7 @@ class RecordingPart {
     this.path,
     this.dataBase64Temp,
     this.sent = false,
+    this.sending = false,
   });
 
   factory RecordingPart.fromJson(Map<String, Object?> json) {
@@ -367,7 +369,8 @@ class RecordingPart {
       gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
       gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
       square: json['square'] as String?,
-      sent: (json['sent'] as int) == 1,
+      sent:    (json['sent']    as int) == 1,
+      sending: (json['sending'] as int) == 1,
       path: json['path'] as String?,
     );
   }
@@ -451,7 +454,8 @@ class RecordingPart {
       'gpsLongitudeEnd': gpsLongitudeEnd,
       'path': path,
       'square': square,
-      'sent': sent ? 1 : 0,
+      'sent':    sent    ? 1 : 0,
+      'sending': sending ? 1 : 0,
     };
   }
 
@@ -467,7 +471,8 @@ class RecordingPart {
 class DatabaseNew {
   static Database? _database;
   static List<Recording> recordings = List<Recording>.empty(growable: true);
-  static List<RecordingPart> recordingParts = List<RecordingPart>.empty(growable: true);
+  static List<RecordingPart> recordingParts = List<RecordingPart>.empty(
+      growable: true);
 
   static List<Recording>? fetchedRecordings;
   static List<RecordingPart>? fetchedRecordingParts;
@@ -482,8 +487,7 @@ class DatabaseNew {
   }
 
 
-  static DialectModel ToDialectModel(RecordingDialect dialect){
-
+  static DialectModel ToDialectModel(RecordingDialect dialect) {
     final Map<String, Color> dialectColors = {
       'BC': Colors.yellow,
       'BE': Colors.green,
@@ -496,8 +500,11 @@ class DatabaseNew {
 
     return DialectModel(
       label: dialect.dialect,
-      startTime: Duration(milliseconds: dialect.StartDate.millisecondsSinceEpoch).inSeconds.toDouble(),
-      endTime: Duration(milliseconds: dialect.EndDate.millisecondsSinceEpoch).inSeconds.toDouble(),
+      startTime: Duration(
+          milliseconds: dialect.StartDate.millisecondsSinceEpoch).inSeconds
+          .toDouble(),
+      endTime: Duration(milliseconds: dialect.EndDate.millisecondsSinceEpoch)
+          .inSeconds.toDouble(),
       type: dialect.dialect,
       color: dialectColors[dialect.dialect] ?? Colors.white,
     );
@@ -508,22 +515,26 @@ class DatabaseNew {
       final db = await database;
       if (recording.BEId != null) {
         List<Map<String, dynamic>> existing =
-        await db.query("recordings", where: "BEId = ?", whereArgs: [recording.BEId]);
+        await db.query(
+            "recordings", where: "BEId = ?", whereArgs: [recording.BEId]);
         if (existing.isNotEmpty) {
           int id = existing.first["id"];
           recording.id = id;
-          await db.update("recordings", recording.toJson(), where: "id = ?", whereArgs: [id]);
+          await db.update("recordings", recording.toJson(), where: "id = ?",
+              whereArgs: [id]);
           int index = recordings.indexWhere((r) => r.id == id);
           if (index != -1) {
             recordings[index] = recording;
           } else {
             recordings.add(recording);
           }
-          logger.i('Recording with BEId ${recording.BEId} updated (id: $id), path: ${recording.path}');
+          logger.i('Recording with BEId ${recording
+              .BEId} updated (id: $id), path: ${recording.path}');
           return id;
         }
       }
-      recording.mail = JwtDecoder.decode(await FlutterSecureStorage().read(key: 'token') ?? '')['sub'];
+      recording.mail = JwtDecoder.decode(
+          await FlutterSecureStorage().read(key: 'token') ?? '')['sub'];
       final int id = await db.insert("recordings", recording.toJson());
       recording.id = id;
       recordings.add(recording);
@@ -541,18 +552,22 @@ class DatabaseNew {
       final db = await database;
       if (recordingPart.id != null) {
         List<Map<String, dynamic>> existing =
-        await db.query("recordingParts", where: "id = ?", whereArgs: [recordingPart.id]);
+        await db.query(
+            "recordingParts", where: "id = ?", whereArgs: [recordingPart.id]);
         if (existing.isNotEmpty) {
           int id = existing.first["id"];
           recordingPart.id = id;
-          await db.update("recordingParts", recordingPart.toJson(), where: "id = ?", whereArgs: [id]);
+          await db.update(
+              "recordingParts", recordingPart.toJson(), where: "id = ?",
+              whereArgs: [id]);
           int index = recordingParts.indexWhere((r) => r.id == id);
           if (index != -1) {
             recordingParts[index] = recordingPart;
           } else {
             recordingParts.add(recordingPart);
           }
-          logger.i('Recording part with backendRecordingId ${recordingPart.backendRecordingId} updated (id: $id).');
+          logger.i('Recording part with backendRecordingId ${recordingPart
+              .backendRecordingId} updated (id: $id).');
           return id;
         }
       }
@@ -562,7 +577,8 @@ class DatabaseNew {
       logger.i('Recording part ${recordingPart.id} inserted.');
       return id;
     } catch (e, stackTrace) {
-      logger.e('Failed to insert recording part', error: e, stackTrace: stackTrace);
+      logger.e(
+          'Failed to insert recording part', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       return -1;
     }
@@ -570,38 +586,47 @@ class DatabaseNew {
 
   static Future<void> onFetchFinished() async {
     List<Recording> oldRecordings = await getRecordings();
-    List<Recording> sentRecordings = oldRecordings.where((recording) => recording.sent).toList();
+    List<Recording> sentRecordings = oldRecordings.where((
+        recording) => recording.sent).toList();
 
-    if(fetchedRecordings == null || fetchedRecordingParts == null) {
+    if (fetchedRecordings == null || fetchedRecordingParts == null) {
       logger.i('No recordings fetched from backend.');
       return;
     }
-    if(fetchedRecordings!.isEmpty || fetchedRecordingParts!.isEmpty) {
+    if (fetchedRecordings!.isEmpty || fetchedRecordingParts!.isEmpty) {
       logger.i('No recordings fetched from backend.');
       return;
     }
 
     List<Recording> newRecordings = fetchedRecordings!
-        .where((recording) => !sentRecordings.any((r) => r.BEId == recording.BEId))
+        .where((recording) =>
+    !sentRecordings.any((r) =>
+    r.BEId == recording.BEId))
         .toList();
 
     for (Recording recording in newRecordings) {
       recording.sent = true;
       recording.downloaded = false;
-      logger.i('Inserting recording with BEId: ${recording.BEId} and name ${recording.name}');
+      logger.i(
+          'Inserting recording with BEId: ${recording.BEId} and name ${recording
+              .name}');
       await insertRecording(recording);
     }
 
     List<RecordingPart> oldRecordingParts = await getRecordingParts();
     List<RecordingPart> newRecordingParts = fetchedRecordingParts!
-        .where((newPart) => !oldRecordingParts.any((p) => p.BEId == newPart.BEId))
+        .where((newPart) =>
+    !oldRecordingParts.any((p) =>
+    p.BEId == newPart.BEId))
         .toList();
 
     for (RecordingPart recordingPart in newRecordingParts) {
       recordingPart.sent = true;
       Recording? localRecording;
       try {
-        localRecording = recordings.firstWhere((r) => r.BEId == recordingPart.backendRecordingId);
+        localRecording = recordings.firstWhere((r) =>
+        r.BEId ==
+            recordingPart.backendRecordingId);
       } catch (e) {
         localRecording = null;
       }
@@ -618,12 +643,14 @@ class DatabaseNew {
     try {
       await fetchRecordingsFromBE();
       final List<Recording> localRecordings = await getRecordings();
-      final Set<int?> beIds = fetchedRecordings?.map((r) => r.BEId).toSet() ?? {};
+      final Set<int?> beIds = fetchedRecordings?.map((r) => r.BEId).toSet() ??
+          {};
       for (var local in localRecordings) {
         if (local.sent && !beIds.contains(local.BEId)) {
           local.sent = false;
           await updateRecording(local);
-          logger.i('Recording id ${local.id} marked as not sent (not found on backend, during sync).');
+          logger.i('Recording id ${local
+              .id} marked as not sent (not found on backend, during sync).');
         }
       }
       await onFetchFinished();
@@ -638,7 +665,8 @@ class DatabaseNew {
     final db = await database;
     final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
     final String email = JwtDecoder.decode(jwt)['sub'];
-    final List<Map<String, dynamic>> recs = await db.query("recordings", where: "mail = ?", whereArgs: [email]);
+    final List<Map<String, dynamic>> recs = await db.query(
+        "recordings", where: "mail = ?", whereArgs: [email]);
     return List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
   }
 
@@ -681,11 +709,13 @@ class DatabaseNew {
           } else {
             logger.w(
               'Backend deletion failed for BEId ${recording.BEId}. '
-              'Status: ${resp.statusCode} – Body: ${resp.body}',
+                  'Status: ${resp.statusCode} – Body: ${resp.body}',
             );
           }
         } else {
-          logger.w('JWT not available – skipping backend delete for BEId ${recording?.BEId}');
+          logger.w(
+              'JWT not available – skipping backend delete for BEId ${recording
+                  ?.BEId}');
         }
       }
 
@@ -695,45 +725,60 @@ class DatabaseNew {
       final Database db = await database;
 
       // Remove audio part files + rows
-      for (final RecordingPart part in List<RecordingPart>.from(recordingParts)) {
+      for (final RecordingPart part in List<RecordingPart>.from(
+          recordingParts)) {
         if (part.recordingId == id) {
           if (part.path != null) {
             try {
               await File(part.path!).delete();
-            } catch (_) {/* ignore file‑system errors */}
+            } catch (_) {
+              /* ignore file‑system errors */
+            }
           }
           recordingParts.remove(part);
         }
       }
-      await db.delete('recordingParts', where: 'recordingId = ?', whereArgs: [id]);
+      await db.delete(
+          'recordingParts', where: 'recordingId = ?', whereArgs: [id]);
 
       // Remove main audio file if any
       if (recording?.path != null) {
         try {
           await File(recording!.path!).delete();
-        } catch (_) {/* ignore file‑system errors */}
+        } catch (_) {
+          /* ignore file‑system errors */
+        }
       }
 
       // Remove recording row + in‑memory instance
       recordings.removeWhere((r) => r.id == id);
       await db.delete('recordings', where: 'id = ?', whereArgs: [id]);
 
-      logger.i('Recording id $id deleted locally (and on backend if applicable).');
+      logger.i(
+          'Recording id $id deleted locally (and on backend if applicable).');
     } catch (e, stackTrace) {
-      logger.e('Failed to delete recording id $id', error: e, stackTrace: stackTrace);
+      logger.e('Failed to delete recording id $id', error: e,
+          stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
   static Future<void> sendRecordingBackground(int recordingId) async {
     await Workmanager().registerOneOffTask(
-      (Platform.isIOS)? "com.delta.strnadi.sendRecording" : "sendRecording_${DateTime.now().microsecondsSinceEpoch}",
-      (Platform.isIOS)? "sendRecording_${DateTime.now().microsecondsSinceEpoch}": "sendRecording",
+      (Platform.isIOS)
+          ? "com.delta.strnadi.sendRecording"
+          : "sendRecording_${DateTime
+          .now()
+          .microsecondsSinceEpoch}",
+      (Platform.isIOS) ? "sendRecording_${DateTime
+          .now()
+          .microsecondsSinceEpoch}" : "sendRecording",
       inputData: {"recordingId": recordingId},
     );
   }
 
-  static Future<void> sendRecording(Recording recording, List<RecordingPart> recordingParts) async {
+  static Future<void> sendRecording(Recording recording,
+      List<RecordingPart> recordingParts) async {
     if (!await hasInternetAccess()) {
       logger.i('No internet connection. Recording will not be sent.');
       recording.sending = false;
@@ -755,10 +800,12 @@ class DatabaseNew {
       body: jsonEncode(recording.toBEJson()),
     );
     if (response.statusCode == 200) {
-      logger.i('Recording sent successfully. Sending parts. Response: ${response.body}');
+      logger.i('Recording sent successfully. Sending parts. Response: ${response
+          .body}');
       recording.BEId = jsonDecode(response.body);
       final db = await database;
-      await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+      await db.update('recordings', recording.toJson(), where: 'id = ?',
+          whereArgs: [recording.id]);
 
       for (RecordingPart part in recordingParts) {
         part.recordingId = recording.id;
@@ -772,7 +819,8 @@ class DatabaseNew {
     } else {
       recording.sending = false;
       await updateRecording(recording);
-      throw UploadException('Failed to send recording to backend', response.statusCode);
+      throw UploadException(
+          'Failed to send recording to backend', response.statusCode);
     }
   }
 
@@ -807,39 +855,67 @@ class DatabaseNew {
   }
 
 
-
   static Future<void> sendRecordingPart(RecordingPart recordingPart) async {
-    String? jwt = await FlutterSecureStorage().read(key: 'token');
-    if (recordingPart.dataBase64 == null) {
-      throw UploadException('Recording part data is null', 410);
-    }
-    if (jwt == null) {
-      throw UploadException('Failed to send recording part to backend', 401);
-    }
-    logger.i('Uploading recording part (backendRecordingId: ${recordingPart.backendRecordingId}) with data length: ${recordingPart.dataBase64?.length}');
-    // Retrieve the parent recording to obtain its backend ID
-    Recording? parentRecording = await getRecordingFromDbById(recordingPart.recordingId!);
-    recordingPart.backendRecordingId  = parentRecording?.BEId ?? 0;
-    Database db = await database;
-    db.update('recordingParts', recordingPart.toJson(), where: 'id = ?', whereArgs: [recordingPart.id]);
-    final Map<String, Object?> jsonBody = recordingPart.toBEJson();
-    final http.Response response = await http.post(
-      Uri(scheme: 'https', host: Config.host, path: '/recordings/upload-part'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      },
-      body: jsonEncode(jsonBody),
-    );
-    if (response.statusCode == 200) {
-      logger.i(response.body);
-      int returnedId = jsonDecode(response.body);
-      recordingPart.BEId = returnedId;
-      recordingPart.sent = true;
+    // mark as sending
+    recordingPart.sending = true;
+    await updateRecordingPart(recordingPart);
+    try {
+      String? jwt = await FlutterSecureStorage().read(key: 'token');
+      if (recordingPart.dataBase64 == null) {
+        throw UploadException('Recording part data is null', 410);
+      }
+      if (jwt == null) {
+        throw UploadException('Failed to send recording part to backend', 401);
+      }
+      logger.i('Uploading recording part (backendRecordingId: ${recordingPart
+          .backendRecordingId}) with data length: ${recordingPart.dataBase64
+          ?.length}');
+      // Retrieve the parent recording to obtain its backend ID
+      Recording? parentRecording = await getRecordingFromDbById(
+          recordingPart.recordingId!);
+      recordingPart.backendRecordingId = parentRecording?.BEId ?? 0;
+      Database db = await database;
+      db.update('recordingParts', recordingPart.toJson(), where: 'id = ?',
+          whereArgs: [recordingPart.id]);
+      try {
+        final Map<String, Object?> jsonBody = recordingPart.toBEJson();
+        final http.Response response = await http.post(
+          Uri(scheme: 'https',
+              host: Config.host,
+              path: '/recordings/upload-part'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $jwt',
+          },
+          body: jsonEncode(jsonBody),
+        );
+        if (response.statusCode == 200) {
+          logger.i(response.body);
+          int returnedId = jsonDecode(response.body);
+          recordingPart.BEId = returnedId;
+          recordingPart.sent = true;
+          recordingPart.sending = false;
+          await updateRecordingPart(recordingPart);
+          logger.i(
+              'Recording part id: ${recordingPart.id} uploaded successfully.');
+        } else {
+          // reset sending flag on failure
+          recordingPart.sending = false;
+          await updateRecordingPart(recordingPart);
+          throw UploadException('Failed to upload part id: ${recordingPart.id}',
+              response.statusCode);
+        }
+      } catch (e) {
+        // reset sending flag on exception
+        recordingPart.sending = false;
+        await updateRecordingPart(recordingPart);
+        rethrow;
+      }
+    } catch (e) {
+      // reset sending flag on exception
+      recordingPart.sending = false;
       await updateRecordingPart(recordingPart);
-      logger.i('Recording part id: ${recordingPart.id} uploaded successfully.');
-    } else {
-      throw UploadException('Failed to upload part id: ${recordingPart.id}', response.statusCode);
+      rethrow;
     }
   }
 
@@ -852,7 +928,8 @@ class DatabaseNew {
         recordings.add(recording);
       }
       final db = await database;
-      await db.update('recordings', recording.toJson(), where: 'id = ?', whereArgs: [recording.id]);
+      await db.update('recordings', recording.toJson(), where: 'id = ?',
+          whereArgs: [recording.id]);
     } catch (e, stackTrace) {
       logger.e('Failed to update recording', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -868,9 +945,11 @@ class DatabaseNew {
       } else {
         recordingParts.add(recordingPart);
       }
-      await db.update('recordingParts', recordingPart.toJson(), where: 'id = ?', whereArgs: [recordingPart.id]);
+      await db.update('recordingParts', recordingPart.toJson(), where: 'id = ?',
+          whereArgs: [recordingPart.id]);
     } catch (e, stackTrace) {
-      logger.e('Failed to update recording part', error: e, stackTrace: stackTrace);
+      logger.e(
+          'Failed to update recording part', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
@@ -910,7 +989,8 @@ class DatabaseNew {
     );
 
     if (response.statusCode == 200) {
-      logger.i('Recording BEId ${recording.BEId} successfully updated on backend.');
+      logger.i(
+          'Recording BEId ${recording.BEId} successfully updated on backend.');
       // Keep local DB in sync
       await updateRecording(recording);
     } else {
@@ -931,7 +1011,8 @@ class DatabaseNew {
       // Read userId from secure storage instead of using email
       String? userId = await FlutterSecureStorage().read(key: 'userId');
       if (userId == null) {
-        throw FetchException('Failed to fetch recordings from backend: userId not found', 401);
+        throw FetchException(
+            'Failed to fetch recordings from backend: userId not found', 401);
       }
       Uri url = Uri(
         scheme: 'https',
@@ -952,25 +1033,52 @@ class DatabaseNew {
         List<RecordingPart> parts = [];
         for (int i = 0; i < body.length; i++) {
           for (int j = 0; j < body[i]['parts'].length; j++) {
-            parts.add(RecordingPart.fromBEJson(body[i]['parts'][j], body[i]['id']));
+            parts.add(
+                RecordingPart.fromBEJson(body[i]['parts'][j], body[i]['id']));
           }
         }
         fetchedRecordings = recordings;
         fetchedRecordingParts = parts;
+
         final db = await database;
         final List<Recording> localRecordings = await getRecordings();
         final Set<int?> beIds = recordings.map((r) => r.BEId).toSet();
+
+        // Delete local recordings marked as sent but no longer present on backend
         for (var local in localRecordings) {
           if (local.sent && !beIds.contains(local.BEId)) {
-            local.sent = false;
-            updateRecording(local);
-            logger.i('Recording id ${local.id} marked as not sent (not found on backend).');
+            await deleteRecordingFromCache(local.id!);
+            logger.i('Recording id ${local.id} deleted locally (no longer on backend).');
+          }
+        }
+
+        // Update any local recordings whose data mismatches backend
+        for (var beRec in recordings) {
+          try {
+            var local = localRecordings.firstWhere((r) => r.BEId == beRec.BEId);
+            bool needsUpdate = local.name != beRec.name ||
+                               local.note != beRec.note ||
+                               local.estimatedBirdsCount != beRec.estimatedBirdsCount ||
+                               local.device != beRec.device ||
+                               local.byApp != beRec.byApp;
+            if (needsUpdate) {
+              local.name = beRec.name;
+              local.note = beRec.note;
+              local.estimatedBirdsCount = beRec.estimatedBirdsCount;
+              local.device = beRec.device;
+              local.byApp = beRec.byApp;
+              await updateRecording(local);
+              logger.i('Recording id ${local.id} updated to match backend data.');
+            }
+          } catch (_) {
+            // no local match, skip
           }
         }
       } else if (response.statusCode == 204) {
         logger.i('No recordings found on backend.');
       } else {
-        throw FetchException('Failed to fetch recordings from backend', response.statusCode);
+        throw FetchException(
+            'Failed to fetch recordings from backend', response.statusCode);
       }
     } finally {
       fetching = false;
@@ -979,7 +1087,8 @@ class DatabaseNew {
 
   static Future<List<RecordingPart>> fetchPartsFromDbById(int id) async {
     final db = await database;
-    final List<Map<String, dynamic>> parts = await db.rawQuery("SELECT * FROM recordingParts WHERE RecordingId = $id");
+    final List<Map<String, dynamic>> parts = await db.rawQuery(
+        "SELECT * FROM recordingParts WHERE RecordingId = $id");
     return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
   }
 
@@ -988,23 +1097,28 @@ class DatabaseNew {
   }
 
   static Future<RecordingPart?> getRecordingPartByBEID(int id) async {
-  final url = Uri(scheme: "https", host: Config.host, path: "/recordings/$id", query: "parts=true&sound=false");
+    final url = Uri(scheme: "https",
+        host: Config.host,
+        path: "/recordings/$id",
+        query: "parts=true&sound=false");
 
     logger.i(url);
 
-    try{
+    try {
       final resp = await http.get(url);
 
       if (resp.statusCode == 200) {
         logger.i("sending req was succesfull");
-        var part = RecordingPart.fromBEJson(json.decode(resp.body)['parts'][0], id);
+        var part = RecordingPart.fromBEJson(
+            json.decode(resp.body)['parts'][0], id);
         return part;
       }
-      else{
-        logger.i("req failed with statuscode ${resp.statusCode} -> ${resp.body}");
+      else {
+        logger.i(
+            "req failed with statuscode ${resp.statusCode} -> ${resp.body}");
       }
     }
-    catch (e){
+    catch (e) {
       return null;
     }
   }
@@ -1046,7 +1160,9 @@ class DatabaseNew {
       // await partFile.writeAsBytes(base64Decode(partData['dataBase64']));
       paths.add(part.path!);
     }
-    String outputPath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+    String outputPath = '${tempDir.path}/recording_${DateTime
+        .now()
+        .microsecondsSinceEpoch}.wav';
     await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
     recording.path = outputPath;
     recording.downloaded = true;
@@ -1054,7 +1170,7 @@ class DatabaseNew {
     logger.i('Downloaded recording id: $id. File saved to: $outputPath');
   }
 
-  static Future<void> concatRecordingParts(int recordingId) async{
+  static Future<void> concatRecordingParts(int recordingId) async {
     List<RecordingPart> parts = await getPartsById(recordingId);
     if (parts.isEmpty) {
       logger.i('No parts found for recording id: $recordingId');
@@ -1063,7 +1179,10 @@ class DatabaseNew {
     List<String> paths = [];
     for (RecordingPart part in parts) {
       if (part.path != null) {
-        String partFilePath = '${(await getApplicationDocumentsDirectory()).path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+        String partFilePath = '${(await getApplicationDocumentsDirectory())
+            .path}/recording_${DateTime
+            .now()
+            .microsecondsSinceEpoch}.wav';
         File partFile = File(partFilePath);
         await partFile.writeAsBytes(await File(part.path!).readAsBytes());
         paths.add(partFilePath);
@@ -1075,17 +1194,22 @@ class DatabaseNew {
       logger.w('No valid parts found for recording id: $recordingId');
       return;
     }
-    String outputPath = '${(await getApplicationDocumentsDirectory()).path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+    String outputPath = '${(await getApplicationDocumentsDirectory())
+        .path}/recording_${DateTime
+        .now()
+        .microsecondsSinceEpoch}.wav';
     await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
     Recording recording = recordings.firstWhere((r) => r.id == recordingId);
     recording.path = outputPath;
     recording.downloaded = true;
     await updateRecording(recording);
-    logger.i('Concatenated recording parts for id: $recordingId. File saved to: $outputPath');
+    logger.i(
+        'Concatenated recording parts for id: $recordingId. File saved to: $outputPath');
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 3, onCreate: (Database db, int version) async {
+    return openDatabase(
+        'soundNew.db', version: 4, onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,
@@ -1118,6 +1242,7 @@ class DatabaseNew {
         path TEXT,
         square TEXT,
         sent INTEGER,
+        sending INTEGER DEFAULT 0,
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
       )
       ''');
@@ -1157,19 +1282,24 @@ class DatabaseNew {
         return;
       }
       final String email = JwtDecoder.decode(jwt)['sub'];
-      final List<Map<String, dynamic>> recs = await db.query("recordings", where: "mail = ?", whereArgs: [email]);
-      recordings = List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
+      final List<Map<String, dynamic>> recs = await db.query(
+          "recordings", where: "mail = ?", whereArgs: [email]);
+      recordings =
+          List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
       final List<Map<String, dynamic>> parts = await db.query("recordingParts");
-      recordingParts = List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
+      recordingParts =
+          List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
       loadedRecordings = true;
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
       if (oldVersion <= 1) {
         // Add the new backendRecordingId column to recordingParts table
-        await db.execute('ALTER TABLE recordingParts ADD COLUMN backendRecordingId INTEGER;');
+        await db.execute(
+            'ALTER TABLE recordingParts ADD COLUMN backendRecordingId INTEGER;');
         await db.setVersion(2);
       }
       if (oldVersion <= 2) {
-        logger.w('Old version detected (<=2). Recreating entire database schema...');
+        logger.w(
+            'Old version detected (<=2). Recreating entire database schema...');
         // Drop existing tables
         await db.execute('DROP TABLE IF EXISTS recordings');
         await db.execute('DROP TABLE IF EXISTS recordingParts');
@@ -1210,6 +1340,7 @@ class DatabaseNew {
             path TEXT,
             square TEXT,
             sent INTEGER,
+            sending INTEGER DEFAULT 0,
             FOREIGN KEY(recordingId) REFERENCES recordings(id)
           )
         ''');
@@ -1245,6 +1376,14 @@ class DatabaseNew {
         await db.setVersion(newVersion);
         return;
       }
+      // Upgrade from v3 → v4: add the 'sending' column to recordingParts
+      if (oldVersion == 3) {
+      await db.execute(
+        'ALTER TABLE recordingParts ADD COLUMN sending INTEGER DEFAULT 0;'
+      );
+      await db.setVersion(newVersion);
+      return;
+      }
     });
   }
 
@@ -1268,9 +1407,11 @@ class DatabaseNew {
   }
 
   // New helper method to insert a custom local notification.
-  static Future<void> sendLocalNotification(String title, String message) async {
-    final String fcmToken = ((await FlutterSecureStorage().read(key: 'fcmToken'))) ?? '';
-    if(fcmToken == ''){
+  static Future<void> sendLocalNotification(String title,
+      String message) async {
+    final String fcmToken = ((await FlutterSecureStorage().read(
+        key: 'fcmToken'))) ?? '';
+    if (fcmToken == '') {
       logger.w("Failed to send local notification: FCM token is empty");
       return;
     }
@@ -1288,7 +1429,8 @@ class DatabaseNew {
 
   static Future<List<NotificationItem>> getNotificationList() async {
     final db = await database;
-    final List<Map<String, dynamic>> notifications = await db.query('Notifications');
+    final List<Map<String, dynamic>> notifications = await db.query(
+        'Notifications');
     List<NotificationItem> messages = [];
     for (Map<String, dynamic> notification in notifications) {
       messages.add(NotificationItem(
@@ -1311,16 +1453,57 @@ class DatabaseNew {
     return null;
   }
 
-  static Future<void> insertRecordingDialect(RecordingDialect recordingDialect) async {
+  static Future<void> insertRecordingDialect(
+      RecordingDialect recordingDialect) async {
     final db = await database;
     await db.insert("Dialects", recordingDialect.toJson());
     logger.i('Recording dialect ${recordingDialect.RecordingId} inserted.');
   }
 
-  static Future<List<RecordingDialect>> getRecordingDialects(int recordingId) async {
+  static Future<List<RecordingDialect>> getRecordingDialects(
+      int recordingId) async {
     final db = await database;
     final List<Map<String, dynamic>> results =
-    await db.query("Dialects", where: "RecordingId = ?", whereArgs: [recordingId]);
-    return List.generate(results.length, (i) => RecordingDialect.fromJson(results[i]));
+    await db.query(
+        "Dialects", where: "RecordingId = ?", whereArgs: [recordingId]);
+    return List.generate(
+        results.length, (i) => RecordingDialect.fromJson(results[i]));
+  }
+
+  /// Checks whether *all* parts of the given recording have been sent.
+  /// Throws [UnsentPartsException] if any part remains unsent.
+  static Future<void> checkRecordingPartsSent(int recordingId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> unsent = await db.query(
+      'recordingParts',
+      where: 'recordingId = ? AND sent = ?',
+      whereArgs: [recordingId, 0],
+    );
+    if (unsent.isNotEmpty) {
+      throw UnsentPartsException();
+    }
+  }
+
+  /// Attempts to resend any recording parts that were not sent previously.
+  static Future<void> resendUnsentParts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> unsent = await db.query(
+      'recordingParts',
+      where: 'sent = ?',
+      whereArgs: [0],
+    );
+    for (final partMap in unsent) {
+      try {
+        RecordingPart part = RecordingPart.fromJson(partMap);
+        part.sending = true;
+        await updateRecordingPart(part);
+        await sendRecordingPart(part);
+      } catch (e, stackTrace) {
+        logger.e(
+            'Failed to resend recording part id: ${partMap['id']}', error: e,
+            stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+      }
+    }
   }
 }

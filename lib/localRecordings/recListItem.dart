@@ -28,6 +28,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/dialectBadge.dart';
 import 'package:strnadi/locationService.dart';
@@ -447,15 +448,34 @@ class _RecordingItemState extends State<RecordingItem> {
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.send),
                           label: const Text('Odeslat záznam'),
-                          onPressed: () {
-                            setState(() {
-                              widget.recording.sending = true;
-                            });
-                            DatabaseNew.sendRecordingBackground(widget.recording.id!);
-                            // Add your send logic here
-                            logger.i("Sending recording: ${widget.recording.id}");
-                            // For example:
-                            // await sendRecording(widget.recording);
+                          onPressed: () async {
+                            try {
+                              // ensure all parts have been sent
+                              await DatabaseNew.checkRecordingPartsSent(widget.recording.id!);
+                              setState(() {
+                                widget.recording.sending = true;
+                              });
+                              DatabaseNew.sendRecordingBackground(widget.recording.id!);
+                              logger.i("Sending recording: ${widget.recording.id}");
+                            } on UnsentPartsException {
+                              // prompt to resend unsent parts
+                              final shouldResend = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Neodeslané části'),
+                                  content: const Text('Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Zrušit')),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Odeslat znovu')),
+                                  ],
+                                ),
+                              );
+                              if (shouldResend == true) {
+                                await DatabaseNew.resendUnsentParts();
+                              }
+                            } catch (e, stackTrace) {
+                              logger.e('Error during send check/resend: $e', error: e, stackTrace: stackTrace);
+                            }
                           },
                         ),
                       ),
