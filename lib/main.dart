@@ -30,7 +30,8 @@ import 'package:sentry_logging/sentry_logging.dart';
 import 'package:strnadi/updateChecker.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
-import 'config/config.dart';
+import 'package:strnadi/maintanance.dart';
+import 'package:strnadi/config/config.dart'; // ensure Config and ServerHealth are in scope
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/callback_dispatcher.dart';
 import 'package:workmanager/workmanager.dart';
@@ -164,7 +165,22 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch().copyWith(primary: Colors.blue, secondary: Color(0xFF2D2B18)),
         fontFamily: 'Bricolage Grotesque',
       ),
-      home: const HomeScreen(),
+      home: FutureBuilder<ServerHealth>(
+        future: Config.checkServerHealth(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          if (snapshot.data == ServerHealth.healthy) {
+            return const HomeScreen();
+          }
+          return const MaintenancePage();
+        },
+      ),
       routes: {
         '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {

@@ -837,6 +837,16 @@ class DatabaseNew {
   /// Deletes a recording and its parts from the local cache.
   static Future<void> deleteRecordingFromCache(int id) async {
     final db = await database;
+    // Delete associated part files
+    for (final part in recordingParts.where((p) => p.recordingId == id)) {
+      if (part.path != null) {
+        try {
+          await File(part.path!).delete();
+        } catch (_) {
+          // ignore file-system errors
+        }
+      }
+    }
     // Remove associated parts from in-memory list and DB
     recordingParts.removeWhere((p) => p.recordingId == id);
     await db.delete(
@@ -844,6 +854,20 @@ class DatabaseNew {
       where: 'recordingId = ?',
       whereArgs: [id],
     );
+    // Delete main recording file
+    Recording? rec;
+    try {
+      rec = recordings.firstWhere((r) => r.id == id);
+    } catch (_) {
+      rec = null;
+    }
+    if (rec != null && rec.path != null) {
+      try {
+        await File(rec.path!).delete();
+      } catch (_) {
+        // ignore file-system errors
+      }
+    }
     // Remove recording from in-memory list and DB
     recordings.removeWhere((r) => r.id == id);
     await db.delete(

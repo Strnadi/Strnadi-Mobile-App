@@ -16,6 +16,10 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
+/// Server health status codes
+enum ServerHealth { healthy, maintenance }
 
 class Config {
   static Map<String, dynamic>? _config;
@@ -62,5 +66,18 @@ class Config {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
     return _Fconfig;
+  }
+
+  /// Checks the server health via a HEAD request to {host}/utils/health
+  static Future<ServerHealth> checkServerHealth() async {
+    final uri = Uri.parse('${host}/utils/health');
+    final response = await http.head(uri);
+    if (response.statusCode == 200) {
+      return ServerHealth.healthy;
+    } else if (response.statusCode == 503) {
+      return ServerHealth.maintenance;
+    } else {
+      throw Exception('Unexpected status code: ${response.statusCode}');
+    }
   }
 }

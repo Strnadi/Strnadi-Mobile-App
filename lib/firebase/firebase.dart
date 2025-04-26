@@ -160,7 +160,7 @@ Future<void> addDevice() async{
           'fcmToken': token,
           'devicePlatform': deviceInfo.platform,
           'deviceModel': deviceInfo.deviceModel,
-          'userId': await FlutterSecureStorage().read(key: 'userId')
+          'userId': int.parse((await FlutterSecureStorage().read(key: 'userId'))!)
         }),
       );
       if (response.statusCode == 200) {
