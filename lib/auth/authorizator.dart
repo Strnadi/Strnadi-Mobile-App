@@ -352,12 +352,30 @@ class _AuthState extends State<Authorizator> {
     }
     final secureStorage = FlutterSecureStorage();
     final AuthStatus status = await isLoggedIn();
+
+
     if (status == AuthStatus.loggedIn) {
       String? token = await secureStorage.read(key: 'token');
       if (token == null) return;
+      String? userIdS = await secureStorage.read(key: 'userId');
+      int? userId;
 
-      //String email = JwtDecoder.decode(token)['sub'];
-      int userId = int.parse((await secureStorage.read(key: 'userId'))!);
+      if(userIdS==null){
+        Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users/get-id'
+        );
+        var idResponse = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        });
+        userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
+      }
+      else{
+        userId = int.parse(userIdS);
+      }
       final Uri url = Uri.parse('https://${Config.host}/users/$userId').replace(queryParameters: {'jwt': token});
 
       final response = await http.get(

@@ -372,6 +372,14 @@ class _LoginState extends State<Login> {
                     google.GoogleSignInService.signInWithGoogle().then((jwt) => {
                       if(jwt!=null){
                       FlutterSecureStorage().write(key: 'token', value: jwt),
+                      http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        }
+                      ).then((http.Response response)=>{
+                        FlutterSecureStorage().write(key: 'userId', value: response.body.toString()),
+                      }),
                       fb.refreshToken(),
                       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()))
                       }

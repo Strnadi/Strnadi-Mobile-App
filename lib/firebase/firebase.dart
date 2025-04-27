@@ -142,14 +142,21 @@ Future<void> addDevice() async{
   }
 
   try {
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
     FirebaseMessaging messaging = FirebaseMessaging.instance;
     messaging.getToken().then((token) async {
       logger.i("Firebase token: $token");
 
       Uri url = Uri.https(Config.host, '/devices/add');
       DeviceInfo deviceInfo = await getDeviceInfo();
-      String? jwt = await FlutterSecureStorage().read(key: 'token');
+      String? jwt = await secureStorage.read(key: 'token');
       logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+      String? userIdS = await secureStorage.read(key: 'userId');
+      while(userIdS ==  null){
+        await Future.delayed(Duration(seconds: 1));
+        userIdS = await secureStorage.read(key: 'userId');
+      }
+      int userId = int.parse(userIdS);
       final response = await http.post(
         url,
         headers: {
@@ -160,7 +167,7 @@ Future<void> addDevice() async{
           'fcmToken': token,
           'devicePlatform': deviceInfo.platform,
           'deviceModel': deviceInfo.deviceModel,
-          'userId': int.parse((await FlutterSecureStorage().read(key: 'userId'))!)
+          'userId': userId
         }),
       );
       if (response.statusCode == 200) {
