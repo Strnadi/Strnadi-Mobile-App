@@ -15,12 +15,15 @@
  */
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:strnadi/auth/passReset/resetEmailSent.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/config.dart';
 import '../login.dart';
+
+Logger logger = Logger();
 
 class ForgottenPassword extends StatefulWidget {
   const ForgottenPassword({Key? key}) : super(key: key);

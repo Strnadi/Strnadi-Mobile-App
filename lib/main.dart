@@ -127,6 +127,12 @@ Future<void> main() async {
       options.environment = kDebugMode? 'development' : 'production';
     },
     appRunner: () async{
+      // Check server health before app initialization
+      final health = await Config.checkServerHealth();
+      if (health == ServerHealth.maintenance) {
+        runApp(MaterialApp(home: const MaintenancePage()));
+        return;
+      }
       // Initialize your database and other services.
       logger.i('Loading database');
       await DatabaseNew.database;
@@ -165,22 +171,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch().copyWith(primary: Colors.blue, secondary: Color(0xFF2D2B18)),
         fontFamily: 'Bricolage Grotesque',
       ),
-      home: FutureBuilder<ServerHealth>(
-        future: Config.checkServerHealth(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-          if (snapshot.data == ServerHealth.healthy) {
-            return const HomeScreen();
-          }
-          return const MaintenancePage();
-        },
-      ),
+      home: const HomeScreen(),
       routes: {
         '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {

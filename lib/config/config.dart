@@ -17,9 +17,12 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
 
 /// Server health status codes
 enum ServerHealth { healthy, maintenance }
+
+Logger logger = Logger();
 
 class Config {
   static Map<String, dynamic>? _config;
@@ -70,8 +73,9 @@ class Config {
 
   /// Checks the server health via a HEAD request to {host}/utils/health
   static Future<ServerHealth> checkServerHealth() async {
-    final uri = Uri.parse('${host}/utils/health');
+    final uri = Uri.parse('https://${host}/utils/health');
     final response = await http.head(uri);
+    logger.i('Checking API health + https://${host}/utils/health with response ${response.statusCode}');
     if (response.statusCode == 200) {
       return ServerHealth.healthy;
     } else if (response.statusCode == 503) {
