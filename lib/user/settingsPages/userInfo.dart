@@ -30,8 +30,8 @@ class User {
   final String email;
   final String firstName;
   final String lastName;
-  final int postCode;
-  final String city;
+  final int? postCode;
+  final String? city;
 
   User({
     required this.nickname,
@@ -44,7 +44,7 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      nickname: json['nickname'],
+      nickname: json['nickname']?? "",
       email: json['email'],
       firstName: json['firstName'],
       lastName: json['lastName'],
@@ -71,8 +71,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _lastnameController = TextEditingController();
   final TextEditingController _pscController = TextEditingController();
 
-  Future<void> fetchUser(String email, String jwt) async {
-    final url = Uri.parse('https://${Config.host}/users/$email');
+  Future<void> fetchUser(int userId, String jwt) async {
+    final url = Uri.parse('https://${Config.host}/users/$userId');
     final response = await http.get(
       url,
       headers: {
@@ -82,12 +82,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
 
     if (response.statusCode == 200) {
+      logger.i('Fetched user: ${response.body}');
       setState(() {
         user = User.fromJson(jsonDecode(response.body));
         _nicknameController.text = user!.nickname;
         _firstnameController.text = user!.firstName;
         _lastnameController.text = user!.lastName;
-        _pscController.text = user!.postCode.toString();
+        _pscController.text = user!.postCode?.toString() ?? '';
       });
     } else {
       logger.i('Failed to load user: ${response.statusCode} ${response.body}');
@@ -131,7 +132,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         'nickname': _nicknameController.text,
         'firstName': _firstnameController.text,
         'lastName': _lastnameController.text,
-        'postCode': int.parse(_pscController.text),
+        'postCode': _pscController.text.isNotEmpty ? int.parse(_pscController.text) : null,
         'city': user!.city,
       };
 
@@ -147,17 +148,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     String? jwt = await secureStorage.read(key: 'token');
 
     try {
-      final parts = jwt!.split('.');
-      if (parts.length != 3) {
-        throw Exception('Invalid token');
+      if(jwt==null){
+        throw Exception('Jwt token invalid');
       }
 
-      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
-      final Map<String, dynamic> jsonPayload = jsonDecode(payload);
+      final int userId = int.parse((await secureStorage.read(key: 'userId'))!);
 
-      fetchUser(jsonPayload['sub'], jwt); // Assuming the email is in "sub
-    } catch (e) {
-      logger.i("Error decoding JWT: $e");
+      fetchUser(userId, jwt);
+    } catch (e, stackTrace) {
+      logger.i("Error fetching user data: $e", error: e, stackTrace: stackTrace);
     }
   }
 
@@ -172,7 +171,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     super.initState();
     extractEmailFromJwt();
   }
-   
+
 
 
   @override
@@ -210,7 +209,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   _buildTextField('PSČ', _pscController),
                   ListTile(
                     title: const Text('Kraj'),
-                    subtitle: Text(user?.city ?? 'Null'),
+                    subtitle: Text(user?.city ?? 'Neuvedeno'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {}, // Open region selection
                   ),
