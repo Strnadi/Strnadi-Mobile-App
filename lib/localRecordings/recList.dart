@@ -398,7 +398,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                 )
                               : FutureBuilder<String?> (
                                   future: () async {
-                                    var parts = DatabaseNew.getPartsById(rec.id!);
+                                    var parts = await DatabaseNew.getPartsById(rec.id!);
                                     if (parts.isEmpty) {
                                       return rec.id?.toString();
                                     }

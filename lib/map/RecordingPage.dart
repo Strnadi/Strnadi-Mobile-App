@@ -65,7 +65,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   String placeTitle = 'Mapa';
 
   @override
-  void initState() {
+  void initState() async {
     super.initState();
     locationService = LocationService();
     getParts();
@@ -97,7 +97,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     }
     else {
       // Check if any parts exist for this recording
-      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.BEId!);
+      List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
       if (parts.isNotEmpty) {
         logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
         DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {

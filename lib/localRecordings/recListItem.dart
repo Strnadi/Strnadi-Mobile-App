@@ -70,14 +70,20 @@ class _RecordingItemState extends State<RecordingItem> {
   void initState() {
     super.initState();
     locationService = LocationService();
+    _initializeRecording();
+  }
+
+  Future<void> _initializeRecording() async {
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
       _cachedSpectrogram = LiveSpectogram.SpectogramLive(
         data: [],
         filepath: widget.recording.path,
       );
     }
-    getParts();
-    GetDialect();
+
+    await getParts();
+    await GetDialect();
+
     logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
 
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
@@ -96,32 +102,22 @@ class _RecordingItemState extends State<RecordingItem> {
           isPlaying = playing;
         });
       });
-      getData().then((_) {
-        setState(() {
-          loaded = true;
-        });
+      await getData();
+      setState(() {
+        loaded = true;
       });
-    }
-    else {
-      // Check if any parts exist for this recording
-      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.BEId!);
+    } else {
+      List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
       if (parts.isNotEmpty) {
         logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
-        DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {
-          logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
-          DatabaseNew.getRecordingFromDbById(widget.recording.BEId!).then((updatedRecording) {
-            logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
-            logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
-            if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
-              logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
-            } else {
-              logger.w("[RecordingItem] Updated recording path is null or empty.");
-            }
-            setState(() {
-              widget.recording.path = updatedRecording?.path ?? widget.recording.path;
-              loaded = true;
-            });
-          });
+        await DatabaseNew.concatRecordingParts(widget.recording.BEId!);
+        logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+        Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.BEId!);
+        logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
+        logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
+        setState(() {
+          widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+          loaded = true;
         });
       } else {
         logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
@@ -131,6 +127,7 @@ class _RecordingItemState extends State<RecordingItem> {
       }
     }
   }
+
 
   Future<void> GetDialect() async {
     var recordingId = widget.recording.id!;
@@ -163,7 +160,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Future<void> getParts() async {
     logger.i('Recording ID: ${widget.recording.BEId}');
-    var parts = DatabaseNew.getPartsById(widget.recording.id!);
+    var parts = await DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
     });

@@ -1165,8 +1165,11 @@ class DatabaseNew {
     return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
   }
 
-  static List<RecordingPart> getPartsById(int id) {
-    return recordingParts.where((part) => part.recordingId == id).toList();
+  static Future<List<RecordingPart>> getPartsById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> parts = await db.query(
+        "recordingParts", where: "recordingId = ?", whereArgs: [id]);
+    return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
   }
 
   static Future<RecordingPart?> getRecordingPartByBEID(int id) async {

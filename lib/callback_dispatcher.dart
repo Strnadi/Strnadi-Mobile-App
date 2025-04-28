@@ -82,7 +82,7 @@ void callbackDispatcher() {
         await DatabaseNew.updateRecording(recording);
         // Retrieve parts using the local recording id.
         logger.i('Getting parts from DB with recording id $recordingId');
-        List<RecordingPart> parts = DatabaseNew.getPartsById(recording.id!);
+        List<RecordingPart> parts = await DatabaseNew.getPartsById(recording.id!);
         try {
           logger.i('Starting to send recording $recordingId in background');
           await DatabaseNew.sendRecording(recording, parts);
