@@ -149,10 +149,12 @@ class _VerifyEmailState extends State<VerifyEmail> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
         Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
-        return false;
+        return;
       },
       child: Scaffold(
         // White background

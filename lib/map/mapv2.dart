@@ -919,7 +919,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 });
                                 Navigator.pop(context);
                               },
-                              child: const Text('Filtrovat'),
+                              child: const Text('Nastavit'),
                             ),
                           ),
                         ],

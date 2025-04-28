@@ -109,6 +109,10 @@ class MenuScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 15),
           child: Text('Creators: Marian Pecqueur && Jan Drobílek'),
         ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text('Kontakt: info@strnadi.cz, developers@strnadi.cz'),
+        ),
       ],
     );
   }

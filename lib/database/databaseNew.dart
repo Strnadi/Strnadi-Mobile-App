@@ -386,6 +386,7 @@ class RecordingPart {
   String? square;
   String? dataBase64Temp;
   String? path;
+  int? length;
   bool sent;
   bool sending;
 
@@ -401,6 +402,7 @@ class RecordingPart {
     required this.gpsLongitudeEnd,
     this.square,
     this.path,
+    this.length,
     this.dataBase64Temp,
     this.sent = false,
     this.sending = false,
@@ -421,6 +423,7 @@ class RecordingPart {
       sent:    (json['sent']    as int) == 1,
       sending: (json['sending'] as int) == 1,
       path: json['path'] as String?,
+      length: json['length'] as int?
     );
   }
 
@@ -437,6 +440,7 @@ class RecordingPart {
       dataBase64Temp: json['dataBase64'] as String?,
       square: json['square'] as String?,
       sent: true,
+      length: json['length'] as int?
     )..backendRecordingId = backendRecordingId;
   }
 
@@ -505,6 +509,7 @@ class RecordingPart {
       'square': square,
       'sent':    sent    ? 1 : 0,
       'sending': sending ? 1 : 0,
+      'length': length
     };
   }
 
@@ -1402,7 +1407,7 @@ class DatabaseNew {
           )
         ''');
         await db.execute('''
-          CREATE TABLE recordingParts(
+            CREATE TABLE recordingParts(
             id INTEGER PRIMARY KEY,
             BEId INTEGER UNIQUE,
             recordingId INTEGER,
@@ -1414,6 +1419,7 @@ class DatabaseNew {
             gpsLongitudeStart REAL,
             gpsLongitudeEnd REAL,
             path TEXT,
+            length INTEGER DEFAULT 0,
             square TEXT,
             sent INTEGER,
             sending INTEGER DEFAULT 0,
@@ -1460,7 +1466,13 @@ class DatabaseNew {
       }
       if(oldVersion<=4){
         await db.execute(
-            'ALTER TABLE Dialects RENAME COLUMN dialect TO dialectCode;'
+          'ALTER TABLE Dialects RENAME COLUMN dialect TO dialectCode;'
+        );
+        await db.setVersion(newVersion);
+      }
+      if(oldVersion<=5){
+        await db.execute(
+            'ALTER TABLE recordingParts ADD COLUMN length INTEGER DEFAULT 0'
         );
         await db.setVersion(newVersion);
       }
