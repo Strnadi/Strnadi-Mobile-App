@@ -644,6 +644,14 @@ class DatabaseNew {
       return;
     }
 
+    // Delete sent recordings missing on backend
+    for (Recording recording in sentRecordings) {
+      if (!fetchedRecordings!.any((f) => f.BEId == recording.BEId)) {
+        await deleteRecordingFromCache(recording.id!);
+        logger.i('Recording id ${recording.id} deleted locally (missing on backend).');
+      }
+    }
+
     List<Recording> newRecordings = fetchedRecordings!
         .where((recording) =>
     !sentRecordings.any((r) =>
@@ -689,14 +697,11 @@ class DatabaseNew {
     try {
       await fetchRecordingsFromBE();
       final List<Recording> localRecordings = await getRecordings();
-      final Set<int?> beIds = fetchedRecordings?.map((r) => r.BEId).toSet() ??
-          {};
+      final Set<int?> beIds = fetchedRecordings?.map((r) => r.BEId).toSet() ?? {};
       for (var local in localRecordings) {
         if (local.sent && !beIds.contains(local.BEId)) {
-          local.sent = false;
-          await updateRecording(local);
-          logger.i('Recording id ${local
-              .id} marked as not sent (not found on backend, during sync).');
+          await deleteRecordingFromCache(local.id!);
+          logger.i('Recording id ${local.id} deleted locally (missing on backend, during sync).');
         }
       }
       await onFetchFinished();
@@ -1435,7 +1440,7 @@ class DatabaseNew {
           CREATE TABLE Dialects (
             RecordingId INTEGER PRIMARY KEY AUTOINCREMENT,
             BEId INTEGER UNIQUE,
-            dialect TEXT NOT NULL,
+            dialectCode TEXT NOT NULL,
             StartDate TEXT NOT NULL,
             EndDate TEXT NOT NULL,
             FOREIGN KEY(RecordingId) REFERENCES recordings(id)
@@ -1445,16 +1450,22 @@ class DatabaseNew {
         return;
       }
       // Upgrade from v3 → v4: add the 'sending' column to recordingParts
-      if (oldVersion == 3) {
+      if (oldVersion <= 3) {
       await db.execute(
         'ALTER TABLE recordingParts ADD COLUMN sending INTEGER DEFAULT 0;'
       );
       await db.setVersion(newVersion);
       return;
       }
+      if(oldVersion<=4){
+        await db.execute(
+            'ALTER TABLE Dialects RENAME COLUMN dialect TO dialectCode;'
+        );
+        await db.setVersion(newVersion);
+        return;
+      }
     });
   }
-
   static Future<bool> hasInternetAccess() async {
     try {
       final result = await InternetAddress.lookup('google.com');
