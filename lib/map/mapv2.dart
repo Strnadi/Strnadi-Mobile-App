@@ -57,6 +57,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   String _dataFilter = 'new';
   bool _showConqueredSectors = true;
   List<Polyline> _gridLines = [];
+  Map<int, String> _dialectMap = {};
 
 
   final secureStorage = const FlutterSecureStorage();
@@ -143,6 +144,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _getCurrentLocation();
 
     getRecordings();
+    _fetchDialects();
 
     // Subscribe to the centralized location stream.
     _positionStreamSubscription = LocationService().positionStream.listen((Position position) {
@@ -205,6 +207,36 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
     catch (error) {
       logger.e(error);
+    }
+  }
+
+  Future<void> _fetchDialects() async {
+    logger.i('Fetching dialects for all parts');
+    try {
+      final jwt = await secureStorage.read(key: 'token');
+      final url = Uri.https(Config.host, '/recordings/filtered');
+      final response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final Map<int, String> dialects = {};
+        for (final item in data.cast<Map<String, dynamic>>()) {
+          final dialectObj = RecordingDialect.fromJson(item);
+          final dynamic idValue = item['recordingId'];
+          final int id = idValue is int ? idValue : int.tryParse(idValue.toString()) ?? 0;
+          dialects[id] = dialectObj.dialect;
+        }
+        logger.i('Fetched all dialects');
+        setState(() {
+          _dialectMap = dialects;
+        });
+      } else {
+        logger.w('Dialect fetch failed: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      logger.e('Failed to fetch dialects for all parts: $e', error: e, stackTrace: stackTrace);
     }
   }
 
@@ -301,7 +333,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
             return;
           }
       }
-      
+
       showDialog(context: context, builder: (context) => AlertDialog(
         title: const Text('Chyba'),
         content: Text('Nahrávka nenalezena $id'),
@@ -382,26 +414,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       width: 30.0,
                       height: 30.0,
                       point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
-                      child: FutureBuilder<String>(
-                        future: _getDialect(part.recordingId),
-                        builder: (context, snapshot) {
-                          String code = 'Nevyhodnoceno';
-                          if (snapshot.connectionState == ConnectionState.done &&
-                              snapshot.hasData &&
-                              snapshot.data!.isNotEmpty) {
-                            code = snapshot.data!;
-                          }
-                          return GestureDetector(
-                            onTap: () {
-                              getRecordingFromPartId(part.recordingId);
-                            },
-                            child: Image.asset(
-                              'assets/dialects/$code.png',
-                              width: 30.0,
-                              height: 30.0,
-                            ),
-                          );
+                      child: GestureDetector(
+                        onTap: () {
+                          getRecordingFromPartId(part.recordingId);
                         },
+                        child: Image.asset(
+                          'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
+                          width: 30.0,
+                          height: 30.0,
+                        ),
                       ),
                     ))
                         .toList(),
@@ -597,37 +618,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
-  Future<String> _getDialect(int recordingBEId) async {
-    http.Response? response;
-    try {
-      final jwt = await secureStorage.read(key: 'token');
-      final url = Uri.https(Config.host, '/recordings/filtered/$recordingBEId');
-      response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      });
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.isNotEmpty) {
-          final Map<String, dynamic> jsonMap = data.first as Map<String, dynamic>;
-          if (jsonMap['dialectCode'] == null) {
-            return 'Nevyhodnoceno';
-          }
-          final dialectObj = RecordingDialect.fromJson(jsonMap);
-          return dialectObj.dialect;
-        }
-      } else {
-        logger.w('Dialect fetch failed: ${response.statusCode}, response body: ${response.body}');
-      }
-    } catch (e, stackTrace) {
-      logger.e(
-        'Failed to fetch dialect for recording $recordingBEId: $e, response body: ${response?.body}',
-        error: e,
-        stackTrace: stackTrace
-      );
-    }
-    return 'Nevyhodnoceno';
-  }
 
   void _openMapFilter() {
     showModalBottomSheet(

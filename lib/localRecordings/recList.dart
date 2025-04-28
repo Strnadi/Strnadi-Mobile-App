@@ -27,6 +27,7 @@ import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
@@ -54,6 +55,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   bool isAscending = true; // Add
 
   Timer? _refreshTimer;
+
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   @override
   void didChangeDependencies() {
@@ -465,6 +468,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                               } else {
                                 final parts = snapshot.data!;
                                 if (rec.sent && parts.any((p) => !p.sent)) {
+                                  logger.w('Unsent parts found');
+                                  String partsS="";
+                                  for (var part in parts) {partsS += '${part.toJson()}\n';}
+                                  logger.w('All parts: $partsS');
                                   status = 'Neodeslané části';
                                   color = Colors.red;
                                 } else {
@@ -539,30 +546,42 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
   }
 
-  Future<String> getDialectName(int id) async{
-    List<RecordingDialect> dialects = await DatabaseNew.getRecordingDialects(id);
-    if (dialects.isNotEmpty) {
-      for(int i = 0; i<dialects.length; i++){
-        if(dialects[i].dialect != ""){
-          return dialects[i].dialect;
-        }
+  Future<String> getDialectName(int id) async {
+    try {
+      // Read JWT token
+      final jwt = await _secureStorage.read(key: 'token');
+      // Call filtered endpoint with recordingId as query
+      final url = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/recordings/filtered',
+        query: 'recordingId=$id');
+      final response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      });
+      if (response.statusCode == 204) {
+        return 'Bez dialektu';
       }
-      return dialects[0].dialect == "" ? 'Neznámý dialekt' : dialects[0].dialect;
-    }
-    else{
-      int? recBEID = await DatabaseNew.getRecordingBEIDbyID(id);
-      if (recBEID == null) {
-        return 'Neznámý dialekt';
-      }
-      dialects = await DatabaseNew.getRecordingDialectsBE(recBEID);
-      if (dialects.isNotEmpty) {
-        for(int i = 0; i<dialects.length; i++){
-          if(dialects[i].dialect != ""){
-            return dialects[i].dialect;
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        // Return first non-empty dialect
+        for (final item in data.cast<Map<String, dynamic>>()) {
+          final rd = RecordingDialect.fromJson(item);
+          if (rd.dialect.isNotEmpty && rd.dialect != 'Nevyhodnoceno') {
+            return rd.dialect;
           }
         }
-        return dialects[0].dialect == "" ? 'Neznámý dialekt' : dialects[0].dialect;
+        // Fallback to first element's dialect
+        if (data.isNotEmpty) {
+          final rd = RecordingDialect.fromJson(data.first as Map<String, dynamic>);
+          return rd.dialect.isEmpty ? 'Neznámý dialekt' : rd.dialect;
+        }
+      } else {
+        logger.w('Dialect fetch failed: ${response.statusCode}');
       }
+    } catch (e, stackTrace) {
+      logger.e('Error fetching dialects for recording $id: $e', error: e, stackTrace: stackTrace);
     }
     return 'Neznámý dialekt';
   }

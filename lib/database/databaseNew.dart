@@ -88,13 +88,28 @@ class RecordingDialect{
 
   factory RecordingDialect.fromJson(Map<String, Object?> json) {
     // Safely parse the ID, allowing for uppercase or lowercase keys
-    final dynamic idValue = json['RecordingId'] ?? json['recordingId'];
+    final dynamic idValue = json['recordingId'] ?? json['RecordingId'];
     final int recordingId = idValue is int
       ? idValue
       : (idValue != null ? int.tryParse(idValue.toString()) ?? 0 : 0);
 
-    // Dialect string
-    final String dialectValue = json['dialect'] as String? ?? '';
+    // Determine dialect: prefer first detectedDialects entry (string or map), else fallback to dialectCode
+    final List<dynamic> detectedList = (json['detectedDialects'] as List<dynamic>?) ?? [];
+    late final String dialectValue;
+    if (detectedList.isNotEmpty) {
+      final first = detectedList.first;
+      if (first is String) {
+        dialectValue = first;
+      } else if (first is Map<String, dynamic>) {
+        dialectValue = (first['dialect'] as String?)
+            ?? (first['dialectCode'] as String?)
+            ?? 'Nevyhodnoceno';
+      } else {
+        dialectValue = 'Nevyhodnoceno';
+      }
+    } else {
+      dialectValue = (json['dialectCode'] as String?) ?? 'Nevyhodnoceno';
+    }
 
     // Helper to fetch raw date string from uppercase or lowercase key
     String _getRawDate(String upperKey, String lowerKey) {
@@ -134,8 +149,8 @@ class RecordingDialect{
 
   Map<String, Object?> toJson() {
     return {
-      'RecordingId': RecordingId,
-      'dialect': dialect,
+      'recordingId': RecordingId,
+      'dialectCode': dialect,
       'StartDate': StartDate.toString(),
       'EndDate': EndDate.toString(),
     };
@@ -554,8 +569,7 @@ class DatabaseNew {
         if (existing.isNotEmpty) {
           int id = existing.first["id"];
           recording.id = id;
-          await db.update("recordings", recording.toJson(), where: "id = ?",
-              whereArgs: [id]);
+          await updateRecording(recording);
           int index = recordings.indexWhere((r) => r.id == id);
           if (index != -1) {
             recordings[index] = recording;
@@ -591,9 +605,7 @@ class DatabaseNew {
         if (existing.isNotEmpty) {
           int id = existing.first["id"];
           recordingPart.id = id;
-          await db.update(
-              "recordingParts", recordingPart.toJson(), where: "id = ?",
-              whereArgs: [id]);
+          await updateRecordingPart(recordingPart);
           int index = recordingParts.indexWhere((r) => r.id == id);
           if (index != -1) {
             recordingParts[index] = recordingPart;
@@ -837,9 +849,7 @@ class DatabaseNew {
       logger.i('Recording sent successfully. Sending parts. Response: ${response
           .body}');
       recording.BEId = jsonDecode(response.body);
-      final db = await database;
-      await db.update('recordings', recording.toJson(), where: 'id = ?',
-          whereArgs: [recording.id]);
+      await updateRecording(recording);
 
       for (RecordingPart part in recordingParts) {
         part.recordingId = recording.id;
@@ -926,15 +936,14 @@ class DatabaseNew {
         throw UploadException('Failed to send recording part to backend', 401);
       }
       logger.i('Uploading recording part (backendRecordingId: ${recordingPart
-          .backendRecordingId}) with data length: ${recordingPart.dataBase64
-          ?.length}');
+          .backendRecordingId}) with data length: ${recordingPart.dataBase64?.length}');
       // Retrieve the parent recording to obtain its backend ID
-      Recording? parentRecording = await getRecordingFromDbById(
-          recordingPart.recordingId!);
-      recordingPart.backendRecordingId = parentRecording?.BEId ?? 0;
-      Database db = await database;
-      db.update('recordingParts', recordingPart.toJson(), where: 'id = ?',
-          whereArgs: [recordingPart.id]);
+      // Recording? parentRecording = await getRecordingFromDbById(
+      //     recordingPart.recordingId!);
+      //recordingPart.backendRecordingId = parentRecording?.BEId ?? 0;
+      // Database db = await database;
+      // db.update('recordingParts', recordingPart.toJson(), where: 'id = ?',
+      //     whereArgs: [recordingPart.id]);
       try {
         final Map<String, Object?> jsonBody = recordingPart.toBEJson();
         final http.Response response = await http.post(
@@ -954,8 +963,7 @@ class DatabaseNew {
           recordingPart.sent = true;
           recordingPart.sending = false;
           await updateRecordingPart(recordingPart);
-          logger.i(
-              'Recording part id: ${recordingPart.id} uploaded successfully.');
+          logger.i('Recording part id: ${recordingPart.id} uploaded successfully.');
         } else {
           // reset sending flag on failure
           recordingPart.sending = false;
@@ -965,6 +973,8 @@ class DatabaseNew {
         }
       } catch (e) {
         // reset sending flag on exception
+        // logger.e('Error uploading part: $e' ,error: e, stackTrace: stackTrace);
+        // Sentry.captureException(e, stackTrace: stackTrace);
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
         rethrow;

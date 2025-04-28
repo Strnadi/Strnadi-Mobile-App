@@ -61,6 +61,8 @@ void callbackDispatcher() {
       } catch(e, stackTrace) {
         logger.e("BG Failed to get recording from DB: $e", error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
+        await DatabaseNew.sendLocalNotification("Nahrávání nahrávky selhalo", "Odesílání nahrávky $recordingId selhalo s chybou: $e");
+        return Future.value(true);
       }
       if (recording != null && (recording.path == null || recording.path!.isEmpty || !recording.downloaded)) {
         logger.i("Recording path is empty or not downloaded. Attempting to concatenate parts for recording id $recordingId.");
@@ -85,7 +87,6 @@ void callbackDispatcher() {
           logger.i('Starting to send recording $recordingId in background');
           await DatabaseNew.sendRecording(recording, parts);
           logger.i("Recording $recordingId uploaded successfully in background");
-          await DatabaseNew.sendLocalNotification("Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
 
           // ---------------------------
 
@@ -140,6 +141,7 @@ void callbackDispatcher() {
             }
           }
 
+          await DatabaseNew.sendLocalNotification("Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
 
           // --------------------------
 
@@ -147,6 +149,7 @@ void callbackDispatcher() {
           recording.sending = false;
           await DatabaseNew.updateRecording(recording);
           logger.e("Failed to upload recording $recordingId in background: $e", error: e, stackTrace: stackTrace);
+          Sentry.captureException(e,stackTrace: stackTrace);
           await DatabaseNew.sendLocalNotification("Nahrávání nahrávky selhalo", "Odesílání nahrávky $recordingId selhalo s chybou: $e");
         }
       } else {
