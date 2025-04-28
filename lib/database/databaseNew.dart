@@ -1447,7 +1447,6 @@ class DatabaseNew {
           )
         ''');
         await db.setVersion(newVersion);
-        return;
       }
       // Upgrade from v3 → v4: add the 'sending' column to recordingParts
       if (oldVersion <= 3) {
@@ -1455,14 +1454,12 @@ class DatabaseNew {
         'ALTER TABLE recordingParts ADD COLUMN sending INTEGER DEFAULT 0;'
       );
       await db.setVersion(newVersion);
-      return;
       }
       if(oldVersion<=4){
         await db.execute(
             'ALTER TABLE Dialects RENAME COLUMN dialect TO dialectCode;'
         );
         await db.setVersion(newVersion);
-        return;
       }
     });
   }
