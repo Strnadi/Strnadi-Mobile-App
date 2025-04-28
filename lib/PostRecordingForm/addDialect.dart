@@ -83,6 +83,11 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        widget.onDialectAdded(null);
+        Navigator.pop(context);
+      },
       child: Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -151,31 +156,21 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     children: [
                       _dialectOption('BC'),
                       _dialectOption('BE'),
-                      _dialectOption('BiBh'),
-                      _dialectOption('BhBi'),
+                      _dialectOption('BlBh'),
+                      _dialectOption('BhBl'),
                       _dialectOption('XB'),
                       _dialectOption('Jiné'),
-                      _dialectOption('Bez Dialektu'),
                     ],
                   ),
                   SizedBox(height: 16),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        setState(() {
-                          selectedDialect = 'Nevím';
-                        });
-                      },
-                      child: Text(
-                        'Nevím',
-                        style: TextStyle(
-                          color: selectedDialect == 'Nevím' ? Colors.blue : Colors.black,
-                          fontWeight: selectedDialect == 'Nevím'
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _dialectOption('Bez Dialektu'),
+                  ),
+                  SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _dialectOption('Nevím'),
                   ),
                   SizedBox(height: 24),
                   ElevatedButton(
@@ -237,6 +232,10 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
 
   Widget _dialectOption(String type) {
     bool isSelected = selectedDialect == type;
+    // Only these are real dialects with icon assets
+    const List<String> dialectTypes = ['BC', 'BE', 'BlBh', 'BhBl', 'XB'];
+    bool isDialect = dialectTypes.contains(type);
+
     return InkWell(
       onTap: () {
         setState(() {
@@ -245,32 +244,46 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
       },
       child: Container(
         decoration: BoxDecoration(
-          border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? Color(0xFFF5F5F5) : Colors.white,
+          border: Border.all(
+            color: isSelected ? Colors.black : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(24),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            SizedBox(width: 8),
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: dialectColors[type],
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black, width: 1),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: isDialect
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Image.asset(
+                  'assets/dialects/$type.png',
+                  width: 24,
+                  height: 24,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    type,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: 4),
+                SizedBox(width: 12),
+                Image.asset(
+                  'assets/dialects/spect/$type.png',
+                  width: 35,
+                  height: 15,
+                  fit: BoxFit.contain,
+                ),
+              ],
+            )
+          : Center(
+              child: Text(
+                type,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            SizedBox(width: 8),
-            Text(type),
-            SizedBox(width: 4),
-            Container(
-              width: 24,
-              height: 2,
-              color: Colors.black,
-            ),
-          ],
-        ),
       ),
     );
   }
