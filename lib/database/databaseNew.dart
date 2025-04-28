@@ -87,11 +87,45 @@ class RecordingDialect{
   });
 
   factory RecordingDialect.fromJson(Map<String, Object?> json) {
+    // Safely parse the ID, allowing for uppercase or lowercase keys
+    final dynamic idValue = json['RecordingId'] ?? json['recordingId'];
+    final int recordingId = idValue is int
+      ? idValue
+      : (idValue != null ? int.tryParse(idValue.toString()) ?? 0 : 0);
+
+    // Dialect string
+    final String dialectValue = json['dialect'] as String? ?? '';
+
+    // Helper to fetch raw date string from uppercase or lowercase key
+    String _getRawDate(String upperKey, String lowerKey) {
+      return json[upperKey] as String?
+          ?? json[lowerKey] as String?
+          ?? '';
+    }
+
+    // Robust date parser: empty → epoch; digits → epoch-from-ms; ISO parse otherwise
+    DateTime _parseDate(String raw) {
+      if (raw.isEmpty) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
+      if (RegExp(r'^\d+$').hasMatch(raw)) {
+        return DateTime.fromMillisecondsSinceEpoch(int.parse(raw));
+      }
+      try {
+        return DateTime.parse(raw);
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
+    }
+
+    final DateTime startDate = _parseDate(_getRawDate('StartDate', 'startDate'));
+    final DateTime endDate   = _parseDate(_getRawDate('EndDate',   'endDate'));
+
     return RecordingDialect(
-      RecordingId: json['RecordingId'] as int,
-      dialect: json['dialect'] as String,
-      StartDate: DateTime.parse(json['StartDate'] as String),
-      EndDate: DateTime.parse(json['EndDate'] as String),
+      RecordingId: recordingId,
+      dialect: dialectValue,
+      StartDate: startDate,
+      EndDate: endDate,
     );
   }
 
@@ -1492,6 +1526,48 @@ class DatabaseNew {
         "Dialects", where: "RecordingId = ?", whereArgs: [recordingId]);
     return List.generate(
         results.length, (i) => RecordingDialect.fromJson(results[i]));
+  }
+
+  static Future<List<RecordingDialect>> getRecordingDialectsBE(int recordingBEID) async{
+    logger.i('Loading dialects for recording: ${recordingBEID}');
+    http.Response response;
+    try {
+      final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
+      final Uri url = Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: '/recordings/filtered/$recordingBEID',
+          query: 'verified=true');
+      response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt'
+      },);
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to load dialects for recording: ${recordingBEID} :$e', error: e, stackTrace: stackTrace);
+      return [];
+    }
+    try {
+      if (response.statusCode == 200) {
+        logger.i('Loaded dialects for recording: ${recordingBEID}');
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.map((item) =>
+            RecordingDialect.fromJson(item as Map<String, dynamic>)
+          ).toList();
+        } else {
+          return [];
+        }
+      }
+      else {
+        logger.e('Failed to load $recordingBEID dialects: ${response.statusCode} | ${response.body}');
+        return [];
+      }
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to load $recordingBEID dialects: $e', error: e, stackTrace: stackTrace);
+      return [];
+    }
   }
 
   /// Checks whether *all* parts of the given recording have been sent.

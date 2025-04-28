@@ -382,41 +382,26 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       width: 30.0,
                       height: 30.0,
                       point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
-                      child: GestureDetector(
-                        onTap: () {
-                          getRecordingFromPartId(part.recordingId);
-                          // TODO proper show of the recording
-                          // showDialog(
-                          //   context: context,
-                          //   builder: (ctx) => AlertDialog(
-                          //     title: Text('Part ID: ${part.id}'),
-                          //     content: Column(
-                          //       mainAxisSize: MainAxisSize.min,
-                          //       crossAxisAlignment: CrossAxisAlignment.start,
-                          //       children: [
-                          //         Text('Recording ID: ${part.recordingId}'),
-                          //         Text('Start: ${part.start}'),
-                          //         Text('End: ${part.end}'),
-                          //         if (part.filePath != null)
-                          //           Text('File: ${part.filePath}'),
-                          //         if (part.square != null)
-                          //           Text('Square: ${part.square}'),
-                          //       ],
-                          //     ),
-                          //     actions: [
-                          //       TextButton(
-                          //         onPressed: () => Navigator.of(ctx).pop(),
-                          //         child: const Text('Close'),
-                          //       ),
-                          //     ],
-                          //   ),
-                          // );
+                      child: FutureBuilder<String>(
+                        future: _getDialect(part.recordingId),
+                        builder: (context, snapshot) {
+                          String code = 'Nevyhodnoceno';
+                          if (snapshot.connectionState == ConnectionState.done &&
+                              snapshot.hasData &&
+                              snapshot.data!.isNotEmpty) {
+                            code = snapshot.data!;
+                          }
+                          return GestureDetector(
+                            onTap: () {
+                              getRecordingFromPartId(part.recordingId);
+                            },
+                            child: Image.asset(
+                              'assets/dialects/$code.png',
+                              width: 30.0,
+                              height: 30.0,
+                            ),
+                          );
                         },
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 30.0,
-                        ),
                       ),
                     ))
                         .toList(),
@@ -610,6 +595,38 @@ class _MapScreenV2State extends State<MapScreenV2> {
     setState(() {
       _gridLines = newGridLines;
     });
+  }
+
+  Future<String> _getDialect(int recordingBEId) async {
+    http.Response? response;
+    try {
+      final jwt = await secureStorage.read(key: 'token');
+      final url = Uri.https(Config.host, '/recordings/filtered/$recordingBEId');
+      response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty) {
+          final Map<String, dynamic> jsonMap = data.first as Map<String, dynamic>;
+          if (jsonMap['dialectCode'] == null) {
+            return 'Nevyhodnoceno';
+          }
+          final dialectObj = RecordingDialect.fromJson(jsonMap);
+          return dialectObj.dialect;
+        }
+      } else {
+        logger.w('Dialect fetch failed: ${response.statusCode}, response body: ${response.body}');
+      }
+    } catch (e, stackTrace) {
+      logger.e(
+        'Failed to fetch dialect for recording $recordingBEId: $e, response body: ${response?.body}',
+        error: e,
+        stackTrace: stackTrace
+      );
+    }
+    return 'Nevyhodnoceno';
   }
 
   void _openMapFilter() {

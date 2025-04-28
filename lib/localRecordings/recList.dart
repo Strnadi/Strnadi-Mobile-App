@@ -422,12 +422,25 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                   },
                                 ),
                           const SizedBox(height: 4),
-                          Text(
-                            getDialectName(rec.id!),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
+                          FutureBuilder<String>(
+                            future: getDialectName(rec.id!),
+                            builder: (context, snapshot) {
+                              String dialectText;
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                dialectText = 'Načítání dialektu...';
+                              } else if (snapshot.hasError || snapshot.data == null) {
+                                dialectText = 'Neznámý dialekt';
+                              } else {
+                                dialectText = snapshot.data!;
+                              }
+                              return Text(
+                                dialectText,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -526,9 +539,32 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
   }
 
-  String getDialectName(int id) {
-    //TODO Load dialect name from database
-    return 'Default Dialect'; // Placeholder for actual dialect name retrieval
+  Future<String> getDialectName(int id) async{
+    List<RecordingDialect> dialects = await DatabaseNew.getRecordingDialects(id);
+    if (dialects.isNotEmpty) {
+      for(int i = 0; i<dialects.length; i++){
+        if(dialects[i].dialect != ""){
+          return dialects[i].dialect;
+        }
+      }
+      return dialects[0].dialect == "" ? 'Neznámý dialekt' : dialects[0].dialect;
+    }
+    else{
+      int? recBEID = await DatabaseNew.getRecordingBEIDbyID(id);
+      if (recBEID == null) {
+        return 'Neznámý dialekt';
+      }
+      dialects = await DatabaseNew.getRecordingDialectsBE(recBEID);
+      if (dialects.isNotEmpty) {
+        for(int i = 0; i<dialects.length; i++){
+          if(dialects[i].dialect != ""){
+            return dialects[i].dialect;
+          }
+        }
+        return dialects[0].dialect == "" ? 'Neznámý dialekt' : dialects[0].dialect;
+      }
+    }
+    return 'Neznámý dialekt';
   }
 
   AssetImage getDialectImage(dialectName) {

@@ -101,7 +101,7 @@ void callbackDispatcher() {
           } else {
             for (DialectModel dialect in dialects) {
               final dialectBody = {
-                'recordingId': recording.id,
+                'recordingId': recording.BEId,
                 'StartDate': recording.createdAt
                     .add(Duration(milliseconds: dialect.startTime.toInt()))
                     .toIso8601String(),
