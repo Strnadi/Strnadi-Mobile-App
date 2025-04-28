@@ -65,7 +65,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   String placeTitle = 'Mapa';
 
   @override
-  void initState() async {
+  void initState() {
     super.initState();
     locationService = LocationService();
     getParts();
@@ -96,32 +96,36 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       });
     }
     else {
-      // Check if any parts exist for this recording
-      List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
-      if (parts.isNotEmpty) {
-        logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
-        DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {
-          logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
-          DatabaseNew.getRecordingFromDbById(widget.recording.BEId!).then((updatedRecording) {
-            logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
-            logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
-            if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
-              logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
-            } else {
-              logger.w("[RecordingItem] Updated recording path is null or empty.");
-            }
-            setState(() {
-              widget.recording.path = updatedRecording?.path ?? widget.recording.path;
-              loaded = true;
-            });
+      dosomeShit();
+    }
+  }
+
+  Future<void> dosomeShit() async {
+    // Check if any parts exist for this recording
+    List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
+    if (parts.isNotEmpty) {
+      logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
+      DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {
+        logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+        DatabaseNew.getRecordingFromDbById(widget.recording.BEId!).then((updatedRecording) {
+          logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
+          logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
+          if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
+            logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
+          } else {
+            logger.w("[RecordingItem] Updated recording path is null or empty.");
+          }
+          setState(() {
+            widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+            loaded = true;
           });
         });
-      } else {
-        logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
-        setState(() {
-          loaded = true;
-        });
-      }
+      });
+    } else {
+      logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
+      setState(() {
+        loaded = true;
+      });
     }
   }
 
