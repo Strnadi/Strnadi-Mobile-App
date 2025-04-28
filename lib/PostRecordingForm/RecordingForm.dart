@@ -90,6 +90,8 @@ class _RecordingFormState extends State<RecordingForm> {
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
 
+  final MapController _mapController = MapController();
+
   var placeTitle = "";
 
   @override
@@ -832,13 +834,15 @@ class _RecordingFormState extends State<RecordingForm> {
                                         style: TextStyle(fontSize: 14, color: Colors.black54),
                                       ),
                                     );
-                                  } else {
+                                  } else if (_computedCenter.latitude != 0.0 &&
+                                      _computedCenter.longitude != 0.0) {
                                     return FlutterMap(
                                       options: MapOptions(
                                         initialCenter: _computedCenter,
                                         initialZoom: _computedZoom,
                                         interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
                                       ),
+                                      mapController: _mapController,
                                       children: [
                                         TileLayer(
                                           urlTemplate:
@@ -864,6 +868,16 @@ class _RecordingFormState extends State<RecordingForm> {
                                         ),
                                       ],
                                     );
+                                  } else {
+                                    return
+                                      Container(
+                                        color: Colors.grey.shade300,
+                                        alignment: Alignment.center,
+                                        child: const Text(
+                                          "Nahrávka neobsahuje žádné GPS body.",
+                                          style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
+                                        ),
+                                      );
                                   }
                                 },
                               ),
