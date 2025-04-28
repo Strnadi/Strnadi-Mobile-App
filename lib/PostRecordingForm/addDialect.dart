@@ -81,11 +81,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
