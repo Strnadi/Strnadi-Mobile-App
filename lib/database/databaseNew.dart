@@ -848,7 +848,7 @@ class DatabaseNew {
       throw FetchException('Failed to send recording to backend', 401);
     }
     final http.Response response = await http.post(
-      Uri.https(Config.host, '/recordings/upload'),
+      Uri.https(Config.host, '/recordings'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
@@ -959,7 +959,7 @@ class DatabaseNew {
         final http.Response response = await http.post(
           Uri(scheme: 'https',
               host: Config.host,
-              path: '/recordings/upload-part'),
+              path: '/recordings/part'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $jwt',
@@ -1049,7 +1049,7 @@ class DatabaseNew {
     final Uri url = Uri(
       scheme: 'https',
       host: Config.host,
-      path: '/recordings/${recording.BEId}/edit',
+      path: '/recordings/${recording.BEId}',
     );
 
     final http.Response response = await http.patch(
@@ -1207,47 +1207,52 @@ class DatabaseNew {
   static Future<void> downloadRecording(int id) async {
     Recording recording = recordings.firstWhere((r) => r.id == id);
     if (recording.downloaded) return;
+
     String? jwt = await FlutterSecureStorage().read(key: 'token');
     if (jwt == null) {
       throw FetchException('Failed to fetch recordings from backend', 401);
     }
-    Uri url = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/recordings/${recording.BEId}',
-      queryParameters: {'parts': 'true', 'sound': 'true'},
-    );
-    final http.Response response = await http.get(url, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $jwt',
-    });
-    if (response.statusCode != 200) {
-      throw FetchException('Failed to download recording', response.statusCode);
-    }
-    final Map<String, dynamic> responseData = jsonDecode(response.body);
-    final List<dynamic> partsJson = responseData['parts'];
+
+    // Fetch all parts for this recording
+    List<RecordingPart> parts = await getRecordingParts();
     Directory tempDir = await getApplicationDocumentsDirectory();
     List<String> paths = [];
-    for (int i = 0; i < partsJson.length; i++) {
-      final partData = partsJson[i];
-      RecordingPart part = RecordingPart.fromBEJson(partData, recording.BEId!);
-      part.BEId = partData['id'];
-      part.dataBase64Temp = partData['dataBase64'];
-      await part.save();
+
+    for (final part in parts.where((p) => p.recordingId == id)) {
+      // Download each part's full sound
+      final Uri url = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/recordings/part/${recording.BEId}/${part.BEId}/sound',
+      );
+      final http.Response response = await http.get(url, headers: {
+        'Authorization': 'Bearer $jwt',
+      });
+      if (response.statusCode != 200) {
+        throw FetchException('Failed to download recording part', response.statusCode);
+      }
+
+      // Save part to disk
+      final String partFilePath = '${tempDir.path}/recording_${recording.BEId}_${part.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
+      File file = await File(partFilePath).create();
+      await file.writeAsBytes(response.bodyBytes);
+
+      // Update part path and mark as sent
+      part.path = partFilePath;
       part.sent = true;
       await updateRecordingPart(part);
-      // String partFilePath = '${tempDir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
-      // File partFile = File(partFilePath);
-      // await partFile.writeAsBytes(base64Decode(partData['dataBase64']));
-      paths.add(part.path!);
+
+      paths.add(partFilePath);
     }
-    String outputPath = '${tempDir.path}/recording_${DateTime
-        .now()
-        .microsecondsSinceEpoch}.wav';
+
+    // Concatenate all parts into one file
+    final String outputPath = '${tempDir.path}/recording_${recording.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
     await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
+
     recording.path = outputPath;
     recording.downloaded = true;
     await updateRecording(recording);
+
     logger.i('Downloaded recording id: $id. File saved to: $outputPath');
   }
 
