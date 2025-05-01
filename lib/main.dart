@@ -14,10 +14,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'dart:io';
@@ -56,25 +56,6 @@ void _showMessage(BuildContext context, String message) {
       ],
     ),
   );
-}
-
-Future<bool> hasInternetAccess() async {
-  var connectivityResult = await Connectivity().checkConnectivity();
-
-  if (connectivityResult == ConnectivityResult.none) {
-    return false; // No network
-  }
-
-  try {
-    final result = await http.get(Uri.parse('https://www.google.com'))
-        .timeout(const Duration(seconds: 5));
-    if (result.statusCode == 200) {
-      return true; // Internet is available
-    }
-    return false;
-  } catch (_) {
-    return false; // No internet despite having network
-  }
 }
 
 Future<void> _checkGooglePlayServices(BuildContext context) async {
@@ -135,7 +116,11 @@ Future<void> main() async {
       }
       // Initialize your database and other services.
       logger.i('Loading database');
-      await DatabaseNew.database;
+      try {
+        await DatabaseNew.database.timeout(const Duration(seconds: 10));
+      } catch (e, stack) {
+        logger.e('Error initializing database: $e', error: e, stackTrace: stack);
+      }
       logger.i('Loaded Database');
       // Initialize Firebase Messaging.
       initFirebaseMessaging();
@@ -149,22 +134,14 @@ Future<void> main() async {
   );
 }
 
-Future<void> checkInternetConnection(BuildContext context) async {
-  if (await hasInternetAccess()) {
-    logger.i("Has Internet access");
-  } else {
-    logger.e("Does not have internet access");
-    // _showMessage(
-    //     context, "Nemáte připojení k internetu aplikace nebude fungovat");
-  }
-}
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Strnadi',
       navigatorKey: navigatorKey,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
@@ -199,7 +176,6 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async{
       await checkForUpdate(context);
       await _checkGooglePlayServices(context);
-      await checkInternetConnection(context);
     });
   }
 

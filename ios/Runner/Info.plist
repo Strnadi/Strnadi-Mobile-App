@@ -81,15 +81,15 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Not implemented yet</string>
+	<string>Tato aplikace potřebuje přístup k fotoaparátu pro pořizování fotografií ptáků k identifikaci a zaznamenávání.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need access to your location to provide a better experience.</string>
+	<string>Tato aplikace potřebuje přístup pro určení lokace nahrávky.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need access to your location to provide a better experience.</string>
+	<string>Tato aplikace potřebuje přístup pro určení lokace nahrávky.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Add your own description</string>
+	<string>Tato aplikace potřebuje přístup k mikrofonu pro nahrávání ptačích zpěvů k identifikaci a analýze.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>For future use when app will be able to upload photos of birds</string>
+	<string>Tato aplikace potřebuje přístup do vaší knihovny fotografií, aby vám umožnila nahrát existující fotografie ptáků k identifikaci.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

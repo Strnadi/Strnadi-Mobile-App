@@ -63,8 +63,8 @@ class RecordingTaskHandler extends TaskHandler {
   }
 
   @override
-  Future<void> onDestroy(DateTime timestamp) async {
-    logger.i("Foreground task destroyed at \$timestamp");
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
+    logger.i("Foreground task destroyed at $timestamp (isTimeout: $isTimeout)");
   }
 
   @override
@@ -205,8 +205,6 @@ class _LiveRecState extends State<LiveRec> {
   @override
   void initState() {
     super.initState();
-
-    getLocationPermission(context);
     _initAudioSettings();
     _audioRecorder = AudioRecorder();
     _audioRecorder.hasPermission().then((allowed) {
@@ -216,18 +214,6 @@ class _LiveRecState extends State<LiveRec> {
     });
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
-    });
-    _locService = LocationService();
-    _locationSub = _locService.positionStream.listen((position) {
-      final now = DateTime.now();
-      if (_lastRouteUpdateTime == null ||
-          now.difference(_lastRouteUpdateTime!) >= Duration(seconds: 5)) {
-        setState(() {
-          currentPosition = LatLng(position.latitude, position.longitude);
-          _liveRoute.add(LatLng(position.latitude, position.longitude));
-          _lastRouteUpdateTime = now;
-        });
-      }
     });
     _elapsedTimer = ElapsedTimer(onTick: (elapsed) {
       setState(() {
@@ -279,6 +265,15 @@ class _LiveRecState extends State<LiveRec> {
           return;
         }
       }
+      // Check and request location permission before recording
+      LocationPermission locationPerm = await Geolocator.checkPermission();
+      if (locationPerm != LocationPermission.whileInUse && locationPerm != LocationPermission.always) {
+        locationPerm = await Geolocator.requestPermission();
+      }
+      if (locationPerm != LocationPermission.whileInUse && locationPerm != LocationPermission.always) {
+        _showMessage(context, 'Pro zahájení nahrávání musíte povolit přístup k poloze');
+        return;
+      }
       if (_recordState == RecordState.record) {
         _pause();
       } else if (_recordState == RecordState.pause) {
@@ -316,6 +311,14 @@ class _LiveRecState extends State<LiveRec> {
       recordingPartsTimeList.add(segmentDuration);
       recordedPart!.endTime = DateTime.now();
       logger.i('Segment end time: ${recordedPart!.endTime}');
+    // Always fetch the latest location for segment end
+          try {
+            final loc = await _locService.getCurrentLocation();
+            recordedPart!.gpsLatitudeEnd = loc.latitude;
+            recordedPart!.gpsLongitudeEnd = loc.longitude;
+          } catch (e, stackTrace) {
+            logger.e('Error fetching location on stop: $e', error: e, stackTrace: stackTrace);
+          }
       Uint8List data = await File(filepath).readAsBytes();
       final dataWithHeader =
           createWavHeader(data.length, sampleRate, bitRate) + data;
@@ -325,13 +328,6 @@ class _LiveRecState extends State<LiveRec> {
       await newFile.writeAsBytes(dataWithHeader);
       if (recordedPart != null) {
         recordedPart!.path = filepath;
-      }
-      if (_locService.lastKnownPosition == null) {
-        await _locService.getCurrentLocation();
-      }
-      if (recordedPart != null) {
-        recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
-        recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
       }
       recordingPartsList.add(recordedPart!);
     } else if (_recordState == RecordState.pause) {
@@ -754,11 +750,37 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> _start() async {
+    // Request location permission for recording
+    await getLocationPermission(context);
+    // Initialize location service and start listening for location updates
+    _locService = LocationService();
+    _locService.init();
+    _locService.getCurrentLocation().then((loc) {
+      setState(() {
+        currentPosition = loc;
+        _liveRoute.add(loc);
+      });
+    }).catchError((e, stackTrace) {
+      logger.e('Error fetching initial location: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    });
+    _locationSub = _locService.positionStream.listen((position) {
+      final now = DateTime.now();
+      if (_lastRouteUpdateTime == null ||
+          now.difference(_lastRouteUpdateTime!) >= Duration(seconds: 5)) {
+        setState(() {
+          currentPosition = LatLng(position.latitude, position.longitude);
+          _liveRoute.add(LatLng(position.latitude, position.longitude));
+          _lastRouteUpdateTime = now;
+        });
+      }
+    });
     WakelockPlus.enable();
     await FlutterForegroundTask.startService(
       notificationTitle: 'Strnadi',
       notificationText: 'Aplikace Strnadi nahrává',
       callback: startRecordingCallback,
+      serviceTypes: [ForegroundServiceTypes.microphone],
     );
     try {
       logger.i('Started recording');
@@ -838,11 +860,14 @@ class _LiveRecState extends State<LiveRec> {
     recordingPartsTimeList.add(segmentDuration);
     recordedPart!.endTime = DateTime.now();
     logger.i('Recorded part end time: ${recordedPart!.endTime}');
-    if (_locService.lastKnownPosition == null) {
-      await _locService.getCurrentLocation();
-    }
-    recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
-    recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
+    // Always fetch the latest location for segment end
+        try {
+          final loc = await _locService.getCurrentLocation();
+          recordedPart!.gpsLongitudeEnd = loc.longitude;
+          recordedPart!.gpsLatitudeEnd = loc.latitude;
+        } catch (e, stackTrace) {
+          logger.e('Error fetching location on pause: $e', error: e, stackTrace: stackTrace);
+        }
     Uint8List data = await File(filepath).readAsBytes();
     final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
     await File(filepath).delete();

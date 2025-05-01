@@ -19,7 +19,6 @@
 
 import 'dart:io';
 import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +34,6 @@ import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
-import 'package:strnadi/archived/recordingsDb.dart';
 import '../config/config.dart';
 import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
@@ -86,7 +84,6 @@ class _RecordingFormState extends State<RecordingForm> {
   late loc.LocationService locationService;
   LatLng? currentLocation;
   LatLng? markerPosition;
-  DateTime? _lastRouteUpdate;
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
 
@@ -181,6 +178,11 @@ class _RecordingFormState extends State<RecordingForm> {
       } catch (e, stackTrace) {
         logger.e("Error converting part: $e", error: e, stackTrace: stackTrace);
       }
+    }
+
+    // Assign the duration (in seconds) to each RecordingPart
+    for (int i = 0; i < recordingParts.length && i < widget.recordingPartsTimeList.length; i++) {
+      recordingParts[i].length = widget.recordingPartsTimeList[i];
     }
 
     _route.addAll(widget.route);
@@ -479,24 +481,6 @@ class _RecordingFormState extends State<RecordingForm> {
     });
   }
 
-  Future<bool> hasInternetAccess() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-
-    if (connectivityResult == ConnectivityResult.none) {
-      return false; // No network
-    }
-
-    try {
-      final result = await http.get(Uri.parse('https://www.google.com'))
-          .timeout(const Duration(seconds: 5));
-      if (result.statusCode == 200) {
-        return true; // Internet is available
-      }
-      return false;
-    } catch (_) {
-      return false; // No internet despite having network
-    }
-  }
 
   Future<String> getDeviceModel() async {
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -548,10 +532,16 @@ class _RecordingFormState extends State<RecordingForm> {
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
-    // Check internet connectivity after inserting recording parts
-    if (!await hasInternetAccess()) {
-      logger.w("No internet connection, recording saved offline");
-      _showMessage("Recording saved offline");
+    // Check connectivity and user preference before upload
+    if (!await Config.hasBasicInternet) {
+      logger.w("Žádné připojení k internetu, nahrávka uložena offline");
+      _showMessage("Žádné připojení k internetu, nahrávka uložena offline");
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
+    if (!await Config.canUpload) {
+      logger.w("Nahrávání je povoleno pouze na Wi-Fi");
+      _showMessage("Nahrávání je povoleno pouze na Wi-Fi");
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       return;
     }
@@ -821,7 +811,7 @@ class _RecordingFormState extends State<RecordingForm> {
                             child: SizedBox(
                               height: 200,
                               child: FutureBuilder<bool>(
-                                future: hasInternetAccess(),
+                                future: Config.hasBasicInternet,
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState == ConnectionState.waiting) {
                                     return const Center(child: CircularProgressIndicator());

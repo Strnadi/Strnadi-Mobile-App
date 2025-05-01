@@ -29,7 +29,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
 import 'package:strnadi/md_renderer.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+// Removed: import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../config/config.dart';
 import 'launch_warning.dart';
@@ -48,24 +48,6 @@ class Authorizator extends StatefulWidget {
   State<Authorizator> createState() => _AuthState();
 }
 
-Future<bool> hasInternetAccess() async {
-  var connectivityResult = await Connectivity().checkConnectivity();
-
-  if (connectivityResult == ConnectivityResult.none) {
-    return false; // No network
-  }
-
-  try {
-    final result = await http.get(Uri.parse('https://www.google.com'))
-        .timeout(const Duration(seconds: 5));
-    if (result.statusCode == 200) {
-      return true; // Internet is available
-    }
-    return false;
-  } catch (_) {
-    return false; // No internet despite having network
-  }
-}
 
 enum AuthStatus { loggedIn, loggedOut, notVerified }
 
@@ -126,14 +108,14 @@ Future<AuthStatus> _offlineIsLoggedIn() async{
 }
 
 Future<AuthStatus> isLoggedIn() async {
-  // Check if the device has internet access
-  bool hasInternet = await hasInternetAccess();
-  if (!hasInternet){
+  // Treat either no connectivity or backend unreachable as offline
+  if (!await Config.hasBasicInternet) {
     return await _offlineIsLoggedIn();
   }
-  else {
-    return await _onlineIsLoggedIn();
+  if (!await Config.isBackendAvailable) {
+    return await _offlineIsLoggedIn();
   }
+  return await _onlineIsLoggedIn();
 }
 
 class _AuthState extends State<Authorizator> {
@@ -146,7 +128,7 @@ class _AuthState extends State<Authorizator> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showWIPwarning();
     });
-    hasInternetAccess().then((online) {
+    Config.hasBasicInternet.then((online) {
       setState(() {
         _isOnline = online;
       });
@@ -216,14 +198,7 @@ class _AuthState extends State<Authorizator> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isOnline ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegMail()),
-                      );
-                    } : () {
-                      _showAlert("Offline", "Tato akce není dostupná offline.");
-                    },
+                    onPressed: () => _navigateIfAllowed(const RegMail()),
                     style: ElevatedButton.styleFrom(
                       elevation: 0, // No elevation
                       shadowColor: Colors.transparent, // Remove shadow
@@ -248,13 +223,7 @@ class _AuthState extends State<Authorizator> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: _isOnline ? () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const Login()));
-                    } : () {
-                      _showAlert("Offline", "Tato akce není dostupná offline.");
-                    },
+                    onPressed: () => _navigateIfAllowed(const Login()),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: textColor,
                       side: BorderSide(color: Colors.grey[200]!, width: 2),
@@ -320,7 +289,7 @@ class _AuthState extends State<Authorizator> {
   }
 
   Future<void> checkLoggedIn() async {
-    bool online = await hasInternetAccess();
+    bool online = await Config.hasBasicInternet;
     if (!online) {
       final secureStorage = FlutterSecureStorage();
       String? token = await secureStorage.read(key: 'token');
@@ -464,6 +433,15 @@ class _AuthState extends State<Authorizator> {
         ],
       ),
     );
+  }
+
+  /// Navigate respecting internet connectivity
+  Future<void> _navigateIfAllowed(Widget page) async {
+    if (!await Config.hasBasicInternet) {
+      _showAlert("Offline", "Tato akce není dostupná offline.");
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Future<void> _launchURL() async {

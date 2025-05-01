@@ -18,9 +18,16 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'dart:io';
+
+/// User preference for mobile data usage
+enum DataUsageOption { wifiOnly, wifiAndMobile }
 
 /// Server health status codes
-enum ServerHealth { healthy, maintenance }
+enum ServerHealth { healthy, maintenance, offline }
 
 Logger logger = Logger();
 
@@ -28,15 +35,47 @@ class Config {
   static Map<String, dynamic>? _config;
   static Map<String, dynamic>? _Fconfig;
 
+  static const String _dataUsagePrefKey = 'data_usage_option';
+  static DataUsageOption? _dataUsageOption;
+
   // Load config.json
   static Future<void> loadConfig() async {
     String jsonString = await rootBundle.loadString('assets/secrets.json');
     _config = json.decode(jsonString);
+    await loadDataUsageOption();
   }
 
   static Future<void> loadFirebaseConfig() async {
     String jsonString = await rootBundle.loadString('assets/firebase-secrets.json');
     _Fconfig = json.decode(jsonString);
+  }
+
+  /// Loads the user's mobile data preference from SharedPreferences
+  static Future<void> loadDataUsageOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_dataUsagePrefKey);
+    if (raw == null) {
+      // First launch: default to Wi-Fi only and save
+      _dataUsageOption = DataUsageOption.wifiOnly;
+      await prefs.setString(_dataUsagePrefKey, _dataUsageOption.toString());
+    } else {
+      _dataUsageOption = DataUsageOption.values.firstWhere(
+        (e) => e.toString() == raw,
+        orElse: () => DataUsageOption.wifiOnly,
+      );
+    }
+  }
+
+  /// Gets the current mobile data preference
+  static DataUsageOption get dataUsageOption {
+    return _dataUsageOption ?? DataUsageOption.wifiOnly;
+  }
+
+  /// Sets the user's mobile data preference
+  static Future<void> setDataUsageOption(DataUsageOption option) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_dataUsagePrefKey, option.toString());
+    _dataUsageOption = option;
   }
 
   // Get API Key
@@ -74,14 +113,51 @@ class Config {
   /// Checks the server health via a HEAD request to {host}/utils/health
   static Future<ServerHealth> checkServerHealth() async {
     final uri = Uri.parse('https://${host}/utils/health');
-    final response = await http.head(uri);
-    logger.i('Checking API health + https://${host}/utils/health with response ${response.statusCode}');
-    if (response.statusCode == 200) {
-      return ServerHealth.healthy;
-    } else if (response.statusCode == 503) {
-      return ServerHealth.maintenance;
-    } else {
-      throw Exception('Unexpected status code: ${response.statusCode}');
+    try {
+      final response = await http.head(uri).timeout(const Duration(seconds: 5));
+      logger.i('Checking API health at $uri: status code ${response.statusCode}');
+      if (response.statusCode == 200) {
+        return ServerHealth.healthy;
+      } else if (response.statusCode == 503) {
+        return ServerHealth.maintenance;
+      } else {
+        return ServerHealth.offline;
+      }
+    } on SocketException catch (e) {
+      logger.w('SocketException when checking API health: $e');
+      return ServerHealth.offline;
+    } on TimeoutException catch (e) {
+      logger.w('Timeout when checking API health: $e');
+      return ServerHealth.offline;
+    } catch (e) {
+      logger.e('Unexpected error checking API health: $e');
+      return ServerHealth.offline;
     }
+  }
+
+  /// Checks whether the device has any network connectivity (basic)
+  static Future<bool> get hasBasicInternet async {
+    final result = await Connectivity().checkConnectivity();
+    return result != ConnectivityResult.none;
+  }
+
+  /// Checks whether the backend is reachable (via health endpoint)
+  static Future<bool> get isBackendAvailable async {
+    try {
+      final health = await checkServerHealth();
+      return health == ServerHealth.healthy;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Determines if upload operations are allowed based on connectivity, backend, and user preference
+  static Future<bool> get canUpload async {
+    if (!await hasBasicInternet) return false;
+    final conn = await Connectivity().checkConnectivity();
+    if (conn == ConnectivityResult.mobile && dataUsageOption == DataUsageOption.wifiOnly) {
+      return false;
+    }
+    return await isBackendAvailable;
   }
 }

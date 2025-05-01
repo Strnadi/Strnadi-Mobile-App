@@ -19,9 +19,10 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:strnadi/archived/login.dart';
 
+import '../../auth/google_sign_in_service.dart';
 import '../../config/config.dart';
+import '../../firebase/firebase.dart' as strnadiFirebase;
 
 Logger logger = Logger();
 
@@ -165,6 +166,55 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _showMessage('Nic se nezměnilo');
   }
 
+  Future<void> confirmAndDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Smazání účtu"),
+        content: const Text("Opravdu si přejete smazat svůj účet? Tato akce je nevratná."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Zrušit"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Smazat", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final secureStorage = FlutterSecureStorage();
+      String? jwt = await secureStorage.read(key: 'token');
+      String? userId = await secureStorage.read(key: 'userId');
+
+      if (jwt == null || userId == null) {
+        _showMessage("Chyba ověření uživatele.");
+        return;
+      }
+
+      final url = Uri.parse('https://${Config.host}/users/$userId');
+
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        _showMessage("Účet byl úspěšně smazán.");
+        logout(context);
+      } else {
+        _showMessage("Nepodařilo se smazat účet.");
+        logger.i('Delete failed: ${response.statusCode} | ${response.body}');
+      }
+    }
+  }
+
 
   @override
   void initState() {
@@ -229,7 +279,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ListTile(
                 title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {}, // Open delete account confirmation
+                onTap: () {
+                  confirmAndDeleteAccount();
+                }, // Open delete account confirmation
               ),
             ],
           ),
@@ -258,5 +310,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
       ),
     );
+  }
+
+  Future<void> logout(BuildContext context) async {
+
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+
+    await GoogleSignInService.signOut();
+    await secureStorage.deleteAll();
+    await strnadiFirebase.deleteToken();
+
+    Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
   }
 }

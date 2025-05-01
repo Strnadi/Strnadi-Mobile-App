@@ -116,7 +116,7 @@ void callbackDispatcher() {
                 final url = Uri(
                   scheme: 'https',
                   host: Config.host,
-                  path: '/recordings/filtered/upload',
+                  path: '/recordings/filtered',
                 );
 
                 final response = await http.post(

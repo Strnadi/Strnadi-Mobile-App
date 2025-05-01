@@ -29,6 +29,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/PostRecordingForm/addDialect.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/user/settingsManager.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/exceptions.dart';
@@ -534,6 +535,22 @@ class DatabaseNew {
   static bool fetching = false;
   static bool loadedRecordings = false;
 
+  /// Enforces the user-defined maximum number of local recordings by deleting the oldest ones.
+  static Future<void> enforceMaxRecordings() async {
+    final max = await SettingsService().getLocalRecordingsMax();
+    if (max <= 0) return; // no limit or invalid
+    final allRecs = await getRecordings();
+    if (allRecs.length <= max) return; // under limit
+    // Sort by creation date ascending (oldest first)
+    allRecs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final toDelete = allRecs.take(allRecs.length - max);
+    for (var rec in toDelete) {
+      if (rec.id != null) {
+        await deleteRecordingFromCache(rec.id!);
+      }
+    }
+  }
+
   static Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await initDb();
@@ -545,8 +562,8 @@ class DatabaseNew {
     final Map<String, Color> dialectColors = {
       'BC': Colors.yellow,
       'BE': Colors.green,
-      'BiBh': Colors.lightBlue,
-      'BhBi': Colors.blue,
+      'BlBh': Colors.lightBlue,
+      'BhBl': Colors.blue,
       'XB': Colors.red,
       'Jiné': Colors.white,
       'Nevím': Colors.grey.shade300,
@@ -591,6 +608,7 @@ class DatabaseNew {
       final int id = await db.insert("recordings", recording.toJson());
       recording.id = id;
       recordings.add(recording);
+      await enforceMaxRecordings();
       logger.i('Recording ${recording.id} inserted, path: ${recording.path}');
       return id;
     } catch (e, stackTrace) {
@@ -1295,7 +1313,7 @@ class DatabaseNew {
 
   static Future<Database> initDb() async {
     return openDatabase(
-        'soundNew.db', version: 4, onCreate: (Database db, int version) async {
+        'soundNew.db', version: 5, onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,
@@ -1376,6 +1394,7 @@ class DatabaseNew {
       recordingParts =
           List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
       loadedRecordings = true;
+      enforceMaxRecordings();           // ← this blocks the open
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
       if (oldVersion <= 1) {
         // Add the new backendRecordingId column to recordingParts table

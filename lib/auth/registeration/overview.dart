@@ -58,6 +58,7 @@ class _RegOverviewState extends State<RegOverview> {
   final Logger logger = Logger();
 
   bool _isLoading = false;
+  bool _marketingConsent = false;
 
   void _showMessage(String message) {
     showDialog(
@@ -94,7 +95,7 @@ class _RegOverviewState extends State<RegOverview> {
       'nickname': widget.nickname.isEmpty ? null : widget.nickname,
       'city': widget.city.isNotEmpty ? widget.city : null,
       'postCode': widget.postCode.isNotEmpty ? int.tryParse(widget.postCode) : null,
-      'consent': widget.consent,
+      'consent': widget.consent && _marketingConsent,
     });
 
     logger.i("Sign Up Request Body: $requestBody");
@@ -236,6 +237,28 @@ class _RegOverviewState extends State<RegOverview> {
               _buildInfoItem('PSČ', widget.postCode),
               _buildInfoItem('Obec', widget.city),
               const SizedBox(height: 32),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _marketingConsent,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _marketingConsent = value ?? false;
+                      });
+                    },
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Souhlasím se zasíláním marketingových sdělení',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _RegOverviewState.textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

@@ -24,7 +24,7 @@ class MenuScreen extends StatelessWidget {
   final List<String> menuItems = [
     'Osobní údaje',
     'Nastavení',
-    'Vaše úspěchy',
+    //'Vaše úspěchy',
     'Příručka',
     'O projektu',
     'O aplikaci',
@@ -69,24 +69,24 @@ class MenuScreen extends StatelessWidget {
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => ProfileEditPage()));
     } else if (index == 1) {
-      _showMessage("Nastavení ještě není dostupné", context);
-      //Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+      //_showMessage("Nastavení ještě není dostupné", context);
+      Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
     } else if (index == 3) {
       Navigator.push(
           context,
           MaterialPageRoute(
               builder: (context) =>
                   MDRender(mdPath: 'assets/docs/how-to-record.md', title: 'Jak nahrávat',)));
-    } else if (index == 4) {
+    } else if (index == 3) {
       Navigator.push(
           context,
           MaterialPageRoute(
               builder: (context) =>
                   MDRender(mdPath: 'assets/docs/about-project.md', title: 'O projektu',)));
-    } else if (index == 5) {
+    } else if (index == 4) {
       _showAboutDialog(context);
     } else {
-      _showMessage("tato funkce neni jeste dostupna", context);
+      _showMessage("Tato funkce není ještě dostupná", context);
     }
   }
 
