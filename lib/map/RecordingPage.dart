@@ -42,6 +42,7 @@ class RecordingFromMap extends StatefulWidget {
 
   final UserData? user;
 
+
   const RecordingFromMap({Key? key, required this.recording, required this.user}) : super(key: key);
 
   @override
@@ -63,6 +64,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   final MapController _mapController = MapController();
 
   String placeTitle = 'Mapa';
+
+  int length = 0;
 
   @override
   void initState() {
@@ -150,9 +153,20 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     List<RecordingPart?> varts = List.empty(growable: true);
     varts.add(await DatabaseNew.getRecordingPartByBEID(widget.recording.BEId!));
 
+    int lenght = 0;
+
+    for (var part in varts) {
+      if (part == null) {
+        continue;
+      }
+      lenght += part.length ?? 0;
+    }
+
     setState(() {
+      length = lenght;
       parts = varts;
     });
+
 
     await reverseGeocode(this.parts[0]!.gpsLatitudeStart, this.parts[0]!.gpsLongitudeStart);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -304,8 +318,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    Text(_formatDuration(totalDuration),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(_formatDuration(Duration(seconds: length)), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

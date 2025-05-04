@@ -71,6 +71,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   List<Recording> _fullRecordings = [];
 
+  late int length = 0;
+
   Size? _mapSize;
 
   // Subscribe to location updates via the centralized service.
@@ -193,6 +195,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
         logger.i('Recordings fetched');
         List<dynamic> data = jsonDecode(response.body);
         List<Part> parts = getParts(jsonEncode(data));
+
+        for (int i = 0; i < parts.length; i++) {
+          length += parts[i].length ?? 0;
+        }
         setState(() {
           _recordings = parts;
         });
