@@ -12,15 +12,17 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
-import 'dart:io';
+
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
@@ -37,6 +39,10 @@ import 'package:strnadi/callback_dispatcher.dart';
 import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:permission_handler/permission_handler.dart' as perm;
 
 // Create a global logger instance.
 final logger = Logger();
@@ -62,13 +68,13 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
   // Check only on Android devices.
   if (Platform.isAndroid) {
     final availability =
-    await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+        await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
     if (availability != GooglePlayServicesAvailability.success) {
       // Attempt to prompt the user to update/install Google Play Services.
       await GoogleApiAvailability.instance.makeGooglePlayServicesAvailable();
       // Re-check availability after attempting resolution.
       final newAvailability =
-      await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+          await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
       if (newAvailability != GooglePlayServicesAvailability.success) {
         _showMessage(
           context,
@@ -79,41 +85,112 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
   }
 }
 
-Future<void> main() async {
+void main() {
+  runZonedGuarded(() async {
+    await _bootstrap();
+  }, (error, stack) {
+    Sentry.captureException(error, stackTrace: stack);
+  });
+}
+
+Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 1) Firebase jako první
+  await Firebase.initializeApp();
+
+  // 3) Foreground‑task
+  FlutterForegroundTask.initCommunicationPort();
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'strnadi_hlavni_sluzba',
+      channelName: 'Strnadi – služba na pozadí',
+      channelDescription:
+          'Trvalá notifikace služby Strnadi, která zajišťuje chod aplikace i při běhu na pozadí.',
+      channelImportance: NotificationChannelImportance.DEFAULT,
+      priority: NotificationPriority.DEFAULT,
+      onlyAlertOnce: true,
+    ),
+    iosNotificationOptions: const IOSNotificationOptions(
+      showNotification: true,
+      playSound: false,
+    ),
+    foregroundTaskOptions: ForegroundTaskOptions(
+      eventAction: ForegroundTaskEventAction.repeat(600000),
+      autoRunOnBoot: true,
+      allowWakeLock: true,
+    ),
+  );
+
+  // 2) Spusť UI s kontrolou povolení
+  runApp(const PermissionGate());
+  return; // zbytek se spustí až po udělení povolení
+}
+// PermissionGate widget – controls runtime permissions and continues app bootstrap
+class PermissionGate extends StatefulWidget {
+  const PermissionGate({super.key});
+
+  @override
+  State<PermissionGate> createState() => _PermissionGateState();
+}
+
+class _PermissionGateState extends State<PermissionGate> {
+  bool _granted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _request();
+  }
+
+  Future<void> _request() async {
+    final mic = await perm.Permission.microphone.request();
+    final notif = await perm.Permission.notification.request();
+    _granted = mic.isGranted && notif.isGranted;
+    if (_granted) {
+      await _continueBootstrap();
+    }
+    setState(() {}); // rebuild UI based on _granted
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _granted
+        ? const SizedBox.shrink() // bude ihned nahrazeno runApp(MyApp) ve _continueBootstrap
+        : const PermissionScreen();
+  }
+}
+
+Future<void> _continueBootstrap() async {
+  // 4) Ostatní inicializace
   await Config.loadConfig();
-
   await Config.loadFirebaseConfig();
-
   initFirebase();
 
-  // Initialize workmanager with our callback.
-  Workmanager().initialize(
-    callbackDispatcher, // The top-level function
-    isInDebugMode: false, // Set this to false for production
-  );
+  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
 
   DeepLinkHandler().setNavigatorKey(navigatorKey);
 
   await SentryFlutter.init(
-        (options) {
-      options.dsn =
-      'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696';
-      options.addIntegration(LoggingIntegration());
-      options.profilesSampleRate = 1.0;
-      options.tracesSampleRate = 1.0;
-      options.experimental.replay.sessionSampleRate = 1.0;
-      options.experimental.replay.onErrorSampleRate = 1.0;
-      options.environment = kDebugMode? 'development' : 'production';
+    (options) {
+      options
+        ..dsn =
+            'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
+        ..addIntegration(LoggingIntegration())
+        ..profilesSampleRate = 1.0
+        ..tracesSampleRate = 1.0
+        ..experimental.replay.sessionSampleRate = 1.0
+        ..experimental.replay.onErrorSampleRate = 1.0
+        ..environment = kDebugMode ? 'development' : 'production';
     },
-    appRunner: () async{
+    appRunner: () async {
       // Check server health before app initialization
       final health = await Config.checkServerHealth();
       if (health == ServerHealth.maintenance) {
         runApp(MaterialApp(home: const MaintenancePage()));
         return;
       }
+
       // Initialize your database and other services.
       logger.i('Loading database');
       try {
@@ -122,16 +199,18 @@ Future<void> main() async {
         logger.e('Error initializing database: $e', error: e, stackTrace: stack);
       }
       logger.i('Loaded Database');
-      // Initialize Firebase Messaging.
+
+      // Init Firebase messaging + lokální notifikace
       initFirebaseMessaging();
-      // Initialize Firebase Local Messaging
       initLocalNotifications();
-      // Initialize deep link handling.
+
+      // Deep‑linky
       DeepLinkHandler().initialize();
-      // Run the app.
+
       runApp(const MyApp());
     },
   );
+  return;
 }
 
 class MyApp extends StatelessWidget {
@@ -145,14 +224,18 @@ class MyApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
-        colorScheme: ColorScheme.fromSwatch().copyWith(primary: Colors.blue, secondary: Color(0xFF2D2B18)),
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: Colors.blue,
+          secondary: const Color(0xFF2D2B18),
+        ),
         fontFamily: 'Bricolage Grotesque',
       ),
       home: const HomeScreen(),
       routes: {
         '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
           final token = args?['token'] ?? '';
           return ChangePassword(jwt: token);
         },
@@ -165,7 +248,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -173,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     // Defer the check until after the first frame is rendered.
-    WidgetsBinding.instance.addPostFrameCallback((_) async{
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       await checkForUpdate(context);
       await _checkGooglePlayServices(context);
     });
@@ -183,7 +266,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      // Directly include Authorizator which now returns a complete screen.
       body: Navigator(
         onGenerateRoute: (settings) {
           return MaterialPageRoute(
@@ -191,6 +273,23 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context) => Authorizator(),
           );
         },
+      ),
+    );
+  }
+}
+
+class PermissionScreen extends StatelessWidget {
+  const PermissionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text(
+          'Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
+          'Prosím povolte je v nastavení a spusťte Strnadi znovu.',
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }

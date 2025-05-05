@@ -28,6 +28,8 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
@@ -46,10 +48,31 @@ final logger = Logger();
 class RecordingTaskHandler extends TaskHandler {
   int counter = 0;
 
+  late AudioRecorder _audioRecorder;
+  String? _filepath;
+  int sampleRate = 48000;
+  int bitDepth = 16;
+  int get bitRate => sampleRate * bitDepth;
+
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter taskStarter) async {
     counter = 0;
     logger.i("Foreground task started at \$timestamp");
+    _audioRecorder = AudioRecorder();
+    if (!await _audioRecorder.hasPermission()) {
+      await _audioRecorder.hasPermission();
+    }
+    final dir = await getApplicationDocumentsDirectory();
+    _filepath = p.join(dir.path, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+    await _audioRecorder.start(
+      RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        numChannels: 1,
+        sampleRate: sampleRate,
+        bitRate: bitRate,
+      ),
+      path: _filepath!,
+    );
   }
 
   @override
@@ -64,7 +87,8 @@ class RecordingTaskHandler extends TaskHandler {
 
   @override
   Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
-    logger.i("Foreground task destroyed at $timestamp (isTimeout: $isTimeout)");
+    await _audioRecorder.stop();
+    logger.i("Foreground task destroyed at \$timestamp (isTimeout: \$isTimeout)");
   }
 
   @override
@@ -292,6 +316,21 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<void> _stop() async {
+    // Ensure we have a valid file path; if empty, pick the most recent WAV in documents
+    if (filepath.isEmpty) {
+      final dir = await getApplicationDocumentsDirectory();
+      final files = await dir
+          .list()
+          .where((entity) => entity is File && entity.path.endsWith('.wav'))
+          .cast<File>()
+          .toList();
+      if (files.isEmpty) {
+        _showMessage(context, 'Nenalezena žádná nahrávka k uložení');
+        return;
+      }
+      files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      filepath = files.first.path;
+    }
     if (_recordState == RecordState.record) {
       try {
         await _audioRecorder.stop();
@@ -775,50 +814,54 @@ class _LiveRecState extends State<LiveRec> {
         });
       }
     });
-    WakelockPlus.enable();
-    await FlutterForegroundTask.startService(
-      notificationTitle: 'Strnadi',
-      notificationText: 'Aplikace Strnadi nahrává',
-      callback: startRecordingCallback,
-      serviceTypes: [ForegroundServiceTypes.microphone],
-    );
+    final running = await FlutterForegroundTask.isRunningService;
+    if (!running) {
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'Strnadi',
+        notificationText: 'Aplikace Strnadi nahrává',
+        callback: startRecordingCallback,
+        serviceTypes: [ForegroundServiceTypes.microphone],
+      );
+    } else {
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'Strnadi',
+        notificationText: 'Aplikace Strnadi nahrává',
+      );
+    }
     try {
       logger.i('Started recording');
-      if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.pcm16bits;
-        if (!await _isEncoderSupported(encoder)) return;
-        final config = RecordConfig(
-          encoder: encoder,
-          numChannels: 1,
-          sampleRate: sampleRate,
-          bitRate: bitRate,
-        );
-        filepath = await _getPath();
-        logger.i('Recording file path: $filepath');
-        if (_locService.lastKnownPosition == null) {
-          await _locService.getCurrentLocation();
-        }
-        overallStartTime = DateTime.now();
-        logger.i('Overall start time: $overallStartTime');
-        // Create a new segment.
-        recordedPart = RecordingPartUnready(
-          gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
-          gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
-          startTime: overallStartTime,
-        );
-        logger.i('Recorded part start time: ${recordedPart!.startTime}');
-        _elapsedTimer.reset();
-        _elapsedTimer.start();
-        segmentPaths.add(filepath);
-        recordStream(_audioRecorder, config, filepath);
-        setState(() {
-          recording = true;
-          _recordState = RecordState.record;
-        });
-      } else {
-        _showMessage(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
-        return;
+      // Prepare new file path and start local AudioRecorder
+      filepath = await _getPath();
+      segmentPaths.add(filepath);
+      await WakelockPlus.enable();
+
+      final config = RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        numChannels: 1,
+        sampleRate: sampleRate,
+        bitRate: bitRate,
+      );
+      await _audioRecorder.start(config, path: filepath);
+
+      if (_locService.lastKnownPosition == null) {
+        await _locService.getCurrentLocation();
       }
+      overallStartTime = DateTime.now();
+      logger.i('Overall start time: $overallStartTime');
+      // Create a new segment metadata object
+      recordedPart = RecordingPartUnready(
+        path: null,
+        gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
+        gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
+        startTime: DateTime.now(),
+      );
+      logger.i('Recorded part start time: ${recordedPart!.startTime}');
+      _elapsedTimer.reset();
+      _elapsedTimer.start();
+      setState(() {
+        recording = true;
+        _recordState = RecordState.record;
+      });
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -855,6 +898,10 @@ class _LiveRecState extends State<LiveRec> {
   Future<void> _pause() async {
     await _audioRecorder.stop();
     _elapsedTimer.pause();
+    await FlutterForegroundTask.updateService(
+      notificationTitle: 'Strnadi',
+      notificationText: 'Nahrávání pozastaveno',
+    );
     int segmentDuration = _recordDuration.inSeconds;
     _totalRecordedTime += _recordDuration;
     recordingPartsTimeList.add(segmentDuration);
@@ -889,16 +936,19 @@ class _LiveRecState extends State<LiveRec> {
     });
     _elapsedTimer.reset();
     _elapsedTimer.start();
+    await FlutterForegroundTask.updateService(
+      notificationTitle: 'Strnadi',
+      notificationText: 'Aplikace Strnadi nahrává',
+    );
     segmentPaths.add(path);
-    const encoder = AudioEncoder.pcm16bits;
-    if (!await _isEncoderSupported(encoder)) return;
+    await WakelockPlus.enable();
     final config = RecordConfig(
-      encoder: encoder,
+      encoder: AudioEncoder.pcm16bits,
       numChannels: 1,
       sampleRate: sampleRate,
       bitRate: bitRate,
     );
-    recordStream(_audioRecorder, config, filepath);
+    await _audioRecorder.start(config, path: filepath);
     // Start a new segment.
     recordedPart = RecordingPartUnready(
       path: null,

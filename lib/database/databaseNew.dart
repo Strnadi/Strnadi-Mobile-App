@@ -999,16 +999,18 @@ class DatabaseNew {
           throw UploadException('Failed to upload part id: ${recordingPart.id}',
               response.statusCode);
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         // reset sending flag on exception
-        // logger.e('Error uploading part: $e' ,error: e, stackTrace: stackTrace);
-        // Sentry.captureException(e, stackTrace: stackTrace);
+        //logger.e('Error uploading part: $e' ,error: e, stackTrace: stackTrace);
+        //Sentry.captureException(e, stackTrace: stackTrace);
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
         rethrow;
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       // reset sending flag on exception
+      logger.e('Error uploading part: $e' ,error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       recordingPart.sending = false;
       await updateRecordingPart(recordingPart);
       rethrow;

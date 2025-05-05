@@ -5,6 +5,21 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
+    <!-- Povolení pro samotný záznam zvuku -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Povolení pro foreground službu typu „location“ (vyžadováno od API 34) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Povolení pro zobrazování notifikací (API 33 +) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Automatické spuštění služby po bootu -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Nepovinné: sledování polohy i na pozadí mimo foreground service -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
+
     <application
         android:label="Strnadi"
         android:name="${applicationName}"
@@ -62,7 +77,8 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
             android:foregroundServiceType="microphone|location"
-            android:stopWithTask="false" />
+            android:stopWithTask="false">
+        </service>
         <activity
             android:name="com.aboutyou.dart_packages.sign_in_with_apple.SignInWithAppleCallback"
             android:exported="true">
