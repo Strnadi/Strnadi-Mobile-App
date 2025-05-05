@@ -99,6 +99,15 @@ Future<void> _bootstrap() async {
   // 1) Firebase jako první
   await Firebase.initializeApp();
 
+  await Config.loadConfig();
+  await Config.loadFirebaseConfig();
+
+  // Initialize workmanager with our callback.
+  Workmanager().initialize(
+    callbackDispatcher, // The top-level function
+    isInDebugMode: false, // Set this to false for production
+  );
+
   // 3) Foreground‑task
   FlutterForegroundTask.initCommunicationPort();
   FlutterForegroundTask.init(
@@ -122,8 +131,8 @@ Future<void> _bootstrap() async {
     ),
   );
 
-  // 2) Spusť UI s kontrolou povolení
-  runApp(const PermissionGate());
+  // 2) Spusť UI s kontrolou povolení
+  runApp(MyApp());
   return; // zbytek se spustí až po udělení povolení
 }
 // PermissionGate widget – controls runtime permissions and continues app bootstrap

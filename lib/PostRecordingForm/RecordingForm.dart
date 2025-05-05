@@ -521,7 +521,8 @@ class _RecordingFormState extends State<RecordingForm> {
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
 
     // Log the recording path before insertion
-    //logger.i("Recording before insertion: path=${recording.path}");
+    logger.i("Played recording path: ${widget.filepath}");
+    logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
 

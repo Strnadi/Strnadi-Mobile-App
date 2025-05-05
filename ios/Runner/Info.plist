@@ -90,6 +90,8 @@
 	<string>Tato aplikace potřebuje přístup k mikrofonu pro nahrávání ptačích zpěvů k identifikaci a analýze.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tato aplikace potřebuje přístup do vaší knihovny fotografií, aby vám umožnila nahrát existující fotografie ptáků k identifikaci.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Tato aplikace potřebuje oprávnění k zasílání oznámení, abychom vás mohli informovat o průběhu nahrávání a exportu.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
@@ -102,6 +104,7 @@
 		<string>remote-notification</string>
 		<string>processing</string>
 		<string>audio</string>
+		<string>location</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

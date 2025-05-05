@@ -152,13 +152,14 @@ class _RecordingItemState extends State<RecordingItem> {
           isFileLoaded = true;
         });
       } catch (e, stackTrace) {
-        print("Error loading audio file: $e");
+        logger.e("Error loading audio file: $e", error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
   }
 
   Future<void> getParts() async {
-    logger.i('Recording ID: ${widget.recording.BEId}');
+    logger.i('Recording ID: ${widget.recording.id}');
     var parts = await DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
@@ -186,7 +187,8 @@ class _RecordingItemState extends State<RecordingItem> {
         await player.play();
       }
     } catch (e, stackTrace) {
-      print("Error toggling playback: $e");
+      logger.e("Error toggling playback: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -235,7 +237,8 @@ class _RecordingItemState extends State<RecordingItem> {
       });
       logger.i("Downloaded recording updated: ${widget.recording.path}");
     } catch (e, stackTrace) {
-      logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
+      logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error downloading recording")),
       );
@@ -255,6 +258,7 @@ class _RecordingItemState extends State<RecordingItem> {
       }
     } catch (e, stackTrace) {
       logger.e('Error deleting recording: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error deleting recording')),

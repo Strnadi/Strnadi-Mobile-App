@@ -430,7 +430,7 @@ class RecordingPart {
 
   factory RecordingPart.fromBEJson(Map<String, Object?> json, int backendRecordingId) {
     return RecordingPart(
-      BEId: json['id'] as int?,
+      BEId: int.parse(json['id'] as String),
       recordingId: null, // will be updated later
       startTime: DateTime.parse(json['startDate'] as String),
       endTime: DateTime.parse(json['endDate'] as String),
@@ -1249,7 +1249,7 @@ class DatabaseNew {
         'Authorization': 'Bearer $jwt',
       });
       if (response.statusCode != 200) {
-        throw FetchException('Failed to download recording part', response.statusCode);
+        throw FetchException('Failed to download recording part: /recordings/part/${recording.BEId}/${part.BEId}/sound', response.statusCode);
       }
 
       // Save part to disk
@@ -1345,6 +1345,7 @@ class DatabaseNew {
         gpsLatitudeEnd REAL,
         gpsLongitudeStart REAL,
         gpsLongitudeEnd REAL,
+        length INTEGER,
         path TEXT,
         square TEXT,
         sent INTEGER,
@@ -1498,7 +1499,7 @@ class DatabaseNew {
       }
       if(oldVersion<=5){
         await db.execute(
-            'ALTER TABLE recordingParts ADD COLUMN length INTEGER DEFAULT 0'
+            'ALTER TABLE recordingParts ADD COLUMN length INTEGER'
         );
         await db.setVersion(newVersion);
       }
