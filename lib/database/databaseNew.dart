@@ -430,7 +430,7 @@ class RecordingPart {
 
   factory RecordingPart.fromBEJson(Map<String, Object?> json, int backendRecordingId) {
     return RecordingPart(
-      BEId: int.parse(json['id'] as String),
+      BEId: json['id'] as int?,
       recordingId: null, // will be updated later
       startTime: DateTime.parse(json['startDate'] as String),
       endTime: DateTime.parse(json['endDate'] as String),
@@ -498,6 +498,7 @@ class RecordingPart {
   Map<String, Object?> toJson() {
     return {
       'id': id,
+      'BEId': BEId,
       'backendRecordingId': backendRecordingId, // new field
       'recordingId': recordingId,
       'startTime': startTime.toString(),
@@ -1116,7 +1117,7 @@ class DatabaseNew {
         scheme: 'https',
         host: Config.host,
         path: '/recordings',
-        queryParameters: {'parts': 'true', 'userId': userId},
+        query: 'parts=true&userId=$userId',
       );
       final http.Response response = await http.get(url, headers: {
         'Content-Type': 'application/json',
@@ -1131,8 +1132,10 @@ class DatabaseNew {
         List<RecordingPart> parts = [];
         for (int i = 0; i < body.length; i++) {
           for (int j = 0; j < body[i]['parts'].length; j++) {
-            parts.add(
-                RecordingPart.fromBEJson(body[i]['parts'][j], body[i]['id']));
+            RecordingPart part = RecordingPart.fromBEJson(body[i]['parts'][j], body[i]['id']);
+            parts.add(part);
+
+            logger.i('Added part with ID: ${part.id} and BEID: ${part.BEId}');
           }
         }
         fetchedRecordings = recordings;
@@ -1225,7 +1228,10 @@ class DatabaseNew {
   }
 
   static Future<void> downloadRecording(int id) async {
-    Recording recording = recordings.firstWhere((r) => r.id == id);
+    Recording? recording = await getRecordingFromDbById(id);
+    if (recording == null) {
+      throw FetchException('Recording not found in local database', 404);
+    }
     if (recording.downloaded) return;
 
     String? jwt = await FlutterSecureStorage().read(key: 'token');
@@ -1245,29 +1251,41 @@ class DatabaseNew {
         host: Config.host,
         path: '/recordings/part/${recording.BEId}/${part.BEId}/sound',
       );
-      final http.Response response = await http.get(url, headers: {
-        'Authorization': 'Bearer $jwt',
-      });
-      if (response.statusCode != 200) {
-        throw FetchException('Failed to download recording part: /recordings/part/${recording.BEId}/${part.BEId}/sound', response.statusCode);
+      try{
+        final http.Response response = await http.get(url, headers: {
+          'Authorization': 'Bearer $jwt',
+        });
+        if (response.statusCode != 200) {
+          throw FetchException('Failed to download recording part: /recordings/part/${recording.BEId}/${part.BEId}/sound', response.statusCode);
+        }
+        // Save part to disk
+        final String partFilePath = '${tempDir.path}/recording_${recording.BEId}_${part.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
+        File file = await File(partFilePath).create();
+        await file.writeAsBytes(response.bodyBytes);
+
+        // Update part path and mark as sent
+        part.path = partFilePath;
+        part.sent = true;
+        await updateRecordingPart(part);
+
+        paths.add(partFilePath);
       }
-
-      // Save part to disk
-      final String partFilePath = '${tempDir.path}/recording_${recording.BEId}_${part.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
-      File file = await File(partFilePath).create();
-      await file.writeAsBytes(response.bodyBytes);
-
-      // Update part path and mark as sent
-      part.path = partFilePath;
-      part.sent = true;
-      await updateRecordingPart(part);
-
-      paths.add(partFilePath);
+      catch(e, stackTrace){
+        if(e is FetchException){
+          rethrow;
+        }
+        else{
+          logger.e('Error downloading part BEID: ${part.BEId}: $e', error: e, stackTrace: stackTrace);
+          Sentry.captureException(e, stackTrace: stackTrace);
+        }
+      }
     }
+
+    logger.i('Dowloaded all parts');
 
     // Concatenate all parts into one file
     final String outputPath = '${tempDir.path}/recording_${recording.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
-    await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
+    await concatWavFiles(paths, outputPath);
 
     recording.path = outputPath;
     recording.downloaded = true;
@@ -1282,33 +1300,49 @@ class DatabaseNew {
       logger.i('No parts found for recording id: $recordingId');
       return;
     }
-    List<String> paths = [];
-    for (RecordingPart part in parts) {
+
+    // Ensure parts are processed in chronological order
+    parts.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    final dir = await getApplicationDocumentsDirectory();
+    final List<String> paths = [];
+
+    for (final part in parts) {
       if (part.path != null) {
-        String partFilePath = '${(await getApplicationDocumentsDirectory())
-            .path}/recording_${DateTime
-            .now()
-            .microsecondsSinceEpoch}.wav';
-        File partFile = File(partFilePath);
-        await partFile.writeAsBytes(await File(part.path!).readAsBytes());
-        paths.add(partFilePath);
+        // Re‑use the existing on‑disk file
+        paths.add(part.path!);
       } else {
-        logger.w('Part id: ${part.id} has no dataBase64. Skipping.');
+        logger.w('Part id: ${part.id} has no path on disk. Skipping.');
       }
     }
+
     if (paths.isEmpty) {
       logger.w('No valid parts found for recording id: $recordingId');
       return;
     }
-    String outputPath = '${(await getApplicationDocumentsDirectory())
-        .path}/recording_${DateTime
-        .now()
-        .microsecondsSinceEpoch}.wav';
-    await concatWavFiles(paths, outputPath, 44100, 44100 * 16);
-    Recording recording = recordings.firstWhere((r) => r.id == recordingId);
-    recording.path = outputPath;
-    recording.downloaded = true;
+
+    final String outputPath =
+        '${dir.path}/recording_${DateTime.now().microsecondsSinceEpoch}.wav';
+
+    try{
+      await concatWavFiles(paths, outputPath);
+    }
+    catch(e, stackTrace){
+      logger.e('Failed to concatenate recording parts for id: $recordingId', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      return;
+    }
+
+
+    logger.i('Supposed file path: $outputPath');
+
+    final Recording recording =
+        recordings.firstWhere((r) => r.id == recordingId);
+    recording
+      ..path = outputPath
+      ..downloaded = true;
     await updateRecording(recording);
+
     logger.i(
         'Concatenated recording parts for id: $recordingId. File saved to: $outputPath');
   }

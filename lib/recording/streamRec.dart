@@ -377,7 +377,7 @@ class _LiveRecState extends State<LiveRec> {
     List<String> paths = segmentPaths;
     final String outputPath = await _getPath();
     try {
-      await concatWavFiles(paths, outputPath, sampleRate, bitRate);
+      await concatWavFiles(paths, outputPath);
       recordedFilePath = outputPath;
       logger.i('Final recording saved to: $outputPath');
     } catch (e, stackTrace) {

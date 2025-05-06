@@ -253,37 +253,46 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
         ),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: isDialect
-          ? Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Image.asset(
-                  'assets/dialects/$type.png',
-                  width: 24,
-                  height: 24,
+            ? LayoutBuilder(
+                builder: (context, constraints) {
+                  // Show the dialect logo only when the tile is wide enough.
+                  const double minWidthForLogo = 180;
+                  final bool showLogo = constraints.maxWidth >= minWidthForLogo;
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      if (showLogo) ...[
+                        Image.asset(
+                          'assets/dialects/$type.png',
+                          width: 24,
+                          height: 24,
+                        ),
+                        SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          type,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Image.asset(
+                        'assets/dialects/spect/$type.png',
+                        width: 35,
+                        height: 15,
+                        fit: BoxFit.contain,
+                      ),
+                    ],
+                  );
+                },
+              )
+            : Center(
+                child: Text(
+                  type,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    type,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(width: 4),
-                SizedBox(width: 12),
-                Image.asset(
-                  'assets/dialects/spect/$type.png',
-                  width: 35,
-                  height: 15,
-                  fit: BoxFit.contain,
-                ),
-              ],
-            )
-          : Center(
-              child: Text(
-                type,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
       ),
     );
   }

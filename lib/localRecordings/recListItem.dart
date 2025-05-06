@@ -39,9 +39,9 @@ import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 final logger = Logger();
 
 class RecordingItem extends StatefulWidget {
-  final Recording recording;
+  Recording recording;
 
-  const RecordingItem({Key? key, required this.recording}) : super(key: key);
+  RecordingItem({Key? key, required this.recording}) : super(key: key);
 
   @override
   _RecordingItemState createState() => _RecordingItemState();
@@ -228,12 +228,25 @@ class _RecordingItemState extends State<RecordingItem> {
       return;
     }
 
+    // Show loader while downloading
+    setState(() {
+      loaded = false;
+    });
     try {
       logger.i("Initiating download for recording id: ${widget.recording.id}");
       await DatabaseNew.downloadRecording(widget.recording.id!);
       Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
       setState(() {
-        widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+        widget.recording = updatedRecording?? widget.recording;
+      });
+      // Re‑initialise spectrogram and audio player with the newly downloaded file
+      _cachedSpectrogram = LiveSpectogram.SpectogramLive(
+        data: [],
+        filepath: widget.recording.path,
+      );
+      await getData();       // load the file into the player
+      setState(() {
+        loaded = true;       // dismiss the loader and show the UI
       });
       logger.i("Downloaded recording updated: ${widget.recording.path}");
     } catch (e, stackTrace) {
