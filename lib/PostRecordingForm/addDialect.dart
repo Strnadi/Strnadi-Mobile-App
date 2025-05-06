@@ -94,113 +94,120 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
         ),
         child: Stack(
           children: [
-            Container(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Přidání dialektu',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  // Spectogram with overlay markers
-                  SizedBox(
-                    height: 200,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Spectrogram background
-                        widget.spectogram!,
-                      ],
-                    ),
-                  ),
-                  // Playback controls row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      IconButton(
-                        icon: Icon(Icons.replay_10),
-                        onPressed: () {
-                          // Handle rewind
-                        },
+                      Text(
+                        'Přidání dialektu',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.play_arrow),
-                        iconSize: 32,
-                        onPressed: () {
-                          // Handle play
-                        },
+                      SizedBox(height: 24),
+                      // Spectogram with overlay markers
+                      SizedBox(
+                        height: 200,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Spectrogram background
+                            widget.spectogram!,
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.forward_10),
-                        onPressed: () {
-                          // Handle forward
-                        },
+                      // Playback controls row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.replay_10),
+                            onPressed: () {
+                              // Handle rewind
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.play_arrow),
+                            iconSize: 32,
+                            onPressed: () {
+                              // Handle play
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.forward_10),
+                            onPressed: () {
+                              // Handle forward
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  // Dialect options arranged in a grid
-                  GridView.count(
-                    shrinkWrap: true,
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 2.5,
-                    children: [
-                      _dialectOption('BC'),
-                      _dialectOption('BE'),
-                      _dialectOption('BlBh'),
-                      _dialectOption('BhBl'),
-                      _dialectOption('XB'),
-                      _dialectOption('Jiné'),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _dialectOption('Bez Dialektu'),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _dialectOption('Nevím'),
-                  ),
-                  SizedBox(height: 24),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFCDC4D),
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                      SizedBox(height: 16),
+                      // Dialect options arranged in a grid
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 2.5,
+                        children: [
+                          _dialectOption('BC'),
+                          _dialectOption('BE'),
+                          _dialectOption('BlBh'),
+                          _dialectOption('BhBl'),
+                          _dialectOption('XB'),
+                          _dialectOption('Jiné'),
+                        ],
                       ),
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: selectedDialect != null
-                        ? () {
-                      widget.onDialectAdded(DialectModel(
-                        type: selectedDialect!,
-                        label: selectedDialect!,
-                        color: dialectColors[selectedDialect]!,
-                        startTime: startTime,
-                        endTime: endTime,
-                      ));
+                      SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _dialectOption('Bez Dialektu'),
+                      ),
+                      SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _dialectOption('Nevím'),
+                      ),
+                      SizedBox(height: 24),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFFCDC4D),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: selectedDialect != null
+                            ? () {
+                          widget.onDialectAdded(DialectModel(
+                            type: selectedDialect!,
+                            label: selectedDialect!,
+                            color: dialectColors[selectedDialect]!,
+                            startTime: startTime,
+                            endTime: endTime,
+                          ));
 
-                      Navigator.pop(context);
-                    }
-                        : null,
-                    child: Text('Potvrdit'),
+                          Navigator.pop(context);
+                        }
+                            : null,
+                        child: Text('Potvrdit'),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-            // Close button in the top-right corner
             Positioned(
               top: 8,
               right: 8,
@@ -256,7 +263,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
             ? LayoutBuilder(
                 builder: (context, constraints) {
                   // Show the dialect logo only when the tile is wide enough.
-                  const double minWidthForLogo = 180;
+                  const double minWidthForLogo = 100;
                   final bool showLogo = constraints.maxWidth >= minWidthForLogo;
 
                   return Row(
@@ -268,7 +275,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           width: 24,
                           height: 24,
                         ),
-                        SizedBox(width: 8),
+                        SizedBox(width: 4),
                       ],
                       Expanded(
                         child: Text(
@@ -276,7 +283,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(width: 8),
+                      SizedBox(width: 4),
                       Image.asset(
                         'assets/dialects/spect/$type.png',
                         width: 35,

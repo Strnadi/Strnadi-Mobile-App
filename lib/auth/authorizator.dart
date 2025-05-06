@@ -158,7 +158,7 @@ class _AuthState extends State<Authorizator> {
             child: Column(
               children: [
                 // Spacing from the top
-                const SizedBox(height: 40),
+                //const SizedBox(height: 0),
 
                 // Bird image
                 Image.asset(
