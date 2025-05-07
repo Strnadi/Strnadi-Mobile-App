@@ -95,18 +95,18 @@ class _RecordingFormState extends State<RecordingForm> {
   void initState() {
     super.initState();
     // Initialize spectrogram widget.
-    setState(() {
-      spectogram = LiveSpectogram.SpectogramLive(
-        key: spectogramKey,
-        data: [],
-        filepath: widget.filepath,
-        getCurrentPosition: (pos) {
-          setState(() {
-            currentPos = pos;
-          });
-        },
-      );
-    });
+    // setState(() {
+    //   spectogram = LiveSpectogram.SpectogramLive(
+    //     key: spectogramKey,
+    //     data: [],
+    //     filepath: widget.filepath,
+    //     getCurrentPosition: (pos) {
+    //       setState(() {
+    //         currentPos = pos;
+    //       });
+    //     },
+    //   );
+    // });
     _audioPlayer.positionStream.listen((position) {
       setState(() {
         currentPositionDuration = position;
@@ -347,8 +347,8 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void _showDialectSelectionDialog() {
-    var position = spectogramKey.currentState!.currentPositionPx;
-    var spect = spectogram;
+    var position = spectogramKey.currentState?.currentPositionPx ?? null;
+    var spect = spectogram;;
     setState(() {
       spectogram = null;
     });
@@ -357,7 +357,7 @@ class _RecordingFormState extends State<RecordingForm> {
       barrierDismissible: false,
       context: context,
       builder: (context) => DialectSelectionDialog(
-        spectogram: spect!,
+        spectogram: spectogram ?? null,
         currentPosition: position,
         duration: totalDuration.inSeconds.toDouble(),
         onDialectAdded: (dialect) {
@@ -594,14 +594,14 @@ class _RecordingFormState extends State<RecordingForm> {
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;
 
-    if (spectogram == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
+    // if (spectogram == null) {
+    //   return const Scaffold(
+    //     body: Center(
+    //       child: CircularProgressIndicator(),
+    //     ),
+    //   );
+    // }
+    //
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
@@ -672,13 +672,13 @@ class _RecordingFormState extends State<RecordingForm> {
             child: Column(
               children: [
                 // Spectrogram and playback controls remain unchanged.
-                RepaintBoundary(
-                  child: SizedBox(
-                    height: 300,
-                    width: double.infinity,
-                    child: spectogram,
-                  ),
-                ),
+                // RepaintBoundary(
+                //   child: SizedBox(
+                //     height: 300,
+                //     width: double.infinity,
+                //     child: spectogram,
+                //   ),
+                // ),
                 Text(
                   _formatDuration(totalDuration),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

@@ -32,15 +32,15 @@ class DialectModel {
 }
 
 class DialectSelectionDialog extends StatefulWidget {
-  final double currentPosition;
+  final double? currentPosition;
   final double duration;
   final Function(DialectModel?) onDialectAdded;
   Widget? spectogram;
 
   DialectSelectionDialog({
     Key? key,
-    required this.spectogram,
-    required this.currentPosition,
+    this.spectogram,
+    this.currentPosition,
     required this.duration,
     required this.onDialectAdded,
   }) : super(key: key);
@@ -68,8 +68,13 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   @override
   void initState() {
     super.initState();
-    startTime = widget.currentPosition;
-    endTime = (widget.currentPosition + 3.0).clamp(0.0, widget.duration);
+    if (widget.currentPosition == null) {
+      startTime = 0.0;
+      endTime = 3.0;
+    } else {
+      startTime = widget.currentPosition!;
+      endTime = (widget.currentPosition! + 3.0).clamp(0.0, widget.duration);
+    }
   }
 
 
@@ -115,7 +120,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                       ),
                       SizedBox(height: 24),
                       // Spectogram with overlay markers
-                      SizedBox(
+                      if (widget.spectogram != null) SizedBox(
                         height: 200,
                         child: Stack(
                           alignment: Alignment.center,
