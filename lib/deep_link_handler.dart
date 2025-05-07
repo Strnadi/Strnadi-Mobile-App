@@ -15,6 +15,8 @@
  */
 import 'dart:async';
 import 'package:app_links/app_links.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
 Logger logger = Logger();
@@ -24,6 +26,12 @@ class DeepLinkHandler {
   factory DeepLinkHandler() => _instance;
   DeepLinkHandler._internal();
 
+  late GlobalKey<NavigatorState> navigatorKey;
+
+  void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    navigatorKey = key;
+  }
+
   StreamSubscription? _sub;
   final AppLinks _appLinks = AppLinks();
 
@@ -32,7 +40,30 @@ class DeepLinkHandler {
     _sub = _appLinks.uriLinkStream.listen((Uri? uri) {
       if (uri != null) {
         logger.i('Received deep link: $uri');
-        // TODO: Handle deep link navigation or processing here.
+        switch (uri.path) {
+          case '/ucet/reset-hesla':
+            logger.i('Navigating to Reset Password page');
+            final token = uri.queryParameters['token'];
+            if (token != null) {
+              navigatorKey.currentState?.pushNamed(
+                '/reset-password',
+                arguments: {'token': token},
+              );
+            } else {
+              logger.w('Missing token in reset-password link');
+            }
+            break;
+          case '/ucet/email-verifikovan':
+            logger.i('Navigating to Email Verified page');
+            // navigatorKey.currentState?.pushNamed('/email-verified');
+            break;
+          case '/ucet/email-neverifikovan':
+            logger.i('Navigating to Email Not Verified page');
+            // navigatorKey.currentState?.pushNamed('/email-not-verified');
+            break;
+          default:
+            logger.w('Unhandled deep link path: ${uri.path}');
+        }
       }
     }, onError: (error) {
       logger.i('Deep link error: $error');

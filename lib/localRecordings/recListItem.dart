@@ -27,18 +27,21 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localRecordings/dialectBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../PostRecordingForm/RecordingForm.dart';
+import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 
 final logger = Logger();
 
 class RecordingItem extends StatefulWidget {
-  final Recording recording;
+  Recording recording;
 
-  const RecordingItem({Key? key, required this.recording}) : super(key: key);
+  RecordingItem({Key? key, required this.recording}) : super(key: key);
 
   @override
   _RecordingItemState createState() => _RecordingItemState();
@@ -55,15 +58,31 @@ class _RecordingItemState extends State<RecordingItem> {
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
 
+  RecordingDialect? dialect;
+
   final MapController _mapController = MapController();
 
   String placeTitle = 'Mapa';
+  Widget? _cachedSpectrogram;
 
   @override
   void initState() {
     super.initState();
     locationService = LocationService();
-    getParts();
+    _initializeRecording();
+  }
+
+  Future<void> _initializeRecording() async {
+    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+      _cachedSpectrogram = LiveSpectogram.SpectogramLive(
+        data: [],
+        filepath: widget.recording.path,
+      );
+    }
+
+    await getParts();
+    await GetDialect();
+
     logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
 
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
@@ -82,34 +101,22 @@ class _RecordingItemState extends State<RecordingItem> {
           isPlaying = playing;
         });
       });
-
-
-      getData().then((_) {
-        setState(() {
-          loaded = true;
-        });
+      await getData();
+      setState(() {
+        loaded = true;
       });
-    }
-    else {
-      // Check if any parts exist for this recording
-      List<RecordingPart> parts = DatabaseNew.getPartsById(widget.recording.id!);
+    } else {
+      List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
       if (parts.isNotEmpty) {
         logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
-        DatabaseNew.concatRecordingParts(widget.recording.id!).then((_) {
-          logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
-          DatabaseNew.getRecordingFromDbById(widget.recording.id!).then((updatedRecording) {
-            logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
-            logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
-            if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
-              logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
-            } else {
-              logger.w("[RecordingItem] Updated recording path is null or empty.");
-            }
-            setState(() {
-              widget.recording.path = updatedRecording?.path ?? widget.recording.path;
-              loaded = true;
-            });
-          });
+        await DatabaseNew.concatRecordingParts(widget.recording.BEId!);
+        logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+        Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.BEId!);
+        logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
+        logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
+        setState(() {
+          widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+          loaded = true;
         });
       } else {
         logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
@@ -118,6 +125,21 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       }
     }
+  }
+
+
+  Future<void> GetDialect() async {
+    var recordingId = widget.recording.id!;
+    var dialect = await DatabaseNew.getRecordingDialects(recordingId);
+    if (dialect.isEmpty) {
+      setState(() {
+        this.dialect = null;
+      });
+      return;
+    }
+    setState(() {
+      this.dialect = dialect.first;
+    });
   }
 
 
@@ -130,14 +152,15 @@ class _RecordingItemState extends State<RecordingItem> {
           isFileLoaded = true;
         });
       } catch (e, stackTrace) {
-        print("Error loading audio file: $e");
+        logger.e("Error loading audio file: $e", error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
   }
 
   Future<void> getParts() async {
     logger.i('Recording ID: ${widget.recording.id}');
-    var parts = DatabaseNew.getPartsById(widget.recording.id!);
+    var parts = await DatabaseNew.getPartsById(widget.recording.id!);
     setState(() {
       this.parts = parts;
     });
@@ -164,7 +187,8 @@ class _RecordingItemState extends State<RecordingItem> {
         await player.play();
       }
     } catch (e, stackTrace) {
-      print("Error toggling playback: $e");
+      logger.e("Error toggling playback: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -187,19 +211,72 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> _downloadRecording() async {
+    if (!await Config.hasBasicInternet) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Stahování nedostupné'),
+          content: const Text('Pro stažení nahrávky je vyžadováno připojení k internetu.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Show loader while downloading
+    setState(() {
+      loaded = false;
+    });
     try {
       logger.i("Initiating download for recording id: ${widget.recording.id}");
       await DatabaseNew.downloadRecording(widget.recording.id!);
       Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
       setState(() {
-        widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+        widget.recording = updatedRecording?? widget.recording;
+      });
+      // Re‑initialise spectrogram and audio player with the newly downloaded file
+      _cachedSpectrogram = LiveSpectogram.SpectogramLive(
+        data: [],
+        filepath: widget.recording.path,
+      );
+      await getData();       // load the file into the player
+      setState(() {
+        loaded = true;       // dismiss the loader and show the UI
       });
       logger.i("Downloaded recording updated: ${widget.recording.path}");
     } catch (e, stackTrace) {
-      logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
+      logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error downloading recording")),
       );
+    }
+  }
+
+  /// Permanently deletes the current recording both on the server (if already sent)
+  /// and locally in the SQLite database.
+  Future<void> _deleteRecording() async {
+    try {
+      // Always remove it from the local DB.
+      await DatabaseNew.deleteRecording(widget.recording.id!);
+
+      // Return to the previous screen so the list refreshes.
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e, stackTrace) {
+      logger.e('Error deleting recording: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error deleting recording')),
+        );
+      }
     }
   }
 
@@ -239,6 +316,7 @@ class _RecordingItemState extends State<RecordingItem> {
   Widget build(BuildContext context) {
     if (!loaded && widget.recording.path != null) {
       return ScaffoldWithBottomBar(
+        selectedPage: BottomBarItem.list,
         appBarTitle: widget.recording.name ?? '',
         content: const Center(child: CircularProgressIndicator()),
       );
@@ -252,6 +330,23 @@ class _RecordingItemState extends State<RecordingItem> {
             Navigator.pop(context);
           },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              final updatedRecording = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditRecordingPage(recording: widget.recording),
+                ),
+              );
+              // If the user saved changes, rebuild to show the latest data
+              if (updatedRecording != null && mounted) {
+                setState(() {});
+              }
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _fetchRecordings,
@@ -264,9 +359,11 @@ class _RecordingItemState extends State<RecordingItem> {
                   ? SizedBox(
                       height: 200,
                       width: double.infinity,
-                      child: LiveSpectogram.SpectogramLive(
-                        data: [],
-                        filepath: widget.recording.path,
+                      child: RepaintBoundary(
+                        child: _cachedSpectrogram ?? LiveSpectogram.SpectogramLive(
+                          data: [],
+                          filepath: widget.recording.path,
+                        ),
                       ),
                     )
                   : SizedBox(
@@ -338,6 +435,10 @@ class _RecordingItemState extends State<RecordingItem> {
                       ),
                     ),
                     const SizedBox(height: 10),
+                    if (dialect != null) DialectBadge(
+                      dialect: dialect!,
+                    ),
+                    const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(10.0),
                       decoration: BoxDecoration(
@@ -350,6 +451,88 @@ class _RecordingItemState extends State<RecordingItem> {
                           Text("Predpokladany pocet strnadu: "),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
+                      ),
+                    ),
+                    Visibility(
+                      visible: widget.recording.sent == false && widget.recording.sending == false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.send),
+                          label: const Text('Odeslat záznam'),
+                          onPressed: () async {
+                            try {
+                              // ensure all parts have been sent
+                              await DatabaseNew.checkRecordingPartsSent(widget.recording.id!);
+                              setState(() {
+                                widget.recording.sending = true;
+                              });
+                              DatabaseNew.sendRecordingBackground(widget.recording.id!);
+                              logger.i("Sending recording: ${widget.recording.id}");
+                            } on UnsentPartsException {
+                              // prompt to resend unsent parts
+                              final shouldResend = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Neodeslané části'),
+                                  content: const Text('Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Zrušit')),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Odeslat znovu')),
+                                  ],
+                                ),
+                              );
+                              if (shouldResend == true) {
+                                await DatabaseNew.resendUnsentParts();
+                              }
+                            } catch (e, stackTrace) {
+                              logger.e('Error during send check/resend: $e', error: e, stackTrace: stackTrace);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Delete recording from cache
+                          DatabaseNew.deleteRecordingFromCache(widget.recording.id!);
+                          setState(() {
+                            // Optionally refresh UI or provide feedback
+                          });
+                        },
+                        child: const Text('Smazat z cache'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.delete, color: Colors.white,),
+                        label: const Text('Smazat záznam', style: TextStyle(color: Colors.white),),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Potvrdit smazání'),
+                              content: const Text('Opravdu chcete tento záznam natrvalo smazat?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: const Text('Zrušit'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  child: const Text('Smazat'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            _deleteRecording();
+                          }
+                        },
                       ),
                     ),
                   ],

@@ -21,11 +21,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/launch_warning.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
-import 'forgottenPassword.dart';
+import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
@@ -48,6 +49,7 @@ class _LoginState extends State<Login> {
   @override
   void initState() {
     super.initState();
+
     _registerTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
         Navigator.pushReplacement(
@@ -86,29 +88,87 @@ class _LoginState extends State<Login> {
       logger.i('Login response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 202) {
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
-        if (await FlutterSecureStorage().read(key: 'token') != null){
-          FlutterSecureStorage().delete(key: 'token');
+        if (await secureStorage.read(key: 'token') != null){
+          secureStorage.delete(key: 'token');
         }
-        await const FlutterSecureStorage().write(key: 'token', value: response.body);
+        await secureStorage.write(key: 'token', value: response.body.toString());
+        final verifyUrl = Uri.https(Config.host, '/auth/verify-jwt');
+        final verifyResponse = await http.get(
+          verifyUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${response.body.toString()}',
+          },
+        );
+
+        if (verifyResponse.statusCode == 403) {
+          // If the JWT check returns 403, the account is not verified.
+          Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users/get-id'
+          );
+          var response = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
+          });
+          int userId = int.parse(response.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailNotVerified(userEmail: _emailController.text, userId: userId,),
+            ),
+          );
+          return;
+        }
+        else{
+          await secureStorage.write(key: 'token', value: response.body.toString());
+          Uri url = Uri(
+              scheme: 'https',
+              host: Config.host,
+              path: '/users/get-id'
+          );
+          var idResponse = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${response.body.toString()}',
+          });
+          int userId = int.parse(idResponse.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
+        }
+        await secureStorage.write(key: 'verified', value: 'true');
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
-      } else if (response.statusCode == 403) {
-        FlutterSecureStorage().write(key: 'token', value: response.body.toString());
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+            settings: const RouteSettings(name: '/Recorder'),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
           ),
         );
-      } else if(response.statusCode == 403){
-        FlutterSecureStorage().write(key: 'token', value: response.body.toString());
+      } else if (response.statusCode == 403) {
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
+        await secureStorage.write(key: 'token', value: response.body.toString());
+        Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users/get-id'
+        );
+        var idResponse = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
+        });
+        int userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailNotVerified(userEmail: _emailController.text),
+            builder: (_) => EmailNotVerified(userEmail: _emailController.text, userId: userId,),
           ),
         );
       } else if (response.statusCode == 401) {
@@ -139,6 +199,7 @@ class _LoginState extends State<Login> {
   }
 
   bool _obscurePassword = true;
+
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +372,14 @@ class _LoginState extends State<Login> {
                     google.GoogleSignInService.signInWithGoogle().then((jwt) => {
                       if(jwt!=null){
                       FlutterSecureStorage().write(key: 'token', value: jwt),
+                      http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        }
+                      ).then((http.Response response)=>{
+                        FlutterSecureStorage().write(key: 'userId', value: response.body.toString()),
+                      }),
                       fb.refreshToken(),
                       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()))
                       }

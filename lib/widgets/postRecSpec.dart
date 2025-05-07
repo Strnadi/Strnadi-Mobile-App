@@ -35,48 +35,41 @@ void preprocessAudio(List<String> argv) async {
     return;
   }
 
-  // Load the user's WAV file and normalize its volume.
-  final wav = await Wav.readFile(argv[0]);
-  final audio = normalizeRmsVolume(wav.toMono(), 0.3);
+  // Begin processing block to limit variable scope for memory efficiency
+  {
+    // Load the user's WAV file and normalize its volume.
+    final wav = await Wav.readFile(argv[0]);
+    final audio = normalizeRmsVolume(wav.toMono(), 0.3);
 
-  // Set up the STFT. The chunk size is the number of audio samples in each
-  // chunk to be FFT'd. The buckets is the number of frequency buckets to
-  // split the resulting FFT into when printing.
-  const chunkSize = 2048;
-  final stft = STFT(chunkSize, Window.hanning(chunkSize));
-  const buckets = 120;
+    // Set up the STFT. The chunk size is the number of audio samples in each
+    // chunk to be FFT'd. The buckets is the number of frequency buckets to
+    // split the resulting FFT into when printing.
+    const chunkSize = 2048;
+    final stft = STFT(chunkSize, Window.hanning(chunkSize));
+    const buckets = 120;
 
-  // STFT divides the input into chunks, and runs an FFT on all the chunks.
-  stft.run(
-    audio,
-    // This callback is called for each FFT'd chunk.
-    (Float64x2List chunk) {
-      // FFTs of real valued data contain a lot of redundant frequency data that
-      // we don't want to see in our spectrogram, so discard it. See
-      // [ComplexArray.discardConjugates] for more info. We also don't care
-      // about the phase of the frequencies, just the amplitude, so calculate
-      // magnitudes.
-      final amp = chunk.discardConjugates().magnitudes();
+    // STFT divides the input into chunks, and runs an FFT on all the chunks.
+    stft.run(
+      audio,
+      // This callback is called for each FFT'd chunk.
+      (Float64x2List chunk) {
+        final amp = chunk.discardConjugates().magnitudes();
 
-      for (int bucket = 0; bucket < buckets; ++bucket) {
-        // Calculate the bucket endpoints.
-        int start = (amp.length * bucket) ~/ buckets;
-        int end = (amp.length * (bucket + 1)) ~/ buckets;
+        for (int bucket = 0; bucket < buckets; ++bucket) {
+          // Calculate the bucket endpoints.
+          int start = (amp.length * bucket) ~/ buckets;
+          int end = (amp.length * (bucket + 1)) ~/ buckets;
 
-        // RMS works in the frequency domain too. This is essentially
-        // calculating what the perceived volume would be if we were only
-        // listening to this frequency bucket. Technically there are some
-        // scaling factors I'm ignoring.
-        // https://en.wikipedia.org/wiki/Root_mean_square#In_frequency_domain
-        double power = rms(Float64List.sublistView(amp, start, end));
-
-        stdout.write(gradient(power));
-      }
-      stdout.write('\n');
-    },
-    // Stride by half the chunk size, so that the chunks overlap.
-    chunkSize ~/ 2,
-  );
+          // Calculate the RMS power for the bucket.
+          double power = rms(Float64List.sublistView(amp, start, end));
+          stdout.write(gradient(power));
+        }
+        stdout.write('\n');
+      },
+      // Stride by half the chunk size, so that the chunks overlap.
+      chunkSize ~/ 2,
+    );
+  }  // End of processing block; variables (wav, audio, stft) are now out of scope and eligible for GC
 }
 
 // Calculates the RMS volume of the audio. This is a decent approxiation of

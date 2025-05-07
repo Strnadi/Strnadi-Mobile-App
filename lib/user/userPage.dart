@@ -43,6 +43,7 @@ class _UserPageState extends State<UserPage> {
   late String userName = 'username';
   late String lastName = 'lastname';
   String? profileImagePath;
+  bool _isConnected = true;
 
   final logger = Logger();
   final secureStorage = const FlutterSecureStorage();
@@ -50,8 +51,16 @@ class _UserPageState extends State<UserPage> {
   @override
   void initState() {
     super.initState();
+    checkConnectivity();
     getUserData();
-    getProfilePic();
+    getProfilePic(null);
+  }
+
+  Future<void> checkConnectivity() async {
+    bool connected = await Config.hasBasicInternet;
+    setState(() {
+      _isConnected = connected;
+    });
   }
 
   Future<File> convertBase64ToImage(String base64String, String fileName) async {
@@ -68,11 +77,21 @@ class _UserPageState extends State<UserPage> {
   }
 
 
-  Future<void> getProfilePic() async {
+  Future<void> getProfilePic(String? mail) async {
+    var email;
     final jwt = await secureStorage.read(key: 'token');
-    final String email = JwtDecoder.decode(jwt!)['sub'];
+
+    final id = await secureStorage.read(key: "userId");
+
+    if (mail == null){
+      final jwt = await secureStorage.read(key: 'token');
+      email = JwtDecoder.decode(jwt!)['sub'];
+    }
+    else {
+      email = mail;
+    }
     final url = Uri.parse(
-        'https://api.strnadi.cz/users/${email}/get-profile-photo');
+        'https://${Config.host}/users/${id}/get-profile-photo');
     logger.i(url);
 
     try {
@@ -90,7 +109,7 @@ class _UserPageState extends State<UserPage> {
             });
           });
         }else{
-          logger.e("Profile picture download failed with status code ${value.statusCode}");
+          logger.e("Profile picture download failed with status code ${value.statusCode} ${value.body}");
         }
       });
     }
@@ -101,6 +120,7 @@ class _UserPageState extends State<UserPage> {
 
   void getUserData() async {
     final usernameExists = await secureStorage.containsKey(key: 'user');
+    final id = await secureStorage.read(key: "userId");
 
     if (usernameExists) {
       var storedUserName = await secureStorage.read(key: 'user');
@@ -115,7 +135,7 @@ class _UserPageState extends State<UserPage> {
 
     final jwt = await secureStorage.read(key: 'token');
     final String email = JwtDecoder.decode(jwt!)['sub'];
-    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$email');
+    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$id');
 
     try {
       final response = await http.get(
@@ -156,8 +176,9 @@ class _UserPageState extends State<UserPage> {
   Future<void> UploadProfilePic() async {
     final jwt = await secureStorage.read(key: 'token');
     final String email = JwtDecoder.decode(jwt!)['sub'];
+    final id = await secureStorage.read(key: "userId");
 
-    final url = Uri.parse("https://api.strnadi.cz/users/${email}/upload-profile-photo");
+    final url = Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
     final body = jsonEncode({
       'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
       'format': profileImagePath!.split('.').last
@@ -183,54 +204,71 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> logout(BuildContext context) async {
-    await secureStorage.deleteAll();
-    await strnadiFirebase.deleteToken();
 
-    GoogleSignInService.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => MyApp()),
-          (route) => false,
-    );
+    showDialog(context: context, builder: (context) {
+      return AlertDialog(
+        title: const Text('Odhlásit se'),
+        content: const Text('Opravdu se chcete odhlásit?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Zrušit'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await GoogleSignInService.signOut();
+              await secureStorage.deleteAll();
+              await strnadiFirebase.deleteToken();
+
+              Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
+            },
+            child: const Text('Odhlásit se'),
+          ),
+        ],
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: 'User Page',
+      selectedPage: BottomBarItem.user,
+      appBarTitle: '',
       logout: () => logout(context),
-      content: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          SizedBox(
-            height: 200,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                GestureDetector(
-                  onTap: pickProfileImage,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage: profileImagePath != null
-                        ? FileImage(File(profileImagePath!))
-                        : const AssetImage('./assets/images/default.jpg')
-                    as ImageProvider,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            SizedBox(
+              height: 200,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  GestureDetector(
+                    onTap: pickProfileImage,
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundImage: profileImagePath != null
+                          ? FileImage(File(profileImagePath!))
+                          : const AssetImage('./assets/images/default.jpg')
+                      as ImageProvider,
+                    ),
                   ),
-                ),
-                Text(
-                  "$userName $lastName",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                  Text(
+                    "$userName $lastName",
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          MenuScreen(),
-        ],
+            _isConnected ? MenuScreen() : Text('Osobní údaje nejsou dostupné bez připojení k internetu'),
+          ],
+        ),
       ),
     );
   }

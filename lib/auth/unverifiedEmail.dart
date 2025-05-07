@@ -25,10 +25,12 @@ import 'package:logger/logger.dart';
 Logger logger = Logger();
 
 class EmailNotVerified extends StatefulWidget {
+  final int userId;
   final String userEmail;
   const EmailNotVerified({
     Key? key,
-    required this.userEmail,
+    required this.userId,
+    required this.userEmail
   }) : super(key: key);
 
   @override
@@ -71,13 +73,14 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   /// Navigates back to the login/authorization page when email is verified.
   void alreadyVerified() {
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
   }
 
   /// Resend verification email.
   Future<void> resendEmail() async {
-    final String? jwt = await FlutterSecureStorage().read(key: 'token');
-    final Uri url = Uri.https(Config.host, '/auth/${widget.userEmail}/resend-verify-email');
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+    final String? jwt = await secureStorage.read(key: 'token');
+    final Uri url = Uri.https(Config.host, '/auth/${await secureStorage.read(key: 'userId')}/resend-verify-email');
     try {
       final response = await http.get(
         url,
@@ -88,6 +91,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       );
       if (response.statusCode == 200) {
         logger.i('Verification email sent');
+        _startTimer();
       } else if (response.statusCode == 208) {
         logger.i('Email already verified');
         showDialog(
@@ -143,7 +147,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
           onPressed: () {
             FlutterSecureStorage().delete(key: 'token');
-            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
           },
         ),
       ),
@@ -218,7 +222,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+                    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     elevation: 0,

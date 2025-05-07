@@ -20,13 +20,16 @@ import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/archived/map.dart';
 import 'package:strnadi/map/mapv2.dart';
 import 'package:strnadi/archived/recorderWithSpectogram.dart';
-import 'package:strnadi/recording/streamRec.dart'; // Added missing import for LiveRecrnadi/user/userPage.dart;
-
+import 'package:strnadi/recording/streamRec.dart';
 import 'main.dart';
 import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
+import 'config/config.dart';
 
+
+// 1. Add enum for bottom bar items
+enum BottomBarItem { map, list, recorder, notification, user }
 
 class ScaffoldWithBottomBar extends StatelessWidget {
   final String? appBarTitle;
@@ -35,11 +38,14 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   final allawArrowBack;
   final IconData? icon;
 
+  // New field for selected page
+  final BottomBarItem selectedPage;
+
   const ScaffoldWithBottomBar({
     Key? key,
-
     this.appBarTitle,
     required this.content,
+    required this.selectedPage, // Make selectedPage required
     this.logout,
     this.allawArrowBack = false,
     this.icon,
@@ -60,7 +66,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
-      (route) => false, // Remove all previous routes
+          (route) => false, // Remove all previous routes
     );
   }
 
@@ -69,8 +75,11 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     return Scaffold(
       appBar: appBarTitle != null
           ? AppBar(
-        title: Center(child: Text(appBarTitle!)),
+        title: appBarTitle!.isNotEmpty
+            ? Center(child: Text(appBarTitle!))
+            : const SizedBox.shrink(),
         backgroundColor: Colors.white,
+        //toolbarHeight: 40.0,
         actions: [
           if (logout != null)
             IconButton(
@@ -91,13 +100,18 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         child: content,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const ReusableBottomAppBar(),
+      // Pass the selectedPage to the bottom bar widget:
+      bottomNavigationBar: ReusableBottomAppBar(currentPage: selectedPage, changeConfirmation: () => Future.value(true),),
     );
   }
 }
 
 class ReusableBottomAppBar extends StatelessWidget {
-  const ReusableBottomAppBar({super.key});
+  // New field to capture the current page
+  final BottomBarItem currentPage;
+  Future<bool> Function() changeConfirmation;
+
+  ReusableBottomAppBar({super.key, required this.currentPage, required this.changeConfirmation});
 
   @override
   Widget build(BuildContext context) {
@@ -109,10 +123,27 @@ class ReusableBottomAppBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Map Button
           IconButton(
-            icon: const Icon(Icons.map),
+            icon: Image.asset(
+              currentPage == BottomBarItem.map ? 'assets/icons/mapOn.png' : 'assets/icons/mapOff.png',
+              width: 40,
+              height: 40,
+            ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
+              if (!await Config.hasBasicInternet) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Chybí připojení k internetu. Mapa není dostupná.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+
               if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.pushReplacement(
                   context,
@@ -126,10 +157,17 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
+          // List Button
           IconButton(
-            icon: const Icon(Icons.menu),
+            icon: Image.asset(
+              currentPage == BottomBarItem.list ? 'assets/icons/listOn.png' : 'assets/icons/listOff.png',
+              width: 40,
+              height: 40,
+            ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.pushReplacement(
                   context,
@@ -143,10 +181,17 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
+          // Recorder Button
           IconButton(
-            icon: const Icon(Icons.mic),
+            icon: Image.asset(
+              currentPage == BottomBarItem.recorder ? 'assets/icons/micOn.png' : 'assets/icons/micOff.png',
+              width: 40,
+              height: 40,
+            ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/Recorder') {
                 Navigator.pushReplacement(
                   context,
@@ -160,10 +205,17 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
+          // Notification Button
           IconButton(
-            icon: const Icon(Icons.inbox_outlined),
+            icon: Image.asset(
+              currentPage == BottomBarItem.notification ? 'assets/icons/shelfOn.png' : 'assets/icons/shelfOff.png',
+              width: 40,
+              height: 40,
+            ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.pushReplacement(
                   context,
@@ -177,10 +229,17 @@ class ReusableBottomAppBar extends StatelessWidget {
               }
             },
           ),
+          // User Button
           IconButton(
-            icon: const Icon(Icons.account_circle),
+            icon: Image.asset(
+              currentPage == BottomBarItem.user ? 'assets/icons/userOn.png' : 'assets/icons/userOff.png',
+              width: 40,
+              height: 40,
+            ),
             iconSize: 30.0,
-            onPressed: () {
+            onPressed: () async {
+              if (!await changeConfirmation()) return;
+
               if (ModalRoute.of(context)?.settings.name != '/user') {
                 Navigator.pushReplacement(
                   context,

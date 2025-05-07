@@ -29,31 +29,29 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
 import 'package:strnadi/md_renderer.dart';
+// Removed: import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../config/config.dart';
+import 'launch_warning.dart';
 
 Logger logger = Logger();
 
 enum AuthType { login, register }
 
 class Authorizator extends StatefulWidget {
-  final Widget login;
-  final Widget register;
 
   const Authorizator({
     Key? key,
-    required this.login,
-    required this.register,
   }) : super(key: key);
 
   @override
   State<Authorizator> createState() => _AuthState();
 }
 
+
 enum AuthStatus { loggedIn, loggedOut, notVerified }
 
-
-Future<AuthStatus> isLoggedIn() async {
+Future<AuthStatus> _onlineIsLoggedIn() async{
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
@@ -71,8 +69,10 @@ Future<AuthStatus> isLoggedIn() async {
       logger.i('Response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode == 200) {
+        await secureStorage.write(key: 'verified', value: 'true');
         return AuthStatus.loggedIn;
       } else if (response.statusCode == 403) {
+        await secureStorage.write(key: 'verified', value: 'false');
         return AuthStatus.notVerified;
       }
       else {
@@ -86,13 +86,62 @@ Future<AuthStatus> isLoggedIn() async {
   return AuthStatus.loggedOut;
 }
 
+Future<AuthStatus> _offlineIsLoggedIn() async{
+  FlutterSecureStorage secureStorage = FlutterSecureStorage();
+  String? token = await secureStorage.read(key: 'token');
+  if (token != null) {
+    DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+    if (expirationDate.isAfter(DateTime.now())) {
+      String? verified = await secureStorage.read(key: 'verified');
+      if (verified == 'true') {
+        return AuthStatus.loggedIn;
+      } else {
+        return AuthStatus.notVerified;
+      }
+    } else {
+      return AuthStatus.loggedOut;
+    }
+  }
+  else{
+    return AuthStatus.loggedOut;
+  }
+}
+
+Future<AuthStatus> isLoggedIn() async {
+  // Treat either no connectivity or backend unreachable as offline
+  if (!await Config.hasBasicInternet) {
+    return await _offlineIsLoggedIn();
+  }
+  if (!await Config.isBackendAvailable) {
+    return await _offlineIsLoggedIn();
+  }
+  return await _onlineIsLoggedIn();
+}
+
 class _AuthState extends State<Authorizator> {
+  bool _isOnline = true;
+
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showWIPwarning();
+    });
+    Config.hasBasicInternet.then((online) {
+      setState(() {
+        _isOnline = online;
+      });
+    });
     checkLoggedIn(); // token check if needed
   }
 
+  void _showWIPwarning() {
+    showDialog(
+      context: context,
+      builder: (context) => WIP_warning(),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     // Example color definitions
@@ -109,7 +158,7 @@ class _AuthState extends State<Authorizator> {
             child: Column(
               children: [
                 // Spacing from the top
-                const SizedBox(height: 40),
+                //const SizedBox(height: 0),
 
                 // Bird image
                 Image.asset(
@@ -149,12 +198,7 @@ class _AuthState extends State<Authorizator> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegMail()),
-                      );
-                    },
+                    onPressed: () => _navigateIfAllowed(const RegMail()),
                     style: ElevatedButton.styleFrom(
                       elevation: 0, // No elevation
                       shadowColor: Colors.transparent, // Remove shadow
@@ -179,11 +223,7 @@ class _AuthState extends State<Authorizator> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const Login()));
-                    },
+                    onPressed: () => _navigateIfAllowed(const Login()),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: textColor,
                       side: BorderSide(color: Colors.grey[200]!, width: 2),
@@ -232,6 +272,15 @@ class _AuthState extends State<Authorizator> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                ),
+              ),
             ],
           ),
         ),
@@ -240,14 +289,63 @@ class _AuthState extends State<Authorizator> {
   }
 
   Future<void> checkLoggedIn() async {
+    bool online = await Config.hasBasicInternet;
+    if (!online) {
+      final secureStorage = FlutterSecureStorage();
+      String? token = await secureStorage.read(key: 'token');
+      if (token == null) {
+        _showAlert("Offline", "Nemáte připojení k internetu a žádný token není uložen.");
+        return;
+      } else {
+        DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+        if (expirationDate.isBefore(DateTime.now())) {
+          _showAlert("Offline", "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+          return;
+        }
+        String? verified = await secureStorage.read(key: 'verified');
+        if (verified != 'true') {
+          _showAlert("Offline", "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+          return;
+        }
+      }
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+          settings: const RouteSettings(name: '/Recorder'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
+      return;
+    }
     final secureStorage = FlutterSecureStorage();
     final AuthStatus status = await isLoggedIn();
+
+
     if (status == AuthStatus.loggedIn) {
       String? token = await secureStorage.read(key: 'token');
       if (token == null) return;
+      String? userIdS = await secureStorage.read(key: 'userId');
+      int? userId;
 
-      String email = JwtDecoder.decode(token)['sub'];
-      final Uri url = Uri.parse('https://${Config.host}/users/$email').replace(queryParameters: {'jwt': token});
+      if(userIdS==null){
+        Uri url = Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/users/get-id'
+        );
+        var idResponse = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        });
+        userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
+      }
+      else{
+        userId = int.parse(userIdS);
+      }
+      final Uri url = Uri.parse('https://${Config.host}/users/$userId').replace(queryParameters: {'jwt': token});
 
       final response = await http.get(
         url,
@@ -256,6 +354,7 @@ class _AuthState extends State<Authorizator> {
           'Authorization': 'Bearer $token',
         },
       );
+
 
       final Map<String, dynamic> data = jsonDecode(response.body);
       secureStorage.write(key: 'user', value: data['firstName']);
@@ -266,24 +365,40 @@ class _AuthState extends State<Authorizator> {
       logger.i('Syncing recordings on login done');
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LiveRec()),
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+          settings: const RouteSettings(name: '/Recorder'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
     } else if(status == AuthStatus.notVerified) {
       String? token = await secureStorage.read(key: 'token');
       if (token == null) return;
+      Uri url = Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: '/users/get-id'
+      );
+      var idResponse = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+      int userId = int.parse(idResponse.body);
+      await secureStorage.write(key: 'userId', value: userId.toString());
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'])),
+        MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'], userId: userId,)),
       );
     } else {
       // If there is a token but user is not logged in (invalid token),
       // remove it and show message.
       if (await secureStorage.read(key: 'token') != null) {
         _showMessage("Byli jste odhlášeni");
-        secureStorage.delete(key: 'token');
-        secureStorage.delete(key: 'user');
-        secureStorage.delete(key: 'lastname');
-        firebase.deleteToken();
+        await secureStorage.delete(key: 'token');
+        await secureStorage.delete(key: 'user');
+        await secureStorage.delete(key: 'lastname');
+        await firebase.deleteToken();
       }
     }
   }
@@ -302,6 +417,31 @@ class _AuthState extends State<Authorizator> {
         ],
       ),
     );
+  }
+
+  void _showAlert(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Navigate respecting internet connectivity
+  Future<void> _navigateIfAllowed(Widget page) async {
+    if (!await Config.hasBasicInternet) {
+      _showAlert("Offline", "Tato akce není dostupná offline.");
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Future<void> _launchURL() async {

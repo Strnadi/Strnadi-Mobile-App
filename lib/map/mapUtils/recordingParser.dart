@@ -23,6 +23,7 @@ import '../../database/databaseNew.dart';
 
 class Part {
   final int id;
+  final int? length;
   final int recordingId;
   final DateTime start;
   final DateTime end;
@@ -36,6 +37,7 @@ class Part {
 
   Part({
     required this.id,
+    required this.length,
     required this.recordingId,
     required this.start,
     required this.end,
@@ -51,6 +53,7 @@ class Part {
   factory Part.fromJson(Map<String, dynamic> json) {
     return Part(
       id: json['id'] ?? -1,
+      length: json['length'] ?? null,
       recordingId: json['recordingId'] ?? -1,
       start: DateTime.parse(json['startDate']),
       end: DateTime.parse(json['endDate']),
@@ -133,13 +136,9 @@ LatLng? getFirstPartLatLng(String jsonString) {
 }
 
 Future<List<Recording>> GetRecordings(String jsonString) async {
-  var token = await FlutterSecureStorage().read(key: 'token');
-  var mail = JwtDecoder.decode(token!)['sub'];
-
-  logger.i(mail);
-
   final List<dynamic> decoded = jsonDecode(jsonString);
-  return decoded.map((r) => Recording.fromBEJson(r, mail)).toList();
+  // passing null to read the mail from the json
+  return decoded.map((r) => Recording.fromBEJson(r, null)).toList();
 }
 
 List<LatLng> getAllLatLngs(String jsonString) {

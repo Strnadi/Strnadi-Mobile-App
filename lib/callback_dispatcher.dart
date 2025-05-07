@@ -17,15 +17,20 @@
  * Callback_dispatcher.dart
  */
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/config/config.dart';
+
+import 'PostRecordingForm/addDialect.dart';
 
 
 final logger = Logger();
@@ -56,6 +61,8 @@ void callbackDispatcher() {
       } catch(e, stackTrace) {
         logger.e("BG Failed to get recording from DB: $e", error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
+        await DatabaseNew.sendLocalNotification("Nahrávání nahrávky selhalo", "Odesílání nahrávky $recordingId selhalo s chybou: $e");
+        return Future.value(true);
       }
       if (recording != null && (recording.path == null || recording.path!.isEmpty || !recording.downloaded)) {
         logger.i("Recording path is empty or not downloaded. Attempting to concatenate parts for recording id $recordingId.");
@@ -75,17 +82,75 @@ void callbackDispatcher() {
         await DatabaseNew.updateRecording(recording);
         // Retrieve parts using the local recording id.
         logger.i('Getting parts from DB with recording id $recordingId');
-        List<RecordingPart> parts = DatabaseNew.getPartsById(recording.id!);
+        List<RecordingPart> parts = await DatabaseNew.getPartsById(recording.id!);
         try {
           logger.i('Starting to send recording $recordingId in background');
           await DatabaseNew.sendRecording(recording, parts);
           logger.i("Recording $recordingId uploaded successfully in background");
-          await DatabaseNew.sendLocalNotification("Recording Uploaded", "Recording $recordingId uploaded successfully in background");
+
+          // ---------------------------
+
+          // Send dialects after successful recording upload
+          List<RecordingDialect> dialectSegments = await DatabaseNew.getRecordingDialects(recording.id!);
+          
+          var dialects = dialectSegments.map((e) => DatabaseNew.ToDialectModel(e)).toList();
+          final tokenStorage = FlutterSecureStorage();
+          final jwt = await tokenStorage.read(key: 'token');
+
+          if (jwt == null) {
+            logger.e("JWT token not found in secure storage.");
+          } else {
+            for (DialectModel dialect in dialects) {
+              final dialectBody = {
+                'recordingId': recording.BEId,
+                'StartDate': recording.createdAt
+                    .add(Duration(milliseconds: dialect.startTime.toInt()))
+                    .toIso8601String(),
+                'endDate': recording.createdAt
+                    .add(Duration(milliseconds: dialect.endTime.toInt()))
+                    .toIso8601String(),
+                'dialectCode': dialect.label,
+              };
+
+              try {
+                final url = Uri(
+                  scheme: 'https',
+                  host: Config.host,
+                  path: '/recordings/filtered',
+                );
+
+                final response = await http.post(
+                  url,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $jwt',
+                  },
+                  body: jsonEncode(dialectBody),
+                );
+
+                if (response.statusCode == 200) {
+                  logger.i("Dialect ${dialect.label} sent successfully");
+                } else {
+                  logger.e(
+                    "Dialect sending failed with status ${response.statusCode}. Response: ${response.body}",
+                  );
+                }
+              } catch (e, stackTrace) {
+                logger.e("Error sending dialect ${dialect.label}: $e", error: e, stackTrace: stackTrace);
+              }
+            }
+          }
+
+          await DatabaseNew.sendLocalNotification("Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
+
+          // --------------------------
+
         } catch (e, stackTrace) {
           recording.sending = false;
           await DatabaseNew.updateRecording(recording);
           logger.e("Failed to upload recording $recordingId in background: $e", error: e, stackTrace: stackTrace);
-          await DatabaseNew.sendLocalNotification("Recording Upload Failed", "Recording $recordingId failed to upload: $e");
+          Sentry.captureException(e,stackTrace: stackTrace);
+          await DatabaseNew.sendLocalNotification("Nahrávání nahrávky selhalo", "Odesílání nahrávky $recordingId selhalo s chybou: $e");
         }
       } else {
         logger.e("Recording $recordingId not found in DB");

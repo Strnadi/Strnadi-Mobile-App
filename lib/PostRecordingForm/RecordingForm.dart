@@ -30,19 +30,13 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:sqflite/sqlite_api.dart';
 import 'package:strnadi/PostRecordingForm/imageUpload.dart';
-import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
-import 'package:strnadi/archived/recordingsDb.dart';
 import '../config/config.dart';
-import '../archived/soundDatabase.dart';
 import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/exceptions.dart';
-import 'package:strnadi/auth/authorizator.dart' as auth;
 import 'addDialect.dart';
 import 'dart:math' as math;
 
@@ -90,28 +84,29 @@ class _RecordingFormState extends State<RecordingForm> {
   late loc.LocationService locationService;
   LatLng? currentLocation;
   LatLng? markerPosition;
-  DateTime? _lastRouteUpdate;
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
 
-  var placeTitle = "mapa";
+  final MapController _mapController = MapController();
+
+  var placeTitle = "";
 
   @override
   void initState() {
     super.initState();
     // Initialize spectrogram widget.
-    setState(() {
-      spectogram = LiveSpectogram.SpectogramLive(
-        key: spectogramKey,
-        data: [],
-        filepath: widget.filepath,
-        getCurrentPosition: (pos) {
-          setState(() {
-            currentPos = pos;
-          });
-        },
-      );
-    });
+    // setState(() {
+    //   spectogram = LiveSpectogram.SpectogramLive(
+    //     key: spectogramKey,
+    //     data: [],
+    //     filepath: widget.filepath,
+    //     getCurrentPosition: (pos) {
+    //       setState(() {
+    //         currentPos = pos;
+    //       });
+    //     },
+    //   );
+    // });
     _audioPlayer.positionStream.listen((position) {
       setState(() {
         currentPositionDuration = position;
@@ -165,11 +160,10 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.i('Mail set to ${recording.mail}');
     });
 
-    getDeviceModel().then((model) async {
-      while (recording.device?.isEmpty ?? true) {
-        await Future.delayed(const Duration(seconds: 1));
-      }
-      recording.device = model;
+    getDeviceModel().then((model) {
+      setState(() {
+        recording.device = model;
+      });
       logger.i('Device set to ${recording.device}');
     });
 
@@ -186,9 +180,12 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     }
 
-    _route.addAll(widget.route);
+    // Assign the duration (in seconds) to each RecordingPart
+    for (int i = 0; i < recordingParts.length && i < widget.recordingPartsTimeList.length; i++) {
+      recordingParts[i].length = widget.recordingPartsTimeList[i];
+    }
 
-    reverseGeocode(widget.recordingParts[0].gpsLatitudeStart!, widget.recordingParts[0].gpsLongitudeStart!);
+    _route.addAll(widget.route);
   }
 
   // Helper method to display a simple message dialog.
@@ -274,55 +271,84 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void SendDialects() async {
-
-    var id = await DatabaseNew.getRecordingBEIDbyID(recording.id!);
+    var id = _recordingId;
 
     if (id == null) {
       logger.e("Recording BEID is null");
       return;
     }
+    if(dialectSegments.isNotEmpty) {
+      var dialect = dialectSegments.first;
+      var body = RecordingDialect(
+        RecordingId: id,
+        StartDate: recording.createdAt
+            .add(
+            Duration(milliseconds: dialect.startTime.toInt())),
+        EndDate: recording.createdAt.add(
+            Duration(milliseconds: dialect.endTime.toInt())),
+        dialect: dialect.type,
 
-    for (DialectModel dialect in dialectSegments) {
-      var token = FlutterSecureStorage();
-      var jwt = await token.read(key: 'token');
-      logger.i("jwt is $jwt");
-      logger.i("token is $jwt");
-      var body = jsonEncode(<String, dynamic>{
-        'recordingId': id,
-        'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
-        'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
-        'dialectCode': dialect.label,
-      });
-      try {
-        final url = Uri(scheme: 'https', host: Config.host, path: '/recordings/filtered/upload');
-        await http.post(
-          url,
-          headers: <String, String>{
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt',
-          },
-          body: jsonEncode(<String, dynamic>{
-            'recordingId': id,
-            'StartDate': recording.createdAt.add(Duration(milliseconds: dialect.startTime.toInt())).toIso8601String(),
-            'endDate': recording.createdAt.add(Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
-            'dialectCode': dialect.label,
-          }),
-        ).then((value) {
-          if (value.statusCode == 200) {
-            logger.i("Dialect sent successfully");
-          } else {
-            logger.e("Dialect sending failed with status code ${value.statusCode} and body $body");
-          }
-        });
-      } catch (e, stackTrace) {
-        logger.e("Error inserting dialect: $e", error: e, stackTrace: stackTrace);
-      }
+
+      );
+
+      DatabaseNew.insertRecordingDialect(body);
+      logger.i("Dialect inserted into database");
     }
+    // for (DialectModel dialect in dialectSegments) {
+    //   var token = FlutterSecureStorage();
+    //   var jwt = await token.read(key: 'token');
+    //   logger.i("jwt is $jwt");
+    //   logger.i("token is $jwt");
+    //   var body = jsonEncode(<String, dynamic>{
+    //     'recordingId': id,
+    //     'StartDate': recording.createdAt
+    //         .add(
+    //         Duration(milliseconds: dialect.startTime.toInt()))
+    //         .toIso8601String(),
+    //     'endDate': recording.createdAt.add(
+    //         Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
+    //     'dialectCode': dialect.label,
+    //   });
+    //   try {
+    //     final url = Uri(scheme: 'https',
+    //         host: Config.host,
+    //         path: '/recordings/filtered/upload');
+    //     await http.post(
+    //       url,
+    //       headers: <String, String>{
+    //         'Content-Type': 'application/json',
+    //         'Authorization': 'Bearer $jwt',
+    //       },
+    //       body: jsonEncode(<String, dynamic>{
+    //         'recordingId': id,
+    //         'StartDate': recording.createdAt
+    //             .add(
+    //             Duration(milliseconds: dialect.startTime.toInt()))
+    //             .toIso8601String(),
+    //         'endDate': recording.createdAt
+    //             .add(
+    //             Duration(milliseconds: dialect.endTime.toInt()))
+    //             .toIso8601String(),
+    //         'dialectCode': dialect.label,
+    //       }),
+    //     ).then((value) {
+    //       if (value.statusCode == 200) {
+    //         logger.i("Dialect sent successfully");
+    //       } else {
+    //         logger.e("Dialect sending failed with status code ${value
+    //             .statusCode} and body $body");
+    //       }
+    //     });
+    //   } catch (e, stackTrace) {
+    //     logger.e(
+    //         "Error inserting dialect: $e", error: e, stackTrace: stackTrace);
+    //   }
+    // }
   }
 
   void _showDialectSelectionDialog() {
-    var position = spectogramKey.currentState!.currentPositionPx;
-    var spect = spectogram;
+    var position = spectogramKey.currentState?.currentPositionPx ?? null;
+    var spect = spectogram;;
     setState(() {
       spectogram = null;
     });
@@ -331,11 +357,15 @@ class _RecordingFormState extends State<RecordingForm> {
       barrierDismissible: false,
       context: context,
       builder: (context) => DialectSelectionDialog(
-        spectogram: spect!,
+        spectogram: spectogram ?? null,
         currentPosition: position,
         duration: totalDuration.inSeconds.toDouble(),
         onDialectAdded: (dialect) {
           setState(() {
+            if (dialect == null) {
+              spectogram = spect;
+              return;
+            }
             dialectSegments.add(dialect);
             spectogram = spect;
           });
@@ -410,7 +440,7 @@ class _RecordingFormState extends State<RecordingForm> {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
         final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
@@ -451,18 +481,21 @@ class _RecordingFormState extends State<RecordingForm> {
     });
   }
 
-  Future<bool> hasInternetAccess() async {
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    }
-  }
 
   Future<String> getDeviceModel() async {
-    // Implement your device info logic here.
-    return "DeviceModel";
+    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    try {
+      if (Platform.isAndroid) {
+        final android = await deviceInfo.androidInfo;
+        return '${android.manufacturer} ${android.model}';
+      } else if (Platform.isIOS) {
+        final ios = await deviceInfo.iosInfo;
+        return ios.utsname.machine ?? 'iOS';
+      }
+    } catch (_) {
+      // Ignore and fall through to default
+    }
+    return Platform.operatingSystem;
   }
 
   void togglePlay() async {
@@ -488,6 +521,7 @@ class _RecordingFormState extends State<RecordingForm> {
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
 
     // Log the recording path before insertion
+    logger.i("Played recording path: ${widget.filepath}");
     logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
@@ -499,10 +533,16 @@ class _RecordingFormState extends State<RecordingForm> {
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
-    // Check internet connectivity after inserting recording parts
-    if (!await hasInternetAccess()) {
-      logger.w("No internet connection, recording saved offline");
-      _showMessage("Recording saved offline");
+    // Check connectivity and user preference before upload
+    if (!await Config.hasBasicInternet) {
+      logger.w("Žádné připojení k internetu, nahrávka uložena offline");
+      _showMessage("Žádné připojení k internetu, nahrávka uložena offline");
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
+    if (!await Config.canUpload) {
+      logger.w("Nahrávání je povoleno pouze na Wi-Fi");
+      _showMessage("Nahrávání je povoleno pouze na Wi-Fi");
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       return;
     }
@@ -512,7 +552,12 @@ class _RecordingFormState extends State<RecordingForm> {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
-    SendDialects();
+    try {
+      SendDialects();
+    }
+    catch(e){
+      logger.w('Error sending dialects: $e');
+    }
     logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
@@ -549,6 +594,14 @@ class _RecordingFormState extends State<RecordingForm> {
         ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
         : null;
 
+    // if (spectogram == null) {
+    //   return const Scaffold(
+    //     body: Center(
+    //       child: CircularProgressIndicator(),
+    //     ),
+    //   );
+    // }
+    //
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
@@ -561,18 +614,46 @@ class _RecordingFormState extends State<RecordingForm> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text("Recording Form"),
+          centerTitle: true,
+          title: Text(placeTitle),
           actions: [
-            ElevatedButton(
-              onPressed: upload,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: yellow,
-                foregroundColor: yellowishBlack,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final shouldSave = await showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text('Potvrzení'),
+                        content: const Text('Opravdu chcete uložit tuto nahrávku?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Ne'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Ano'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (shouldSave == true) {
+                    upload();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: yellow,
+                  foregroundColor: yellowishBlack,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: const Text("Uložit"),
               ),
-              child: const Text("Uložit"),
             ),
           ],
           leading: IconButton(
@@ -591,11 +672,13 @@ class _RecordingFormState extends State<RecordingForm> {
             child: Column(
               children: [
                 // Spectrogram and playback controls remain unchanged.
-                SizedBox(
-                  height: 300,
-                  width: double.infinity,
-                  child: spectogram,
-                ),
+                // RepaintBoundary(
+                //   child: SizedBox(
+                //     height: 300,
+                //     width: double.infinity,
+                //     child: spectogram,
+                //   ),
+                // ),
                 Text(
                   _formatDuration(totalDuration),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -657,6 +740,7 @@ class _RecordingFormState extends State<RecordingForm> {
                               contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                             ),
                             keyboardType: TextInputType.text,
+                            maxLength: 49,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Prosím zadejte název nahrávky';
@@ -725,33 +809,68 @@ class _RecordingFormState extends State<RecordingForm> {
                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(15),
-                            child: Container(
+                            child: SizedBox(
                               height: 200,
-                              child: FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: _computedCenter,
-                                  initialZoom: _computedZoom,
-                                  interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-                                ),
-                                children: [
-                                  TileLayer(
-                                    urlTemplate:
-                                    'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                                    userAgentPackageName: 'cz.delta.strnadi',
-                                  ),
-                                  if (_route.isNotEmpty)
-                                    PolylineLayer(
-                                      polylines: [
-                                        Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                              child: FutureBuilder<bool>(
+                                future: Config.hasBasicInternet,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  } else if (!snapshot.hasData || snapshot.data == false) {
+                                    return Container(
+                                      color: Colors.grey.shade300,
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        "Mapu nelze načíst bez připojení k internetu.",
+                                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                                      ),
+                                    );
+                                  } else if (_computedCenter.latitude != 0.0 &&
+                                      _computedCenter.longitude != 0.0) {
+                                    return FlutterMap(
+                                      options: MapOptions(
+                                        initialCenter: _computedCenter,
+                                        initialZoom: _computedZoom,
+                                        interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                      ),
+                                      mapController: _mapController,
+                                      children: [
+                                        TileLayer(
+                                          urlTemplate:
+                                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                          userAgentPackageName: 'cz.delta.strnadi',
+                                        ),
+                                        if (_route.isNotEmpty)
+                                          PolylineLayer(
+                                            polylines: [
+                                              Polyline(
+                                                  points: List.from(_route),
+                                                  strokeWidth: 4.0,
+                                                  color: Colors.blue),
+                                            ],
+                                          ),
+                                        MarkerLayer(
+                                          markers: widget.recordingParts.map((part) {
+                                            return Marker(
+                                              point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
+                                              child: Icon(Icons.place, color: Colors.red, size: 30),
+                                            );
+                                          }).toList(),
+                                        ),
                                       ],
-                                    ),
-
-                                  MarkerLayer(markers: widget.recordingParts
-                                      .map((part) => Marker(
-                                    point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!), child: Icon(Icons.place, color: Colors.red, size: 30),
-                                  ))
-                                      .toList()),
-                                ],
+                                    );
+                                  } else {
+                                    return
+                                      Container(
+                                        color: Colors.grey.shade300,
+                                        alignment: Alignment.center,
+                                        child: const Text(
+                                          "Nahrávka neobsahuje žádné GPS body.",
+                                          style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
+                                        ),
+                                      );
+                                  }
+                                },
                               ),
                             ),
                           ),

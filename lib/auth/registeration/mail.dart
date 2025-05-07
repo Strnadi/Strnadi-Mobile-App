@@ -27,6 +27,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 
 import '../../config/config.dart';
+import '../../md_renderer.dart';
 
 Logger logger = Logger();
 
@@ -77,7 +78,7 @@ class _RegMailState extends State<RegMail> {
       },
     );
     final response = await http.get(url);
-    if (response.statusCode == 200) {
+    if ([200, 404].contains(response.statusCode)) {
       return false; // Email exists (or JWT received)
     } else if (response.statusCode == 409) {
       //_showUserExistsPopup();
@@ -211,12 +212,12 @@ class _RegMailState extends State<RegMail> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: RichText(
-                        text: const TextSpan(
+                        text: TextSpan(
                           style: TextStyle(color: Colors.black),
                           children: [
                             TextSpan(
                               text:
-                              'Zapojením do projektu občanské vědy Nářečí českých stranád ',
+                              'Zapojením do projektu občanské vědy Nářečí českých strnadů ',
                             ),
                             TextSpan(
                               text: 'souhlasím s podmínkami',
@@ -224,6 +225,18 @@ class _RegMailState extends State<RegMail> {
                                 color: Colors.blue,
                                 decoration: TextDecoration.underline,
                               ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MDRender(
+                                        mdPath: 'assets/docs/terms-of-services.md',
+                                        title: 'Podmínky používání',
+                                      ),
+                                    ),
+                                  );
+                                },
                             ),
                           ],
                         ),
@@ -258,7 +271,7 @@ class _RegMailState extends State<RegMail> {
                         }
                         _termsError = !_isChecked;
                       });
-                      if (isValidEmail(_emailController.text) && _isChecked && _emailErrorMessage == null) {
+                      if (isValidEmail(_emailController.text) && _isChecked && !emailExists) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -326,7 +339,7 @@ class _RegMailState extends State<RegMail> {
                       return;
                     }
                     gle.GoogleSignInService.signUpWithGoogle().then((user) {
-                      if (user != null) {
+                      if (user != null && user['status']!=409) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -340,17 +353,17 @@ class _RegMailState extends State<RegMail> {
                           ),
                         );
                       }
-                    }).catchError((error) {
-                      if (error.toString().contains('409')) {
+                      else if(user != null && user['status']==409){
                         _showUserExistsPopup();
-                      } else {
+                      }
+                    }).catchError((error) {
                         setState(() {
                           _emailErrorMessage = 'Přihlášení přes Google selhalo';
                         });
                         logger.e(error);
                         Sentry.captureException(error);
                       }
-                    });
+                    );
                     // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(

@@ -137,7 +137,14 @@ class _RegLocationState extends State<RegLocation> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (!didPop) {
+          Navigator.pop(context);
+        }
+      },
+    child:  Scaffold(
       // White background, same as in your example
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -150,7 +157,7 @@ class _RegLocationState extends State<RegLocation> {
             height: 30,
           ),
           onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
           },
         ),
       ),
@@ -307,6 +314,7 @@ class _RegLocationState extends State<RegLocation> {
           }),
         ),
       ),
+    )
     );
   }
 }

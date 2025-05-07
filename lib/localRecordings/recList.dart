@@ -18,6 +18,7 @@
  */
 
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
@@ -26,9 +27,11 @@ import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 final logger = Logger();
 
@@ -47,9 +50,13 @@ enum SortBy { name, date, ebc, downloaded, none }
 class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   List<Recording> list = List<Recording>.empty(growable: true);
 
-  SortBy sortOptions = SortBy.none;
+  SortBy sortOptions = SortBy.date;
 
   bool isAscending = true; // Add
+
+  Timer? _refreshTimer;
+
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   @override
   void didChangeDependencies() {
@@ -64,6 +71,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -76,37 +84,30 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    Connectivity().checkConnectivity().then((result) {
+      if (result == ConnectivityResult.none) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Offline režim'),
+              content: const Text('Jste offline. Budou dostupné pouze lokálně uložené záznamy.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        });
+      }
+    });
     getRecordings();
-  }
-
-  Future<String?> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
-
-    logger.i("reverse geocode url: $url");
-    try {
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${Config.mapsApiKey}',
-      };
-      final response = await http.get(url, headers: headers);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final results = data['items'];
-        if (results.isNotEmpty) {
-          logger.i("Reverse geocode result: $results");
-            return results[0]['name'];
-        }
-      }
-      else {
-        logger.e("Reverse geocode failed with status code ${response.statusCode}");
-        return null;
-      }
-    } catch (e, stackTrace) {
-      logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
-
-    }
+    // Periodically refresh to catch sending status updates
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      getRecordings();
+    });
   }
 
   void _showMessage(String message, String title) {
@@ -129,13 +130,14 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     });
   }
 
-  void openRecording(Recording recording) {
-    Navigator.push(
+  void openRecording(Recording recording) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RecordingItem(recording: recording),
       ),
     );
+    getRecordings(); // Refresh the list after returning
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -250,21 +252,22 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   }
 
   void _applySorting() {
+    List<Recording> sortedList = List.from(list);
     switch (sortOptions) {
       case SortBy.name:
-        list.sort((a, b) {
+        sortedList.sort((a, b) {
           int result = (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase());
           return isAscending ? result : -result;
         });
         break;
       case SortBy.date:
-        list.sort((a, b) {
+        sortedList.sort((a, b) {
           int result = a.createdAt!.compareTo(b.createdAt!);
           return isAscending ? result : -result;
         });
         break;
       case SortBy.ebc:
-        list.sort((a, b) {
+        sortedList.sort((a, b) {
           int result = a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!);
           return isAscending ? result : -result;
         });
@@ -272,6 +275,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       default:
         break;
     }
+    setState(() {
+      list = sortedList;
+    });
   }
 
   String _truncateName(String name, {int maxLength = 20}) {
@@ -290,7 +296,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
 
     // Create a title that shows current filter
-    String appBarTitle = 'Záznamy';
+    String appBarTitle = 'Moje nahrávky';
     if (sortOptions != SortBy.none) {
       String sortName = '';
       switch (sortOptions) {
@@ -303,18 +309,39 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
       if (sortName.isNotEmpty) {
         if (sortOptions != SortBy.downloaded) {
-          appBarTitle = 'Záznamy (by $sortName ${isAscending ? '↑' : '↓'})';
+          appBarTitle = 'Moje nahrávky (podle $sortName ${isAscending ? '↑' : '↓'})';
         } else {
-          appBarTitle = 'Záznamy (Pouze stažené)';
+          appBarTitle = 'Moje nahrávky (Pouze stažené)';
         }
       }
     }
 
-    return ScaffoldWithBottomBar(
-      logout: () => _showSortFilterOptions(context),
-      icon: Icons.sort,
-      appBarTitle:appBarTitle,
-      content: Padding(
+    Color yellow = const Color(0xFFFFD641);
+
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Text(
+            appBarTitle,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              fontFamily: 'Bricolage Grotesque',
+            ),
+          ),
+        ),
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Image.asset('assets/icons/sort.png', width: 30, height: 30),
+            onPressed: () => _showSortFilterOptions(context),
+          )
+        ]
+      ),
+      body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: RefreshIndicator(
           onRefresh: () async {
@@ -322,14 +349,20 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             getRecordings();
           },
           child: records.isEmpty
-              ? const Center(child: Text('Zatím nemáte žádné záznamy'))
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(
+                      height: 500,
+                      child: Center(child: Text('Zatím nemáte žádné záznamy')),
+                    )
+                  ],
+                )
               : ListView.separated(
             itemCount: records.length,
             separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final rec = records[index];
-              final statusText = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
-              final statusColor = rec.sent ? Colors.green : Colors.orange;
               final dateText = rec.createdAt != null
                   ? formatDateTime(rec.createdAt!)
                   : '';
@@ -365,7 +398,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                 )
                               : FutureBuilder<String?> (
                                   future: () async {
-                                    var parts = DatabaseNew.getPartsById(rec.id!);
+                                    var parts = await DatabaseNew.getPartsById(rec.id!);
                                     if (parts.isEmpty) {
                                       return rec.id?.toString();
                                     }
@@ -392,12 +425,25 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                   },
                                 ),
                           const SizedBox(height: 4),
-                          Text(
-                            getDialectName(rec.id!),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
+                          FutureBuilder<String>(
+                            future: getDialectName(rec.id!),
+                            builder: (context, snapshot) {
+                              String dialectText;
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                dialectText = 'Načítání dialektu...';
+                              } else if (snapshot.hasError || snapshot.data == null) {
+                                dialectText = 'Neznámý dialekt';
+                              } else {
+                                dialectText = snapshot.data!;
+                              }
+                              return Text(
+                                dialectText,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -405,13 +451,43 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: statusColor,
-                            ),
+                          FutureBuilder<List<RecordingPart>>(
+                            future: Future.value(DatabaseNew.getPartsById(rec.id!)),
+                            builder: (context, snapshot) {
+                              String status;
+                              Color color;
+                              if (rec.sending) {
+                                status = 'Odesílání...';
+                                color = Colors.blue;
+                              } else if (snapshot.connectionState == ConnectionState.waiting) {
+                                status = 'Kontrola částí...';
+                                color = Colors.grey;
+                              } else if (snapshot.hasError) {
+                                status = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+                                color = rec.sent ? Colors.green : Colors.orange;
+                              } else {
+                                final parts = snapshot.data!;
+                                if (rec.sent && parts.any((p) => !p.sent)) {
+                                  logger.w('Unsent parts found');
+                                  String partsS="";
+                                  for (var part in parts) {partsS += '${part.toJson()}\n';}
+                                  logger.w('All parts: $partsS');
+                                  status = 'Neodeslané části';
+                                  color = Colors.red;
+                                } else {
+                                  status = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+                                  color = rec.sent ? Colors.green : Colors.orange;
+                                }
+                              }
+                              return Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: color,
+                                ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -431,13 +507,83 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             },
           ),
         ),
-      )
+      ),
+      bottomNavigationBar: ReusableBottomAppBar(
+        currentPage: BottomBarItem.list,
+        changeConfirmation: () => Future.value(true),
+      ),
     );
   }
 
-  String getDialectName(int id) {
-    //TODO Load dialect name from database
-    return 'Default Dialect'; // Placeholder for actual dialect name retrieval
+
+  Future<String?> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final results = data['items'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+          return results[0]['name'];
+        }
+      }
+      else {
+        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+        return null;
+      }
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+
+    }
+  }
+
+  Future<String> getDialectName(int id) async {
+    try {
+      // Read JWT token
+      final jwt = await _secureStorage.read(key: 'token');
+      // Call filtered endpoint with recordingId as query
+      final url = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/recordings/filtered',
+        query: 'recordingId=$id');
+      final response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      });
+      if (response.statusCode == 204) {
+        return 'Bez dialektu';
+      }
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        // Return first non-empty dialect
+        for (final item in data.cast<Map<String, dynamic>>()) {
+          final rd = RecordingDialect.fromJson(item);
+          if (rd.dialect.isNotEmpty && rd.dialect != 'Nevyhodnoceno') {
+            return rd.dialect;
+          }
+        }
+        // Fallback to first element's dialect
+        if (data.isNotEmpty) {
+          final rd = RecordingDialect.fromJson(data.first as Map<String, dynamic>);
+          return rd.dialect.isEmpty ? 'Neznámý dialekt' : rd.dialect;
+        }
+      } else {
+        logger.w('Dialect fetch failed: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      logger.e('Error fetching dialects for recording $id: $e', error: e, stackTrace: stackTrace);
+    }
+    return 'Neznámý dialekt';
   }
 
   AssetImage getDialectImage(dialectName) {

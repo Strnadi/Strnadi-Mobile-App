@@ -24,7 +24,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/config.dart';
 import '../recording/streamRec.dart';
-import 'package:strnadi/auth/forgottenPassword.dart';
+import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 
@@ -213,7 +213,7 @@ class _LoginState extends State<Login> {
   }
 
   _launchURL() async {
-    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
+    final Uri url = Uri.parse('https://strnadi.cz/podminky-pouzivani');
     if (!await launchUrl(url)) {
       throw Exception('Could not launch $url');
     }

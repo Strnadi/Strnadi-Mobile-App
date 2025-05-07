@@ -15,11 +15,15 @@
  */
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:strnadi/auth/passReset/resetEmailSent.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
-import '../config/config.dart';
-import 'login.dart';
+import '../../config/config.dart';
+import '../login.dart';
+
+Logger logger = Logger();
 
 class ForgottenPassword extends StatefulWidget {
   const ForgottenPassword({Key? key}) : super(key: key);
@@ -176,14 +180,14 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
   }
 
   Future<void> requestPasswordReset(String email) async {
-    final uri = Uri(scheme: 'https', host: Config.host, path: '/users/$email/forgotten-password');
+    final uri = Uri(scheme: 'https', host: Config.host, path: '/auth/$email/reset-password');
 
     try {
-      final response = await http.patch(uri);
+      final response = await http.get(uri);
 
       if (response.statusCode == 200) {
         _showMessage("E-mail s pokyny pro reset hesla byl odeslán.");
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const Login()));
+        Navigator.replace(context, newRoute: MaterialPageRoute(builder: (_) => ResetEmailSent(userEmail: email)), oldRoute: ModalRoute.of(context)!,);
       } else if(response.statusCode == 401) {
         logger.w('Unregistred email: ${response.statusCode} | ${response.body}');
         _showMessage("Zadaný e-mail není registrován.");
