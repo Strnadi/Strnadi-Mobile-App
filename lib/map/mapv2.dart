@@ -246,20 +246,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
   }
 
-  Future<(String?, String?)?> getProfilePic(int? userId_, String? mail) async {
+  Future<(String?, String?)?> getProfilePic(int? userId_) async {
     //var email;
     int? userId;
     final jwt = await secureStorage.read(key: 'token');
 
-    if (mail == null){
-      final jwt = await secureStorage.read(key: 'token');
-      userId = int.parse((await secureStorage.read(key: 'userId'))!);
-      //email = JwtDecoder.decode(jwt!)['sub'];
-    }
-    else {
-      userId = userId_;
-      //email = mail;
-    }
+    userId = userId_;
     final url = Uri.parse(
         'https://${Config.host}/users/${userId}/get-profile-photo');
     logger.i(url);
@@ -291,7 +283,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       logger.i("rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name}");
 
     }
-    var mail = rec.mail;
+    var mail = rec.userId;
 
     var url = Uri(scheme: 'https', host: Config.host, path: '/users/$mail');
 
@@ -305,7 +297,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         'Authorization': 'Bearer $jwt'
       }).then((val) => UserData.fromJson(json.decode(val.body)));
       logger.i(resp.NickName);
-      // (String?, String?)? profilePicData = await getProfilePic(mail);
+      (String?, String?)? profilePicData = await getProfilePic(mail);
       logger.i(resp.NickName);
       return resp;
       // if (profilePicData!.$1 == null || profilePicData.$2 == null){

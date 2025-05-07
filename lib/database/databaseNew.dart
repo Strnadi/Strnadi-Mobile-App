@@ -212,6 +212,7 @@ class RecordingPartUnready {
 
 class Recording {
   int? id;
+  int? userId;
   int? BEId;
   String? mail;
   DateTime createdAt;
@@ -227,6 +228,7 @@ class Recording {
 
   Recording({
     this.id,
+    this.userId,
     this.BEId,
     this.mail,
     required this.createdAt,
@@ -244,6 +246,7 @@ class Recording {
   factory Recording.fromJson(Map<String, Object?> json) {
     return Recording(
       id: json['id'] as int?,
+      userId: json['userId'] as int?,
       BEId: json['BEId'] as int?,
       mail: json['mail'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -285,11 +288,11 @@ class Recording {
     );
   }
 
-  factory Recording.fromBEJson(Map<String, Object?> json, String? mail) {
+  factory Recording.fromBEJson(Map<String, Object?> json, int? userId) {
 
     return Recording(
       BEId: json['id'] as int?,
-      mail: mail ?? json['userEmail'] as String?,
+      userId: userId ?? json['userId'] as int?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       estimatedBirdsCount: json['estimatedBirdsCount'] as int,
       device: json['device'] as String?,
