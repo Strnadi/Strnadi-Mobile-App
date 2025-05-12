@@ -325,9 +325,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt'
       }).then((val) => UserData.fromJson(json.decode(val.body)));
-      logger.i(resp.NickName);
       (String?, String?)? profilePicData = await getProfilePic(mail);
-      logger.i(resp.NickName);
+      logger.i(resp);
       return resp;
       // if (profilePicData!.$1 == null || profilePicData.$2 == null){
       //   logger.i(resp);
