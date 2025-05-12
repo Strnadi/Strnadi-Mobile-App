@@ -13,6 +13,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+/*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -38,6 +53,7 @@ import 'package:strnadi/locationService.dart'; // Use the location service
 import 'package:http/http.dart' as http;
 
 import '../database/databaseNew.dart';
+import '../dialects/ModelHandler.dart';
 
 
 final logger = Logger();
@@ -217,6 +233,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<void> _fetchDialects() async {
+    List<Dialect> dialects = await fetchRecordingDialects(null);
+    Map<int, String> dialectMap = {};
+    for (Dialect dialect in dialects) {
+      final int? recordingId = dialect.recordingBEID;
+      if (recordingId == null) continue;
+      final String dialectName = dialect.dialect ?? 'Nevyhodnoceno';
+      dialectMap[recordingId] = dialectName;
+    }
+    setState(() {
+      _dialectMap = dialectMap;
+    });
+    /*
     logger.i('Fetching dialects for all parts');
     try {
       final jwt = await secureStorage.read(key: 'token');
@@ -229,7 +257,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final List<dynamic> data = jsonDecode(response.body);
         final Map<int, String> dialects = {};
         for (final item in data.cast<Map<String, dynamic>>()) {
-          final dialectObj = RecordingDialect.fromJson(item);
+          final dialectObj = Dialect.fromBEJson(item);
           final dynamic idValue = item['recordingId'];
           final int id = idValue is int ? idValue : int.tryParse(idValue.toString()) ?? 0;
           dialects[id] = dialectObj.dialect;
@@ -244,6 +272,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     } catch (e, stackTrace) {
       logger.e('Failed to fetch dialects for all parts: $e', error: e, stackTrace: stackTrace);
     }
+   */
   }
 
   Future<(String?, String?)?> getProfilePic(int? userId_) async {
@@ -418,6 +447,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         },
                         child: Image.asset(
                           'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
+                          key: ValueKey('${part.recordingId}_${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}'),
+                          gaplessPlayback: true,
                           width: 30.0,
                           height: 30.0,
                         ),

@@ -24,10 +24,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import '../dialects/ModelHandler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
@@ -55,8 +55,6 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   bool isAscending = true; // Add
 
   Timer? _refreshTimer;
-
-  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   @override
   void didChangeDependencies() {
@@ -546,44 +544,31 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
   }
 
-  Future<String> getDialectName(int id) async {
+  Future<String> getDialectName(int recordingId) async {
     try {
-      // Read JWT token
-      final jwt = await _secureStorage.read(key: 'token');
-      // Call filtered endpoint with recordingId as query
-      final url = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/recordings/filtered',
-        query: 'recordingId=$id');
-      final response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      });
-      if (response.statusCode == 204) {
+      // Prefer locally‑stored dialects to avoid an extra API call.
+      final List<Dialect> dialects =
+          await DatabaseNew.getDialectsByRecordingId(recordingId);
+
+      if (dialects.isEmpty) {
         return 'Bez dialektu';
       }
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        // Return first non-empty dialect
-        for (final item in data.cast<Map<String, dynamic>>()) {
-          final rd = RecordingDialect.fromJson(item);
-          if (rd.dialect.isNotEmpty && rd.dialect != 'Nevyhodnoceno') {
-            return rd.dialect;
-          }
+
+      // Return the first non‑empty, non‑placeholder dialect we find.
+      for (final d in dialects) {
+        final String? name = d.dialect;
+        if (name != null && name.isNotEmpty && name != 'Nevyhodnoceno') {
+          return name;
         }
-        // Fallback to first element's dialect
-        if (data.isNotEmpty) {
-          final rd = RecordingDialect.fromJson(data.first as Map<String, dynamic>);
-          return rd.dialect.isEmpty ? 'Neznámý dialekt' : rd.dialect;
-        }
-      } else {
-        logger.w('Dialect fetch failed: ${response.statusCode}');
       }
+
+      // If every dialect string is empty or "Nevyhodnoceno", fall back.
+      return 'Neznámý dialekt';
     } catch (e, stackTrace) {
-      logger.e('Error fetching dialects for recording $id: $e', error: e, stackTrace: stackTrace);
+      logger.e('Error fetching dialects for recording $recordingId: $e',
+          error: e, stackTrace: stackTrace);
+      return 'Neznámý dialekt';
     }
-    return 'Neznámý dialekt';
   }
 
   AssetImage getDialectImage(dialectName) {

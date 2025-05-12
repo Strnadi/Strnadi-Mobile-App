@@ -33,9 +33,9 @@ import 'package:strnadi/user/settingsManager.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/exceptions.dart';
-// Missing import added:
 import 'package:strnadi/notificationPage/notifList.dart';
 import 'package:strnadi/recording/waw.dart';
+import 'package:strnadi/dialects/ModelHandler.dart';
 
 import '../notificationPage/notifications.dart';
 
@@ -74,93 +74,91 @@ class UserData{
   }
 }
 
-class RecordingDialect{
-  int RecordingId;
-  String dialect;
-  DateTime StartDate;
-  DateTime EndDate;
-
-  RecordingDialect({
-    required this.RecordingId,
-    required this.dialect,
-    required this.StartDate,
-    required this.EndDate,
-  });
-
-  factory RecordingDialect.fromJson(Map<String, Object?> json) {
-    // Safely parse the ID, allowing for uppercase or lowercase keys
-    final dynamic idValue = json['recordingId'] ?? json['RecordingId'];
-    final int recordingId = idValue is int
-      ? idValue
-      : (idValue != null ? int.tryParse(idValue.toString()) ?? 0 : 0);
-
-    // Determine dialect: prefer first detectedDialects entry (string or map), else fallback to dialectCode
-    final List<dynamic> detectedList = (json['detectedDialects'] as List<dynamic>?) ?? [];
-    late final String dialectValue;
-    if (detectedList.isNotEmpty) {
-      final first = detectedList.first;
-      if (first is String) {
-        dialectValue = first;
-      } else if (first is Map<String, dynamic>) {
-        dialectValue = (first['dialect'] as String?)
-            ?? (first['dialectCode'] as String?)
-            ?? 'Nevyhodnoceno';
-      } else {
-        dialectValue = 'Nevyhodnoceno';
-      }
-    } else {
-      dialectValue = (json['dialectCode'] as String?) ?? 'Nevyhodnoceno';
-    }
-
-    // Helper to fetch raw date string from uppercase or lowercase key
-    String _getRawDate(String upperKey, String lowerKey) {
-      return json[upperKey] as String?
-          ?? json[lowerKey] as String?
-          ?? '';
-    }
-
-    // Robust date parser: empty → epoch; digits → epoch-from-ms; ISO parse otherwise
-    DateTime _parseDate(String raw) {
-      if (raw.isEmpty) {
-        return DateTime.fromMillisecondsSinceEpoch(0);
-      }
-      if (RegExp(r'^\d+$').hasMatch(raw)) {
-        return DateTime.fromMillisecondsSinceEpoch(int.parse(raw));
-      }
-      try {
-        return DateTime.parse(raw);
-      } catch (_) {
-        return DateTime.fromMillisecondsSinceEpoch(0);
-      }
-    }
-
-    final DateTime startDate = _parseDate(_getRawDate('StartDate', 'startDate'));
-    final DateTime endDate   = _parseDate(_getRawDate('EndDate',   'endDate'));
-
-    return RecordingDialect(
-      RecordingId: recordingId,
-      dialect: dialectValue,
-      StartDate: startDate,
-      EndDate: endDate,
-    );
-  }
-
-
-
-
-  Map<String, Object?> toJson() {
-    return {
-      'recordingId': RecordingId,
-      'dialectCode': dialect,
-      'StartDate': StartDate.toString(),
-      'EndDate': EndDate.toString(),
-    };
-  }
-
-  List<RecordingDialect> fromJsonList(List<dynamic> jsonList) {
-    return jsonList.map((json) => RecordingDialect.fromJson(json)).toList();
-  }
-}
+// class RecordingDialect{
+//   int RecordingId;
+//   String dialect;
+//   DateTime StartDate;
+//   DateTime EndDate;
+//
+//   RecordingDialect({
+//     required this.RecordingId,
+//     required this.dialect,
+//     required this.StartDate,
+//     required this.EndDate,
+//   });
+//
+//   factory RecordingDialect.fromJson(Map<String, Object?> json) {
+//     // Safely parse the ID, allowing for uppercase or lowercase keys
+//     final dynamic idValue = json['recordingId'] ?? json['RecordingId'];
+//     final int recordingId = idValue is int
+//       ? idValue
+//       : (idValue != null ? int.tryParse(idValue.toString()) ?? 0 : 0);
+//
+//     // Determine dialect: prefer first detectedDialects entry (string or map), else fallback to dialectCode
+//     final List<dynamic> detectedList = (json['detectedDialects'] as List<dynamic>?) ?? [];
+//     late final String dialectValue;
+//     if (detectedList.isNotEmpty) {
+//       final first = detectedList.first;
+//       if (first is String) {
+//         dialectValue = first;
+//       } else if (first is Map<String, dynamic>) {
+//         dialectValue = (first['dialect'] as String?)
+//             ?? (first['dialectCode'] as String?)
+//             ?? 'Nevyhodnoceno';
+//       } else {
+//         dialectValue = 'Nevyhodnoceno';
+//       }
+//     } else {
+//       dialectValue = (json['dialectCode'] as String?) ?? 'Nevyhodnoceno';
+//     }
+//
+//     // Helper to fetch raw date string from uppercase or lowercase key
+//     String _getRawDate(String upperKey, String lowerKey) {
+//       return json[upperKey] as String?
+//           ?? json[lowerKey] as String?
+//           ?? '';
+//     }
+//
+//     // Robust date parser: empty → epoch; digits → epoch-from-ms; ISO parse otherwise
+//     DateTime _parseDate(String raw) {
+//       if (raw.isEmpty) {
+//         return DateTime.fromMillisecondsSinceEpoch(0);
+//       }
+//       if (RegExp(r'^\d+$').hasMatch(raw)) {
+//         return DateTime.fromMillisecondsSinceEpoch(int.parse(raw));
+//       }
+//       try {
+//         return DateTime.parse(raw);
+//       } catch (_) {
+//         return DateTime.fromMillisecondsSinceEpoch(0);
+//       }
+//     }
+//
+//     final DateTime startDate = _parseDate(_getRawDate('StartDate', 'startDate'));
+//     final DateTime endDate   = _parseDate(_getRawDate('EndDate',   'endDate'));
+//
+//     return RecordingDialect(
+//       RecordingId: recordingId,
+//       dialect: dialectValue,
+//       StartDate: startDate,
+//       EndDate: endDate,
+//     );
+//   }
+//
+//
+//   Map<String, Object?> toJson() {
+//     return {
+//       'recordingId': RecordingId,
+//       'dialectCode': dialect,
+//       'StartDate': StartDate.toString(),
+//       'EndDate': EndDate.toString(),
+//     };
+//   }
+//
+//   List<RecordingDialect> fromJsonList(List<dynamic> jsonList) {
+//     return jsonList.map((json) => RecordingDialect.fromJson(json)).toList();
+//   }
+// }
 
 class RecordingUnready {
   int? id;
@@ -559,30 +557,6 @@ class DatabaseNew {
     if (_database != null) return _database!;
     _database = await initDb();
     return _database!;
-  }
-
-
-  static DialectModel ToDialectModel(RecordingDialect dialect) {
-    final Map<String, Color> dialectColors = {
-      'BC': Colors.yellow,
-      'BE': Colors.green,
-      'BlBh': Colors.lightBlue,
-      'BhBl': Colors.blue,
-      'XB': Colors.red,
-      'Jiné': Colors.white,
-      'Nevím': Colors.grey.shade300,
-    };
-
-    return DialectModel(
-      label: dialect.dialect,
-      startTime: Duration(
-          milliseconds: dialect.StartDate.millisecondsSinceEpoch).inSeconds
-          .toDouble(),
-      endTime: Duration(milliseconds: dialect.EndDate.millisecondsSinceEpoch)
-          .inSeconds.toDouble(),
-      type: dialect.dialect,
-      color: dialectColors[dialect.dialect] ?? Colors.white,
-    );
   }
 
   static Future<int> insertRecording(Recording recording) async {
@@ -1540,6 +1514,22 @@ class DatabaseNew {
         );
         await db.setVersion(newVersion);
       }
+      if(oldVersion<=6){
+        await db.execute('DROP TABLE IF EXISTS Dialects');
+        await db.execute('''
+          CREATE TABLE Dialects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            BEID INTEGER UNIQUE,
+            recordingId INTEGER,
+            recordingBEID INTEGER,
+            userGuessDialect TEXT,
+            adminDialect TEXT,
+            startDate TEXT,
+            endDate TEXT,
+          )
+        ''');
+        await db.setVersion(newVersion);
+      }
     });
   }
   static Future<bool> hasInternetAccess() async {
@@ -1608,65 +1598,6 @@ class DatabaseNew {
     return null;
   }
 
-  static Future<void> insertRecordingDialect(
-      RecordingDialect recordingDialect) async {
-    final db = await database;
-    await db.insert("Dialects", recordingDialect.toJson());
-    logger.i('Recording dialect ${recordingDialect.RecordingId} inserted.');
-  }
-
-  static Future<List<RecordingDialect>> getRecordingDialects(
-      int recordingId) async {
-    final db = await database;
-    final List<Map<String, dynamic>> results =
-    await db.query(
-        "Dialects", where: "RecordingId = ?", whereArgs: [recordingId]);
-    return List.generate(
-        results.length, (i) => RecordingDialect.fromJson(results[i]));
-  }
-
-  static Future<List<RecordingDialect>> getRecordingDialectsBE(int recordingBEID) async{
-    logger.i('Loading dialects for recording: ${recordingBEID}');
-    http.Response response;
-    try {
-      final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
-      final Uri url = Uri(
-          scheme: 'https',
-          host: Config.host,
-          path: '/recordings/filtered/$recordingBEID',
-          query: 'verified=true');
-      response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt'
-      },);
-    }
-    catch(e, stackTrace){
-      logger.e('Failed to load dialects for recording: ${recordingBEID} :$e', error: e, stackTrace: stackTrace);
-      return [];
-    }
-    try {
-      if (response.statusCode == 200) {
-        logger.i('Loaded dialects for recording: ${recordingBEID}');
-        final decoded = jsonDecode(response.body);
-        if (decoded is List) {
-          return decoded.map((item) =>
-            RecordingDialect.fromJson(item as Map<String, dynamic>)
-          ).toList();
-        } else {
-          return [];
-        }
-      }
-      else {
-        logger.e('Failed to load $recordingBEID dialects: ${response.statusCode} | ${response.body}');
-        return [];
-      }
-    }
-    catch(e, stackTrace){
-      logger.e('Failed to load $recordingBEID dialects: $e', error: e, stackTrace: stackTrace);
-      return [];
-    }
-  }
-
   /// Checks whether *all* parts of the given recording have been sent.
   /// Throws [UnsentPartsException] if any part remains unsent.
   static Future<void> checkRecordingPartsSent(int recordingId) async {
@@ -1702,5 +1633,38 @@ class DatabaseNew {
         Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
+  }
+
+  // Dialects
+  static Future<int> insertDialect(Dialect dialect) async {
+    final db = await database;
+    int id = await db.insert("Dialects", dialect.toJson());
+    logger.i('Dialect ${dialect.id} inserted.');
+    return id;
+  }
+  static Future<void> updateDialect(Dialect dialect) async {
+    final db = await database;
+    await db.update("Dialects", dialect.toJson(), where: "id = ?", whereArgs: [dialect.id]);
+    logger.i('Dialect ${dialect.id} updated.');
+  }
+  static Future<void> deleteDialect(int id) async {
+    final db = await database;
+    await db.delete("Dialects", where: "id = ?", whereArgs: [id]);
+    logger.i('Dialect $id deleted.');
+  }
+  static Future<List<Dialect>> getDialectsByRecordingId(int recordingId) async {
+    logger.i('Loading dialects for recording: $recordingId');
+    final db = await database;
+    final List<Map<String, dynamic>> results = await db.query("Dialects", where: "recordingId = ?", whereArgs: [recordingId]);
+    if (results.isEmpty) {
+      logger.i('No dialects found for recording: $recordingId');
+      return [];
+    }
+    return List.generate(results.length, (i) => Dialect.fromJson(results[i]));
+  }
+  static Future<List<Dialect>> getDialectsByRecordingBEID(int recordingBEID) async {
+    final db = await database;
+    final List<Map<String, dynamic>> results = await db.query("Dialects", where: "recordingBEID = ?", whereArgs: [recordingBEID]);
+    return List.generate(results.length, (i) => Dialect.fromJson(results[i]));
   }
 }

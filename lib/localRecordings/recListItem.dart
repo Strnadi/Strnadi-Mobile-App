@@ -32,7 +32,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/dialectBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
-import '../PostRecordingForm/RecordingForm.dart';
+import '../dialects/ModelHandler.dart';
 import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 
@@ -58,7 +58,7 @@ class _RecordingItemState extends State<RecordingItem> {
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
 
-  RecordingDialect? dialect;
+  Dialect? dialect;
 
   final MapController _mapController = MapController();
 
@@ -129,17 +129,16 @@ class _RecordingItemState extends State<RecordingItem> {
 
 
   Future<void> GetDialect() async {
-    var recordingId = widget.recording.id!;
-    var dialect = await DatabaseNew.getRecordingDialects(recordingId);
-    if (dialect.isEmpty) {
-      setState(() {
-        this.dialect = null;
-      });
+    final int recordingId = widget.recording.id!;
+    final List<Dialect> dialects =
+        await DatabaseNew.getDialectsByRecordingId(recordingId);
+
+    if (dialects.isEmpty) {
+      setState(() => dialect = null);
       return;
     }
-    setState(() {
-      this.dialect = dialect.first;
-    });
+
+    setState(() => dialect = dialects.first);
   }
 
 

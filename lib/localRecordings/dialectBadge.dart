@@ -15,10 +15,11 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/dialects/ModelHandler.dart';
 
 class DialectBadge extends StatelessWidget {
 
-  final RecordingDialect dialect;
+  final Dialect dialect;
 
   const DialectBadge({
     Key? key,

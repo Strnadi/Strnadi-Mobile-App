@@ -39,6 +39,7 @@ import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
 import 'addDialect.dart';
 import 'dart:math' as math;
+import 'package:strnadi/dialects/ModelHandler.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
@@ -270,28 +271,29 @@ class _RecordingFormState extends State<RecordingForm> {
     _audioPlayer.seek(currentPos + Duration(seconds: seconds));
   }
 
-  void SendDialects() async {
+  Future<void> SendDialects() async {
     var id = _recordingId;
 
     if (id == null) {
       logger.e("Recording BEID is null");
       return;
     }
-    if(dialectSegments.isNotEmpty) {
+    if (dialectSegments.isNotEmpty) {
       var dialect = dialectSegments.first;
-      var body = RecordingDialect(
-        RecordingId: id,
-        StartDate: recording.createdAt
-            .add(
+      var body = Dialect(
+        id: null,                              // will be auto‑generated locally
+        BEID: null,                            // not yet uploaded to BE
+        recordingId: id,                       // local recording FK
+        recordingBEID: null,                   // BE ID unknown until sync
+        userGuessDialect: dialect.type,        // user‑selected code
+        adminDialect: null,
+        startDate: recording.createdAt.add(
             Duration(milliseconds: dialect.startTime.toInt())),
-        EndDate: recording.createdAt.add(
+        endDate: recording.createdAt.add(
             Duration(milliseconds: dialect.endTime.toInt())),
-        dialect: dialect.type,
-
-
       );
 
-      DatabaseNew.insertRecordingDialect(body);
+      DatabaseNew.insertDialect(body);
       logger.i("Dialect inserted into database");
     }
     // for (DialectModel dialect in dialectSegments) {
@@ -533,6 +535,7 @@ class _RecordingFormState extends State<RecordingForm> {
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
+    await SendDialects();
     // Check connectivity and user preference before upload
     if (!await Config.hasBasicInternet) {
       logger.w("Žádné připojení k internetu, nahrávka uložena offline");
@@ -551,12 +554,6 @@ class _RecordingFormState extends State<RecordingForm> {
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
-    }
-    try {
-      SendDialects();
-    }
-    catch(e){
-      logger.w('Error sending dialects: $e');
     }
     logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
