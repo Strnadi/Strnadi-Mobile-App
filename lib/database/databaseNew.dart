@@ -1385,12 +1385,14 @@ class DatabaseNew {
       ''');
       await db.execute('''
       CREATE TABLE Dialects (
-        RecordingId INTEGER PRIMARY KEY AUTOINCREMENT,
-        BEId INTEGER UNIQUE,
-        dialect TEXT NOT NULL,
-        StartDate TEXT NOT NULL,
-        EndDate TEXT NOT NULL,
-        FOREIGN KEY(RecordingId) REFERENCES recordings(id)
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        BEID INTEGER UNIQUE,
+        recordingId INTEGER,
+        recordingBEID INTEGER,
+        userGuessDialect TEXT,
+        adminDialect TEXT,
+        startDate TEXT,
+        endDate TEXT
       )
       ''');
     }, onOpen: (Database db) async {
@@ -1638,6 +1640,8 @@ class DatabaseNew {
   // Dialects
   static Future<int> insertDialect(Dialect dialect) async {
     final db = await database;
+
+    logger.i('dialect: ${dialect.toJson()}');
     int id = await db.insert("Dialects", dialect.toJson());
     logger.i('Dialect ${dialect.id} inserted.');
     return id;

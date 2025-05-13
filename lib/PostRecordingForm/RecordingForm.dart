@@ -535,6 +535,7 @@ class _RecordingFormState extends State<RecordingForm> {
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
+    logger.i("saving dialects");
     await SendDialects();
     // Check connectivity and user preference before upload
     if (!await Config.hasBasicInternet) {
