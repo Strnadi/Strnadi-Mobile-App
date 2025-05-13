@@ -71,7 +71,7 @@ class _LoginState extends State<Login> {
     final url = Uri.https(Config.host, '/auth/login');
 
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
-      _showMessage("Vyplňte jméno i heslo");
+      _showMessage("Vyplňte email i heslo");
       return;
     }
 
@@ -172,7 +172,7 @@ class _LoginState extends State<Login> {
           ),
         );
       } else if (response.statusCode == 401) {
-        _showMessage('Špatné jméno nebo heslo');
+        _showMessage('Špatný email nebo heslo');
       } else {
         logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
         _showMessage('Přihlášení selhalo, zkuste to znovu');
