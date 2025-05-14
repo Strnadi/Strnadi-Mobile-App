@@ -526,6 +526,7 @@ class _RecordingFormState extends State<RecordingForm> {
     logger.i("Played recording path: ${widget.filepath}");
     logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
+    recording.id = _recordingId;
     logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
 
     // Log number of parts to insert
@@ -551,7 +552,7 @@ class _RecordingFormState extends State<RecordingForm> {
       return;
     }
     try {
-      await DatabaseNew.sendRecordingBackground(recording.id!);
+      await DatabaseNew.sendRecordingBackground(_recordingId!);
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);

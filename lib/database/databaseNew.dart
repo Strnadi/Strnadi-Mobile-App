@@ -1422,11 +1422,11 @@ class DatabaseNew {
         logger.w(
             'Old version detected (<=2). Recreating entire database schema...');
         // Drop existing tables
-        await db.execute('DROP TABLE IF EXISTS recordings');
-        await db.execute('DROP TABLE IF EXISTS recordingParts');
-        await db.execute('DROP TABLE IF EXISTS images');
-        await db.execute('DROP TABLE IF EXISTS Notifications');
-        await db.execute('DROP TABLE IF EXISTS Dialects');
+        await db.execute('DROP TABLE IF EXISTS recordings;');
+        await db.execute('DROP TABLE IF EXISTS recordingParts;');
+        await db.execute('DROP TABLE IF EXISTS images;');
+        await db.execute('DROP TABLE IF EXISTS Notifications;');
+        await db.execute('DROP TABLE IF EXISTS Dialects;');
 
         // Recreate tables as defined in the onCreate callback
         await db.execute('''
@@ -1459,10 +1459,8 @@ class DatabaseNew {
             gpsLongitudeStart REAL,
             gpsLongitudeEnd REAL,
             path TEXT,
-            length INTEGER DEFAULT 0,
             square TEXT,
             sent INTEGER,
-            sending INTEGER DEFAULT 0,
             FOREIGN KEY(recordingId) REFERENCES recordings(id)
           )
         ''');
@@ -1511,13 +1509,19 @@ class DatabaseNew {
         await db.setVersion(newVersion);
       }
       if(oldVersion<=5){
-        await db.execute(
-            'ALTER TABLE recordingParts ADD COLUMN length INTEGER'
-        );
+        try {
+          await db.execute(
+              'ALTER TABLE recordingParts ADD COLUMN length INTEGER;'
+          );
+        }
+        catch(e, stackTrace){
+          logger.w('Failed to add length column to recordingParts: $e', error: e, stackTrace: stackTrace);
+          Sentry.captureException(e, stackTrace: stackTrace);
+        }
         await db.setVersion(newVersion);
       }
       if(oldVersion<=6){
-        await db.execute('DROP TABLE IF EXISTS Dialects');
+        await db.execute('DROP TABLE IF EXISTS Dialects;');
         await db.execute('''
           CREATE TABLE Dialects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1527,7 +1531,7 @@ class DatabaseNew {
             userGuessDialect TEXT,
             adminDialect TEXT,
             startDate TEXT,
-            endDate TEXT,
+            endDate TEXT
           )
         ''');
         await db.setVersion(newVersion);
