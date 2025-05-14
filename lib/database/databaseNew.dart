@@ -1326,7 +1326,7 @@ class DatabaseNew {
 
   static Future<Database> initDb() async {
     return openDatabase(
-        'soundNew.db', version: 5, onCreate: (Database db, int version) async {
+        'soundNew.db', version: 6, onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,

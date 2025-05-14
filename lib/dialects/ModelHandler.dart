@@ -98,7 +98,7 @@ class Dialect{
     };
   }
   get dialect {
-    return adminDialect ?? userGuessDialect;
+    return adminDialect ?? 'Nevyhodnoceno';
   }
 }
 

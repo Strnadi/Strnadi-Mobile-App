@@ -141,7 +141,7 @@ class _RecordingFormState extends State<RecordingForm> {
     final safeStorage = FlutterSecureStorage();
     // IMPORTANT: assign widget.filepath so that the recording path is not null.
     recording = Recording(
-      createdAt: DateTime.now(),
+      createdAt: widget.recordingParts[0].startTime!,
       mail: "",
       estimatedBirdsCount: _strnadiCountController.toInt(),
       device: "",
@@ -607,7 +607,15 @@ class _RecordingFormState extends State<RecordingForm> {
         final bool shouldPop = await _confirmDiscard() ?? false;
         if (shouldPop) {
           spectogramKey = GlobalKey();
-          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+              settings: const RouteSettings(name: '/Recorder'),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
         }
       },
       child: Scaffold(

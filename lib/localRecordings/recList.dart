@@ -556,7 +556,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
       // Return the first non‑empty, non‑placeholder dialect we find.
       for (final d in dialects) {
-        final String? name = d.dialect;
+        final String? name = d.userGuessDialect;
         if (name != null && name.isNotEmpty && name != 'Nevyhodnoceno') {
           return name;
         }

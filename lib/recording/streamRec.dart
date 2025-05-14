@@ -299,11 +299,11 @@ class _LiveRecState extends State<LiveRec> {
         return;
       }
       if (_recordState == RecordState.record) {
-        _pause();
+        await _pause();
       } else if (_recordState == RecordState.pause) {
-        _resume();
+        await _resume();
       } else {
-        _start();
+        await _start();
       }
     } catch (e, stackTrace) {
       logger.e("Error toggling recording: $e", error: e, stackTrace: stackTrace);
@@ -417,7 +417,7 @@ class _LiveRecState extends State<LiveRec> {
 
   @override
   Widget build(BuildContext context) {
-    final totalTime = _totalRecordedTime + _recordDuration;
+    final totalTime = _recordDuration;
 
     // Define custom colors to match your design.
     final Color primaryRed = const Color(0xFFFF3B3B);
@@ -897,7 +897,6 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.path = filepath;
     recordingPartsList.add(recordedPart!);
     setState(() {
-      _recordDuration = Duration.zero;
       _recordState = RecordState.pause; // show resume button
     });
   }
@@ -908,8 +907,7 @@ class _LiveRecState extends State<LiveRec> {
       filepath = path;
       _recordState = RecordState.record; // back to recording
     });
-    _elapsedTimer.reset();
-    _elapsedTimer.start();
+    _elapsedTimer.resume();
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Strnadi',
       notificationText: 'Aplikace Strnadi nahrává',

@@ -176,7 +176,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                       SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: _dialectOption('Bez Dialektu'),
+                        child: _dialectOption('Bez dialektu'),
                       ),
                       SizedBox(height: 16),
                       SizedBox(

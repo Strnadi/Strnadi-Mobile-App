@@ -55,7 +55,7 @@ Future<AuthStatus> _onlineIsLoggedIn() async{
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
-    final Uri url = Uri(scheme: 'https', host: Config.host, path: 'auth/verify-jwt', queryParameters: {'jwt': token});
+    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/auth/verify-jwt', queryParameters: {'jwt': token});
 
     try {
       final response = await http.get(
@@ -70,6 +70,26 @@ Future<AuthStatus> _onlineIsLoggedIn() async{
 
       if (response.statusCode == 200) {
         await secureStorage.write(key: 'verified', value: 'true');
+        DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+        if (expirationDate.isAfter(DateTime.now().add(const Duration(days: 7)))) {
+          return AuthStatus.loggedIn;
+        }
+        // If the token is valid but about to expire, refresh it
+        try{
+          final refreshResponse = await http.get(
+            Uri(scheme: 'https', host: Config.host, path: '/auth/renew-jwt'), headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },);
+          if (refreshResponse.statusCode == 200) {
+            String newToken = refreshResponse.body;
+            await secureStorage.write(key: 'token', value: newToken);
+          }
+        }
+        catch(e, stackTrace){
+          Sentry.captureException(e, stackTrace: stackTrace);
+          logger.e('Error refreshing token: $e', error: e, stackTrace: stackTrace);
+        }
         return AuthStatus.loggedIn;
       } else if (response.statusCode == 403) {
         await secureStorage.write(key: 'verified', value: 'false');
@@ -151,137 +171,134 @@ class _AuthState extends State<Authorizator> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          // Ensures scroll if the screen is too short on small devices
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              children: [
-                // Spacing from the top
-                //const SizedBox(height: 0),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                children: [
+                  // Spacing from the top
+                  //const SizedBox(height: 0),
 
-                // Bird image
-                Image.asset(
-                  'assets/images/ncs_logo_tall_large.png', // Update path if needed
-                  width: 200,
-                  height: 200,
-                ),
-
-                const SizedBox(height: 32),
-
-                // Main title
-                const Text(
-                  'Nářečí českých strnadů',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
+                  // Bird image
+                  Image.asset(
+                    'assets/images/ncs_logo_tall_large.png', // Update path if needed
+                    width: 200,
+                    height: 200,
                   ),
-                ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 32),
 
-                // Subtitle
-                const Text(
-                  'Nahrávejte, mapujte, dobývejte',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // "Založit účet" button (yellow background, no elevation)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _navigateIfAllowed(const RegMail()),
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0, // No elevation
-                      shadowColor: Colors.transparent, // Remove shadow
-                      backgroundColor: yellow,
-                      foregroundColor: textColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                  // Main title
+                  const Text(
+                    'Nářečí českých strnadů',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
-                    child: const Text('Založit účet', style: TextStyle(color: textColor),),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
-                // "Přihlásit se" button (outlined)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => _navigateIfAllowed(const Login()),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: Colors.grey[200]!, width: 2),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                  // Subtitle
+                  const Text(
+                    'Nahrávejte, mapujte, dobývejte',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: textColor,
                     ),
-                    child: const Text('Přihlásit se', style: TextStyle(color: textColor)),
                   ),
-                ),
 
-                // Add some space to ensure the bottom disclaimer isn't too close
-                const SizedBox(height: 60),
-              ],
+                  const SizedBox(height: 40),
+
+                  // "Založit účet" button (yellow background, no elevation)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _navigateIfAllowed(const RegMail()),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0, // No elevation
+                        shadowColor: Colors.transparent, // Remove shadow
+                        backgroundColor: yellow,
+                        foregroundColor: textColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text('Založit účet', style: TextStyle(color: textColor),),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // "Přihlásit se" button (outlined)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => _navigateIfAllowed(const Login()),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: textColor,
+                        side: BorderSide(color: Colors.grey[200]!, width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text('Přihlásit se', style: TextStyle(color: textColor)),
+                    ),
+                  ),
+
+                  // Add the terms here
+                  const SizedBox(height: 12),
+                  Column(
+                    children: [
+                      const Text(
+                        'pokračováním souhlasíte se zásadami',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => _launchURL(),
+                        child: const Text(
+                          'ochrany osobních údajů.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Add disclaimer and space at the bottom
+                  const SizedBox(height: 60),
+                  const Text(
+                    'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ),
-        ),
-      ),
-      // Disclaimer pinned at bottom
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'pokračováním souhlasíte se zásadami',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.black),
-              ),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: () => _launchURL(),
-                child: const Text(
-                  'ochrany osobních údajů.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.red,
-                ),
-              ),
-            ],
           ),
         ),
       ),

@@ -132,6 +132,7 @@ class _RegPasswordState extends State<RegPassword> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: InputDecoration(
                     fillColor: Colors.grey[200],
                     filled: true,
@@ -171,7 +172,10 @@ class _RegPasswordState extends State<RegPassword> {
                     }
                     return null;
                   },
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) {
+                    setState(() {});
+                    _formKey.currentState?.validate();
+                  },
                 ),
                 const SizedBox(height: 16),
 

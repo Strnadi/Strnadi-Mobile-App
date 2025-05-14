@@ -59,6 +59,10 @@ import '../dialects/ModelHandler.dart';
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
+/// Global switch that decides whether recordings whose dialect is still
+/// unconfirmed (“Nevyhodnoceno”) are shown on the map.
+bool showUnconfirmedDialects = false;
+
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
 
@@ -72,6 +76,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   String _recordingAuthorFilter = 'all';
   String _dataFilter = 'new';
   bool _showConqueredSectors = true;
+  bool _showUnconfirmedDialects = showUnconfirmedDialects;
   List<Polyline> _gridLines = [];
   Map<int, String> _dialectMap = {};
 
@@ -238,7 +243,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     for (Dialect dialect in dialects) {
       final int? recordingId = dialect.recordingBEID;
       if (recordingId == null) continue;
-      final String dialectName = dialect.dialect ?? 'Nevyhodnoceno';
+      late String dialectName;
+      if(!_showUnconfirmedDialects) {
+        dialectName = dialect.adminDialect  ?? 'Nevyhodnoceno';
+      } else {
+        dialectName = dialect.adminDialect ?? dialect.userGuessDialect ?? 'Nevyhodnoceno';
+      }
       dialectMap[recordingId] = dialectName;
     }
     setState(() {
@@ -437,22 +447,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   MarkerLayer(
                     markers: _recordings
                         .map((part) => Marker(
-                      width: 30.0,
-                      height: 30.0,
-                      point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
-                      child: GestureDetector(
-                        onTap: () {
-                          getRecordingFromPartId(part.recordingId);
-                        },
-                        child: Image.asset(
-                          'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
-                          key: ValueKey('${part.recordingId}_${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}'),
-                          gaplessPlayback: true,
                           width: 30.0,
                           height: 30.0,
-                        ),
-                      ),
-                    ))
+                          point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
+                          child: GestureDetector(
+                            onTap: () {
+                              getRecordingFromPartId(part.recordingId);
+                            },
+                            child: Image.asset(
+                              'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
+                              key: ValueKey('${part.recordingId}_${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}'),
+                              gaplessPlayback: true,
+                              width: 30.0,
+                              height: 30.0,
+                            ),
+                          ),
+                        ))
                         .toList(),
                   )
 
@@ -803,6 +813,61 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           ),
                         ],
                       ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Zobrazovat i nepotvrzené dialekty:'),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _showUnconfirmedDialects = false;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: !_showUnconfirmedDialects
+                                            ? Colors.black
+                                            : Colors.grey),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text('Skrýt'),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _showUnconfirmedDialects = true;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _showUnconfirmedDialects
+                                            ? Colors.black
+                                            : Colors.grey),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text('Zobrazit'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                       // const SizedBox(height: 8),
                       // Column(
                       //   crossAxisAlignment: CrossAxisAlignment.start,
@@ -922,6 +987,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 setModalState(() {
                                   _isSatelliteView = false;
                                   _recordingAuthorFilter = 'all';
+                                  _showUnconfirmedDialects = false;
                                 });
                               },
                               child: const Text('Resetovat'),
@@ -944,7 +1010,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               onPressed: () {
                                 setState(() {
                                   // Apply filters if needed.
+                                  showUnconfirmedDialects = _showUnconfirmedDialects;
                                 });
+                                _fetchDialects();        // refetch dialect data after the setting changes
                                 Navigator.pop(context);
                               },
                               child: const Text('Nastavit'),
