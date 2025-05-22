@@ -292,10 +292,6 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                   ? SizedBox(
                 height: 200,
                 width: double.infinity,
-                child: LiveSpectogram.SpectogramLive(
-                  data: [],
-                  filepath: widget.recording.path,
-                ),
               )
                   : SizedBox(
                 height: 200,
