@@ -57,21 +57,14 @@
 	<dict>
 		<key>NSExceptionDomains</key>
 		<dict>
-			<key>77.236.222.115</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-			<key>api.strnadi.cz</key>
+			<key>newapi.strnadi.cz</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<false/>
 				<key>NSIncludesSubdomains</key>
 				<true/>
 			</dict>
-			<key>niggapi.nanorobot.eu</key>
+			<key>devapi.strnadi.cz</key>
             <dict>
                 <key>NSExceptionAllowsInsecureHTTPLoads</key>
                 <false/>
@@ -129,5 +122,10 @@
     <string>https://eu.i.posthog.com</string>
     <key>com.posthog.posthog.CAPTURE_APPLICATION_LIFECYCLE_EVENTS</key>
     <true/>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:strnadi.cz</string>
+        <string>applinks:dev.strnadi.cz</string>
+    </array>
 </dict>
 </plist>
