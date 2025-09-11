@@ -17,6 +17,8 @@
  * recListItem.dart
  */
 
+import 'dart:convert';
+
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:strnadi/localization/localization.dart';
