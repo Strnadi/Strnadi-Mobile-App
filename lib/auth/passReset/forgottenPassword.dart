@@ -22,6 +22,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/config.dart';
 import '../login.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -72,7 +73,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
 
                 // Heading
                 const Text(
-                  'Zadejte váš e-mail pro změnu hesla',
+                  Translations.text('zadejte_vas_e_mail_pro_zmenu_hesla'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -82,7 +83,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
 
                 // Subheading
                 Text(
-                  'Na tento e-mail vám pošleme instrukce pro reset hesla',
+                  Translations.text('na_tento_e_mail_vam_posleme_instrukce_pro_reset_hesla'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
@@ -93,7 +94,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
 
                 // Label for Email
                 Text(
-                  'E-mail',
+                  Translations.text('e_mail'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -172,7 +173,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: const Text('Poslat odkaz'),
+            child: Text(Translations.text('poslat_odkaz')),
           ),
         ),
       ),
@@ -208,12 +209,12 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset hesla'),
+        title: Text(Translations.text('reset_hesla')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),

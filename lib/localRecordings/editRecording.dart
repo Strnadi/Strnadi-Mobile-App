@@ -19,6 +19,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class EditRecordingPage extends StatefulWidget {
   final Recording recording;
@@ -85,7 +86,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upravit záznam'),
+        title: Text(Translations.text('upravit_zaznam')),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -100,29 +101,29 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
             children: [
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Název'),
+                decoration: const InputDecoration(labelText: Translations.text('nazev')),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Poznámka'),
+                decoration: const InputDecoration(labelText: Translations.text('poznamka')),
                 maxLines: 3,
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _countController,
-                decoration: const InputDecoration(labelText: 'Počet strnadů'),
+                decoration: const InputDecoration(labelText: Translations.text('pocet_strnadu')),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _deviceController,
-                decoration: const InputDecoration(labelText: 'Zařízení'),
+                decoration: const InputDecoration(labelText: Translations.text('zarizeni')),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _save,
-                child: const Text('Uložit změny'),
+                child: Text(Translations.text('ulozit_zmeny')),
               ),
             ],
           ),

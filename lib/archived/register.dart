@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'package:strnadi/archived/recorderWithSpectogram.dart';
 
 import '../config/config.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -107,12 +108,12 @@ class _RegisterState extends State<Register> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Register'),
+        title: Text(Translations.text('register')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),
@@ -123,7 +124,7 @@ class _RegisterState extends State<Register> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-        appBar: AppBar(title: const Text('Registrace')),
+        appBar: AppBar(title: Text(Translations.text('registrace'))),
         body: Center(
           child: Form(
             key: _GlobalKey,
@@ -133,7 +134,7 @@ class _RegisterState extends State<Register> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Text(
-                    'Strnadi',
+                    Translations.text('strnadi'),
                     style: TextStyle(fontSize: 60),
                   ),
                   const SizedBox(height: 20),
@@ -141,7 +142,7 @@ class _RegisterState extends State<Register> {
                     controller: _NickController,
                     textAlign: TextAlign.center,
                     decoration: const InputDecoration(
-                      labelText: 'Username',
+                      labelText: Translations.text('username'),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.name,
@@ -157,7 +158,7 @@ class _RegisterState extends State<Register> {
                     controller: _NameController,
                     textAlign: TextAlign.center,
                     decoration: const InputDecoration(
-                      labelText: 'Name',
+                      labelText: Translations.text('name'),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.name,
@@ -173,7 +174,7 @@ class _RegisterState extends State<Register> {
                     controller: _SurnameController,
                     textAlign: TextAlign.center,
                     decoration: const InputDecoration(
-                      labelText: 'Surname',
+                      labelText: Translations.text('surname'),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.name,
@@ -189,7 +190,7 @@ class _RegisterState extends State<Register> {
                     controller: _emailController,
                     textAlign: TextAlign.center,
                     decoration: const InputDecoration(
-                      labelText: 'Email',
+                      labelText: Translations.text('email'),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.emailAddress,
@@ -205,7 +206,7 @@ class _RegisterState extends State<Register> {
                     textAlign: TextAlign.center,
                     controller: _passwordController,
                     decoration: const InputDecoration(
-                      labelText: 'Password',
+                      labelText: Translations.text('password'),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.visiblePassword,
@@ -218,7 +219,7 @@ class _RegisterState extends State<Register> {
                   ),
                   const SizedBox(height: 20),
                   CheckboxListTile(
-                    title: const Text('I agree to the terms and conditions'),
+                    title: Text(Translations.text('i_agree_to_the_terms_and_conditions')),
                     value: _termsAgreement,
                     onChanged: (value) {
                       setState(() {
@@ -240,7 +241,7 @@ class _RegisterState extends State<Register> {
                           ),
                         ),
                         onPressed: register,
-                        child: const Text('Submit'),
+                        child: Text(Translations.text('submit')),
                       ),
                     ),
                   ),

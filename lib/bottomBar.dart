@@ -26,6 +26,7 @@ import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'config/config.dart';
+import 'package:strnadi/localization/translations.dart';
 
 
 // 1. Add enum for bottom bar items
@@ -137,7 +138,7 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (!await Config.hasBasicInternet) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Chybí připojení k internetu. Mapa není dostupná.'),
+                    content: Text(Translations.text('chybi_pripojeni_k_internetu_mapa_neni_dostupna')),
                     duration: Duration(seconds: 3),
                   ),
                 );

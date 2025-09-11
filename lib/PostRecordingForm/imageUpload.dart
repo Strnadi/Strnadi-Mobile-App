@@ -16,6 +16,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class MultiPhotoUploadWidget extends StatefulWidget {
   final Function(List<File>) onImagesSelected;
@@ -75,7 +76,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Fotografie',
+              Translations.text('fotografie'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -99,7 +100,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               child: ElevatedButton.icon(
                 onPressed: () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt, size: 16),
-                label: const Text('Vyfotit', style: TextStyle(fontSize: 14)),
+                label: const Text(Translations.text('vyfotit'), style: TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -113,7 +114,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               child: ElevatedButton.icon(
                 onPressed: _pickMultipleImages,
                 icon: const Icon(Icons.photo_library, size: 16),
-                label: const Text('Nahrát', style: TextStyle(fontSize: 14)),
+                label: const Text(Translations.text('nahrat'), style: TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -185,7 +186,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              'Vyberte fotografie',
+              Translations.text('vyberte_fotografie'),
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,

@@ -15,6 +15,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class ResetEmailSent extends StatelessWidget {
   final String userEmail;
@@ -46,7 +47,7 @@ class ResetEmailSent extends StatelessWidget {
             children: [
               const SizedBox(height: 36),
               const Text(
-                'E-mail poslán',
+                Translations.text('e_mail_poslan'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -94,7 +95,7 @@ class ResetEmailSent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: const Text('Ok'),
+            child: Text(Translations.text('ok_1')),
           ),
         ),
       ),

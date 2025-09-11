@@ -19,6 +19,7 @@ import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 
 import 'cityReg.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -98,7 +99,7 @@ class _RegNameState extends State<RegName> {
                 children: [
                   Center(
                     child: const Text(
-                      'Zadejte vaše jméno, příjmení\na zvolte si přezdívku',
+                      Translations.text('zadejte_vase_jmeno_prijmeni_na_zvolte_si_prezdivku'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -111,7 +112,7 @@ class _RegNameState extends State<RegName> {
 
                   // "Jméno *" label and text field
                   const Text(
-                    'Jméno *',
+                    Translations.text('jmeno'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -152,7 +153,7 @@ class _RegNameState extends State<RegName> {
 
                   // "Příjmení *" label and text field
                   const Text(
-                    'Příjmení *',
+                    Translations.text('prijmeni'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -193,7 +194,7 @@ class _RegNameState extends State<RegName> {
 
                   // "Přezdívka" label and text field (optional)
                   const Text(
-                    'Přezdívka (volitelné)',
+                    Translations.text('prezdivka_volitelne'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -205,7 +206,7 @@ class _RegNameState extends State<RegName> {
                     controller: _nickController,
                     keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      hintText: 'Volitelné',
+                      hintText: Translations.text('volitelne'),
                       fillColor: Colors.grey[200],
                       filled: true,
                       contentPadding:
@@ -218,7 +219,7 @@ class _RegNameState extends State<RegName> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.',
+                    Translations.text('pokud_neuvedete_prezdivku_ostatni_uzivatele_uvidi_vase_skutecne_jmeno'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -263,7 +264,7 @@ class _RegNameState extends State<RegName> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: const Text('Pokračovat'),
+                      child: Text(Translations.text('pokracovat')),
                     ),
                   ),
                 ],

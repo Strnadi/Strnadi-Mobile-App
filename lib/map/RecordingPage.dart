@@ -34,6 +34,7 @@ import 'package:strnadi/user/settingsPages/userInfo.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -225,7 +226,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     } catch (e, stackTrace) {
       logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error downloading recording")),
+        const SnackBar(content: Text(Translations.text('error_downloading_recording'))),
       );
     }
   }
@@ -304,11 +305,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Nahrávka není dostupná'),
+                      Text(Translations.text('nahravka_neni_dostupna')),
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: _downloadRecording,
-                        child: const Text('Stáhnout nahrávku'),
+                        child: Text(Translations.text('stahnout_nahravku')),
                       ),
                     ],
                   ),
@@ -355,7 +356,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                           padding: const EdgeInsets.all(10.0),
                           child: Column(
                             children: [
-                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text("Datum a čas")]),
+                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(Translations.text('datum_a_cas'))]),
                               Text(
                                 formatDateTime(widget.recording.createdAt),
                                 style: const TextStyle(fontSize: 16),
@@ -376,7 +377,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Predpokladany pocet strnadu: "),
+                          Text(Translations.text('predpokladany_pocet_strnadu')),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
                       ),

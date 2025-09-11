@@ -31,6 +31,7 @@ import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -192,7 +193,7 @@ class _LoginState extends State<Login> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('OK'))
+              child: Text(Translations.text('ok')))
         ],
       ),
     );
@@ -228,7 +229,7 @@ class _LoginState extends State<Login> {
 
               // Title: "Přihlášení"
               const Text(
-                'Přihlášení',
+                Translations.text('prihlaseni'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -243,7 +244,7 @@ class _LoginState extends State<Login> {
                   children: [
                     // --- E-mail label and TextField ---
                     Text(
-                      'E-mail',
+                      Translations.text('e_mail'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -275,7 +276,7 @@ class _LoginState extends State<Login> {
 
                     // --- Heslo (Password) label and TextField ---
                     Text(
-                      'Heslo',
+                      Translations.text('heslo'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -335,7 +336,7 @@ class _LoginState extends State<Login> {
                     );
                     // Handle "Forgot password" here
                   },
-                  child: const Text('Zapomenuté heslo?'),
+                  child: Text(Translations.text('zapomenute_heslo')),
                 ),
               ),
 
@@ -352,7 +353,7 @@ class _LoginState extends State<Login> {
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('Nebo'),
+                    child: Text(Translations.text('nebo')),
                   ),
                   Expanded(
                     child: Divider(
@@ -392,7 +393,7 @@ class _LoginState extends State<Login> {
                     width: 24,
                   ),
                   label: const Text(
-                    'Pokračovat přes Google',
+                    Translations.text('pokracovat_pres_google'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -432,7 +433,7 @@ class _LoginState extends State<Login> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: const Text('Přihlásit se'),
+            child: Text(Translations.text('prihlasit_se')),
           ),
         ),
       ),

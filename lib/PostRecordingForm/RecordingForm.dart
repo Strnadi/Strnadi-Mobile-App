@@ -39,6 +39,7 @@ import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
 import 'addDialect.dart';
 import 'dart:math' as math;
+import 'package:strnadi/localization/translations.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
@@ -194,12 +195,12 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Message'),
+          title: Text(Translations.text('message')),
           content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(Translations.text('ok')),
             ),
           ],
         );
@@ -212,20 +213,20 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Potvrzení'),
-          content: const Text('Opravdu chcete smazat nahrávku?'),
+          title: Text(Translations.text('potvrzeni')),
+          content: Text(Translations.text('opravdu_chcete_smazat_nahravku')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(false);
               },
-              child: const Text('Ne'),
+              child: Text(Translations.text('ne')),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
-              child: const Text('Ano'),
+              child: Text(Translations.text('ano')),
             ),
           ],
         );
@@ -238,14 +239,14 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Potvrzení'),
-          content: const Text('Opravdu chcete smazat nahrávku?'),
+          title: Text(Translations.text('potvrzeni')),
+          content: Text(Translations.text('opravdu_chcete_smazat_nahravku')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Ne'),
+              child: Text(Translations.text('ne')),
             ),
             TextButton(
               onPressed: () {
@@ -256,7 +257,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   MaterialPageRoute(builder: (context) => LiveRec()),
                 );
               },
-              child: const Text('Ano'),
+              child: Text(Translations.text('ano')),
             ),
           ],
         );
@@ -625,16 +626,16 @@ class _RecordingFormState extends State<RecordingForm> {
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: const Text('Potvrzení'),
-                        content: const Text('Opravdu chcete uložit tuto nahrávku?'),
+                        title: Text(Translations.text('potvrzeni')),
+                        content: Text(Translations.text('opravdu_chcete_ulozit_tuto_nahravku')),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Ne'),
+                            child: Text(Translations.text('ne')),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Ano'),
+                            child: Text(Translations.text('ano')),
                           ),
                         ],
                       );
@@ -652,7 +653,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: const Text("Uložit"),
+                child: Text(Translations.text('ulozit')),
               ),
             ),
           ],
@@ -699,7 +700,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Přidat dialekt'),
+                    label: Text(Translations.text('pridat_dialekt')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFF7C0),
                       foregroundColor: Colors.black,
@@ -725,7 +726,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Název nahrávky field
-                        Text('Název nahrávky', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(Translations.text('nazev_nahravky'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -753,7 +754,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Počet strnadů slider
-                        Text('Počet strnadů', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(Translations.text('pocet_strnadu'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         // Display current slider value above the slider.
                         Text(
@@ -780,7 +781,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Komentář field (multiline)
-                        Text('Komentář', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(Translations.text('komentar'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -803,7 +804,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Mapa label and map widget with same padding as text fields.
-                        Text('Mapa', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(Translations.text('mapa'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -821,7 +822,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                       color: Colors.grey.shade300,
                                       alignment: Alignment.center,
                                       child: const Text(
-                                        "Mapu nelze načíst bez připojení k internetu.",
+                                        Translations.text('mapu_nelze_nacist_bez_pripojeni_k_internetu'),
                                         style: TextStyle(fontSize: 14, color: Colors.black54),
                                       ),
                                     );
@@ -865,7 +866,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                         color: Colors.grey.shade300,
                                         alignment: Alignment.center,
                                         child: const Text(
-                                          "Nahrávka neobsahuje žádné GPS body.",
+                                          Translations.text('nahravka_neobsahuje_zadne_gps_body'),
                                           style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
                                         ),
                                       );
@@ -886,14 +887,14 @@ class _RecordingFormState extends State<RecordingForm> {
                                   context: context,
                                   builder: (BuildContext context) {
                                     return AlertDialog(
-                                      title: const Text('Potvrzení'),
-                                      content: const Text('Opravdu chcete smazat nahrávku?'),
+                                      title: Text(Translations.text('potvrzeni')),
+                                      content: Text(Translations.text('opravdu_chcete_smazat_nahravku')),
                                       actions: [
                                         TextButton(
                                           onPressed: () {
                                             Navigator.of(context).pop();
                                           },
-                                          child: const Text('Ne'),
+                                          child: Text(Translations.text('ne')),
                                         ),
                                         TextButton(
                                           onPressed: () {
@@ -904,7 +905,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                               MaterialPageRoute(builder: (context) => LiveRec()),
                                             );
                                           },
-                                          child: const Text('Ano'),
+                                          child: Text(Translations.text('ano')),
                                         ),
                                       ],
                                     );
@@ -918,7 +919,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              child: const Text('Smazat nahrávku'),
+                              child: Text(Translations.text('smazat_nahravku')),
                             ),
                           ),
                         ),

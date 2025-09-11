@@ -32,6 +32,7 @@ import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -90,12 +91,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Offline režim'),
-              content: const Text('Jste offline. Budou dostupné pouze lokálně uložené záznamy.'),
+              title: Text(Translations.text('offline_rezim')),
+              content: Text(Translations.text('jste_offline_budou_dostupne_pouze_lokalne_ulozene_zaznamy')),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
+                  child: Text(Translations.text('ok')),
                 ),
               ],
             ),
@@ -117,7 +118,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(Translations.text('ok'))),
         ],
       ),
     );
@@ -166,13 +167,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Třídění a filtry', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text(Translations.text('trideni_a_filtry'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.sort_by_alpha),
-                title: const Text('Třídit podle názvu'),
+                title: Text(Translations.text('tridit_podle_nazvu')),
                 // Highlight active sort option
                 tileColor: sortOptions == SortBy.name ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
@@ -188,7 +189,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.date_range),
-                title: const Text('Třídit podle data'),
+                title: Text(Translations.text('tridit_podle_data')),
                 tileColor: sortOptions == SortBy.date ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   setState(() {
@@ -203,7 +204,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.filter_list),
-                title: const Text('Počet ptáků'),
+                title: Text(Translations.text('pocet_ptaku')),
                 tileColor: sortOptions == SortBy.ebc ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   if (sortOptions == SortBy.ebc) {
@@ -219,7 +220,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.download),
-                title: const Text('Stažené'),
+                title: Text(Translations.text('stazene')),
                 tileColor: sortOptions == SortBy.downloaded ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   FilterDownloaded();
@@ -235,7 +236,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.clear),
-                title: const Text('Zrušit filtr'),
+                title: Text(Translations.text('zrusit_filtr')),
                 onTap: () {
                   getRecordings();
                   setState(() {
@@ -354,7 +355,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   children: const [
                     SizedBox(
                       height: 500,
-                      child: Center(child: Text('Zatím nemáte žádné záznamy')),
+                      child: Center(child: Text(Translations.text('zatim_nemate_zadne_zaznamy'))),
                     )
                   ],
                 )

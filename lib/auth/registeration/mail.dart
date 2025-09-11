@@ -28,6 +28,7 @@ import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 
 import '../../config/config.dart';
 import '../../md_renderer.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -54,14 +55,14 @@ class _RegMailState extends State<RegMail> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Uživatel již existuje'),
-        content: const Text('Uživatel s tímto e-mailem již existuje.'),
+        title: Text(Translations.text('uzivatel_jiz_existuje')),
+        content: Text(Translations.text('uzivatel_s_timto_e_mailem_jiz_existuje')),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
             },
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),
@@ -119,7 +120,7 @@ class _RegMailState extends State<RegMail> {
             children: [
               // Title
               const Text(
-                'Zadejte váš e-mail',
+                Translations.text('zadejte_vas_e_mail'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -129,7 +130,7 @@ class _RegMailState extends State<RegMail> {
 
               // "E-mail" label
               Text(
-                'E-mail',
+                Translations.text('e_mail'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -216,11 +217,10 @@ class _RegMailState extends State<RegMail> {
                           style: TextStyle(color: Colors.black),
                           children: [
                             TextSpan(
-                              text:
-                              'Zapojením do projektu občanské vědy Nářečí českých strnadů ',
+                              text: Translations.text('zapojenim_do_projektu_obcanske_vedy_nareci_ceskych_strnadu'),
                             ),
                             TextSpan(
-                              text: 'souhlasím s podmínkami',
+                              text: Translations.text('souhlasim_s_podminkami'),
                               style: TextStyle(
                                 color: Colors.blue,
                                 decoration: TextDecoration.underline,
@@ -249,7 +249,7 @@ class _RegMailState extends State<RegMail> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    'Pro pokračování musíte souhlasit s podmínkami.',
+                    Translations.text('pro_pokracovani_musite_souhlasit_s_podminkami'),
                     style: TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
@@ -299,7 +299,7 @@ class _RegMailState extends State<RegMail> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Pokračovat'),
+                  child: Text(Translations.text('pokracovat')),
                 ),
               ),
 
@@ -317,7 +317,7 @@ class _RegMailState extends State<RegMail> {
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('Nebo'),
+                    child: Text(Translations.text('nebo')),
                   ),
                   Expanded(
                     child: Divider(
@@ -372,7 +372,7 @@ class _RegMailState extends State<RegMail> {
                     width: 24,
                   ),
                   label: const Text(
-                    'Pokračovat přes Google',
+                    Translations.text('pokracovat_pres_google'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(

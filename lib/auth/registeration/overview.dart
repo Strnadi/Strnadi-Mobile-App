@@ -23,6 +23,7 @@ import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'emailSent.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class RegOverview extends StatefulWidget {
   final String email;
@@ -64,12 +65,12 @@ class _RegOverviewState extends State<RegOverview> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
+        title: Text(Translations.text('chyba')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),
@@ -214,7 +215,7 @@ class _RegOverviewState extends State<RegOverview> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Přehled informací',
+                Translations.text('prehled_informaci'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -223,7 +224,7 @@ class _RegOverviewState extends State<RegOverview> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Zkontrolujte prosím zadané údaje a potvrďte registraci.',
+                Translations.text('zkontrolujte_prosim_zadane_udaje_a_potvrdte_registraci'),
                 style: TextStyle(
                   fontSize: 14,
                   color: textColor,
@@ -249,7 +250,7 @@ class _RegOverviewState extends State<RegOverview> {
                   ),
                   const Expanded(
                     child: Text(
-                      'Souhlasím se zasíláním marketingových sdělení',
+                      Translations.text('souhlasim_se_zasilanim_marketingovych_sdeleni'),
                       style: TextStyle(
                         fontSize: 14,
                         color: _RegOverviewState.textColor,
@@ -277,7 +278,7 @@ class _RegOverviewState extends State<RegOverview> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Registrovat'),
+                  child: Text(Translations.text('registrovat')),
                 ),
               ),
             ],

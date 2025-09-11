@@ -19,6 +19,7 @@ import 'package:strnadi/user/settingsPages/userInfo.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/md_renderer.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class MenuScreen extends StatelessWidget {
   final List<String> menuItems = [
@@ -107,11 +108,11 @@ class MenuScreen extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 15),
-          child: Text('Creators: Marian Pecqueur && Jan Drobílek'),
+          child: Text(Translations.text('creators_marian_pecqueur_jan_drobilek')),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text('Kontakt: info@strnadi.cz, developers@strnadi.cz'),
+          child: Text(Translations.text('kontakt_info_strnadi_cz_developers_strnadi_cz')),
         ),
       ],
     );

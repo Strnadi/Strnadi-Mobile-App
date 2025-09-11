@@ -21,6 +21,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:version/version.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Future<void> checkForUpdate(BuildContext context) async {
   try {
@@ -80,8 +81,11 @@ Future<void> checkForUpdate(BuildContext context) async {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('Update Available'),
-          content: Text('A new version (${latestVersion.toString()}) is available. Please update your app.'),
+          title: Text(Translations.text('update_available')),
+          content: Text(
+            Translations.text('update_available_message')
+                .replaceFirst('{version}', latestVersion.toString()),
+          ),
           actions: [
             TextButton(
               onPressed: () async {
@@ -103,7 +107,7 @@ Future<void> checkForUpdate(BuildContext context) async {
                 }
                 Navigator.of(context).pop();
               },
-              child: Text('Update'),
+              child: Text(Translations.text('update')),
             ),
           ],
         ),

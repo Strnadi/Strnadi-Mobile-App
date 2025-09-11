@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class WIP_warning extends StatelessWidget {
   const WIP_warning({super.key});
@@ -47,7 +48,7 @@ class WIP_warning extends StatelessWidget {
                   children: [
                     Icon(Icons.arrow_back),
                     SizedBox(width: 4),
-                    Text("Zpět"),
+                    Text(Translations.text('zpet')),
                   ],
                 ),
               ),
@@ -58,19 +59,19 @@ class WIP_warning extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Nářečí českých strnadů',
+              Translations.text('nareci_ceskych_strnadu'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             const Text(
-              'Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.',
+              Translations.text('projekt_obcanske_vedy_zamereny_na_studium_rozmanitosti_ptaciho_zpevu_nahravanim_zpevu_strnadu_obecnych_po_celem_cesku_muzete_prispet_k_poznani_jak_se_v_krajine_udrzuji_ptaci_nareci'),
               style: TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             const Text(
-              'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+              Translations.text('aplikace_i_web_stale_prochazeji_velmi_bourlivym_vyvojem_za_chyby_se_omlouvame_teste_se_na_caste_aktualizace_a_vylepsovani'),
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 12,

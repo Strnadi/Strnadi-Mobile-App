@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class DialectModel {
   final String type;
@@ -111,7 +112,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Přidání dialektu',
+                        Translations.text('pridani_dialektu'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -206,7 +207,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           Navigator.pop(context);
                         }
                             : null,
-                        child: Text('Potvrdit'),
+                        child: Text(Translations.text('potvrdit')),
                       ),
                     ],
                   ),

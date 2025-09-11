@@ -17,6 +17,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class MaintenancePage extends StatelessWidget {
   const MaintenancePage({Key? key}) : super(key: key);
@@ -47,7 +48,7 @@ class MaintenancePage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               const Text(
-                'Aplikace Strnadi je momentálně v údržbě.',
+                Translations.text('aplikace_strnadi_je_momentalne_v_udrzbe'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -57,7 +58,7 @@ class MaintenancePage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Podrobnější informace najdete zde:',
+                Translations.text('podrobnejsi_informace_najdete_zde'),
                 style: TextStyle(
                   fontSize: 16,
                   color: Color(0xFF2D2B18),
@@ -68,7 +69,7 @@ class MaintenancePage extends StatelessWidget {
               GestureDetector(
                 onTap: _openStatusPage,
                 child: const Text(
-                  'https://status.strnadi.cz/status/default',
+                  Translations.text('https_status_strnadi_cz_status_default'),
                   style: TextStyle(
                     fontSize: 16,
                     decoration: TextDecoration.underline,

@@ -33,6 +33,7 @@ import 'package:strnadi/md_renderer.dart';
 
 import '../config/config.dart';
 import 'launch_warning.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -171,7 +172,7 @@ class _AuthState extends State<Authorizator> {
 
                 // Main title
                 const Text(
-                  'Nářečí českých strnadů',
+                  Translations.text('nareci_ceskych_strnadu'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 24,
@@ -184,7 +185,7 @@ class _AuthState extends State<Authorizator> {
 
                 // Subtitle
                 const Text(
-                  'Nahrávejte, mapujte, dobývejte',
+                  Translations.text('nahravejte_mapujte_dobyvejte'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -213,7 +214,7 @@ class _AuthState extends State<Authorizator> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text('Založit účet', style: TextStyle(color: textColor),),
+                    child: const Text(Translations.text('zalozit_ucet'), style: TextStyle(color: textColor),),
                   ),
                 ),
 
@@ -236,7 +237,7 @@ class _AuthState extends State<Authorizator> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text('Přihlásit se', style: TextStyle(color: textColor)),
+                    child: const Text(Translations.text('prihlasit_se'), style: TextStyle(color: textColor)),
                   ),
                 ),
 
@@ -255,7 +256,7 @@ class _AuthState extends State<Authorizator> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'pokračováním souhlasíte se zásadami',
+                Translations.text('pokracovanim_souhlasite_se_zasadami'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.black),
               ),
@@ -263,7 +264,7 @@ class _AuthState extends State<Authorizator> {
               GestureDetector(
                 onTap: () => _launchURL(),
                 child: const Text(
-                  'ochrany osobních údajů.',
+                  Translations.text('ochrany_osobnich_udaju'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
@@ -274,7 +275,7 @@ class _AuthState extends State<Authorizator> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+                Translations.text('aplikace_i_web_stale_prochazeji_velmi_bourlivym_vyvojem_za_chyby_se_omlouvame_teste_se_na_caste_aktualizace_a_vylepsovani'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -407,12 +408,12 @@ class _AuthState extends State<Authorizator> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Login'),
+        title: Text(Translations.text('login')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),
@@ -428,7 +429,7 @@ class _AuthState extends State<Authorizator> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),

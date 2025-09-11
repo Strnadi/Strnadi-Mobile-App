@@ -23,18 +23,19 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/localization/translations.dart';
 
 void _showMessage(String message) {
   var context;
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Login'),
+      title: Text(Translations.text('login')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(Translations.text('ok')),
         ),
       ],
     ),

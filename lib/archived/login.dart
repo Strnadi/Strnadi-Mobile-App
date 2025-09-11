@@ -27,6 +27,7 @@ import '../recording/streamRec.dart';
 import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -98,7 +99,7 @@ class _LoginState extends State<Login> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(Translations.text('ok')))],
       ),
     );
   }
@@ -122,14 +123,14 @@ class _LoginState extends State<Login> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Strnadi',
+            const Text(Translations.text('strnadi'),
                 style: TextStyle(fontSize: 70, fontWeight: FontWeight.bold, color: Colors.black),
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
             TextField(
               controller: _emailController,
               decoration: InputDecoration(
-                labelText: 'Email',
+                labelText: Translations.text('email'),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
               keyboardType: TextInputType.emailAddress,
@@ -139,7 +140,7 @@ class _LoginState extends State<Login> {
               controller: _passwordController,
               obscureText: true,
               decoration: InputDecoration(
-                labelText: 'Heslo',
+                labelText: Translations.text('heslo'),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
               keyboardType: TextInputType.visiblePassword,
@@ -152,7 +153,7 @@ class _LoginState extends State<Login> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgottenPassword()));
                 },
                 child: const Text(
-                  'Zapomenuté heslo?',
+                  Translations.text('zapomenute_heslo'),
                   style: TextStyle(color: Colors.grey),
                 ),
               ),
@@ -165,17 +166,17 @@ class _LoginState extends State<Login> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: login,
-              child: const Text('Přihlásit se'),
+              child: Text(Translations.text('prihlasit_se')),
             ),
             const SizedBox(height: 16),
             Center(
               child: RichText(
                 text: TextSpan(
-                  text: 'Nemáte účet? ',
+                  text: Translations.text('nemate_ucet'),
                   style: const TextStyle(color: Colors.black),
                   children: [
                     TextSpan(
-                      text: 'Zaregistrovat se',
+                      text: Translations.text('zaregistrovat_se'),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                       recognizer: _registerTapRecognizer,
                     ),
@@ -187,7 +188,7 @@ class _LoginState extends State<Login> {
             Center(
               child: Text.rich(
                 TextSpan(
-                  text: 'pokračováním souhlasíte s ',
+                  text: Translations.text('pokracovanim_souhlasite_s'),
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                   children: [
                     TextSpan(
@@ -195,7 +196,7 @@ class _LoginState extends State<Login> {
                         ..onTap = () {
                           _launchURL();
                         },
-                      text: 'zásadami ochrany osobních údajů.',
+                      text: Translations.text('zasadami_ochrany_osobnich_udaju'),
                       style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                     ),
                   ],

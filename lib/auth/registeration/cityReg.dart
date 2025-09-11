@@ -27,6 +27,7 @@ import 'package:strnadi/firebase/firebase.dart' as fb;
 import '../../config/config.dart';
 import 'emailSent.dart';
 import 'overview.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -59,12 +60,12 @@ class _RegLocationState extends State<RegLocation> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
+        title: Text(Translations.text('chyba')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(Translations.text('ok')),
           ),
         ],
       ),
@@ -171,7 +172,7 @@ class _RegLocationState extends State<RegLocation> {
               children: [
                 // Title
                 const Text(
-                  'Kde se nacházíte?',
+                  Translations.text('kde_se_nachazite'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -181,7 +182,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 8),
                 // Subtitle / Description
                 const Text(
-                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.',
+                  Translations.text('abychom_vas_mohli_informovat_ohledne_zajimavosti_z_vasi_lokality_budeme_potrebovat_vase_psc_pouzito_pro_cileni_notifikaci_a_obec_mesto_ktere_se_zobrazi_ostatnim_uzivatelum_tento_krok_je_nepovinny'),
                   style: TextStyle(
                     fontSize: 14,
                     color: textColor,
@@ -191,7 +192,7 @@ class _RegLocationState extends State<RegLocation> {
 
                 // PSČ label
                 const Text(
-                  'PSČ',
+                  Translations.text('psc'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -226,7 +227,7 @@ class _RegLocationState extends State<RegLocation> {
 
                 // Obec label
                 const Text(
-                  'Obec',
+                  Translations.text('obec'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -285,7 +286,7 @@ class _RegLocationState extends State<RegLocation> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: const Text('Pokračovat'),
+                    child: Text(Translations.text('pokracovat')),
                   ),
                 ),
               ],

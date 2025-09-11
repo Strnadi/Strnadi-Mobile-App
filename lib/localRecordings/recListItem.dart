@@ -35,6 +35,7 @@ import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -215,12 +216,12 @@ class _RecordingItemState extends State<RecordingItem> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Stahování nedostupné'),
-          content: const Text('Pro stažení nahrávky je vyžadováno připojení k internetu.'),
+          title: Text(Translations.text('stahovani_nedostupne')),
+          content: Text(Translations.text('pro_stazeni_nahravky_je_vyzadovano_pripojeni_k_internetu')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(Translations.text('ok')),
             ),
           ],
         ),
@@ -253,7 +254,7 @@ class _RecordingItemState extends State<RecordingItem> {
       logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error downloading recording")),
+        const SnackBar(content: Text(Translations.text('error_downloading_recording'))),
       );
     }
   }
@@ -274,7 +275,7 @@ class _RecordingItemState extends State<RecordingItem> {
       Sentry.captureException(e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error deleting recording')),
+          const SnackBar(content: Text(Translations.text('error_deleting_recording'))),
         );
       }
     }
@@ -373,11 +374,11 @@ class _RecordingItemState extends State<RecordingItem> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Nahrávka není dostupná'),
+                            Text(Translations.text('nahravka_neni_dostupna')),
                             const SizedBox(height: 8),
                             ElevatedButton(
                               onPressed: _downloadRecording,
-                              child: const Text('Stáhnout nahrávku'),
+                              child: Text(Translations.text('stahnout_nahravku')),
                             ),
                           ],
                         ),
@@ -423,7 +424,7 @@ class _RecordingItemState extends State<RecordingItem> {
                           padding: const EdgeInsets.all(10.0),
                           child: Column(
                             children: [
-                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text("Datum a čas")]),
+                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(Translations.text('datum_a_cas'))]),
                               Text(
                                 formatDateTime(widget.recording.createdAt),
                                 style: const TextStyle(fontSize: 16),
@@ -448,7 +449,7 @@ class _RecordingItemState extends State<RecordingItem> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Predpokladany pocet strnadu: "),
+                          Text(Translations.text('predpokladany_pocet_strnadu')),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
                       ),
@@ -459,7 +460,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.send),
-                          label: const Text('Odeslat záznam'),
+                          label: Text(Translations.text('odeslat_zaznam')),
                           onPressed: () async {
                             try {
                               // ensure all parts have been sent
@@ -474,11 +475,11 @@ class _RecordingItemState extends State<RecordingItem> {
                               final shouldResend = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  title: const Text('Neodeslané části'),
-                                  content: const Text('Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?'),
+                                  title: Text(Translations.text('neodeslane_casti')),
+                                  content: Text(Translations.text('nektere_casti_nahravky_nebyly_odeslany_chcete_je_zkusit_znovu_odeslat')),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Zrušit')),
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Odeslat znovu')),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(Translations.text('zrusit'))),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(Translations.text('odeslat_znovu'))),
                                   ],
                                 ),
                               );
@@ -502,29 +503,29 @@ class _RecordingItemState extends State<RecordingItem> {
                             // Optionally refresh UI or provide feedback
                           });
                         },
-                        child: const Text('Smazat z cache'),
+                        child: Text(Translations.text('smazat_z_cache')),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.delete, color: Colors.white,),
-                        label: const Text('Smazat záznam', style: TextStyle(color: Colors.white),),
+                        label: const Text(Translations.text('smazat_zaznam'), style: TextStyle(color: Colors.white),),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Potvrdit smazání'),
-                              content: const Text('Opravdu chcete tento záznam natrvalo smazat?'),
+                              title: Text(Translations.text('potvrdit_smazani')),
+                              content: Text(Translations.text('opravdu_chcete_tento_zaznam_natrvalo_smazat')),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: const Text('Zrušit'),
+                                  child: Text(Translations.text('zrusit')),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Smazat'),
+                                  child: Text(Translations.text('smazat')),
                                 ),
                               ],
                             ),

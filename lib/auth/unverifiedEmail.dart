@@ -21,6 +21,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -97,12 +98,12 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Email již ověřen'),
-            content: const Text('Tento e-mail již byl ověřen.'),
+            title: Text(Translations.text('email_jiz_overen')),
+            content: Text(Translations.text('tento_e_mail_jiz_byl_overen')),
             actions: [
               TextButton(
                 onPressed: alreadyVerified,
-                child: const Text('OK'),
+                child: Text(Translations.text('ok')),
               ),
             ],
           ),
@@ -126,7 +127,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the email app')),
+        const SnackBar(content: Text(Translations.text('could_not_open_the_email_app'))),
       );
     }
   }
@@ -159,7 +160,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
             children: [
               const SizedBox(height: 16),
               const Text(
-                'Email není ověřen',
+                Translations.text('email_neni_overen'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -213,7 +214,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Otevřít e-mail'),
+                  child: Text(Translations.text('otevrit_e_mail')),
                 ),
               ),
               const SizedBox(height: 16),
@@ -234,7 +235,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Pokračovat'),
+                  child: Text(Translations.text('pokracovat')),
                 ),
               ),
               const SizedBox(height: 16),

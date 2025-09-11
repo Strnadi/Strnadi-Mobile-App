@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
 import '../config/config.dart';
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -59,11 +60,11 @@ class _ServerHealthState extends State<ServerHealth> {
       child: Center(
         child: _isServerHealthy
             ? const Text(
-                'Server is healthy',
+                Translations.text('server_is_healthy'),
                 style: TextStyle(color: Colors.green),
               )
             : const Text(
-                'Server is down',
+                Translations.text('server_is_down'),
                 style: TextStyle(color: Colors.red),
               ),
       ),

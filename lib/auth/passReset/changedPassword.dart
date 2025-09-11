@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class PasswordChangedScreen extends StatelessWidget {
   const PasswordChangedScreen({super.key});
@@ -39,7 +40,7 @@ class PasswordChangedScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Heslo úspěšně změněno',
+                  Translations.text('heslo_uspesne_zmeneno'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -48,7 +49,7 @@ class PasswordChangedScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Nyní se můžete přihlásit do vašeho účtu.',
+                  Translations.text('nyni_se_muzete_prihlasit_do_vaseho_uctu'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -74,7 +75,7 @@ class PasswordChangedScreen extends StatelessWidget {
                           fontSize: 16,
                         ),
                       ),
-                      child: const Text('Ok'),
+                      child: Text(Translations.text('ok_1')),
                     ),
                   ),
                 ),

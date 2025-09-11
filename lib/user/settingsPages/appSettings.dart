@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
 import '../../bottomBar.dart';
 import '../settingsManager.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -82,7 +83,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Maximální počet nahrávek uložených lokálně. Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny.',
+              Translations.text('maximalni_pocet_nahravek_ulozenych_lokalne_po_dosazeni_tohoto_limitu_budou_nejstarsi_nahravky_odstraneny'),
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 20),

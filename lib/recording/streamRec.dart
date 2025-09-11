@@ -42,6 +42,7 @@ import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & conca
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -156,12 +157,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Informace'),
+      title: Text(Translations.text('informace')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(Translations.text('ok')),
         ),
       ],
     ),
@@ -172,12 +173,12 @@ void exitApp(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Informace'),
+      title: Text(Translations.text('informace')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => SystemNavigator.pop(),
-          child: const Text('OK'),
+          child: Text(Translations.text('ok')),
         ),
       ],
     ),
@@ -572,7 +573,7 @@ class _LiveRecState extends State<LiveRec> {
             // Status text
             if (_recordState == RecordState.stop) ...[
               Text(
-                "Stisknutím zahájíte nahrávání",
+                Translations.text('stisknutim_zahajite_nahravani'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -582,7 +583,7 @@ class _LiveRecState extends State<LiveRec> {
               ),
             ] else if (_recordState == RecordState.record) ...[
               Text(
-                "Nahrává se…",
+                Translations.text('nahrava_se'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -592,7 +593,7 @@ class _LiveRecState extends State<LiveRec> {
               ),
             ] else if (_recordState == RecordState.pause) ...[
               Text(
-                "Nahrávání pozastaveno – klepněte pro obnovení",
+                Translations.text('nahravani_pozastaveno_klepnete_pro_obnoveni'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -634,7 +635,7 @@ class _LiveRecState extends State<LiveRec> {
                         Icon(Icons.stop, color: primaryRed),
                         const SizedBox(width: 8),
                         const Text(
-                          "Dokončit a pokračovat",
+                          Translations.text('dokoncit_a_pokracovat'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -674,7 +675,7 @@ class _LiveRecState extends State<LiveRec> {
                         Icon(Icons.delete, color: Colors.white),
                         const SizedBox(width: 8),
                         const Text(
-                          "Zahodit nahrávání",
+                          Translations.text('zahodit_nahravani'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -707,12 +708,12 @@ class _LiveRecState extends State<LiveRec> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Potvrdit'),
-            content: const Text('Opravdu chcete opustit nahrávání?'),
+            title: Text(Translations.text('potvrdit')),
+            content: Text(Translations.text('opravdu_chcete_opustit_nahravani')),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Zpět k nahrávání'),
+                child: Text(Translations.text('zpet_k_nahravani')),
               ),
               TextButton(
                 onPressed: () {
@@ -720,7 +721,7 @@ class _LiveRecState extends State<LiveRec> {
                   discard = true;
                   Navigator.of(context).pop();
                 },
-                child: const Text('Opustit nahrávání'),
+                child: Text(Translations.text('opustit_nahravani')),
               ),
             ],
           );

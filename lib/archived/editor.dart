@@ -20,6 +20,7 @@ import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/archived/recorderWithSpectogram.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class Spectogram extends StatelessWidget {
   final String audioFilePath;
@@ -45,7 +46,7 @@ class Spectogram extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Submit'),
+        title: Text(Translations.text('submit')),
       ),
       body: SingleChildScrollView(
         child: Column(

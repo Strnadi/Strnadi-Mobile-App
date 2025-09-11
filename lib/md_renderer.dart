@@ -83,7 +83,12 @@ class _MDRenderState extends State<MDRender> {
                 await launchUrl(url);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not launch $href')),
+                  SnackBar(
+                    content: Text(
+                      Translations.text('could_not_launch_url')
+                          .replaceFirst('{url}', href),
+                    ),
+                  ),
                 );
               }
             }

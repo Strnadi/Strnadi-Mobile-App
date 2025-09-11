@@ -40,6 +40,7 @@ import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:strnadi/localization/translations.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
@@ -52,12 +53,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Login'),
+      title: Text(Translations.text('login_title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(Translations.text('button_ok')),
         ),
       ],
     ),
@@ -78,7 +79,7 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
       if (newAvailability != GooglePlayServicesAvailability.success) {
         _showMessage(
           context,
-          'Google Play Services are required for this app to function properly.',
+          Translations.text('google_play_services_required'),
         );
       }
     }
@@ -99,6 +100,9 @@ Future<void> _bootstrap() async {
   // 1) Firebase jako první
   await Firebase.initializeApp();
 
+  // Load translations
+  await Translations.load('cs');
+
   await Config.loadConfig();
   await Config.loadFirebaseConfig();
 
@@ -113,9 +117,9 @@ Future<void> _bootstrap() async {
   FlutterForegroundTask.init(
     androidNotificationOptions: AndroidNotificationOptions(
       channelId: 'strnadi_hlavni_sluzba',
-      channelName: 'Strnadi – služba na pozadí',
+      channelName: Translations.text('foreground_channel_name'),
       channelDescription:
-          'Trvalá notifikace služby Strnadi, která zajišťuje chod aplikace i při běhu na pozadí.',
+          Translations.text('foreground_channel_description'),
       channelImportance: NotificationChannelImportance.DEFAULT,
       priority: NotificationPriority.DEFAULT,
       onlyAlertOnce: true,
@@ -229,7 +233,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Strnadi',
+      title: Translations.text('app_title'),
       navigatorKey: navigatorKey,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
@@ -295,8 +299,7 @@ class PermissionScreen extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: Text(
-          'Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
-          'Prosím povolte je v nastavení a spusťte Strnadi znovu.',
+          Translations.text('permission_message'),
           textAlign: TextAlign.center,
         ),
       ),

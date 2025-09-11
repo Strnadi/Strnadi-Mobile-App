@@ -33,6 +33,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -42,12 +43,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Notification'),
+      title: Text(Translations.text('notification')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(Translations.text('ok')),
         ),
       ],
     ),
@@ -357,7 +358,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
               ),
               onPressed: (_isRecording || _isRecordingPaused) ? _stopRecording : null,
               child: const Text(
-                'Stop',
+                Translations.text('stop'),
                 style: TextStyle(
                   color: Colors.black,
                 ),

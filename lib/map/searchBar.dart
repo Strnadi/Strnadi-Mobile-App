@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:strnadi/localization/translations.dart';
 
 class SearchBarWidget extends StatefulWidget {
   final void Function(LatLng) onLocationSelected;
@@ -83,7 +84,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
             controller: _controller,
             onChanged: _onSearchChanged,
             decoration: const InputDecoration(
-              hintText: 'Search location...',
+              hintText: Translations.text('search_location'),
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
             ),

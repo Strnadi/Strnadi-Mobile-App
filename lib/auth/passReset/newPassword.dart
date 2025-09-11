@@ -23,6 +23,7 @@ import 'package:logger/logger.dart';
 
 import '../../config/config.dart';
 import 'changedPassword.dart';
+import 'package:strnadi/localization/translations.dart';
 
 final logger = Logger();
 
@@ -125,7 +126,7 @@ class _RegPasswordState extends State<ChangePassword> {
                 children: [
                   // Title
                   const Text(
-                    'Nastavte si heslo',
+                    Translations.text('nastavte_si_heslo'),
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -136,7 +137,7 @@ class _RegPasswordState extends State<ChangePassword> {
 
                   // "Heslo" label
                   const Text(
-                    'Heslo *',
+                    Translations.text('heslo_1'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -152,7 +153,7 @@ class _RegPasswordState extends State<ChangePassword> {
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
-                      hintText: 'Zadejte heslo',
+                      hintText: Translations.text('zadejte_heslo'),
                       hintStyle: const TextStyle(color: Colors.grey),
                       contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -197,7 +198,7 @@ class _RegPasswordState extends State<ChangePassword> {
 
                   // "Zopakujte heslo" label
                   const Text(
-                    'Zopakujte heslo *',
+                    Translations.text('zopakujte_heslo_1'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -213,7 +214,7 @@ class _RegPasswordState extends State<ChangePassword> {
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
-                      hintText: 'Zopakujte heslo',
+                      hintText: Translations.text('zopakujte_heslo'),
                       hintStyle: const TextStyle(color: Colors.grey),
                       contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -264,21 +265,21 @@ class _RegPasswordState extends State<ChangePassword> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '• Alespoň jedno velké písmeno',
+                        Translations.text('alespon_jedno_velke_pismeno'),
                         style: TextStyle(
                           color: _hasUpper ? Colors.green : textColor,
                           fontSize: 14,
                         ),
                       ),
                       Text(
-                        '• Alespoň jedno malé písmeno',
+                        Translations.text('alespon_jedno_male_pismeno'),
                         style: TextStyle(
                           color: _hasLower ? Colors.green : textColor,
                           fontSize: 14,
                         ),
                       ),
                       Text(
-                        '• Alespoň jedna číslice (0–9)',
+                        Translations.text('alespon_jedna_cislice_09'),
                         style: TextStyle(
                           color: _hasDigit ? Colors.green : textColor,
                           fontSize: 14,
@@ -292,7 +293,7 @@ class _RegPasswordState extends State<ChangePassword> {
                       //   ),
                       // ),
                       Text(
-                        '• Alespoň 8 znaků',
+                        Translations.text('alespon_8_znaku'),
                         style: TextStyle(
                           color: _hasLength ? Colors.green : textColor,
                           fontSize: 14,
@@ -339,7 +340,7 @@ class _RegPasswordState extends State<ChangePassword> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: const Text('Pokračovat'),
+                      child: Text(Translations.text('pokracovat')),
                     ),
                   ),
                 ],

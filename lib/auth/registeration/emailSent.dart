@@ -23,6 +23,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 
 import '../../config/config.dart';
+import 'package:strnadi/localization/translations.dart';
 
 Logger logger = Logger();
 
@@ -109,12 +110,12 @@ class _VerifyEmailState extends State<VerifyEmail> {
       else if(response.statusCode == 208){
         logger.i('Email already verified');
         showDialog(context: context, builder: (_) => AlertDialog(
-          title: const Text('Email již ověřen'),
-          content: const Text('Tento e-mail již byl ověřen.'),
+          title: Text(Translations.text('email_jiz_overen')),
+          content: Text(Translations.text('tento_e_mail_jiz_byl_overen')),
           actions: [
             TextButton(
               onPressed: alreadyVerified,
-              child: const Text('OK'),
+              child: Text(Translations.text('ok')),
             ),
           ],
         ));
@@ -142,7 +143,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
       await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the email app')),
+        const SnackBar(content: Text(Translations.text('could_not_open_the_email_app'))),
       );
     }
   }
@@ -185,7 +186,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
               children: [
                 const SizedBox(height: 16),
                 const Text(
-                  'Ověřte svůj e-mail',
+                  Translations.text('overte_svuj_e_mail'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -254,7 +255,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: const Text('Otevřít e-mail'),
+                    child: Text(Translations.text('otevrit_e_mail')),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -279,7 +280,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: const Text('Pokračovat'),
+                    child: Text(Translations.text('pokracovat')),
                   ),
                 ),
                 const SizedBox(height: 16),

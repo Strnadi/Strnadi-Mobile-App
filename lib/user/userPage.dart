@@ -31,6 +31,7 @@ import 'package:strnadi/user/settingsList.dart';
 import '../config/config.dart';
 import '../main.dart';
 import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
+import 'package:strnadi/localization/translations.dart';
 
 class UserPage extends StatefulWidget {
   const UserPage({Key? key}) : super(key: key);
@@ -207,12 +208,12 @@ class _UserPageState extends State<UserPage> {
 
     showDialog(context: context, builder: (context) {
       return AlertDialog(
-        title: const Text('Odhlásit se'),
-        content: const Text('Opravdu se chcete odhlásit?'),
+        title: Text(Translations.text('odhlasit_se')),
+        content: Text(Translations.text('opravdu_se_chcete_odhlasit')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Zrušit'),
+            child: Text(Translations.text('zrusit')),
           ),
           TextButton(
             onPressed: () async {
@@ -222,7 +223,7 @@ class _UserPageState extends State<UserPage> {
 
               Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
             },
-            child: const Text('Odhlásit se'),
+            child: Text(Translations.text('odhlasit_se')),
           ),
         ],
       );
@@ -266,7 +267,7 @@ class _UserPageState extends State<UserPage> {
                 ],
               ),
             ),
-            _isConnected ? MenuScreen() : Text('Osobní údaje nejsou dostupné bez připojení k internetu'),
+            _isConnected ? MenuScreen() : Text(Translations.text('osobni_udaje_nejsou_dostupne_bez_pripojeni_k_internetu')),
           ],
         ),
       ),
