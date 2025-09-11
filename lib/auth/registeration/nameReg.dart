@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';

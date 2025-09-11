@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
 
 class WIP_warning extends StatelessWidget {
   const WIP_warning({super.key});

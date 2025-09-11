@@ -15,6 +15,7 @@
  */
 
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
 
 class ResetEmailSent extends StatelessWidget {
   final String userEmail;
