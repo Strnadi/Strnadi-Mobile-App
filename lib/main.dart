@@ -15,6 +15,7 @@
  */
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/material.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -298,8 +299,7 @@ class PermissionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Text(t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n')
-          'Prosím povolte je v nastavení a spusťte Strnadi znovu.',
+        child: Text(t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n Prosím povolte je v nastavení a spusťte Strnadi znovu.'),
           textAlign: TextAlign.center,
         ),
       ),

@@ -17,6 +17,7 @@
  * recListItem.dart
  */
 
+import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/database/databaseNew.dart';
 

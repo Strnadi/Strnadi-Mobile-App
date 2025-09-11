@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:flutter/gestures.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -25,6 +26,7 @@ import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
+
 
 import '../../config/config.dart';
 import '../../md_renderer.dart';
