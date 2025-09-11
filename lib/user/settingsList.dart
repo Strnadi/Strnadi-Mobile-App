@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
 import 'package:strnadi/user/settingsPages/userInfo.dart';
 import 'package:url_launcher/url_launcher.dart';

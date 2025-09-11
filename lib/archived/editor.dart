@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/archived/audioRecorder.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';

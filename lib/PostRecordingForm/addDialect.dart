@@ -16,6 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
 
 class DialectModel {
   final String type;
