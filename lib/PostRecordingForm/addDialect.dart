@@ -113,7 +113,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(t('Přidání dialektu'),
+                      Text(t('postRecordingForm.addDialect.title'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -208,7 +208,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           Navigator.pop(context);
                         }
                             : null,
-                        child: Text(t('Potvrdit')),
+                        child: Text(t('postRecordingForm.addDialect.confirm')),
                       ),
                     ],
                   ),

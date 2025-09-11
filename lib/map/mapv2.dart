@@ -105,12 +105,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Notification')),
+        title: Text(t('map.dialogs.notification.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('OK')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -373,12 +373,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       showDialog(context: context, builder: (context) => AlertDialog(
-        title: Text(t('Chyba')),
+        title: Text(t('map.dialogs.error.title')),
         content: Text('${t('Nahrávka nenalezena')} $id'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('Zavřít')),
+            child: Text(t('map.dialogs.error.close')),
           ),
         ],
       ));
@@ -558,7 +558,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   padding: const EdgeInsets.symmetric(
                       vertical: 2, horizontal: 4),
                   color: Colors.white70,
-                  child: Text(t('Mapy.cz © Seznam.cz, a.s.'),
+                  child: Text(t('map.legend.mapyCz'),
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -727,7 +727,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: Text(t('Klasické')),
+                                  child: Text(t('map.filters.mapView.classic')),
                                 ),
                               ),
                               Padding(
@@ -746,7 +746,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: Text(t('Letecké')),
+                                  child: Text(t('map.filters.mapView.satellite')),
                                 ),
                               ),
                             ],
@@ -782,7 +782,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: Text(t('Všichni')),
+                                  child: Text(t('map.filters.recordingAuthor.all')),
                                 ),
                               ),
                               Padding(
@@ -806,7 +806,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: Text(t('Pouze já')),
+                                  child: Text(t('map.filters.recordingAuthor.me')),
                                 ),
                               ),
                             ],
@@ -990,7 +990,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   _showUnconfirmedDialects = false;
                                 });
                               },
-                              child: Text(t('Resetovat')),
+                              child: Text(t('map.buttons.resetFilters')),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -1015,7 +1015,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 _fetchDialects();        // refetch dialect data after the setting changes
                                 Navigator.pop(context);
                               },
-                              child: Text(t('Nastavit')),
+                              child: Text(t('map.buttons.set')),
                             ),
                           ),
                         ],
@@ -1076,7 +1076,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     borderRadius: BorderRadius.circular(2.5),
                   ),
                 ),
-                Text(t('Legenda'),
+                Text(t('map.legend.title'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                 ),
                 const SizedBox(height: 16),
@@ -1121,7 +1121,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: Text(t('Zavřít')),
+                      child: Text(t('map.dialogs.error.close')),
                     ),
                   ),
                 ),

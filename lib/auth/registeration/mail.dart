@@ -56,14 +56,14 @@ class _RegMailState extends State<RegMail> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Uživatel již existuje')),
-        content: Text(t('Uživatel s tímto e-mailem již existuje.')),
+        title: Text(t('signup.mail.errors.user_exists.title')),
+        content: Text(t('signup.mail.errors.user_exists.content')),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
             },
-            child: Text(t('OK')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -120,7 +120,7 @@ class _RegMailState extends State<RegMail> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              Text(t('Zadejte váš e-mail'),
+              Text(t('signup.mail.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -129,7 +129,7 @@ class _RegMailState extends State<RegMail> {
               const SizedBox(height: 40),
 
               // "E-mail" label
-              Text(t('E-mail'),
+              Text(t('login.inputs.emailLabel'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -248,7 +248,7 @@ class _RegMailState extends State<RegMail> {
               if (_termsError)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(t('Pro pokračování musíte souhlasit s podmínkami.'),
+                  child: Text(t('signup.mail.errors.continue_consent'),
                     style: TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
@@ -298,7 +298,7 @@ class _RegMailState extends State<RegMail> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: Text(t('Pokračovat')),
+                  child: Text(t('signup.mail.buttons.continue')),
                 ),
               ),
 
@@ -316,7 +316,7 @@ class _RegMailState extends State<RegMail> {
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(t('Nebo')),
+                    child: Text(t('login.or')),
                   ),
                   Expanded(
                     child: Divider(
@@ -370,7 +370,7 @@ class _RegMailState extends State<RegMail> {
                     height: 24,
                     width: 24,
                   ),
-                  label: Text(t('Pokračovat přes Google'),
+                  label: Text(t('login.buttons.googleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(

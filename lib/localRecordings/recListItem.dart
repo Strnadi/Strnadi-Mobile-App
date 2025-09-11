@@ -218,12 +218,12 @@ class _RecordingItemState extends State<RecordingItem> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(t('Stahování nedostupné')),
-          content: Text(t('Pro stažení nahrávky je vyžadováno připojení k internetu.')),
+          title: Text(t('recListItem.dialogs.downloadUnavailable.title')),
+          content: Text(t('recListItem.dialogs.downloadUnavailable.message')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(t('OK')),
+              child: Text(t('auth.buttons.ok')),
             ),
           ],
         ),
@@ -256,7 +256,7 @@ class _RecordingItemState extends State<RecordingItem> {
       logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t("Error downloading recording"))),
+        SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
       );
     }
   }
@@ -376,11 +376,11 @@ class _RecordingItemState extends State<RecordingItem> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(t('Nahrávka není dostupná')),
+                            Text(t('recListItem.noRecording')),
                             const SizedBox(height: 8),
                             ElevatedButton(
                               onPressed: _downloadRecording,
-                              child: Text(t('Stáhnout nahrávku')),
+                              child: Text(t('recListItem.buttons.download')),
                             ),
                           ],
                         ),
@@ -428,7 +428,7 @@ class _RecordingItemState extends State<RecordingItem> {
                             children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: [Text(t("Datum a čas"))],
+                                children: [Text(t('recListItem.dateTime'))],
                               ),
                               Text(
                                 formatDateTime(widget.recording.createdAt),
@@ -465,7 +465,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.send),
-                          label: Text(t('Odeslat záznam')),
+                          label: Text(t('recListItem.buttons.send')),
                           onPressed: () async {
                             try {
                               // ensure all parts have been sent
@@ -480,11 +480,11 @@ class _RecordingItemState extends State<RecordingItem> {
                               final shouldResend = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  title: Text(t('Neodeslané části')),
-                                  content: Text(t('Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?')),
+                                  title: Text(t('recList.status.unsentParts')),
+                                  content: Text(t('recListItem.dialogs.unsentParts.message')),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(t('Zrušit'))),
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(t('Odeslat znovu'))),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(t('recListItem.dialogs.confirmDelete.cancel'))),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(t('recListItem.buttons.resendUnsentParts'))),
                                   ],
                                 ),
                               );
@@ -508,29 +508,29 @@ class _RecordingItemState extends State<RecordingItem> {
                             // Optionally refresh UI or provide feedback
                           });
                         },
-                        child: Text(t('Smazat z cache')),
+                        child: Text(t('recListItem.buttons.deleteCache')),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.delete, color: Colors.white,),
-                        label: Text(t('Smazat záznam'), style: TextStyle(color: Colors.white),),
+                        label: Text(t('recListItem.buttons.delete'), style: TextStyle(color: Colors.white),),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: Text(t('Potvrdit smazání')),
-                              content: Text(t('Opravdu chcete tento záznam natrvalo smazat?')),
+                              title: Text(t('recListItem.dialogs.confirmDelete.title')),
+                              content: Text(t('recListItem.dialogs.confirmDelete.message')),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: Text(t('Zrušit')),
+                                  child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: Text(t('Smazat')),
+                                  child: Text(t('recListItem.dialogs.confirmDelete.delete')),
                                 ),
                               ],
                             ),

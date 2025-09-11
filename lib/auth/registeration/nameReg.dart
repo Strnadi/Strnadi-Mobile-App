@@ -111,7 +111,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 32),
 
                   // "Jméno *" label and text field
-                  Text(t('Jméno *'),
+                  Text(t('signup.name.name'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -151,7 +151,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 16),
 
                   // "Příjmení *" label and text field
-                  Text(t('Příjmení *'),
+                  Text(t('signup.name.last_name'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -191,7 +191,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 16),
 
                   // "Přezdívka" label and text field (optional)
-                  Text(t('Přezdívka (volitelné)'),
+                  Text(t('signup.name.nickname'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -215,7 +215,7 @@ class _RegNameState extends State<RegName> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(t('Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.'),
+                  Text(t('signup.name.real_name_warning'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -260,7 +260,7 @@ class _RegNameState extends State<RegName> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: Text(t('Pokračovat')),
+                      child: Text(t('signup.mail.buttons.continue')),
                     ),
                   ),
                 ],

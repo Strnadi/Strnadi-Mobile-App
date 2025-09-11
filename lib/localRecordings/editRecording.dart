@@ -88,7 +88,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(t('Upravit záznam')),
+        title: Text(t('editRecording.title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -125,7 +125,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _save,
-                child: Text(t('Uložit změny')),
+                child: Text(t('editRecording.buttons.saveChanges')),
               ),
             ],
           ),

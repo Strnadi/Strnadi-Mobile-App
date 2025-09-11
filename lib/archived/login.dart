@@ -99,7 +99,7 @@ class _LoginState extends State<Login> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t('OK')))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t('auth.buttons.ok')))],
       ),
     );
   }
@@ -152,7 +152,7 @@ class _LoginState extends State<Login> {
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgottenPassword()));
                 },
-                child: Text(t('Zapomenuté heslo?'),
+                child: Text(t('login.buttons.forgotPassword'),
                   style: TextStyle(color: Colors.grey),
                 ),
               ),
@@ -165,7 +165,7 @@ class _LoginState extends State<Login> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: login,
-              child: Text(t('Přihlásit se')),
+              child: Text(t('auth.buttons.login')),
             ),
             const SizedBox(height: 16),
             Center(

@@ -110,11 +110,11 @@ class MenuScreen extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 15),
-          child: Text(t('Creators: Marian Pecqueur && Jan Drobílek')),
+          child: Text(t('user.menu.dialogs.aboutApp.creators')),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text(t('Kontakt: info@strnadi.cz, developers@strnadi.cz')),
+          child: Text(t('user.menu.dialogs.aboutApp.contact')),
         ),
       ],
     );

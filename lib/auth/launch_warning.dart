@@ -60,7 +60,7 @@ class WIP_warning extends StatelessWidget {
               'assets/images/WIP.png',
             ),
             const SizedBox(height: 16),
-            Text(t('Nářečí českých strnadů'),
+            Text(t('auth.title'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -70,7 +70,7 @@ class WIP_warning extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Text(t('Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.'),
+            Text(t('auth.disclaimer.dev_notice'),
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 12,

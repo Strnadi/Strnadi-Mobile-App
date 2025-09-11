@@ -229,7 +229,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     } catch (e, stackTrace) {
       logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t("Error downloading recording"))),
+        SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
       );
     }
   }
@@ -304,11 +304,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(t('Nahrávka není dostupná')),
+                      Text(t('recListItem.noRecording')),
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: _downloadRecording,
-                        child: Text(t('Stáhnout nahrávku')),
+                        child: Text(t('recListItem.buttons.download')),
                       ),
                     ],
                   ),
@@ -357,7 +357,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                             children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: [Text(t("Datum a čas"))],
+                                children: [Text(t('recListItem.dateTime'))],
                               ),
                               Text(
                                 formatDateTime(widget.recording.createdAt),
