@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/registeration/cityReg.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
+import 'package:flutter/material.dart';
 
 final logger = Logger();
 

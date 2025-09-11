@@ -17,6 +17,7 @@
  * streamRec.dart
  */
 
+import 'dart:async';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:isolate';
 import 'dart:convert';

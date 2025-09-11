@@ -19,6 +19,8 @@
 
 import 'package:strnadi/localization/localization.dart';
 
+import 'package:strnadi/localization/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';

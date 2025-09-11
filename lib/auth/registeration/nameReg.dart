@@ -20,6 +20,7 @@ import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 
 import 'cityReg.dart';
+import 'package:flutter/material.dart';
 
 Logger logger = Logger();
 
