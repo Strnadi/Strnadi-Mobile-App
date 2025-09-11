@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
@@ -190,8 +190,7 @@ class _AuthState extends State<Authorizator> {
                   const SizedBox(height: 32),
 
                   // Main title
-                  const Text(
-                    'Nářečí českých strnadů',
+                  Text(t('Nářečí českých strnadů'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 24,
@@ -203,8 +202,7 @@ class _AuthState extends State<Authorizator> {
                   const SizedBox(height: 8),
 
                   // Subtitle
-                  const Text(
-                    'Nahrávejte, mapujte, dobývejte',
+                  Text(t('Nahrávejte, mapujte, dobývejte'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -225,7 +223,7 @@ class _AuthState extends State<Authorizator> {
                         backgroundColor: yellow,
                         foregroundColor: textColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(
+                        textStyle: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -233,7 +231,7 @@ class _AuthState extends State<Authorizator> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text('Založit účet', style: TextStyle(color: textColor),),
+                      child: Text(t('Založit účet'), style: TextStyle(color: textColor),),
                     ),
                   ),
 
@@ -248,7 +246,7 @@ class _AuthState extends State<Authorizator> {
                         foregroundColor: textColor,
                         side: BorderSide(color: Colors.grey[200]!, width: 2),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(
+                        textStyle: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -256,7 +254,7 @@ class _AuthState extends State<Authorizator> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text('Přihlásit se', style: TextStyle(color: textColor)),
+                      child: Text(t('Přihlásit se'), style: TextStyle(color: textColor)),
                     ),
                   ),
 
@@ -264,16 +262,14 @@ class _AuthState extends State<Authorizator> {
                   const SizedBox(height: 12),
                   Column(
                     children: [
-                      const Text(
-                        'pokračováním souhlasíte se zásadami',
+                      Text(t('pokračováním souhlasíte se zásadami'),
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, color: Colors.black),
                       ),
                       const SizedBox(height: 4),
                       GestureDetector(
                         onTap: () => _launchURL(),
-                        child: const Text(
-                          'ochrany osobních údajů.',
+                        child: Text(t('ochrany osobních údajů.'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
@@ -287,8 +283,7 @@ class _AuthState extends State<Authorizator> {
 
                   // Add disclaimer and space at the bottom
                   const SizedBox(height: 60),
-                  const Text(
-                    'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+                  Text(t('Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -424,12 +419,12 @@ class _AuthState extends State<Authorizator> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Login'),
+        title: Text(t('Login')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('OK')),
           ),
         ],
       ),
@@ -445,7 +440,7 @@ class _AuthState extends State<Authorizator> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('OK')),
           ),
         ],
       ),

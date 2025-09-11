@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -83,7 +83,7 @@ class _MDRenderState extends State<MDRender> {
                 await launchUrl(url);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not launch $href')),
+                  SnackBar(content: Text('${t('Could not launch')} $href')),
                 );
               }
             }

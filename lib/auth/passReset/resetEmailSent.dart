@@ -14,7 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 
 class ResetEmailSent extends StatelessWidget {
   final String userEmail;
@@ -45,8 +45,7 @@ class ResetEmailSent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 36),
-              const Text(
-                'E-mail poslán',
+              Text(t('E-mail poslán'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -54,11 +53,8 @@ class ResetEmailSent extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Právě jsme odeslali e-mail na $userEmail.\n'
-                    'Doručení může trvat až 10 minut.\n\n'
-                    'Pokud brzy neobdržíte pokyny, zkontrolujte složku '
-                    'se spamem nebo nevyžádanou poštou.\n\n'
-                    'Pokud ani to nepomůže, zkuste odeslat žádost znovu.',
+                t('Právě jsme odeslali e-mail na {email}.\nDoručení může trvat až 10 minut.\n\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\n\nPokud ani to nepomůže, zkuste odeslat žádost znovu.')
+                    .replaceFirst('{email}', userEmail),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[700],
@@ -86,7 +82,7 @@ class ResetEmailSent extends StatelessWidget {
               backgroundColor: yellow,
               foregroundColor: yellowishBlack,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(
+              textStyle: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -94,7 +90,7 @@ class ResetEmailSent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: const Text('Ok'),
+            child: Text(t('Ok')),
           ),
         ),
       ),

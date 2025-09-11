@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 
 class DialectModel {
   final String type;
@@ -110,8 +110,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Přidání dialektu',
+                      Text(t('Přidání dialektu'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -206,7 +205,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           Navigator.pop(context);
                         }
                             : null,
-                        child: Text('Potvrdit'),
+                        child: Text(t('Potvrdit')),
                       ),
                     ],
                   ),

@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/gestures.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -192,7 +192,7 @@ class _LoginState extends State<Login> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('OK'))
+              child: Text(t('OK')))
         ],
       ),
     );
@@ -227,8 +227,7 @@ class _LoginState extends State<Login> {
               const SizedBox(height: 20),
 
               // Title: "Přihlášení"
-              const Text(
-                'Přihlášení',
+              Text(t('Přihlášení'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -242,8 +241,7 @@ class _LoginState extends State<Login> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // --- E-mail label and TextField ---
-                    Text(
-                      'E-mail',
+                    Text(t('E-mail'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -274,8 +272,7 @@ class _LoginState extends State<Login> {
                     const SizedBox(height: 16),
 
                     // --- Heslo (Password) label and TextField ---
-                    Text(
-                      'Heslo',
+                    Text(t('Heslo'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -335,7 +332,7 @@ class _LoginState extends State<Login> {
                     );
                     // Handle "Forgot password" here
                   },
-                  child: const Text('Zapomenuté heslo?'),
+                  child: Text(t('Zapomenuté heslo?')),
                 ),
               ),
 
@@ -352,7 +349,7 @@ class _LoginState extends State<Login> {
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('Nebo'),
+                    child: Text(t('Nebo')),
                   ),
                   Expanded(
                     child: Divider(
@@ -391,8 +388,7 @@ class _LoginState extends State<Login> {
                     height: 24,
                     width: 24,
                   ),
-                  label: const Text(
-                    'Pokračovat přes Google',
+                  label: Text(t('Pokračovat přes Google'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -427,12 +423,12 @@ class _LoginState extends State<Login> {
               backgroundColor: yellow,
               foregroundColor: yellowishBlack,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: const Text('Přihlásit se'),
+            child: Text(t('Přihlásit se')),
           ),
         ),
       ),

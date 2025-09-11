@@ -14,7 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -80,8 +80,11 @@ Future<void> checkForUpdate(BuildContext context) async {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('Update Available'),
-          content: Text('A new version (${latestVersion.toString()}) is available. Please update your app.'),
+          title: Text(t('Update Available')),
+          content: Text(
+            t('A new version ({version}) is available. Please update your app.')
+                .replaceFirst('{version}', latestVersion.toString()),
+          ),
           actions: [
             TextButton(
               onPressed: () async {
@@ -103,7 +106,7 @@ Future<void> checkForUpdate(BuildContext context) async {
                 }
                 Navigator.of(context).pop();
               },
-              child: Text('Update'),
+              child: Text(t('Update')),
             ),
           ],
         ),

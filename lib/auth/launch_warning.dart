@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 
 class WIP_warning extends StatelessWidget {
   const WIP_warning({super.key});
@@ -47,7 +47,7 @@ class WIP_warning extends StatelessWidget {
                   children: [
                     Icon(Icons.arrow_back),
                     SizedBox(width: 4),
-                    Text("Zpět"),
+                    Text(t("Zpět")),
                   ],
                 ),
               ),
@@ -57,20 +57,17 @@ class WIP_warning extends StatelessWidget {
               'assets/images/WIP.png',
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Nářečí českých strnadů',
+            Text(t('Nářečí českých strnadů'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.',
+            Text(t('Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.'),
               style: TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.',
+            Text(t('Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.'),
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 12,

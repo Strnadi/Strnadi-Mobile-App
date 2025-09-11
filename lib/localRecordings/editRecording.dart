@@ -17,7 +17,7 @@
  * recListItem.dart
  */
 
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/database/databaseNew.dart';
 
 class EditRecordingPage extends StatefulWidget {
@@ -85,7 +85,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upravit záznam'),
+        title: Text(t('Upravit záznam')),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -122,7 +122,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _save,
-                child: const Text('Uložit změny'),
+                child: Text(t('Uložit změny')),
               ),
             ],
           ),

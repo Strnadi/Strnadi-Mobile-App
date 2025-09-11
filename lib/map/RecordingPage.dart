@@ -17,7 +17,7 @@
  * recListItem.dart
  */
 
-import 'dart:convert';
+import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -225,7 +225,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     } catch (e, stackTrace) {
       logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error downloading recording")),
+        const SnackBar(content: Text(t("Error downloading recording"))),
       );
     }
   }
@@ -300,11 +300,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Nahrávka není dostupná'),
+                      Text(t('Nahrávka není dostupná')),
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: _downloadRecording,
-                        child: const Text('Stáhnout nahrávku'),
+                        child: Text(t('Stáhnout nahrávku')),
                       ),
                     ],
                   ),
@@ -314,7 +314,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    Text(_formatDuration(Duration(seconds: length)), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(_formatDuration(Duration(seconds: length)), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -337,7 +337,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: const TextStyle(fontSize: 16))]),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: TextStyle(fontSize: 16))]),
                     ),
                     const SizedBox(height: 10),
                     Container(
@@ -351,10 +351,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                           padding: const EdgeInsets.all(10.0),
                           child: Column(
                             children: [
-                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text("Datum a čas")]),
+                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(t("Datum a čas"))]),
                               Text(
                                 formatDateTime(widget.recording.createdAt),
-                                style: const TextStyle(fontSize: 16),
+                                style: TextStyle(fontSize: 16),
                               ),
                             ],
                           ),
@@ -372,7 +372,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Predpokladany pocet strnadu: "),
+                          Text(t("Predpokladany pocet strnadu: ")),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
                       ),

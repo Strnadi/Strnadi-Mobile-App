@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
@@ -97,8 +97,7 @@ class _RegNameState extends State<RegName> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: const Text(
-                      'Zadejte vaše jméno, příjmení\na zvolte si přezdívku',
+                    child: Text(t('Zadejte vaše jméno, příjmení\na zvolte si přezdívku'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -110,8 +109,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 32),
 
                   // "Jméno *" label and text field
-                  const Text(
-                    'Jméno *',
+                  Text(t('Jméno *'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -151,8 +149,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 16),
 
                   // "Příjmení *" label and text field
-                  const Text(
-                    'Příjmení *',
+                  Text(t('Příjmení *'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -192,8 +189,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 16),
 
                   // "Přezdívka" label and text field (optional)
-                  const Text(
-                    'Přezdívka (volitelné)',
+                  Text(t('Přezdívka (volitelné)'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -217,8 +213,7 @@ class _RegNameState extends State<RegName> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.',
+                  Text(t('Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -255,7 +250,7 @@ class _RegNameState extends State<RegName> {
                         backgroundColor: _isFormValid ? yellow : Colors.grey,
                         foregroundColor: _isFormValid ? textColor : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        textStyle: const TextStyle(
+                        textStyle: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -263,7 +258,7 @@ class _RegNameState extends State<RegName> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: const Text('Pokračovat'),
+                      child: Text(t('Pokračovat')),
                     ),
                   ),
                 ],
