@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:convert';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -64,12 +64,12 @@ class _RegOverviewState extends State<RegOverview> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
+        title: Text(t('Chyba')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('OK')),
           ),
         ],
       ),
@@ -167,9 +167,8 @@ class _RegOverviewState extends State<RegOverview> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(
+          Text('$label: ',
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: textColor,
@@ -178,7 +177,7 @@ class _RegOverviewState extends State<RegOverview> {
           Expanded(
             child: Text(
               value.isNotEmpty ? value : '-',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 color: textColor,
               ),
@@ -213,8 +212,7 @@ class _RegOverviewState extends State<RegOverview> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Přehled informací',
+              Text(t('Přehled informací'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -222,8 +220,7 @@ class _RegOverviewState extends State<RegOverview> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Zkontrolujte prosím zadané údaje a potvrďte registraci.',
+              Text(t('Zkontrolujte prosím zadané údaje a potvrďte registraci.'),
                 style: TextStyle(
                   fontSize: 14,
                   color: textColor,
@@ -247,9 +244,8 @@ class _RegOverviewState extends State<RegOverview> {
                       });
                     },
                   ),
-                  const Expanded(
-                    child: Text(
-                      'Souhlasím se zasíláním marketingových sdělení',
+                  Expanded(
+                    child: Text(t('Souhlasím se zasíláním marketingových sdělení'),
                       style: TextStyle(
                         fontSize: 14,
                         color: _RegOverviewState.textColor,
@@ -269,7 +265,7 @@ class _RegOverviewState extends State<RegOverview> {
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -277,7 +273,7 @@ class _RegOverviewState extends State<RegOverview> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Registrovat'),
+                  child: Text(t('Registrovat')),
                 ),
               ),
             ],

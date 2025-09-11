@@ -17,7 +17,7 @@
  * recList.dart
  */
 
-import 'dart:convert';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -88,12 +88,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Offline režim'),
-              content: const Text('Jste offline. Budou dostupné pouze lokálně uložené záznamy.'),
+              title: Text(t('Offline režim')),
+              content: Text(t('Jste offline. Budou dostupné pouze lokálně uložené záznamy.')),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
+                  child: Text(t('OK')),
                 ),
               ],
             ),
@@ -115,7 +115,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(t('OK'))),
         ],
       ),
     );
@@ -164,13 +164,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Třídění a filtry', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(t('Třídění a filtry'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.sort_by_alpha),
-                title: const Text('Třídit podle názvu'),
+                title: Text(t('Třídit podle názvu')),
                 // Highlight active sort option
                 tileColor: sortOptions == SortBy.name ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
@@ -186,7 +186,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.date_range),
-                title: const Text('Třídit podle data'),
+                title: Text(t('Třídit podle data')),
                 tileColor: sortOptions == SortBy.date ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   setState(() {
@@ -201,7 +201,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.filter_list),
-                title: const Text('Počet ptáků'),
+                title: Text(t('Počet ptáků')),
                 tileColor: sortOptions == SortBy.ebc ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   if (sortOptions == SortBy.ebc) {
@@ -217,7 +217,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.download),
-                title: const Text('Stažené'),
+                title: Text(t('Stažené')),
                 tileColor: sortOptions == SortBy.downloaded ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   FilterDownloaded();
@@ -233,7 +233,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.clear),
-                title: const Text('Zrušit filtr'),
+                title: Text(t('Zrušit filtr')),
                 onTap: () {
                   getRecordings();
                   setState(() {
@@ -323,7 +323,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           padding: const EdgeInsets.only(left: 16.0),
           child: Text(
             appBarTitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
               fontFamily: 'Bricolage Grotesque',
@@ -349,10 +349,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           child: records.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
+                  children: [
                     SizedBox(
                       height: 500,
-                      child: Center(child: Text('Zatím nemáte žádné záznamy')),
+                      child: Center(child: Text(t('Zatím nemáte žádné záznamy'))),
                     )
                   ],
                 )
@@ -389,7 +389,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                           rec.name != null
                               ? Text(
                                   _truncateName(rec.name!),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -415,7 +415,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                     }
                                     return Text(
                                       _truncateName(topText),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -436,7 +436,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                               }
                               return Text(
                                 dialectText,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey,
                                 ),
@@ -490,7 +490,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                           const SizedBox(height: 4),
                           Text(
                             dateText,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
                             ),

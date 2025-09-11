@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/gestures.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -98,7 +98,7 @@ class _LoginState extends State<Login> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t('OK')))],
       ),
     );
   }
@@ -122,7 +122,7 @@ class _LoginState extends State<Login> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Strnadi',
+            Text(t('Strnadi'),
                 style: TextStyle(fontSize: 70, fontWeight: FontWeight.bold, color: Colors.black),
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
@@ -151,8 +151,7 @@ class _LoginState extends State<Login> {
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgottenPassword()));
                 },
-                child: const Text(
-                  'Zapomenuté heslo?',
+                child: Text(t('Zapomenuté heslo?'),
                   style: TextStyle(color: Colors.grey),
                 ),
               ),
@@ -165,18 +164,18 @@ class _LoginState extends State<Login> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: login,
-              child: const Text('Přihlásit se'),
+              child: Text(t('Přihlásit se')),
             ),
             const SizedBox(height: 16),
             Center(
               child: RichText(
                 text: TextSpan(
                   text: 'Nemáte účet? ',
-                  style: const TextStyle(color: Colors.black),
+                  style: TextStyle(color: Colors.black),
                   children: [
                     TextSpan(
                       text: 'Zaregistrovat se',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                       recognizer: _registerTapRecognizer,
                     ),
                   ],
@@ -188,7 +187,7 @@ class _LoginState extends State<Login> {
               child: Text.rich(
                 TextSpan(
                   text: 'pokračováním souhlasíte s ',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
                   children: [
                     TextSpan(
                       recognizer: TapGestureRecognizer()
@@ -196,7 +195,7 @@ class _LoginState extends State<Login> {
                           _launchURL();
                         },
                       text: 'zásadami ochrany osobních údajů.',
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),

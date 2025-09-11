@@ -15,7 +15,7 @@
  */
 
 /*
-import 'dart:convert';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -29,12 +29,12 @@ void _showMessage(String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Login'),
+      title: Text(t('Login')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(t('OK')),
         ),
       ],
     ),
@@ -121,7 +121,7 @@ class _OSMmapState extends State<OSMmap> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
-      appBarTitle: 'OpenStreetMap in Flutter',
+      appBarTitle: t('OpenStreetMap in Flutter'),
       content: _currentPosition == null || _gridData == null
           ? const Center(child: CircularProgressIndicator())
           : Stack(

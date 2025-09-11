@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:io';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -179,7 +179,7 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
         //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
         //   child: Row(
         //     children: [
-        //       Text('Zoom:'),
+        //       Text(t('Zoom:')),
         //       Expanded(
         //         child: Slider(
         //           value: _zoom,
@@ -192,7 +192,7 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
         //           },
         //         ),
         //       ),
-        //       Text('${_zoom.toStringAsFixed(1)}x'),
+        //       Text(t('${_zoom.toStringAsFixed(1)}x')),
         //     ],
         //   ),
         // ),

@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
@@ -170,16 +171,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Smazání účtu"),
-        content: const Text("Opravdu si přejete smazat svůj účet? Tato akce je nevratná."),
+        title: Text(t("Smazání účtu")),
+        content: Text(t("Opravdu si přejete smazat svůj účet? Tato akce je nevratná.")),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Zrušit"),
+            child: Text(t("Zrušit")),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Smazat", style: TextStyle(color: Colors.red)),
+            child: Text(t("Smazat"), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -228,7 +229,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Osobní údaje'),
+        title: Text(t('Osobní údaje')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -239,7 +240,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             onPressed: () {
               updateUserData();
             }, // Save action
-            child: const Text('Uložit', style: TextStyle(color: Colors.white)),
+            child: Text(t('Uložit'), style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -251,14 +252,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Text("Profilové údaje", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(t("Profilové údaje"), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   SizedBox(height: 20),
                   _buildTextField('Jméno', _firstnameController),
                   _buildTextField('Příjmení', _lastnameController),
                   _buildTextField('Přezdívka', _nicknameController),
                   _buildTextField('PSČ', _pscController),
                   ListTile(
-                    title: const Text('Kraj'),
+                    title: Text(t('Kraj')),
                     subtitle: Text(user?.city ?? 'Neuvedeno'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {}, // Open region selection
@@ -267,7 +268,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
               const Divider(),
               ListTile(
-                title: const Text('Změna hesla'),
+                title: Text(t('Změna hesla')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
@@ -277,7 +278,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 }, // Open password change
               ),
               ListTile(
-                title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
+                title: Text(t('Chci si smazat účet'), style: TextStyle(color: Colors.red)),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   confirmAndDeleteAccount();
@@ -307,7 +308,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t('OK')))],
       ),
     );
   }

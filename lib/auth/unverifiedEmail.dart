@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:async';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -97,12 +97,12 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Email již ověřen'),
-            content: const Text('Tento e-mail již byl ověřen.'),
+            title: Text(t('Email již ověřen')),
+            content: Text(t('Tento e-mail již byl ověřen.')),
             actions: [
               TextButton(
                 onPressed: alreadyVerified,
-                child: const Text('OK'),
+                child: Text(t('OK')),
               ),
             ],
           ),
@@ -126,7 +126,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the email app')),
+        SnackBar(content: Text(t('Could not open the email app'))),
       );
     }
   }
@@ -138,7 +138,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(''),
+        title: Text(t('')),
         leading: IconButton(
           icon: Image.asset(
             'assets/icons/backButton.png',
@@ -158,8 +158,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              const Text(
-                'Email není ověřen',
+              Text(t('Email není ověřen'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -168,8 +167,9 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Pro pokračování se přihlášením ověřte prosím svůj e-mail (${widget.userEmail}).\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení.',
-                style: const TextStyle(
+                t('Pro pokračování se přihlášením ověřte prosím svůj e-mail ({email}).\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení.')
+                    .replaceFirst('{email}', widget.userEmail),
+                style: TextStyle(
                   fontSize: 14,
                   color: textColor,
                 ),
@@ -186,7 +186,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
@@ -208,12 +208,12 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                     foregroundColor: textColor,
                     side: const BorderSide(color: yellow, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Otevřít e-mail'),
+                  child: Text(t('Otevřít e-mail')),
                 ),
               ),
               const SizedBox(height: 16),
@@ -229,12 +229,12 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: const Text('Pokračovat'),
+                  child: Text(t('Pokračovat')),
                 ),
               ),
               const SizedBox(height: 16),

@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:convert';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -191,10 +191,10 @@ class _UserPageState extends State<UserPage> {
       }, body: body,
       ).then((value) {
         if (value.statusCode == 200) {
-          _showMessage("Profile picture uploaded", context);
+          _showMessage(t('Profile picture uploaded'), context);
           logger.i("Profile picture uploaded");
         } else {
-          _showMessage("Profile picture upload failed", context);
+          _showMessage(t('Profile picture upload failed'), context);
           logger.e("Profile picture upload failed with status code ${value.statusCode}");
         }
       });
@@ -207,12 +207,12 @@ class _UserPageState extends State<UserPage> {
 
     showDialog(context: context, builder: (context) {
       return AlertDialog(
-        title: const Text('Odhlásit se'),
-        content: const Text('Opravdu se chcete odhlásit?'),
+        title: Text(t('Odhlásit se')),
+        content: Text(t('Opravdu se chcete odhlásit?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Zrušit'),
+            child: Text(t('Zrušit')),
           ),
           TextButton(
             onPressed: () async {
@@ -222,7 +222,7 @@ class _UserPageState extends State<UserPage> {
 
               Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
             },
-            child: const Text('Odhlásit se'),
+            child: Text(t('Odhlásit se')),
           ),
         ],
       );
@@ -258,7 +258,7 @@ class _UserPageState extends State<UserPage> {
                   ),
                   Text(
                     "$userName $lastName",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -266,7 +266,7 @@ class _UserPageState extends State<UserPage> {
                 ],
               ),
             ),
-            _isConnected ? MenuScreen() : Text('Osobní údaje nejsou dostupné bez připojení k internetu'),
+            _isConnected ? MenuScreen() : Text(t('Osobní údaje nejsou dostupné bez připojení k internetu')),
           ],
         ),
       ),
