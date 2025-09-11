@@ -18,6 +18,7 @@
  */
 
 import 'dart:io';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
@@ -195,12 +196,12 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Message'),
+          title: Text(t('Message')),
           content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(t('OK')),
             ),
           ],
         );
@@ -213,20 +214,20 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Potvrzení'),
-          content: const Text('Opravdu chcete smazat nahrávku?'),
+          title: Text(t('Potvrzení')),
+          content: Text(t('Opravdu chcete smazat nahrávku?')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(false);
               },
-              child: const Text('Ne'),
+              child: Text(t('Ne')),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
-              child: const Text('Ano'),
+              child: Text(t('Ano')),
             ),
           ],
         );
@@ -239,14 +240,14 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Potvrzení'),
-          content: const Text('Opravdu chcete smazat nahrávku?'),
+          title: Text(t('Potvrzení')),
+          content: Text(t('Opravdu chcete smazat nahrávku?')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Ne'),
+              child: Text(t('Ne')),
             ),
             TextButton(
               onPressed: () {
@@ -257,7 +258,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   MaterialPageRoute(builder: (context) => LiveRec()),
                 );
               },
-              child: const Text('Ano'),
+              child: Text(t('Ano')),
             ),
           ],
         );
@@ -396,7 +397,7 @@ class _RecordingFormState extends State<RecordingForm> {
         children: [
           Expanded(
             child: Text(
-              "${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}",
+              '${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
@@ -632,16 +633,16 @@ class _RecordingFormState extends State<RecordingForm> {
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: const Text('Potvrzení'),
-                        content: const Text('Opravdu chcete uložit tuto nahrávku?'),
+                        title: Text(t('Potvrzení')),
+                        content: Text(t('Opravdu chcete uložit tuto nahrávku?')),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Ne'),
+                            child: Text(t('Ne')),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Ano'),
+                            child: Text(t('Ano')),
                           ),
                         ],
                       );
@@ -659,7 +660,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: const Text("Uložit"),
+                child: Text(t("Uložit")),
               ),
             ),
           ],
@@ -688,7 +689,7 @@ class _RecordingFormState extends State<RecordingForm> {
                 // ),
                 Text(
                   _formatDuration(totalDuration),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -706,7 +707,7 @@ class _RecordingFormState extends State<RecordingForm> {
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Přidat dialekt'),
+                    label: Text(t('Přidat dialekt')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFF7C0),
                       foregroundColor: Colors.black,
@@ -732,7 +733,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Název nahrávky field
-                        Text('Název nahrávky', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('Název nahrávky'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -760,7 +761,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Počet strnadů slider
-                        Text('Počet strnadů', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('Počet strnadů'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         // Display current slider value above the slider.
                         Text(
@@ -787,7 +788,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Komentář field (multiline)
-                        Text('Komentář', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('Komentář'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -810,7 +811,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Mapa label and map widget with same padding as text fields.
-                        Text('Mapa', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('Mapa'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -827,8 +828,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                     return Container(
                                       color: Colors.grey.shade300,
                                       alignment: Alignment.center,
-                                      child: const Text(
-                                        "Mapu nelze načíst bez připojení k internetu.",
+                                      child: Text(t("Mapu nelze načíst bez připojení k internetu."),
                                         style: TextStyle(fontSize: 14, color: Colors.black54),
                                       ),
                                     );
@@ -871,8 +871,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                       Container(
                                         color: Colors.grey.shade300,
                                         alignment: Alignment.center,
-                                        child: const Text(
-                                          "Nahrávka neobsahuje žádné GPS body.",
+                                        child: Text(t("Nahrávka neobsahuje žádné GPS body."),
                                           style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
                                         ),
                                       );
@@ -893,14 +892,14 @@ class _RecordingFormState extends State<RecordingForm> {
                                   context: context,
                                   builder: (BuildContext context) {
                                     return AlertDialog(
-                                      title: const Text('Potvrzení'),
-                                      content: const Text('Opravdu chcete smazat nahrávku?'),
+                                      title: Text(t('Potvrzení')),
+                                      content: Text(t('Opravdu chcete smazat nahrávku?')),
                                       actions: [
                                         TextButton(
                                           onPressed: () {
                                             Navigator.of(context).pop();
                                           },
-                                          child: const Text('Ne'),
+                                          child: Text(t('Ne')),
                                         ),
                                         TextButton(
                                           onPressed: () {
@@ -911,7 +910,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                               MaterialPageRoute(builder: (context) => LiveRec()),
                                             );
                                           },
-                                          child: const Text('Ano'),
+                                          child: Text(t('Ano')),
                                         ),
                                       ],
                                     );
@@ -925,7 +924,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              child: const Text('Smazat nahrávku'),
+                              child: Text(t('Smazat nahrávku')),
                             ),
                           ),
                         ),

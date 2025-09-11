@@ -14,6 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
@@ -137,7 +140,7 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (!await Config.hasBasicInternet) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Chybí připojení k internetu. Mapa není dostupná.'),
+                    content: Text(t('Chybí připojení k internetu. Mapa není dostupná.')),
                     duration: Duration(seconds: 3),
                   ),
                 );

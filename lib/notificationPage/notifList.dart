@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localization/localization.dart';
 
 class NotificationScreen extends StatefulWidget {
   @override
@@ -36,7 +37,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.notification,
-      appBarTitle: 'Oznámení',
+      appBarTitle: t('Oznámení'),
       content: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: notifications.length,

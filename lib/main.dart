@@ -15,6 +15,7 @@
  */
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/material.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ import 'package:strnadi/auth/passReset/newPassword.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
 import 'package:strnadi/updateChecker.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'package:strnadi/maintanance.dart';
@@ -52,12 +54,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Login'),
+      title: Text(t('Login')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(t('OK')),
         ),
       ],
     ),
@@ -98,6 +100,9 @@ Future<void> _bootstrap() async {
 
   // 1) Firebase jako první
   await Firebase.initializeApp();
+
+  // Load localized strings from JSON.
+  await Localization.load();
 
   await Config.loadConfig();
   await Config.loadFirebaseConfig();
@@ -294,9 +299,8 @@ class PermissionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Text(
-          'Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
-          'Prosím povolte je v nastavení a spusťte Strnadi znovu.',
+        child: Text(t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
+          'Prosím povolte je v nastavení a spusťte Strnadi znovu.'),
           textAlign: TextAlign.center,
         ),
       ),

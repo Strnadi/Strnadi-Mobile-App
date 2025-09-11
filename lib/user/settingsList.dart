@@ -13,6 +13,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
+import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
 import 'package:strnadi/user/settingsPages/userInfo.dart';
@@ -107,11 +110,11 @@ class MenuScreen extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 15),
-          child: Text('Creators: Marian Pecqueur && Jan Drobílek'),
+          child: Text(t('Creators: Marian Pecqueur && Jan Drobílek')),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text('Kontakt: info@strnadi.cz, developers@strnadi.cz'),
+          child: Text(t('Kontakt: info@strnadi.cz, developers@strnadi.cz')),
         ),
       ],
     );

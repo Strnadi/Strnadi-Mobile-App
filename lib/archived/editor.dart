@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/archived/audioRecorder.dart';
@@ -45,7 +46,7 @@ class Spectogram extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Submit'),
+        title: Text(t('Submit')),
       ),
       body: SingleChildScrollView(
         child: Column(
