@@ -74,8 +74,8 @@
           "title": "Uživatel již existuje",
           "content": "Uživatel s tímto e-mailem již existuje."
         },
-        "mail_format_err": "Email není v platném formátu",
-        "mail_exists": "Email již existuje",
+        "mail_format_err": "E-mail není v platném formátu",
+        "mail_exists": "E-mail již existuje",
         "google_login_failed": "Přihlášení přes Google selhalo",
         "continue_consent": "Pro pokračování musíte souhlasit s podmínkami."
       }
