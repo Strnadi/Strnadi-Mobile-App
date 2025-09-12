@@ -157,12 +157,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(t('Informace')),
+      title: Text(t('streamRec.dialogs.info.title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(t('OK')),
+          child: Text(t('streamRec.dialogs.info.ok')),
         ),
       ],
     ),
@@ -173,12 +173,12 @@ void exitApp(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(t('Informace')),
+      title: Text(t('streamRec.dialogs.info.title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => SystemNavigator.pop(),
-          child: Text(t('OK')),
+          child: Text(t('streamRec.dialogs.info.ok')),
         ),
       ],
     ),
@@ -572,7 +572,7 @@ class _LiveRecState extends State<LiveRec> {
             const SizedBox(height: 10),
             // Status text
             if (_recordState == RecordState.stop) ...[
-              Text(t("Stisknutím zahájíte nahrávání"),
+              Text(t('streamRec.status.stopped'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -581,7 +581,7 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             ] else if (_recordState == RecordState.record) ...[
-              Text(t("Nahrává se…"),
+              Text(t('streamRec.status.recording'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -590,7 +590,7 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             ] else if (_recordState == RecordState.pause) ...[
-              Text(t("Nahrávání pozastaveno – klepněte pro obnovení"),
+              Text(t('streamRec.status.paused'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -631,7 +631,7 @@ class _LiveRecState extends State<LiveRec> {
                       children: [
                         Icon(Icons.stop, color: primaryRed),
                         const SizedBox(width: 8),
-                        Text(t("Dokončit a pokračovat"),
+                        Text(t('streamRec.buttons.finishRecording'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -670,7 +670,7 @@ class _LiveRecState extends State<LiveRec> {
                       children: [
                         Icon(Icons.delete, color: Colors.white),
                         const SizedBox(width: 8),
-                        Text(t("Zahodit nahrávání"),
+                        Text(t('streamRec.buttons.discardRecording'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -703,12 +703,12 @@ class _LiveRecState extends State<LiveRec> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text(t('Potvrdit')),
-            content: Text(t('Opravdu chcete opustit nahrávání?')),
+            title: Text(t('streamRec.dialogs.confirmExit.title')),
+            content: Text(t('streamRec.dialogs.confirmExit.message')),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text(t('Zpět k nahrávání')),
+                child: Text(t('streamRec.dialogs.confirmExit.cancel')),
               ),
               TextButton(
                 onPressed: () {
@@ -716,7 +716,7 @@ class _LiveRecState extends State<LiveRec> {
                   discard = true;
                   Navigator.of(context).pop();
                 },
-                child: Text(t('Opustit nahrávání')),
+                child: Text(t('streamRec.dialogs.confirmExit.confirm')),
               ),
             ],
           );

@@ -214,7 +214,7 @@ class _UserPageState extends State<UserPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('Zrušit')),
+            child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
           ),
           TextButton(
             onPressed: () async {

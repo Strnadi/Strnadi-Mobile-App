@@ -112,7 +112,7 @@ class _RegisterState extends State<Register> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('OK')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),

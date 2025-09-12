@@ -195,7 +195,7 @@ class _LoginState extends State<Login> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(t('OK')))
+              child: Text(t('auth.buttons.ok')))
         ],
       ),
     );
@@ -230,7 +230,7 @@ class _LoginState extends State<Login> {
               const SizedBox(height: 20),
 
               // Title: "Přihlášení"
-              Text(t('Přihlášení'),
+              Text(t('login.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -244,7 +244,7 @@ class _LoginState extends State<Login> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // --- E-mail label and TextField ---
-                    Text(t('E-mail'),
+                    Text(t('login.inputs.emailLabel'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -275,7 +275,7 @@ class _LoginState extends State<Login> {
                     const SizedBox(height: 16),
 
                     // --- Heslo (Password) label and TextField ---
-                    Text(t('Heslo'),
+                    Text(t('login.inputs.passwordLabel'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -335,7 +335,7 @@ class _LoginState extends State<Login> {
                     );
                     // Handle "Forgot password" here
                   },
-                  child: Text(t('Zapomenuté heslo?')),
+                  child: Text(t('login.buttons.forgotPassword')),
                 ),
               ),
 
@@ -352,7 +352,7 @@ class _LoginState extends State<Login> {
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(t('Nebo')),
+                    child: Text(t('login.or')),
                   ),
                   Expanded(
                     child: Divider(
@@ -391,7 +391,7 @@ class _LoginState extends State<Login> {
                     height: 24,
                     width: 24,
                   ),
-                  label: Text(t('Pokračovat přes Google'),
+                  label: Text(t('login.buttons.googleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -431,7 +431,7 @@ class _LoginState extends State<Login> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: Text(t('Přihlásit se')),
+            child: Text(t('auth.buttons.login')),
           ),
         ),
       ),

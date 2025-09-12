@@ -44,12 +44,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(t('Notification')),
+      title: Text(t('map.dialogs.notification.title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(t('OK')),
+          child: Text(t('auth.buttons.ok')),
         ),
       ],
     ),

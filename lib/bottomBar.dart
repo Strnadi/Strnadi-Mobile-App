@@ -140,7 +140,7 @@ class ReusableBottomAppBar extends StatelessWidget {
               if (!await Config.hasBasicInternet) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(t('Chybí připojení k internetu. Mapa není dostupná.')),
+                    content: Text(t('bottomBar.errors.noInternetMap')),
                     duration: Duration(seconds: 3),
                   ),
                 );

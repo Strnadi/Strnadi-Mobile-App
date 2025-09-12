@@ -59,7 +59,7 @@ void _showMessage(BuildContext context, String message) {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(t('OK')),
+          child: Text(t('auth.buttons.ok')),
         ),
       ],
     ),

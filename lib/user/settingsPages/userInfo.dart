@@ -173,16 +173,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t("Smazání účtu")),
-        content: Text(t("Opravdu si přejete smazat svůj účet? Tato akce je nevratná.")),
+        title: Text(t('user.profile.dialogs.deleteAccount.title')),
+        content: Text(t('user.profile.dialogs.deleteAccount.message')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(t("Zrušit")),
+            child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(t("Smazat"), style: TextStyle(color: Colors.red)),
+            child: Text(t('recListItem.dialogs.confirmDelete.delete'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -231,7 +231,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(t('Osobní údaje')),
+        title: Text(t('user.profile.title')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -242,7 +242,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             onPressed: () {
               updateUserData();
             }, // Save action
-            child: Text(t('Uložit'), style: TextStyle(color: Colors.white)),
+            child: Text(t('postRecordingForm.recordingForm.buttons.save'), style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -270,7 +270,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
               const Divider(),
               ListTile(
-                title: Text(t('Změna hesla')),
+                title: Text(t('user.profile.buttons.changePassword')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
@@ -280,7 +280,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 }, // Open password change
               ),
               ListTile(
-                title: Text(t('Chci si smazat účet'), style: TextStyle(color: Colors.red)),
+                title: Text(t('user.profile.buttons.deleteAccount'), style: TextStyle(color: Colors.red)),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   confirmAndDeleteAccount();
@@ -310,7 +310,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t('OK')))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t('auth.buttons.ok')))],
       ),
     );
   }

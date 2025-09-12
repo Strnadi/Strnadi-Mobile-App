@@ -59,7 +59,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
       allawArrowBack: true,
-      appBarTitle: t('Nastavení'),
+      appBarTitle: t('user.settings.title'),
       content: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
@@ -68,7 +68,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 20),
             _buildSectionTitle(t('Aplikace')),
             _buildSwitchTile(
-              t('Použít mobilní data pro nahrávání'),
+              t('user.settings.fields.useMobileData'),
               useMobileData,
               (value) => setState(() => useMobileData = value),
             ),

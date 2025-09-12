@@ -67,12 +67,12 @@ class _RegOverviewState extends State<RegOverview> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Chyba')),
+        title: Text(t('map.dialogs.error.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('OK')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -215,7 +215,7 @@ class _RegOverviewState extends State<RegOverview> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(t('Přehled informací'),
+              Text(t('signup.overview.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -248,7 +248,7 @@ class _RegOverviewState extends State<RegOverview> {
                     },
                   ),
                   Expanded(
-                    child: Text(t('Souhlasím se zasíláním marketingových sdělení'),
+                    child: Text(t('signup.overview.marketing_consent'),
                       style: TextStyle(
                         fontSize: 14,
                         color: _RegOverviewState.textColor,
@@ -276,7 +276,7 @@ class _RegOverviewState extends State<RegOverview> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: Text(t('Registrovat')),
+                  child: Text(t('signup.overview.buttons.register')),
                 ),
               ),
             ],

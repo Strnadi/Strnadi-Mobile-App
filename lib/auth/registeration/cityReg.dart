@@ -62,12 +62,12 @@ class _RegLocationState extends State<RegLocation> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Chyba')),
+        title: Text(t('map.dialogs.error.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('OK')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -173,7 +173,7 @@ class _RegLocationState extends State<RegLocation> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Title
-                Text(t('Kde se nacházíte?'),
+                Text(t('signup.city.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -182,7 +182,7 @@ class _RegLocationState extends State<RegLocation> {
                 ),
                 const SizedBox(height: 8),
                 // Subtitle / Description
-                Text(t('Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.'),
+                Text(t('signup.city.subtitle'),
                   style: TextStyle(
                     fontSize: 14,
                     color: textColor,
@@ -191,7 +191,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 32),
 
                 // PSČ label
-                Text(t('PSČ'),
+                Text(t('signup.city.post_code'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -225,7 +225,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 16),
 
                 // Obec label
-                Text(t('Obec'),
+                Text(t('signup.city.city'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -284,7 +284,7 @@ class _RegLocationState extends State<RegLocation> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: Text(t('Pokračovat')),
+                    child: Text(t('signup.mail.buttons.continue')),
                   ),
                 ),
               ],

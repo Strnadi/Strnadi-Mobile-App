@@ -90,7 +90,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 40),
 
                 // Label for Email
-                Text(t('E-mail'),
+                Text(t('login.inputs.emailLabel'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -210,7 +210,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('OK')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),

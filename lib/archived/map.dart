@@ -34,7 +34,7 @@ void _showMessage(String message) {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(t('OK')),
+          child: Text(t('auth.buttons.ok')),
         ),
       ],
     ),
@@ -79,7 +79,7 @@ class _OSMmapState extends State<OSMmap> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           logger.w("Location permissions are denied");
-          print("Location permissions are denied");
+          print('map.notifications.locationDenied');
           setState(() {
             _currentPosition = LatLng(50.1, 14.4);
           });
@@ -89,7 +89,7 @@ class _OSMmapState extends State<OSMmap> {
 
       if (permission == LocationPermission.deniedForever) {
         logger.w("Location permissions are permanently denied");
-        print("Location permissions are permanently denied");
+        print('map.notifications.locationDeniedForever');
         setState(() {
           _currentPosition = LatLng(50.1, 14.4);
         });

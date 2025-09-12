@@ -77,13 +77,15 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(t('Fotografie'),
+            Text(t('postRecordingForm.imageUpload.title'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text('${_images.length} ${t('vybrané')}',
+            Text(
+              t('postRecordingForm.imageUpload.selectedCount')
+                  .replaceFirst('{count}', _images.length.toString()),
               style: TextStyle(
                 color: Colors.grey[600],
               ),
@@ -100,7 +102,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               child: ElevatedButton.icon(
                 onPressed: () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt, size: 16),
-                label: Text(t('Vyfotit'), style: TextStyle(fontSize: 14)),
+                label: Text(t('postRecordingForm.imageUpload.buttons.takePhoto'), style: TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -114,7 +116,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               child: ElevatedButton.icon(
                 onPressed: _pickMultipleImages,
                 icon: const Icon(Icons.photo_library, size: 16),
-                label: Text(t('Nahrát'), style: TextStyle(fontSize: 14)),
+                label: Text(t('postRecordingForm.imageUpload.buttons.upload'), style: TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -185,7 +187,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(t('Vyberte fotografie'),
+            child: Text(t('postRecordingForm.imageUpload.placeholders.noImages'),
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,

@@ -1,178 +1,534 @@
 {
-  "2017": "2017",
-  "A new version ({version}) is available. Please update your app.": "A new version ({version}) is available. Please update your app.",
-  "Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.": "Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.",
-  "Ano": "Ano",
-  "Aplikace": "Aplikace",
-  "Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.": "Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování.",
-  "Aplikace potřebuje povolení k mikrofonu a notifikacím.\\n": "Aplikace potřebuje povolení k mikrofonu a notifikacím.\\n",
-  "Autor nahrávky:": "Autor nahrávky:",
-  "Chci si smazat účet": "Chci si smazat účet",
-  "Chyba": "Chyba",
-  "Chybí připojení k internetu. Mapa není dostupná.": "Chybí připojení k internetu. Mapa není dostupná.",
-  "Could not launch": "Could not launch",
-  "Could not open the email app": "Could not open the email app",
-  "Creators: Marian Pecqueur && Jan Drobílek": "Creators: Marian Pecqueur && Jan Drobílek",
-  "Data:": "Data:",
-  "Datum a čas": "Datum a čas",
-  "Dobyté sektory:": "Dobyté sektory:",
-  "Dokončit a pokračovat": "Dokončit a pokračovat",
-  "E-mail": "E-mail",
-  "E-mail poslán": "E-mail poslán",
-  "Email již ověřen": "Email již ověřen",
-  "Email není ověřen": "Email není ověřen",
-  "Error deleting recording": "Error deleting recording",
-  "Error downloading recording": "Error downloading recording",
-  "Fotografie": "Fotografie",
-  "Heslo": "Heslo",
-  "Heslo *": "Heslo *",
-  "Heslo úspěšně změněno": "Heslo úspěšně změněno",
-  "I agree to the terms and conditions": "I agree to the terms and conditions",
-  "Informace": "Informace",
-  "Jméno *": "Jméno *",
-  "Jste offline. Budou dostupné pouze lokálně uložené záznamy.": "Jste offline. Budou dostupné pouze lokálně uložené záznamy.",
-  "Kde se nacházíte?": "Kde se nacházíte?",
-  "Klasické": "Klasické",
-  "Komentář": "Komentář",
-  "Kontakt: info@strnadi.cz, developers@strnadi.cz": "Kontakt: info@strnadi.cz, developers@strnadi.cz",
-  "Kraj": "Kraj",
-  "Legenda": "Legenda",
-  "Letecké": "Letecké",
-  "Login": "Login",
-  "Mapa": "Mapa",
-  "Mapu nelze načíst bez připojení k internetu.": "Mapu nelze načíst bez připojení k internetu.",
-  "Mapy.cz © Seznam.cz, a.s.": "Mapy.cz © Seznam.cz, a.s.",
-  "Message": "Message",
-  "Na tento e-mail vám pošleme instrukce pro reset hesla": "Na tento e-mail vám pošleme instrukce pro reset hesla",
-  "Na „{email}” jsme vám poslali odkaz na ověření e-mailové adresy. Kliknutím na odkaz potvrdíte svoji emailovou adresu.": "Na „{email}” jsme vám poslali odkaz na ověření e-mailové adresy. Kliknutím na odkaz potvrdíte svoji emailovou adresu.",
-  "Nahrát": "Nahrát",
-  "Nahrávejte, mapujte, dobývejte": "Nahrávejte, mapujte, dobývejte",
-  "Nahrávka nenalezena": "Nahrávka nenalezena",
-  "Nahrávka není dostupná": "Nahrávka není dostupná",
-  "Nahrávka neobsahuje žádné GPS body.": "Nahrávka neobsahuje žádné GPS body.",
-  "Nahrává se…": "Nahrává se…",
-  "Nahrávání pozastaveno – klepněte pro obnovení": "Nahrávání pozastaveno – klepněte pro obnovení",
-  "Nastavení": "Nastavení",
-  "Nastavení mapy": "Nastavení mapy",
-  "Nastavit": "Nastavit",
-  "Nastavte si heslo": "Nastavte si heslo",
-  "Ne": "Ne",
-  "Nebo": "Nebo",
-  "Neodeslané části": "Neodeslané části",
-  "Notification": "Notification",
-  "Nová": "Nová",
-  "Nyní se můžete přihlásit do vašeho účtu.": "Nyní se můžete přihlásit do vašeho účtu.",
-  "Název nahrávky": "Název nahrávky",
-  "Nářečí českých strnadů": "Nářečí českých strnadů",
-  "Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?": "Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?",
-  "OK": "OK",
-  "Obec": "Obec",
-  "Odeslat znovu": "Odeslat znovu",
-  "Odeslat záznam": "Odeslat záznam",
-  "Odhlásit se": "Odhlásit se",
-  "Offline režim": "Offline režim",
-  "Ok": "Ok",
-  "OpenStreetMap in Flutter": "OpenStreetMap in Flutter",
-  "Opravdu chcete opustit nahrávání?": "Opravdu chcete opustit nahrávání?",
-  "Opravdu chcete smazat nahrávku?": "Opravdu chcete smazat nahrávku?",
-  "Opravdu chcete tento záznam natrvalo smazat?": "Opravdu chcete tento záznam natrvalo smazat?",
-  "Opravdu chcete uložit tuto nahrávku?": "Opravdu chcete uložit tuto nahrávku?",
-  "Opravdu se chcete odhlásit?": "Opravdu se chcete odhlásit?",
-  "Opravdu si přejete smazat svůj účet? Tato akce je nevratná.": "Opravdu si přejete smazat svůj účet? Tato akce je nevratná.",
-  "Opustit nahrávání": "Opustit nahrávání",
-  "Osobní údaje": "Osobní údaje",
-  "Osobní údaje nejsou dostupné bez připojení k internetu": "Osobní údaje nejsou dostupné bez připojení k internetu",
-  "Otevřít e-mail": "Otevřít e-mail",
-  "Ověřte svůj e-mail": "Ověřte svůj e-mail",
-  "Oznámení": "Oznámení",
-  "PSČ": "PSČ",
-  "Pokračovat": "Pokračovat",
-  "Pokračovat přes Google": "Pokračovat přes Google",
-  "Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.": "Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.",
-  "Poslat odkaz": "Poslat odkaz",
-  "Potvrdit": "Potvrdit",
-  "Potvrdit smazání": "Potvrdit smazání",
-  "Potvrzení": "Potvrzení",
-  "Pouze já": "Pouze já",
-  "Použít mobilní data pro nahrávání": "Použít mobilní data pro nahrávání",
-  "Počet ptáků": "Počet ptáků",
-  "Počet strnadů": "Počet strnadů",
-  "Predpokladany pocet strnadu: ": "Predpokladany pocet strnadu: ",
-  "Pro pokračování musíte souhlasit s podmínkami.": "Pro pokračování musíte souhlasit s podmínkami.",
-  "Pro pokračování se přihlášením ověřte prosím svůj e-mail ({email}).\\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení.": "Pro pokračování se přihlášením ověřte prosím svůj e-mail ({email}).\\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení.",
-  "Pro stažení nahrávky je vyžadováno připojení k internetu.": "Pro stažení nahrávky je vyžadováno připojení k internetu.",
-  "Profile picture upload failed": "Profile picture upload failed",
-  "Profile picture uploaded": "Profile picture uploaded",
-  "Profilové údaje": "Profilové údaje",
-  "Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.": "Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.",
-  "Právě jsme odeslali e-mail na {email}.\\nDoručení může trvat až 10 minut.\\n\\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\\n\\nPokud ani to nepomůže, zkuste odeslat žádost znovu.": "Právě jsme odeslali e-mail na {email}.\\nDoručení může trvat až 10 minut.\\n\\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\\n\\nPokud ani to nepomůže, zkuste odeslat žádost znovu.",
-  "Přehled informací": "Přehled informací",
-  "Přezdívka (volitelné)": "Přezdívka (volitelné)",
-  "Přidat dialekt": "Přidat dialekt",
-  "Přidání dialektu": "Přidání dialektu",
-  "Přihlásit se": "Přihlásit se",
-  "Přihlášení": "Přihlášení",
-  "Příjmení *": "Příjmení *",
-  "Recorder": "Recorder",
-  "Register": "Register",
-  "Registrace": "Registrace",
-  "Registrovat": "Registrovat",
-  "Reset hesla": "Reset hesla",
-  "Resetovat": "Resetovat",
-  "Skrýt": "Skrýt",
-  "Smazat": "Smazat",
-  "Smazat nahrávku": "Smazat nahrávku",
-  "Smazat z cache": "Smazat z cache",
-  "Smazat záznam": "Smazat záznam",
-  "Smazání účtu": "Smazání účtu",
-  "Souhlasím se zasíláním marketingových sdělení": "Souhlasím se zasíláním marketingových sdělení",
-  "Stahování nedostupné": "Stahování nedostupné",
-  "Stažené": "Stažené",
-  "Stisknutím zahájíte nahrávání": "Stisknutím zahájíte nahrávání",
-  "Stop": "Stop",
-  "Strnadi": "Strnadi",
-  "Stáhnout nahrávku": "Stáhnout nahrávku",
-  "Submit": "Submit",
-  "Tento e-mail již byl ověřen.": "Tento e-mail již byl ověřen.",
-  "Time:": "Time:",
-  "Třídit podle data": "Třídit podle data",
-  "Třídit podle názvu": "Třídit podle názvu",
-  "Třídění a filtry": "Třídění a filtry",
-  "Uložit": "Uložit",
-  "Uložit změny": "Uložit změny",
-  "Update": "Update",
-  "Update Available": "Update Available",
-  "Upravit záznam": "Upravit záznam",
-  "Uživatel již existuje": "Uživatel již existuje",
-  "Uživatel s tímto e-mailem již existuje.": "Uživatel s tímto e-mailem již existuje.",
-  "Vyberte fotografie": "Vyberte fotografie",
-  "Vyfotit": "Vyfotit",
-  "Všichni": "Všichni",
-  "Zadejte vaše jméno, příjmení\\na zvolte si přezdívku": "Zadejte vaše jméno, příjmení\\na zvolte si přezdívku",
-  "Zadejte váš e-mail": "Zadejte váš e-mail",
-  "Zadejte váš e-mail pro změnu hesla": "Zadejte váš e-mail pro změnu hesla",
-  "Zahodit nahrávání": "Zahodit nahrávání",
-  "Založit účet": "Založit účet",
-  "Zapomenuté heslo?": "Zapomenuté heslo?",
-  "Zatím nemáte žádné záznamy": "Zatím nemáte žádné záznamy",
-  "Zavřít": "Zavřít",
-  "Zkontrolujte prosím zadané údaje a potvrďte registraci.": "Zkontrolujte prosím zadané údaje a potvrďte registraci.",
-  "Změna hesla": "Změna hesla",
-  "Zobrazení mapy:": "Zobrazení mapy:",
-  "Zobrazit": "Zobrazit",
-  "Zobrazovat i nepotvrzené dialekty:": "Zobrazovat i nepotvrzené dialekty:",
-  "Zoom:": "Zoom:",
-  "Zopakujte heslo *": "Zopakujte heslo *",
-  "Zpět": "Zpět",
-  "Zpět k nahrávání": "Zpět k nahrávání",
-  "Zrušit": "Zrušit",
-  "Zrušit filtr": "Zrušit filtr",
-  "current possition initialized": "current possition initialized",
-  "ochrany osobních údajů.": "ochrany osobních údajů.",
-  "pokračováním souhlasíte se zásadami": "pokračováním souhlasíte se zásadami",
-  "vybrané": "vybrané",
-  "• Alespoň 8 znaků": "• Alespoň 8 znaků",
-  "• Alespoň jedna číslice (0–9)": "• Alespoň jedna číslice (0–9)",
-  "• Alespoň jedno malé písmeno": "• Alespoň jedno malé písmeno",
-  "• Alespoň jedno velké písmeno": "• Alespoň jedno velké písmeno"
+  "auth": {
+    "title": "Nářečí českých strnadů",
+    "subtitle": "Nahrávejte, mapujte, dobývejte",
+    "buttons": {
+      "register": "Založit účet",
+      "login": "Přihlásit se",
+      "ok": "OK"
+    },
+    "alerts": {
+      "offline_no_token": {
+        "title": "Offline",
+        "message": "Nemáte připojení k internetu a žádný token není uložen."
+      },
+      "offline_expired_token": {
+        "title": "Offline",
+        "message": "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení."
+      },
+      "offline_not_verified": {
+        "title": "Offline",
+        "message": "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup."
+      },
+      "offline_action_blocked": {
+        "title": "Offline",
+        "message": "Tato akce není dostupná offline."
+      },
+      "logged_out": "Byli jste odhlášeni"
+    },
+    "disclaimer": {
+      "consent_prefix": "pokračováním souhlasíte se zásadami",
+      "privacy_policy": "ochrany osobních údajů.",
+      "dev_notice": "Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování."
+    },
+    "terms": {
+      "title": "Podmínky používání",
+      "path": "assets/docs/terms-of-services.md"
+    }
+  },
+  "login": {
+    "title": "Přihlášení",
+    "inputs": {
+      "emailLabel": "E-mail",
+      "passwordLabel": "Heslo"
+    },
+    "or": "Nebo",
+    "buttons": {
+      "loginButton": "Přihlásit se",
+      "forgotPassword": "Zapomenuté heslo?",
+      "googleSignIn": "Pokračovat přes Google"
+    },
+    "errors": {
+      "emptyFieldsError": "Vyplňte jméno i heslo",
+      "wrongCredentialsError": "Špatné jméno nebo heslo",
+      "loginFailedError": "Přihlášení selhalo, zkuste to znovu",
+      "connectionError": "Chyba připojení"
+    }
+  },
+  "signup": {
+    "mail": {
+      "title": "Zadejte váš e-mail",
+      "mail": "E-mail",
+      "or": "Nebo",
+      "ok": "OK",
+      "buttons": {
+        "continue": "Pokračovat",
+        "con_google": "Pokračovat přes Google"
+      },
+      "consent": {
+        "con1": "Zapojením do projektu občanské vědy Nářečí českých strnadů ",
+        "con2": "souhlasím s podmínkami"
+      },
+      "errors": {
+        "user_exists": {
+          "title": "Uživatel již existuje",
+          "content": "Uživatel s tímto e-mailem již existuje."
+        },
+        "mail_format_err": "Email není v platném formátu",
+        "mail_exists": "Email již existuje",
+        "google_login_failed": "Přihlášení přes Google selhalo",
+        "continue_consent": "Pro pokračování musíte souhlasit s podmínkami."
+      }
+    },
+    "password": {
+      "title": "Nastavte si heslo",
+      "password": "Heslo *",
+      "repeat_password": "Zopakujte heslo *",
+      "password_hint": "Zadejte heslo",
+      "password_again_hint": "Zopakujte heslo",
+      "password_req": {
+        "capital_letter": "• Alespoň jedno velké písmeno",
+        "lovercase_letter": "• Alespoň jedno malé písmeno",
+        "digit": "• Alespoň jedna číslice (0–9)",
+        "lenght_req": "• Alespoň 8 znaků"
+      },
+      "buttons": {
+        "continue": "Pokračovat"
+      },
+      "errors": {
+        "req_not_met": "Heslo nesplňuje požadavky",
+        "password_match_err": "Zopakujte heslo"
+      }
+    },
+    "name": {
+      "title": "Zadejte vaše jméno, příjmení\na zvolte si přezdívku",
+      "name": "Jméno *",
+      "last_name": "Příjmení *",
+      "nickname": "Přezdívka (volitelné)",
+      "nickname_hint": "Volitelné",
+      "real_name_warning": "Pokud neuvedete přezdívku, ostatní uživatelé uvidí vaše skutečné jméno.",
+      "continue": "Pokračovat",
+      "errors": {
+        "null_name_err": "Zadejte jméno",
+        "null_last_name_err": "Zadejte příjmení"
+      }
+    },
+    "city": {
+      "title": "Kde se nacházíte?",
+      "subtitle": "Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.",
+      "post_code": "PSČ",
+      "city": "Obec",
+      "continue": "Pokračovat",
+      "errors": {
+        "user_exists": "Uživatel již existuje",
+        "error_ocured": "Nastala chyba :( Zkuste to znovu"
+      }
+    },
+    "overview": {
+      "title": "Přehled informací",
+      "subtitle": "Přehled informací",
+      "marketing_consent": "Souhlasím se zasíláním marketingových sdělení",
+      "buttons": {
+        "register": "Registrovat"
+      },
+      "errors": {
+        "user_exists": "Uživatel již existuje",
+        "error_ocured": "Nastala chyba :( Zkuste to znovu"
+      }
+    }
+  },
+  "dialectBadge": {
+    "title": "Dialekt"
+  },
+  "editRecording": {
+    "title": "Upravit záznam",
+    "fields": {
+      "name": "Název",
+      "note": "Poznámka",
+      "count": "Počet strnadů",
+      "device": "Zařízení"
+    },
+    "buttons": {
+      "saveChanges": "Uložit změny"
+    }
+  },
+  "bottomBar": {
+    "errors": {
+      "noInternetMap": "Chybí připojení k internetu. Mapa není dostupná."
+    }
+  },
+  "dialogs": {
+    "message": "Zpráva"
+  },
+  "recList": {
+    "title": "Moje nahrávky",
+    "offlineMode": {
+      "title": "Offline režim",
+      "message": "Jste offline. Budou dostupné pouze lokálně uložené záznamy."
+    },
+    "buttons": {
+      "ok": "OK",
+      "sortAndFilter": "Třídění a filtry",
+      "sortByName": "Třídit podle názvu",
+      "sortByDate": "Třídit podle data",
+      "sortByBirdCount": "Počet ptáků",
+      "filterDownloaded": "Stažené",
+      "clearFilter": "Zrušit filtr"
+    },
+    "emptyListMessage": "Zatím nemáte žádné záznamy",
+    "status": {
+      "sending": "Odesílání...",
+      "checkingParts": "Kontrola částí...",
+      "unsentParts": "Neodeslané části",
+      "uploaded": "Nahráno",
+      "waitingForUpload": "Čeká na nahrání"
+    },
+    "dialect": {
+      "loading": "Načítání dialektu...",
+      "unknown": "Neznámý dialekt"
+    },
+    "name": {
+      "loading": "Načítání...",
+      "unknown": "Neznámý název"
+    }
+  },
+  "recListItem": {
+    "status": {
+      "sending": "Odesílání...",
+      "checkingParts": "Kontrola částí...",
+      "unsentParts": "Neodeslané části",
+      "uploaded": "Nahráno",
+      "waitingForUpload": "Čeká na nahrání"
+    },
+    "errors": {
+      "reverseGeocodeFailed": "Reverse geocode selhalo",
+      "errorDownloading": "Chyba při stahování nahrávky",
+      "errorDeleting": "Chyba při mazání nahrávky"
+    },
+    "buttons": {
+      "download": "Stáhnout nahrávku",
+      "delete": "Smazat záznam",
+      "resendUnsentParts": "Odeslat znovu",
+      "send": "Odeslat záznam",
+      "deleteCache": "Smazat z cache"
+    },
+    "dialogs": {
+      "confirmDelete": {
+        "title": "Potvrdit smazání",
+        "message": "Opravdu chcete tento záznam natrvalo smazat?",
+        "cancel": "Zrušit",
+        "delete": "Smazat"
+      },
+      "unsentParts": {
+        "title": "Neodeslané části",
+        "message": "Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?",
+        "cancel": "Zrušit",
+        "resend": "Odeslat znovu"
+      },
+      "downloadUnavailable": {
+        "title": "Stahování nedostupné",
+        "message": "Pro stažení nahrávky je vyžadováno připojení k internetu."
+      }
+    },
+    "placeTitle": "Mapa",
+    "noRecording": "Nahrávka není dostupná",
+    "notePlaceholder": "K tomuto záznamu není poznámka",
+    "dateTime": "Datum a čas",
+    "estimatedBirdsCount": "Předpokládaný počet strnadů"
+  },
+  "user_badge": {
+    "no_nickname": "Uzivatel nema prezdivku"
+  },
+  "map": {
+    "notifications": {
+      "enableLocation": "Please enable location services",
+      "locationDenied": "Location permissions are denied",
+      "locationDeniedForever": "Location permissions are permanently denied",
+      "locationError": "Error retrieving location"
+    },
+    "dialogs": {
+      "notification": {
+        "title": "Notification",
+        "ok": "OK"
+      },
+      "error": {
+        "title": "Chyba",
+        "close": "Zavřít"
+      },
+      "confirmDelete": {
+        "title": "Potvrdit smazání",
+        "message": "Opravdu chcete tento záznam natrvalo smazat?",
+        "cancel": "Zrušit",
+        "delete": "Smazat"
+      }
+    },
+    "buttons": {
+      "info": "Info",
+      "mapSettings": "Map Settings",
+      "reset": "Reset orientation & recenter",
+      "close": "Zavřít",
+      "set": "Nastavit",
+      "resetFilters": "Resetovat"
+    },
+    "filters": {
+      "mapView": {
+        "classic": "Klasické",
+        "satellite": "Letecké"
+      },
+      "recordingAuthor": {
+        "all": "Všichni",
+        "me": "Pouze já"
+      }
+    },
+    "legend": {
+      "title": "Legenda",
+      "dialects": {
+        "BC": "BC",
+        "BE": "BE",
+        "BlBh": "BlBh",
+        "BhBl": "BhBl",
+        "XB": "XB",
+        "rare": "Vzácné",
+        "transitional": "Přechodný",
+        "mix": "Mix",
+        "atypical": "Atypický",
+        "unfinished": "Nedokončený",
+        "unassessed": "Nevyhodnoceno",
+        "unusable": "Nepoužitelný"
+      },
+      "mapyCz": "Mapy.cz © Seznam.cz, a.s."
+    }
+  },
+  "recordingPage": {
+    "status": {
+      "loading": "Nahrávka není dostupná",
+      "downloading": "Stáhnout nahrávku",
+      "errorDownloading": "Error downloading recording"
+    },
+    "audioPlayer": {
+      "replay": "Přetočit 10s zpět",
+      "play": "Přehrát",
+      "pause": "Pozastavit",
+      "forward": "Přetočit 10s vpřed"
+    },
+    "note": {
+      "placeholder": "K tomuto záznamu není poznámka"
+    },
+    "dateTime": "Datum a čas",
+    "estimatedBirdsCount": "Předpokládaný počet strnadů",
+    "map": {
+      "title": "Mapa"
+    }
+  },
+  "postRecordingForm": {
+    "addDialect": {
+      "title": "Přidání dialektu",
+      "confirm": "Potvrdit",
+      "options": {
+        "BC": "BC",
+        "BE": "BE",
+        "BlBh": "BlBh",
+        "BhBl": "BhBl",
+        "XB": "XB",
+        "other": "Jiné",
+        "noDialect": "Bez Dialektu",
+        "unknown": "Nevím"
+      },
+      "dialogs": {
+        "confirmation": {
+          "title": "Potvrzení",
+          "message": "Opravdu chcete smazat nahrávku?",
+          "yes": "Ano",
+          "no": "Ne"
+        }
+      }
+    },
+    "imageUpload": {
+      "title": "Fotografie",
+      "selectedCount": "{count} vybrané",
+      "buttons": {
+        "takePhoto": "Vyfotit",
+        "upload": "Nahrát"
+      },
+      "placeholders": {
+        "noImages": "Vyberte fotografie"
+      }
+    },
+    "recordingForm": {
+      "fields": {
+        "recordingName": "Název nahrávky",
+        "comment": "Komentář",
+        "birdCount": "Počet strnadů",
+        "map": "Mapa"
+      },
+      "buttons": {
+        "addDialect": "Přidat dialekt",
+        "save": "Uložit",
+        "discard": "Smazat nahrávku"
+      },
+      "dialogs": {
+        "confirmation": {
+          "title": "Potvrzení",
+          "message": "Opravdu chcete uložit tuto nahrávku?",
+          "yes": "Ano",
+          "no": "Ne"
+        },
+        "discard": {
+          "title": "Potvrzení",
+          "message": "Opravdu chcete smazat nahrávku?",
+          "yes": "Ano",
+          "no": "Ne"
+        }
+      },
+      "placeholders": {
+        "noGpsPoints": "Nahrávka neobsahuje žádné GPS body.",
+        "noInternet": "Mapu nelze načíst bez připojení k internetu."
+      },
+      "slider": {
+        "oneBird": "1 strnad",
+        "twoBirds": "2 strnadi",
+        "threeOrMoreBirds": "3 a více strnadů"
+      }
+    }
+  },
+  "streamRec": {
+    "dialogs": {
+      "info": {
+        "title": "Informace",
+        "ok": "OK"
+      },
+      "confirmExit": {
+        "title": "Potvrdit",
+        "message": "Opravdu chcete opustit nahrávání?",
+        "cancel": "Zpět k nahrávání",
+        "confirm": "Opustit nahrávání"
+      }
+    },
+    "errors": {
+      "micPermission": "Pro správné fungování aplikace je potřeba povolit mikrofon",
+      "locationPermission": "Pro zahájení nahrávání musíte povolit přístup k poloze",
+      "noRecordingFound": "Nenalezena žádná nahrávka k uložení",
+      "concatError": "Chyba při spojování souborů",
+      "locationFetchError": "Chyba při získávání polohy"
+    },
+    "notifications": {
+      "recordingInProgress": "Aplikace Strnadi nahrává",
+      "recordingPaused": "Nahrávání pozastaveno"
+    },
+    "buttons": {
+      "startRecording": "Start recording",
+      "pauseRecording": "Pause recording",
+      "resumeRecording": "Resume recording",
+      "finishRecording": "Dokončit a pokračovat",
+      "discardRecording": "Zahodit nahrávání"
+    },
+    "status": {
+      "recording": "Nahrává se…",
+      "paused": "Nahrávání pozastaveno – klepněte pro obnovení",
+      "stopped": "Stisknutím zahájíte nahrávání"
+    },
+    "timer": {
+      "format": "{minutes}:{seconds},{hundredths}"
+    }
+  },
+  "user": {
+    "profile": {
+      "title": "Osobní údaje",
+      "fields": {
+        "firstName": "Jméno",
+        "lastName": "Příjmení",
+        "nickname": "Přezdívka",
+        "postCode": "PSČ",
+        "city": "Obec"
+      },
+      "buttons": {
+        "save": "Uložit",
+        "deleteAccount": "Chci si smazat účet",
+        "changePassword": "Změna hesla"
+      },
+      "dialogs": {
+        "deleteAccount": {
+          "title": "Smazání účtu",
+          "message": "Opravdu si přejete smazat svůj účet? Tato akce je nevratná.",
+          "cancel": "Zrušit",
+          "confirm": "Smazat"
+        },
+        "error": {
+          "title": "Chyba",
+          "message": "Nepodařilo se načíst uživatele nebo token"
+        },
+        "success": {
+          "message": "Údaje byly úspěšně aktualizovány"
+        }
+      }
+    },
+    "settings": {
+      "title": "Nastavení",
+      "fields": {
+        "useMobileData": "Použít mobilní data pro nahrávání",
+        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně"
+      },
+      "descriptions": {
+        "localRecordingsMax": "Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny."
+      }
+    },
+    "menu": {
+      "items": {
+        "personalInfo": "Osobní údaje",
+        "settings": "Nastavení",
+        "guide": "Příručka",
+        "aboutProject": "O projektu",
+        "aboutApp": "O aplikaci"
+      },
+      "dialogs": {
+        "aboutApp": {
+          "title": "Strnadi Mobile App",
+          "creators": "Creators: Marian Pecqueur && Jan Drobílek",
+          "contact": "Kontakt: info@strnadi.cz, developers@strnadi.cz"
+        }
+      }
+    },
+    "settingsPages": {
+      "appSettings": {
+        "title": "Nastavení",
+        "fields": {
+          "useMobileData": "Použít mobilní data pro nahrávání",
+          "localRecordingsMax": "Maximální počet nahrávek uložených lokálně"
+        },
+        "descriptions": {
+          "localRecordingsMax": "Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny."
+        }
+      },
+      "userInfo": {
+        "title": "Osobní údaje",
+        "fields": {
+          "firstName": "Jméno",
+          "lastName": "Příjmení",
+          "nickname": "Přezdívka",
+          "postCode": "PSČ",
+          "city": "Obec"
+        },
+        "buttons": {
+          "save": "Uložit",
+          "deleteAccount": "Chci si smazat účet",
+          "changePassword": "Změna hesla"
+        },
+        "dialogs": {
+          "deleteAccount": {
+            "title": "Smazání účtu",
+            "message": "Opravdu si přejete smazat svůj účet? Tato akce je nevratná.",
+            "cancel": "Zrušit",
+            "confirm": "Smazat"
+          },
+          "error": {
+            "title": "Chyba",
+            "message": "Nepodařilo se načíst uživatele nebo token"
+          },
+          "success": {
+            "message": "Údaje byly úspěšně aktualizovány"
+          }
+        }
+      }
+    }
+  }
 }

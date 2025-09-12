@@ -90,12 +90,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: Text(t('Offline režim')),
-              content: Text(t('Jste offline. Budou dostupné pouze lokálně uložené záznamy.')),
+              title: Text(t('recList.offlineMode.title')),
+              content: Text(t('recList.offlineMode.message')),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(t('OK')),
+                  child: Text(t('auth.buttons.ok')),
                 ),
               ],
             ),
@@ -117,7 +117,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(t('OK'))),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(t('auth.buttons.ok'))),
         ],
       ),
     );
@@ -166,13 +166,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(t('Třídění a filtry'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(t('recList.buttons.sortAndFilter'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.sort_by_alpha),
-                title: Text(t('Třídit podle názvu')),
+                title: Text(t('recList.buttons.sortByName')),
                 // Highlight active sort option
                 tileColor: sortOptions == SortBy.name ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
@@ -188,7 +188,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.date_range),
-                title: Text(t('Třídit podle data')),
+                title: Text(t('recList.buttons.sortByDate')),
                 tileColor: sortOptions == SortBy.date ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   setState(() {
@@ -203,7 +203,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.filter_list),
-                title: Text(t('Počet ptáků')),
+                title: Text(t('recList.buttons.sortByBirdCount')),
                 tileColor: sortOptions == SortBy.ebc ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   if (sortOptions == SortBy.ebc) {
@@ -219,7 +219,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.download),
-                title: Text(t('Stažené')),
+                title: Text(t('recList.buttons.filterDownloaded')),
                 tileColor: sortOptions == SortBy.downloaded ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   FilterDownloaded();
@@ -235,7 +235,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.clear),
-                title: Text(t('Zrušit filtr')),
+                title: Text(t('recList.buttons.clearFilter')),
                 onTap: () {
                   getRecordings();
                   setState(() {
@@ -354,7 +354,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   children: [
                     SizedBox(
                       height: 500,
-                      child: Center(child: Text(t('Zatím nemáte žádné záznamy'))),
+                      child: Center(child: Text(t('recList.emptyListMessage'))),
                     )
                   ],
                 )

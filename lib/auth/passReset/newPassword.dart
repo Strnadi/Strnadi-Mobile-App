@@ -128,7 +128,7 @@ class _RegPasswordState extends State<ChangePassword> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title
-                  Text(t('Nastavte si heslo'),
+                  Text(t('signup.password.title'),
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -138,7 +138,7 @@ class _RegPasswordState extends State<ChangePassword> {
                   const SizedBox(height: 24),
 
                   // "Heslo" label
-                  Text(t('Heslo *'),
+                  Text(t('signup.password.password'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -198,7 +198,7 @@ class _RegPasswordState extends State<ChangePassword> {
                   const SizedBox(height: 16),
 
                   // "Zopakujte heslo" label
-                  Text(t('Zopakujte heslo *'),
+                  Text(t('signup.password.repeat_password'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -264,19 +264,19 @@ class _RegPasswordState extends State<ChangePassword> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t('• Alespoň jedno velké písmeno'),
+                      Text(t('signup.password.password_req.capital_letter'),
                         style: TextStyle(
                           color: _hasUpper ? Colors.green : textColor,
                           fontSize: 14,
                         ),
                       ),
-                      Text(t('• Alespoň jedno malé písmeno'),
+                      Text(t('signup.password.password_req.lovercase_letter'),
                         style: TextStyle(
                           color: _hasLower ? Colors.green : textColor,
                           fontSize: 14,
                         ),
                       ),
-                      Text(t('• Alespoň jedna číslice (0–9)'),
+                      Text(t('signup.password.password_req.digit'),
                         style: TextStyle(
                           color: _hasDigit ? Colors.green : textColor,
                           fontSize: 14,
@@ -289,7 +289,7 @@ class _RegPasswordState extends State<ChangePassword> {
                       //     fontSize: 14,
                       //   ),
                       // ),
-                      Text(t('• Alespoň 8 znaků'),
+                      Text(t('signup.password.password_req.lenght_req'),
                         style: TextStyle(
                           color: _hasLength ? Colors.green : textColor,
                           fontSize: 14,
@@ -336,7 +336,7 @@ class _RegPasswordState extends State<ChangePassword> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: Text(t('Pokračovat')),
+                      child: Text(t('signup.mail.buttons.continue')),
                     ),
                   ),
                 ],

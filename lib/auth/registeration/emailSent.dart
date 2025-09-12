@@ -116,7 +116,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
           actions: [
             TextButton(
               onPressed: alreadyVerified,
-              child: Text(t('OK')),
+              child: Text(t('auth.buttons.ok')),
             ),
           ],
         ));
@@ -279,7 +279,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: Text(t('Pokračovat')),
+                    child: Text(t('signup.mail.buttons.continue')),
                   ),
                 ),
                 const SizedBox(height: 16),
