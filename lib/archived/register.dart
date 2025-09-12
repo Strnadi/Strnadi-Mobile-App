@@ -14,7 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'package:strnadi/auth/authorizator.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -107,12 +107,12 @@ class _RegisterState extends State<Register> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Register'),
+        title: Text(t('Register')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -123,7 +123,7 @@ class _RegisterState extends State<Register> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-        appBar: AppBar(title: const Text('Registrace')),
+        appBar: AppBar(title: Text(t('Registrace'))),
         body: Center(
           child: Form(
             key: _GlobalKey,
@@ -132,8 +132,7 @@ class _RegisterState extends State<Register> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Strnadi',
+                  Text(t('Strnadi'),
                     style: TextStyle(fontSize: 60),
                   ),
                   const SizedBox(height: 20),
@@ -218,7 +217,7 @@ class _RegisterState extends State<Register> {
                   ),
                   const SizedBox(height: 20),
                   CheckboxListTile(
-                    title: const Text('I agree to the terms and conditions'),
+                    title: Text(t('I agree to the terms and conditions')),
                     value: _termsAgreement,
                     onChanged: (value) {
                       setState(() {
@@ -240,7 +239,7 @@ class _RegisterState extends State<Register> {
                           ),
                         ),
                         onPressed: register,
-                        child: const Text('Submit'),
+                        child: Text(t('Submit')),
                       ),
                     ),
                   ),

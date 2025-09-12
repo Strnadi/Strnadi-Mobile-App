@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
+import 'package:strnadi/localization/localization.dart';
 import '../../bottomBar.dart';
 import '../settingsManager.dart';
 
@@ -58,16 +59,16 @@ class _SettingsPageState extends State<SettingsPage> {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
       allawArrowBack: true,
-      appBarTitle: 'Nastavení',
+      appBarTitle: t('user.settings.title'),
       content: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            _buildSectionTitle("Aplikace"),
+            _buildSectionTitle(t('Aplikace')),
             _buildSwitchTile(
-              "Použít mobilní data pro nahrávání",
+              t('user.settings.fields.useMobileData'),
               useMobileData,
               (value) => setState(() => useMobileData = value),
             ),

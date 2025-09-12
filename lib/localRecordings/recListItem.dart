@@ -19,6 +19,10 @@
 
 import 'dart:convert';
 
+import 'package:strnadi/localization/localization.dart';
+
+import 'package:strnadi/localization/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
@@ -214,12 +218,12 @@ class _RecordingItemState extends State<RecordingItem> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Stahování nedostupné'),
-          content: const Text('Pro stažení nahrávky je vyžadováno připojení k internetu.'),
+          title: Text(t('recListItem.dialogs.downloadUnavailable.title')),
+          content: Text(t('recListItem.dialogs.downloadUnavailable.message')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(t('auth.buttons.ok')),
             ),
           ],
         ),
@@ -252,7 +256,7 @@ class _RecordingItemState extends State<RecordingItem> {
       logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error downloading recording")),
+        SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
       );
     }
   }
@@ -273,7 +277,7 @@ class _RecordingItemState extends State<RecordingItem> {
       Sentry.captureException(e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error deleting recording')),
+          SnackBar(content: Text(t('Error deleting recording'))),
         );
       }
     }
@@ -372,11 +376,11 @@ class _RecordingItemState extends State<RecordingItem> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Nahrávka není dostupná'),
+                            Text(t('recListItem.noRecording')),
                             const SizedBox(height: 8),
                             ElevatedButton(
                               onPressed: _downloadRecording,
-                              child: const Text('Stáhnout nahrávku'),
+                              child: Text(t('recListItem.buttons.download')),
                             ),
                           ],
                         ),
@@ -387,7 +391,7 @@ class _RecordingItemState extends State<RecordingItem> {
                 child: Column(
                   children: [
                     Text(_formatDuration(totalDuration),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -408,7 +412,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: const TextStyle(fontSize: 16))]),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: TextStyle(fontSize: 16))]),
                     ),
                     const SizedBox(height: 10),
                     Container(
@@ -422,10 +426,13 @@ class _RecordingItemState extends State<RecordingItem> {
                           padding: const EdgeInsets.all(10.0),
                           child: Column(
                             children: [
-                              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text("Datum a čas")]),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [Text(t('recListItem.dateTime'))],
+                              ),
                               Text(
                                 formatDateTime(widget.recording.createdAt),
-                                style: const TextStyle(fontSize: 16),
+                                style: TextStyle(fontSize: 16),
                               ),
                             ],
                           ),
@@ -447,7 +454,7 @@ class _RecordingItemState extends State<RecordingItem> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Predpokladany pocet strnadu: "),
+                          Text(t("Predpokladany pocet strnadu: ")),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
                       ),
@@ -458,7 +465,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.send),
-                          label: const Text('Odeslat záznam'),
+                          label: Text(t('recListItem.buttons.send')),
                           onPressed: () async {
                             try {
                               // ensure all parts have been sent
@@ -473,11 +480,11 @@ class _RecordingItemState extends State<RecordingItem> {
                               final shouldResend = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  title: const Text('Neodeslané části'),
-                                  content: const Text('Některé části nahrávky nebyly odeslány. Chcete je zkusit znovu odeslat?'),
+                                  title: Text(t('recList.status.unsentParts')),
+                                  content: Text(t('recListItem.dialogs.unsentParts.message')),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Zrušit')),
-                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Odeslat znovu')),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(t('recListItem.dialogs.confirmDelete.cancel'))),
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(t('recListItem.buttons.resendUnsentParts'))),
                                   ],
                                 ),
                               );
@@ -501,29 +508,29 @@ class _RecordingItemState extends State<RecordingItem> {
                             // Optionally refresh UI or provide feedback
                           });
                         },
-                        child: const Text('Smazat z cache'),
+                        child: Text(t('recListItem.buttons.deleteCache')),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.delete, color: Colors.white,),
-                        label: const Text('Smazat záznam', style: TextStyle(color: Colors.white),),
+                        label: Text(t('recListItem.buttons.delete'), style: TextStyle(color: Colors.white),),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Potvrdit smazání'),
-                              content: const Text('Opravdu chcete tento záznam natrvalo smazat?'),
+                              title: Text(t('recListItem.dialogs.confirmDelete.title')),
+                              content: Text(t('recListItem.dialogs.confirmDelete.message')),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: const Text('Zrušit'),
+                                  child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Smazat'),
+                                  child: Text(t('recListItem.dialogs.confirmDelete.delete')),
                                 ),
                               ],
                             ),

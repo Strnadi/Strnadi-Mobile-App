@@ -29,6 +29,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+
+import 'package:strnadi/localization/localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -103,12 +105,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Notification'),
+        title: Text(t('map.dialogs.notification.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -371,12 +373,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       showDialog(context: context, builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
-        content: Text('Nahrávka nenalezena $id'),
+        title: Text(t('map.dialogs.error.title')),
+        content: Text('${t('Nahrávka nenalezena')} $id'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Zavřít'),
+            child: Text(t('map.dialogs.error.close')),
           ),
         ],
       ));
@@ -556,8 +558,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   padding: const EdgeInsets.symmetric(
                       vertical: 2, horizontal: 4),
                   color: Colors.white70,
-                  child: const Text(
-                    'Mapy.cz © Seznam.cz, a.s.',
+                  child: Text(t('map.legend.mapyCz'),
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -694,9 +695,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Center(
-                        child: Text(
-                          'Nastavení mapy',
+                      Center(
+                        child: Text(t('Nastavení mapy'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -707,7 +707,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Zobrazení mapy:'),
+                          Text(t('Zobrazení mapy:')),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -727,7 +727,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Klasické'),
+                                  child: Text(t('map.filters.mapView.classic')),
                                 ),
                               ),
                               Padding(
@@ -746,7 +746,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Letecké'),
+                                  child: Text(t('map.filters.mapView.satellite')),
                                 ),
                               ),
                             ],
@@ -757,7 +757,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Autor nahrávky:'),
+                          Text(t('Autor nahrávky:')),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -782,7 +782,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Všichni'),
+                                  child: Text(t('map.filters.recordingAuthor.all')),
                                 ),
                               ),
                               Padding(
@@ -806,7 +806,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Pouze já'),
+                                  child: Text(t('map.filters.recordingAuthor.me')),
                                 ),
                               ),
                             ],
@@ -816,7 +816,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Zobrazovat i nepotvrzené dialekty:'),
+                          Text(t('Zobrazovat i nepotvrzené dialekty:')),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -839,7 +839,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Skrýt'),
+                                  child: Text(t('Skrýt')),
                                 ),
                               ),
                               Padding(
@@ -861,7 +861,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Zobrazit'),
+                                  child: Text(t('Zobrazit')),
                                 ),
                               ),
                             ],
@@ -872,7 +872,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       // Column(
                       //   crossAxisAlignment: CrossAxisAlignment.start,
                       //   children: [
-                      //     const Text('Data:'),
+                      //     Text(t('Data:')),
                       //     const SizedBox(height: 8),
                       //     Row(
                       //       children: [
@@ -892,7 +892,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('Nová'),
+                      //             child: Text(t('Nová')),
                       //           ),
                       //         ),
                       //         Padding(
@@ -911,7 +911,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('2017'),
+                      //             child: Text(t('2017')),
                       //           ),
                       //         ),
                       //       ],
@@ -921,7 +921,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       // Column(
                       //   crossAxisAlignment: CrossAxisAlignment.start,
                       //   children: [
-                      //     const Text('Dobyté sektory:'),
+                      //     Text(t('Dobyté sektory:')),
                       //     const SizedBox(height: 8),
                       //     Row(
                       //       children: [
@@ -941,7 +941,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('Zobrazit'),
+                      //             child: Text(t('Zobrazit')),
                       //           ),
                       //         ),
                       //         Padding(
@@ -960,7 +960,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('Skrýt'),
+                      //             child: Text(t('Skrýt')),
                       //           ),
                       //         ),
                       //       ],
@@ -990,7 +990,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   _showUnconfirmedDialects = false;
                                 });
                               },
-                              child: const Text('Resetovat'),
+                              child: Text(t('map.buttons.resetFilters')),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -1002,7 +1002,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 backgroundColor: const Color(0xFFFFD641),
                                 foregroundColor: const Color(0xFF2D2B18),
                                 padding: const EdgeInsets.symmetric(vertical: 16),
-                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16.0),
                                 ),
@@ -1015,7 +1015,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 _fetchDialects();        // refetch dialect data after the setting changes
                                 Navigator.pop(context);
                               },
-                              child: const Text('Nastavit'),
+                              child: Text(t('map.buttons.set')),
                             ),
                           ),
                         ],
@@ -1076,8 +1076,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     borderRadius: BorderRadius.circular(2.5),
                   ),
                 ),
-                const Text(
-                  'Legenda',
+                Text(t('map.legend.title'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                 ),
                 const SizedBox(height: 16),
@@ -1117,12 +1116,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         backgroundColor: const Color(0xFFFFD641),
                         foregroundColor: const Color(0xFF2D2B18),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: const Text('Zavřít'),
+                      child: Text(t('map.dialogs.error.close')),
                     ),
                   ),
                 ),

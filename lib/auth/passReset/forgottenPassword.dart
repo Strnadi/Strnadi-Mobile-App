@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/gestures.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/passReset/resetEmailSent.dart';
@@ -71,8 +71,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 20),
 
                 // Heading
-                const Text(
-                  'Zadejte váš e-mail pro změnu hesla',
+                Text(t('Zadejte váš e-mail pro změnu hesla'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -81,8 +80,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 8),
 
                 // Subheading
-                Text(
-                  'Na tento e-mail vám pošleme instrukce pro reset hesla',
+                Text(t('Na tento e-mail vám pošleme instrukce pro reset hesla'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
@@ -92,8 +90,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 40),
 
                 // Label for Email
-                Text(
-                  'E-mail',
+                Text(t('login.inputs.emailLabel'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -164,7 +161,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
               backgroundColor: yellow,
               foregroundColor: yellowishBlack,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(
+              textStyle: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -172,7 +169,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: const Text('Poslat odkaz'),
+            child: Text(t('Poslat odkaz')),
           ),
         ),
       ),
@@ -208,12 +205,12 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset hesla'),
+        title: Text(t('Reset hesla')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),

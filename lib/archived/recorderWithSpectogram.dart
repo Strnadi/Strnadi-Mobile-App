@@ -14,6 +14,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:io';
+
+import 'package:strnadi/localization/localization.dart';
 import 'dart:typed_data';
 import 'dart:async';
 
@@ -42,12 +44,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Notification'),
+      title: Text(t('map.dialogs.notification.title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(t('auth.buttons.ok')),
         ),
       ],
     ),
@@ -301,15 +303,14 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.recorder,
-      appBarTitle: 'Recorder',
+      appBarTitle: t('Recorder'),
       content: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             // Display the live timer above the status.
-            Text(
-              "Time: ${_formatTime(_recordDuration)}",
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            Text('${t('Time:')} ${_formatTime(_recordDuration)}',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             // Display recording status.
             Container(
@@ -321,7 +322,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
               ),
               child: Text(
                 _isRecording ? "Recording..." : "Not Recording",
-                style: const TextStyle(fontSize: 24),
+                style: TextStyle(fontSize: 24),
               ),
             ),
             // Record/Pause-Resume button.
@@ -356,8 +357,7 @@ class _RecorderWithSpectogramState extends State<RecorderWithSpectogram> {
                 ),
               ),
               onPressed: (_isRecording || _isRecordingPaused) ? _stopRecording : null,
-              child: const Text(
-                'Stop',
+              child: Text(t('Stop'),
                 style: TextStyle(
                   color: Colors.black,
                 ),
