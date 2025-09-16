@@ -407,12 +407,14 @@ class _RecordingItemState extends State<RecordingItem> {
                     Container(
                       padding: const EdgeInsets.all(10.0),
                       width: double.infinity,
-                      height: 100,
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: TextStyle(fontSize: 16))]),
+                      child: Text(
+                        widget.recording.note ?? 'K tomuto zaznamu neni poznamka',
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Container(

@@ -201,21 +201,6 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   Navigator.pop(context);
                 }
             ),
-            ListTile(
-                leading: const Icon(Icons.filter_list),
-                title: Text(t('recList.buttons.sortByBirdCount')),
-                tileColor: sortOptions == SortBy.ebc ? Colors.grey.withOpacity(0.2) : null,
-                onTap: () {
-                  if (sortOptions == SortBy.ebc) {
-                    isAscending = !isAscending; // Toggle sorting order
-                  }
-                  setState(() {
-                    sortOptions = SortBy.ebc;
-                    _applySorting();
-                  });
-                  Navigator.pop(context);
-                }
-            ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.download),
