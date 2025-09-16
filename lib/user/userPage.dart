@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+import 'dart:math';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -42,20 +43,29 @@ class UserPage extends StatefulWidget {
 }
 
 class _UserPageState extends State<UserPage> {
-  late String userName = 'username';
-  late String lastName = 'lastname';
+  var secureStorage = const FlutterSecureStorage();
+
+  late String userName = 'null';
+  late String lastName = 'null';
   String? profileImagePath;
   bool _isConnected = true;
 
   final logger = Logger();
-  final secureStorage = const FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
+    setName();
     checkConnectivity();
     getUserData();
     getProfilePic(null);
+  }
+
+  void setName() async {
+    setState(() async {
+      userName = await secureStorage.read(key: 'firstName') ?? 'username';
+      lastName = await secureStorage.read(key: 'lastName') ?? 'LastName';
+    });
   }
 
   Future<void> checkConnectivity() async {
@@ -65,7 +75,8 @@ class _UserPageState extends State<UserPage> {
     });
   }
 
-  Future<File> convertBase64ToImage(String base64String, String fileName) async {
+  Future<File> convertBase64ToImage(
+      String base64String, String fileName) async {
     // Decode the base64 string to bytes
     final bytes = base64Decode(base64String);
 
@@ -78,44 +89,43 @@ class _UserPageState extends State<UserPage> {
     return file;
   }
 
-
   Future<void> getProfilePic(String? mail) async {
     var email;
     final jwt = await secureStorage.read(key: 'token');
 
     final id = await secureStorage.read(key: "userId");
 
-    if (mail == null){
+    if (mail == null) {
       final jwt = await secureStorage.read(key: 'token');
       email = JwtDecoder.decode(jwt!)['sub'];
-    }
-    else {
+    } else {
       email = mail;
     }
-    final url = Uri.parse(
-        'https://${Config.host}/users/${id}/get-profile-photo');
+    final url =
+        Uri.parse('https://${Config.host}/users/${id}/get-profile-photo');
     logger.i(url);
 
     try {
-      http.get(url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt'
-          }).then((value) {
+      http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt'
+      }).then((value) {
         if (value.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(value.body);
-          convertBase64ToImage(data['photoBase64'], 'profilePic.${data['format']}').then((value) {
+          convertBase64ToImage(
+                  data['photoBase64'], 'profilePic.${data['format']}')
+              .then((value) {
             logger.i("Profile picture downloaded");
             setState(() {
               profileImagePath = value.path;
             });
           });
-        }else{
-          logger.e("Profile picture download failed with status code ${value.statusCode} ${value.body}");
+        } else {
+          logger.e(
+              "Profile picture download failed with status code ${value.statusCode} ${value.body}");
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       throw UnimplementedError();
     }
   }
@@ -180,24 +190,31 @@ class _UserPageState extends State<UserPage> {
     final String email = JwtDecoder.decode(jwt!)['sub'];
     final id = await secureStorage.read(key: "userId");
 
-    final url = Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
+    final url =
+        Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
     final body = jsonEncode({
       'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
       'format': profileImagePath!.split('.').last
     });
     try {
-      http.post(url, headers: {
-        'Authorization': 'Bearer $jwt',
-        'Accept': '*/*',
-        'Content-Type': 'application/json'
-      }, body: body,
-      ).then((value) {
+      http
+          .post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $jwt',
+          'Accept': '*/*',
+          'Content-Type': 'application/json'
+        },
+        body: body,
+      )
+          .then((value) {
         if (value.statusCode == 200) {
           _showMessage(t('Profile picture uploaded'), context);
           logger.i("Profile picture uploaded");
         } else {
           _showMessage(t('Profile picture upload failed'), context);
-          logger.e("Profile picture upload failed with status code ${value.statusCode}");
+          logger.e(
+              "Profile picture upload failed with status code ${value.statusCode}");
         }
       });
     } catch (e) {
@@ -206,29 +223,31 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> logout(BuildContext context) async {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(t('Odhlásit se')),
+            content: Text(t('Opravdu se chcete odhlásit?')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await GoogleSignInService.signOut();
+                  await secureStorage.deleteAll();
+                  await strnadiFirebase.deleteToken();
 
-    showDialog(context: context, builder: (context) {
-      return AlertDialog(
-        title: Text(t('Odhlásit se')),
-        content: Text(t('Opravdu se chcete odhlásit?')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
-          ),
-          TextButton(
-            onPressed: () async {
-              await GoogleSignInService.signOut();
-              await secureStorage.deleteAll();
-              await strnadiFirebase.deleteToken();
-
-              Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
-            },
-            child: Text(t('Odhlásit se')),
-          ),
-        ],
-      );
-    });
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/authorizator', (route) => false);
+                },
+                child: Text(t('Odhlásit se')),
+              ),
+            ],
+          );
+        });
   }
 
   @override
@@ -255,7 +274,7 @@ class _UserPageState extends State<UserPage> {
                       backgroundImage: profileImagePath != null
                           ? FileImage(File(profileImagePath!))
                           : const AssetImage('./assets/images/default.jpg')
-                      as ImageProvider,
+                              as ImageProvider,
                     ),
                   ),
                   Text(
@@ -268,7 +287,10 @@ class _UserPageState extends State<UserPage> {
                 ],
               ),
             ),
-            _isConnected ? MenuScreen() : Text(t('Osobní údaje nejsou dostupné bez připojení k internetu')),
+            _isConnected
+                ? MenuScreen()
+                : Text(t(
+                    'Osobní údaje nejsou dostupné bez připojení k internetu')),
           ],
         ),
       ),

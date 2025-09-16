@@ -70,10 +70,35 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
+  void GetUserName(int userID) {
+    Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
+
+    http.get(url, headers: {'Content-Type': 'application/json'}).then(
+        (http.Response response) {
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        String firstName = jsonResponse['firstName'];
+        String lastName = jsonResponse['lastName'];
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
+        secureStorage.write(key: 'firstName', value: firstName);
+        secureStorage.write(key: 'lastName', value: lastName);
+
+        logger.i("Fetched user name: $firstName $lastName");
+      } else {
+        logger.w(
+            'Failed to fetch user name. Status code: ${response.statusCode}');
+      }
+    }).catchError((error, stackTrace) {
+      logger.e('Error fetching user name: $error',
+          error: error, stackTrace: stackTrace);
+      Sentry.captureException(error, stackTrace: stackTrace);
+    });
+  }
+
   void login() async {
     final url = Uri.https(Config.host, '/auth/login');
 
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       _showMessage("Vyplňte email i heslo");
       return;
     }
@@ -93,11 +118,14 @@ class _LoginState extends State<Login> {
       if (response.statusCode == 200 || response.statusCode == 202) {
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
-        if (await secureStorage.read(key: 'token') != null){
+        if (await secureStorage.read(key: 'token') != null) {
           secureStorage.delete(key: 'token');
         }
-        await secureStorage.write(key: 'token', value: response.body.toString());
+        await secureStorage.write(
+            key: 'token', value: response.body.toString());
+
         final verifyUrl = Uri.https(Config.host, '/auth/verify-jwt');
+
         final verifyResponse = await http.get(
           verifyUrl,
           headers: {
@@ -108,38 +136,37 @@ class _LoginState extends State<Login> {
 
         if (verifyResponse.statusCode == 403) {
           // If the JWT check returns 403, the account is not verified.
-          Uri url = Uri(
-            scheme: 'https',
-            host: Config.host,
-            path: '/users/get-id'
-          );
+          Uri url =
+              Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
           var response = await http.get(url, headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
           });
           int userId = int.parse(response.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
+          GetUserName(userId);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => EmailNotVerified(userEmail: _emailController.text, userId: userId,),
+              builder: (_) => EmailNotVerified(
+                userEmail: _emailController.text,
+                userId: userId,
+              ),
             ),
           );
           return;
-        }
-        else{
-          await secureStorage.write(key: 'token', value: response.body.toString());
-          Uri url = Uri(
-              scheme: 'https',
-              host: Config.host,
-              path: '/users/get-id'
-          );
+        } else {
+          await secureStorage.write(
+              key: 'token', value: response.body.toString());
+          Uri url =
+              Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
           var idResponse = await http.get(url, headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${response.body.toString()}',
           });
           int userId = int.parse(idResponse.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
+          GetUserName(userId);
         }
         await secureStorage.write(key: 'verified', value: 'true');
         logger.i(response.body);
@@ -156,32 +183,36 @@ class _LoginState extends State<Login> {
         );
       } else if (response.statusCode == 403) {
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
-        await secureStorage.write(key: 'token', value: response.body.toString());
-        Uri url = Uri(
-            scheme: 'https',
-            host: Config.host,
-            path: '/users/get-id'
-        );
+        await secureStorage.write(
+            key: 'token', value: response.body.toString());
+        Uri url =
+            Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
         var idResponse = await http.get(url, headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
         });
         int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
+        GetUserName(userId);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailNotVerified(userEmail: _emailController.text, userId: userId,),
+            builder: (_) => EmailNotVerified(
+              userEmail: _emailController.text,
+              userId: userId,
+            ),
           ),
         );
       } else if (response.statusCode == 401) {
         _showMessage('Špatný email nebo heslo');
       } else {
-        logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
+        logger.w(
+            'Login failed: Code: ${response.statusCode} message: ${response.body}');
         _showMessage('Přihlášení selhalo, zkuste to znovu');
       }
     } catch (error, stackTrace) {
-      logger.e('An error has occured when logging in $error', error: error, stackTrace: stackTrace);
+      logger.e('An error has occured when logging in $error',
+          error: error, stackTrace: stackTrace);
       Sentry.captureException(error, stackTrace: stackTrace);
       _showMessage('Chyba připojení');
     }
@@ -203,7 +234,6 @@ class _LoginState extends State<Login> {
 
   bool _obscurePassword = true;
 
-
   @override
   Widget build(BuildContext context) {
     const Color yellowishBlack = Color(0xFF2D2B18);
@@ -216,7 +246,8 @@ class _LoginState extends State<Login> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          icon:
+              Image.asset('assets/icons/backButton.png', width: 30, height: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -230,7 +261,8 @@ class _LoginState extends State<Login> {
               const SizedBox(height: 20),
 
               // Title: "Přihlášení"
-              Text(t('login.title'),
+              Text(
+                t('login.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -244,7 +276,8 @@ class _LoginState extends State<Login> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // --- E-mail label and TextField ---
-                    Text(t('login.inputs.emailLabel'),
+                    Text(
+                      t('login.inputs.emailLabel'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -275,7 +308,8 @@ class _LoginState extends State<Login> {
                     const SizedBox(height: 16),
 
                     // --- Heslo (Password) label and TextField ---
-                    Text(t('login.inputs.passwordLabel'),
+                    Text(
+                      t('login.inputs.passwordLabel'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -369,21 +403,30 @@ class _LoginState extends State<Login> {
                   onPressed: () {
                     logger.i('Button clicked');
                     //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
-                    google.GoogleSignInService.signInWithGoogle().then((jwt) => {
-                      if(jwt!=null){
-                      FlutterSecureStorage().write(key: 'token', value: jwt),
-                      http.get(
-                        Uri.parse('https://${Config.host}/users/get-id'),
-                        headers: {'Content-Type': 'application/json',
-                          'Authorization': 'Bearer $jwt',
-                        }
-                      ).then((http.Response response)=>{
-                        FlutterSecureStorage().write(key: 'userId', value: response.body.toString()),
-                      }),
-                      fb.refreshToken(),
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()))
-                      }
-                    });
+                    google.GoogleSignInService.signInWithGoogle()
+                        .then((jwt) => {
+                              if (jwt != null)
+                                {
+                                  FlutterSecureStorage()
+                                      .write(key: 'token', value: jwt),
+                                  http.get(
+                                      Uri.parse(
+                                          'https://${Config.host}/users/get-id'),
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer $jwt',
+                                      }).then((http.Response response) => {
+                                        FlutterSecureStorage().write(
+                                            key: 'userId',
+                                            value: response.body.toString()),
+                                      }),
+                                  fb.refreshToken(),
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => LiveRec()))
+                                }
+                            });
                     // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(
@@ -391,7 +434,8 @@ class _LoginState extends State<Login> {
                     height: 24,
                     width: 24,
                   ),
-                  label: Text(t('login.buttons.googleSignIn'),
+                  label: Text(
+                    t('login.buttons.googleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
