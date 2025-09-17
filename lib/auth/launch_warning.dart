@@ -50,7 +50,7 @@ class WIP_warning extends StatelessWidget {
                   children: [
                     const Icon(Icons.arrow_back),
                     const SizedBox(width: 4),
-                    Text(t("Zpět")),
+                    Text(t("auth.disclaimer.back")),
                   ],
                 ),
               ),
@@ -65,7 +65,7 @@ class WIP_warning extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            Text(t('Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.'),
+            Text(t('auth.disclaimer.info'),
               style: TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
             ),

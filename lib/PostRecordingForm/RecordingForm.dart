@@ -455,8 +455,8 @@ class _RecordingFormState extends State<RecordingForm> {
       else {
         logger.e("Reverse geocode failed with status code ${response.statusCode}");
       }
-    } catch (e) {
-      print('Reverse geocode error: $e');
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', stackTrace: stackTrace, error: e);
     }
   }
 
@@ -541,14 +541,14 @@ class _RecordingFormState extends State<RecordingForm> {
     await SendDialects();
     // Check connectivity and user preference before upload
     if (!await Config.hasBasicInternet) {
-      logger.w("Žádné připojení k internetu, nahrávka uložena offline");
-      _showMessage("Žádné připojení k internetu, nahrávka uložena offline");
+      logger.w("No internet connection, saved offline");
+      _showMessage(t("postRecordingForm.recordingForm.dialogs.error.noInternet.message"));
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       return;
     }
     if (!await Config.canUpload) {
-      logger.w("Nahrávání je povoleno pouze na Wi-Fi");
-      _showMessage("Nahrávání je povoleno pouze na Wi-Fi");
+      logger.w("Upload only allowed on Wi-Fi, saved offline");
+      _showMessage(t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
       Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
       return;
     }
@@ -733,7 +733,7 @@ class _RecordingFormState extends State<RecordingForm> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Název nahrávky field
-                        Text(t('postRecordingForm.recordingForm.fields.recordingName'), style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('postRecordingForm.recordingForm.fields.recordingName.name'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -751,9 +751,9 @@ class _RecordingFormState extends State<RecordingForm> {
                             maxLength: 49,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Prosím zadejte název nahrávky';
+                                return t('postRecordingForm.recordingForm.fields.recordingName.error.empty');
                               } else if (value.length > 49) {
-                                return 'Název nahrávky nesmí být delší než 49 znaků';
+                                return t('postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
                               }
                               return null;
                             },
@@ -761,12 +761,12 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Počet strnadů slider
-                        Text(t('editRecording.fields.count'), style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('postRecordingForm.recordingForm.fields.birdCount.name'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         // Display current slider value above the slider.
                         Text(
                           _strnadiCountController.toInt() == 3
-                              ? "3 a více strnadů"
+                              ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
                               : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
                           style: TextStyle(fontSize: 14),
                         ),
@@ -788,7 +788,7 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Komentář field (multiline)
-                        Text(t('postRecordingForm.recordingForm.fields.comment'), style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('postRecordingForm.recordingForm.fields.comment.name'), style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -805,7 +805,7 @@ class _RecordingFormState extends State<RecordingForm> {
                             keyboardType: TextInputType.multiline,
                             maxLines: null,
                             validator: (value) => (value == null || value.isEmpty)
-                                ? 'Prosím zadejte komentář'
+                                ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
                                 : null,
                           ),
                         ),

@@ -204,17 +204,16 @@ class _LoginState extends State<Login> {
           ),
         );
       } else if (response.statusCode == 401) {
-        _showMessage('Špatný email nebo heslo');
+        _showMessage(t('login.errors.invalidCredentials'));
       } else {
-        logger.w(
-            'Login failed: Code: ${response.statusCode} message: ${response.body}');
-        _showMessage('Přihlášení selhalo, zkuste to znovu');
+        logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
+        _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
       logger.e('An error has occured when logging in $error',
           error: error, stackTrace: stackTrace);
       Sentry.captureException(error, stackTrace: stackTrace);
-      _showMessage('Chyba připojení');
+      _showMessage(t('login.errors.connection'));
     }
   }
 

@@ -27,8 +27,10 @@
       "logged_out": "Byli jste odhlášeni"
     },
     "disclaimer": {
+      "back": "Zpět",
       "consent_prefix": "pokračováním souhlasíte se zásadami",
       "privacy_policy": "ochrany osobních údajů.",
+      "info": "Projekt občanské vědy zaměřený na studium rozmanitosti ptačího zpěvu. Nahráváním zpěvu strnadů obecných po celém Česku můžete přispět k poznání, jak se v krajině udržují ptačí nářečí.",
       "dev_notice": "Aplikace i web stále procházejí velmi bouřlivým vývojem. Za chyby se omlouváme. Těšte se na časté aktualizace a vylepšování."
     },
     "terms": {
@@ -50,9 +52,9 @@
     },
     "errors": {
       "emptyFieldsError": "Vyplňte jméno i heslo",
-      "wrongCredentialsError": "Špatné jméno nebo heslo",
-      "loginFailedError": "Přihlášení selhalo, zkuste to znovu",
-      "connectionError": "Chyba připojení"
+      "invalidCredentials": "Špatné jméno nebo heslo",
+      "loginFailed": "Přihlášení selhalo, zkuste to znovu",
+      "connection": "Chyba připojení"
     }
   },
   "signup": {
@@ -356,9 +358,25 @@
     },
     "recordingForm": {
       "fields": {
-        "recordingName": "Název nahrávky",
-        "comment": "Komentář",
-        "birdCount": "Počet strnadů",
+        "recordingName":{
+          "name": "Název nahrávky",
+          "error": {
+            "empty": "Prosím zadejte název nahrávky",
+            "tooLong": "Název nahrávky nesmí být delší než 49 znaků"
+          }
+        },
+        "comment": {
+          "name": "Komentář",
+          "error": {
+            "empty": "Prosím zadejte komentář"
+          }
+        },
+        "birdCount": {
+          "name": "Počet strnadů",
+          "count":{
+            "threeOrMore": "3 a více"
+          }
+        },
         "map": "Mapa"
       },
       "buttons": {
@@ -378,6 +396,16 @@
           "message": "Opravdu chcete smazat nahrávku?",
           "yes": "Ano",
           "no": "Ne"
+        },
+        "error": {
+          "noInternet": {
+            "title": "Chyba připojení",
+            "message": "Pro uložení nahrávky je potřeba připojení k internetu"
+          },
+          "wifiOnly" :{
+            "title": "Chyba připojení",
+            "message": "Nahrávání je povoleno pouze na Wi-Fi"
+          }
         }
       },
       "placeholders": {
