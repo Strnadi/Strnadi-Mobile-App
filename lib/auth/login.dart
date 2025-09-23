@@ -34,6 +34,8 @@ import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
+import 'package:strnadi/auth/appleAuth.dart' as apple;
+import 'package:strnadi/auth/registeration/nameReg.dart';
 
 final logger = Logger();
 
@@ -446,6 +448,95 @@ class _LoginState extends State<Login> {
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
                     side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    logger.i('Apple button clicked');
+
+                    // Start Apple sign‑in flow
+                    final data = await apple.AppleAuth.signInAndGetJwt();
+                    if (data == null) {
+                      logger.w('Apple sign in return data null');
+                      // User cancelled or sign‑in failed
+                      return;
+                    }
+
+                    // Check if we already have the user's full name
+                    final String? firstName = data['firstName'] as String?;
+                    final String? lastName  = data['lastName']  as String?;
+                    final String? email = data['email'] as String?;
+
+                    if ((firstName != null && lastName != null && email != null)) {
+                      // Missing profile data → go to the registration screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegName(
+                            name: firstName,
+                            surname: lastName,
+                            email: email,
+                            jwt: data['jwt'] as String,
+                            consent: true,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final String jwt = data['jwt'] as String;
+                    final secureStorage = const FlutterSecureStorage();
+
+                    // Persist the token locally
+                    await secureStorage.write(key: 'token', value: jwt);
+                    logger.i('Apple sign‑in successful, token stored');
+
+                    // Retrieve user‑id from backend
+                    final idResponse = await http.get(
+                      Uri.parse('https://${Config.host}/users/get-id'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer $jwt',
+                      },
+                    );
+                    if (idResponse.statusCode != 200) {
+                      logger.w('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                      _showMessage('Chyba při získávání ID uživatele');
+                      return;
+                    }
+                    logger.i('User ID retrieved: ${idResponse.body}');
+
+                    await secureStorage.write(key: 'userId', value: idResponse.body);
+                    await fb.refreshToken();
+
+                    // Go to recorder screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => LiveRec()),
+                    );
+                  },
+                  icon: Image.asset(
+                    'assets/images/apple.png',
+                    height: 24,
+                    width: 24,
+                  ),
+                  label: const Text(
+                    'Pokračovat přes Apple',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
