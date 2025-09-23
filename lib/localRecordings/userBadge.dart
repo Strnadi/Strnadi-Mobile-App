@@ -54,14 +54,14 @@ class _UserBadgeState extends State<UserBadge> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.user.NickName ?? '',
+              widget.user.NickName ?? '${widget.user.FirstName} ${widget.user.LastName}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
             ),
             Text(
-              "${widget.user.FirstName} ${widget.user.LastName}",
+              widget.user.NickName != null ? "${widget.user.FirstName} ${widget.user.LastName}" : "Uzivatel nema prezdivku",
               style: const TextStyle(
                 color: Colors.grey,
                 fontSize: 12,

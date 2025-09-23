@@ -18,16 +18,18 @@
  */
 
 import 'dart:convert';
+
+import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import '../dialects/ModelHandler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
@@ -55,8 +57,6 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   bool isAscending = true; // Add
 
   Timer? _refreshTimer;
-
-  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   @override
   void didChangeDependencies() {
@@ -90,12 +90,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Offline režim'),
-              content: const Text('Jste offline. Budou dostupné pouze lokálně uložené záznamy.'),
+              title: Text(t('recList.offlineMode.title')),
+              content: Text(t('recList.offlineMode.message')),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
+                  child: Text(t('auth.buttons.ok')),
                 ),
               ],
             ),
@@ -117,7 +117,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(t('auth.buttons.ok'))),
         ],
       ),
     );
@@ -166,13 +166,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Třídění a filtry', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(t('recList.buttons.sortAndFilter'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.sort_by_alpha),
-                title: const Text('Třídit podle názvu'),
+                title: Text(t('recList.buttons.sortByName')),
                 // Highlight active sort option
                 tileColor: sortOptions == SortBy.name ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
@@ -188,7 +188,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             ),
             ListTile(
                 leading: const Icon(Icons.date_range),
-                title: const Text('Třídit podle data'),
+                title: Text(t('recList.buttons.sortByDate')),
                 tileColor: sortOptions == SortBy.date ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   setState(() {
@@ -201,25 +201,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   Navigator.pop(context);
                 }
             ),
-            ListTile(
-                leading: const Icon(Icons.filter_list),
-                title: const Text('Počet ptáků'),
-                tileColor: sortOptions == SortBy.ebc ? Colors.grey.withOpacity(0.2) : null,
-                onTap: () {
-                  if (sortOptions == SortBy.ebc) {
-                    isAscending = !isAscending; // Toggle sorting order
-                  }
-                  setState(() {
-                    sortOptions = SortBy.ebc;
-                    _applySorting();
-                  });
-                  Navigator.pop(context);
-                }
-            ),
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.download),
-                title: const Text('Stažené'),
+                title: Text(t('recList.buttons.filterDownloaded')),
                 tileColor: sortOptions == SortBy.downloaded ? Colors.grey.withOpacity(0.2) : null,
                 onTap: () {
                   FilterDownloaded();
@@ -235,7 +220,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             const Divider(),
             ListTile(
                 leading: const Icon(Icons.clear),
-                title: const Text('Zrušit filtr'),
+                title: Text(t('recList.buttons.clearFilter')),
                 onTap: () {
                   getRecordings();
                   setState(() {
@@ -325,7 +310,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           padding: const EdgeInsets.only(left: 16.0),
           child: Text(
             appBarTitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
               fontFamily: 'Bricolage Grotesque',
@@ -351,10 +336,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           child: records.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
+                  children: [
                     SizedBox(
                       height: 500,
-                      child: Center(child: Text('Zatím nemáte žádné záznamy')),
+                      child: Center(child: Text(t('recList.emptyListMessage'))),
                     )
                   ],
                 )
@@ -391,7 +376,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                           rec.name != null
                               ? Text(
                                   _truncateName(rec.name!),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -417,7 +402,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                     }
                                     return Text(
                                       _truncateName(topText),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -438,7 +423,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                               }
                               return Text(
                                 dialectText,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey,
                                 ),
@@ -492,7 +477,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                           const SizedBox(height: 4),
                           Text(
                             dateText,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
                             ),
@@ -546,44 +531,31 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
   }
 
-  Future<String> getDialectName(int id) async {
+  Future<String> getDialectName(int recordingId) async {
     try {
-      // Read JWT token
-      final jwt = await _secureStorage.read(key: 'token');
-      // Call filtered endpoint with recordingId as query
-      final url = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/recordings/filtered',
-        query: 'recordingId=$id');
-      final response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      });
-      if (response.statusCode == 204) {
+      // Prefer locally‑stored dialects to avoid an extra API call.
+      final List<Dialect> dialects =
+          await DatabaseNew.getDialectsByRecordingId(recordingId);
+
+      if (dialects.isEmpty) {
         return 'Bez dialektu';
       }
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        // Return first non-empty dialect
-        for (final item in data.cast<Map<String, dynamic>>()) {
-          final rd = RecordingDialect.fromJson(item);
-          if (rd.dialect.isNotEmpty && rd.dialect != 'Nevyhodnoceno') {
-            return rd.dialect;
-          }
+
+      // Return the first non‑empty, non‑placeholder dialect we find.
+      for (final d in dialects) {
+        final String? name = d.userGuessDialect;
+        if (name != null && name.isNotEmpty && name != 'Nevyhodnoceno') {
+          return name;
         }
-        // Fallback to first element's dialect
-        if (data.isNotEmpty) {
-          final rd = RecordingDialect.fromJson(data.first as Map<String, dynamic>);
-          return rd.dialect.isEmpty ? 'Neznámý dialekt' : rd.dialect;
-        }
-      } else {
-        logger.w('Dialect fetch failed: ${response.statusCode}');
       }
+
+      // If every dialect string is empty or "Nevyhodnoceno", fall back.
+      return 'Neznámý dialekt';
     } catch (e, stackTrace) {
-      logger.e('Error fetching dialects for recording $id: $e', error: e, stackTrace: stackTrace);
+      logger.e('Error fetching dialects for recording $recordingId: $e',
+          error: e, stackTrace: stackTrace);
+      return 'Neznámý dialekt';
     }
-    return 'Neznámý dialekt';
   }
 
   AssetImage getDialectImage(dialectName) {

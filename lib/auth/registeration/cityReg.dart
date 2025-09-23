@@ -14,6 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -59,12 +62,12 @@ class _RegLocationState extends State<RegLocation> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
+        title: Text(t('map.dialogs.error.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -170,8 +173,7 @@ class _RegLocationState extends State<RegLocation> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Title
-                const Text(
-                  'Kde se nacházíte?',
+                Text(t('signup.city.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -180,8 +182,7 @@ class _RegLocationState extends State<RegLocation> {
                 ),
                 const SizedBox(height: 8),
                 // Subtitle / Description
-                const Text(
-                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.',
+                Text(t('signup.city.subtitle'),
                   style: TextStyle(
                     fontSize: 14,
                     color: textColor,
@@ -190,8 +191,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 32),
 
                 // PSČ label
-                const Text(
-                  'PSČ',
+                Text(t('signup.city.post_code'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -225,8 +225,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 16),
 
                 // Obec label
-                const Text(
-                  'Obec',
+                Text(t('signup.city.city'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -277,7 +276,7 @@ class _RegLocationState extends State<RegLocation> {
                       backgroundColor: _isFormValid ? yellow : Colors.grey,
                       foregroundColor: _isFormValid ? textColor : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle: const TextStyle(
+                      textStyle: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -285,7 +284,7 @@ class _RegLocationState extends State<RegLocation> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: const Text('Pokračovat'),
+                    child: Text(t('signup.mail.buttons.continue')),
                   ),
                 ),
               ],

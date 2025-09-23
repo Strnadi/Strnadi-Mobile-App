@@ -13,7 +13,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+/*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 import 'dart:convert';
+
+import 'package:strnadi/localization/localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -38,10 +55,15 @@ import 'package:strnadi/locationService.dart'; // Use the location service
 import 'package:http/http.dart' as http;
 
 import '../database/databaseNew.dart';
+import '../dialects/ModelHandler.dart';
 
 
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
+
+/// Global switch that decides whether recordings whose dialect is still
+/// unconfirmed (“Nevyhodnoceno”) are shown on the map.
+bool showUnconfirmedDialects = false;
 
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
@@ -56,6 +78,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   String _recordingAuthorFilter = 'all';
   String _dataFilter = 'new';
   bool _showConqueredSectors = true;
+  bool _showUnconfirmedDialects = showUnconfirmedDialects;
   List<Polyline> _gridLines = [];
   Map<int, String> _dialectMap = {};
 
@@ -82,12 +105,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Notification'),
+        title: Text(t('map.dialogs.notification.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -217,6 +240,23 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<void> _fetchDialects() async {
+    List<Dialect> dialects = await fetchRecordingDialects(null);
+    Map<int, String> dialectMap = {};
+    for (Dialect dialect in dialects) {
+      final int? recordingId = dialect.recordingBEID;
+      if (recordingId == null) continue;
+      late String dialectName;
+      if(!_showUnconfirmedDialects) {
+        dialectName = dialect.adminDialect  ?? 'Nevyhodnoceno';
+      } else {
+        dialectName = dialect.adminDialect ?? dialect.userGuessDialect ?? 'Nevyhodnoceno';
+      }
+      dialectMap[recordingId] = dialectName;
+    }
+    setState(() {
+      _dialectMap = dialectMap;
+    });
+    /*
     logger.i('Fetching dialects for all parts');
     try {
       final jwt = await secureStorage.read(key: 'token');
@@ -229,7 +269,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final List<dynamic> data = jsonDecode(response.body);
         final Map<int, String> dialects = {};
         for (final item in data.cast<Map<String, dynamic>>()) {
-          final dialectObj = RecordingDialect.fromJson(item);
+          final dialectObj = Dialect.fromBEJson(item);
           final dynamic idValue = item['recordingId'];
           final int id = idValue is int ? idValue : int.tryParse(idValue.toString()) ?? 0;
           dialects[id] = dialectObj.dialect;
@@ -244,6 +284,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     } catch (e, stackTrace) {
       logger.e('Failed to fetch dialects for all parts: $e', error: e, stackTrace: stackTrace);
     }
+   */
   }
 
   Future<(String?, String?)?> getProfilePic(int? userId_) async {
@@ -296,9 +337,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt'
       }).then((val) => UserData.fromJson(json.decode(val.body)));
-      logger.i(resp.NickName);
       (String?, String?)? profilePicData = await getProfilePic(mail);
-      logger.i(resp.NickName);
+      logger.i(resp);
       return resp;
       // if (profilePicData!.$1 == null || profilePicData.$2 == null){
       //   logger.i(resp);
@@ -333,12 +373,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       showDialog(context: context, builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
-        content: Text('Nahrávka nenalezena $id'),
+        title: Text(t('map.dialogs.error.title')),
+        content: Text('${t('Nahrávka nenalezena')} $id'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Zavřít'),
+            child: Text(t('map.dialogs.error.close')),
           ),
         ],
       ));
@@ -409,20 +449,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   MarkerLayer(
                     markers: _recordings
                         .map((part) => Marker(
-                      width: 30.0,
-                      height: 30.0,
-                      point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
-                      child: GestureDetector(
-                        onTap: () {
-                          getRecordingFromPartId(part.recordingId);
-                        },
-                        child: Image.asset(
-                          'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
                           width: 30.0,
                           height: 30.0,
-                        ),
-                      ),
-                    ))
+                          point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
+                          child: GestureDetector(
+                            onTap: () {
+                              getRecordingFromPartId(part.recordingId);
+                            },
+                            child: Image.asset(
+                              'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
+                              key: ValueKey('${part.recordingId}_${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}'),
+                              gaplessPlayback: true,
+                              width: 30.0,
+                              height: 30.0,
+                            ),
+                          ),
+                        ))
                         .toList(),
                   )
 
@@ -516,8 +558,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   padding: const EdgeInsets.symmetric(
                       vertical: 2, horizontal: 4),
                   color: Colors.white70,
-                  child: const Text(
-                    'Mapy.cz © Seznam.cz, a.s.',
+                  child: Text(t('map.legend.mapyCz'),
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -654,9 +695,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Center(
-                        child: Text(
-                          'Nastavení mapy',
+                      Center(
+                        child: Text(t('Nastavení mapy'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -667,7 +707,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Zobrazení mapy:'),
+                          Text(t('Zobrazení mapy:')),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -687,7 +727,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Klasické'),
+                                  child: Text(t('map.filters.mapView.classic')),
                                 ),
                               ),
                               Padding(
@@ -706,7 +746,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Letecké'),
+                                  child: Text(t('map.filters.mapView.satellite')),
                                 ),
                               ),
                             ],
@@ -717,7 +757,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Autor nahrávky:'),
+                          Text(t('Autor nahrávky:')),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -742,7 +782,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Všichni'),
+                                  child: Text(t('map.filters.recordingAuthor.all')),
                                 ),
                               ),
                               Padding(
@@ -766,7 +806,62 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                   ),
-                                  child: const Text('Pouze já'),
+                                  child: Text(t('map.filters.recordingAuthor.me')),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t('Zobrazovat i nepotvrzené dialekty:')),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _showUnconfirmedDialects = false;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: !_showUnconfirmedDialects
+                                            ? Colors.black
+                                            : Colors.grey),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(t('Skrýt')),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _showUnconfirmedDialects = true;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _showUnconfirmedDialects
+                                            ? Colors.black
+                                            : Colors.grey),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(t('Zobrazit')),
                                 ),
                               ),
                             ],
@@ -777,7 +872,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       // Column(
                       //   crossAxisAlignment: CrossAxisAlignment.start,
                       //   children: [
-                      //     const Text('Data:'),
+                      //     Text(t('Data:')),
                       //     const SizedBox(height: 8),
                       //     Row(
                       //       children: [
@@ -797,7 +892,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('Nová'),
+                      //             child: Text(t('Nová')),
                       //           ),
                       //         ),
                       //         Padding(
@@ -816,7 +911,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('2017'),
+                      //             child: Text(t('2017')),
                       //           ),
                       //         ),
                       //       ],
@@ -826,7 +921,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       // Column(
                       //   crossAxisAlignment: CrossAxisAlignment.start,
                       //   children: [
-                      //     const Text('Dobyté sektory:'),
+                      //     Text(t('Dobyté sektory:')),
                       //     const SizedBox(height: 8),
                       //     Row(
                       //       children: [
@@ -846,7 +941,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('Zobrazit'),
+                      //             child: Text(t('Zobrazit')),
                       //           ),
                       //         ),
                       //         Padding(
@@ -865,7 +960,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       //                   borderRadius: BorderRadius.circular(12),
                       //                 ),
                       //             ),
-                      //             child: const Text('Skrýt'),
+                      //             child: Text(t('Skrýt')),
                       //           ),
                       //         ),
                       //       ],
@@ -892,9 +987,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 setModalState(() {
                                   _isSatelliteView = false;
                                   _recordingAuthorFilter = 'all';
+                                  _showUnconfirmedDialects = false;
                                 });
                               },
-                              child: const Text('Resetovat'),
+                              child: Text(t('map.buttons.resetFilters')),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -906,7 +1002,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 backgroundColor: const Color(0xFFFFD641),
                                 foregroundColor: const Color(0xFF2D2B18),
                                 padding: const EdgeInsets.symmetric(vertical: 16),
-                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16.0),
                                 ),
@@ -914,10 +1010,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               onPressed: () {
                                 setState(() {
                                   // Apply filters if needed.
+                                  showUnconfirmedDialects = _showUnconfirmedDialects;
                                 });
+                                _fetchDialects();        // refetch dialect data after the setting changes
                                 Navigator.pop(context);
                               },
-                              child: const Text('Nastavit'),
+                              child: Text(t('map.buttons.set')),
                             ),
                           ),
                         ],
@@ -978,8 +1076,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     borderRadius: BorderRadius.circular(2.5),
                   ),
                 ),
-                const Text(
-                  'Legenda',
+                Text(t('map.legend.title'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                 ),
                 const SizedBox(height: 16),
@@ -1019,12 +1116,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         backgroundColor: const Color(0xFFFFD641),
                         foregroundColor: const Color(0xFF2D2B18),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: const Text('Zavřít'),
+                      child: Text(t('map.dialogs.error.close')),
                     ),
                   ),
                 ),

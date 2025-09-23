@@ -29,8 +29,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/config/config.dart';
-
-import 'PostRecordingForm/addDialect.dart';
+import '../dialects/ModelHandler.dart';
 
 
 final logger = Logger();
@@ -89,28 +88,37 @@ void callbackDispatcher() {
           logger.i("Recording $recordingId uploaded successfully in background");
 
           // ---------------------------
-
           // Send dialects after successful recording upload
-          List<RecordingDialect> dialectSegments = await DatabaseNew.getRecordingDialects(recording.id!);
-          
-          var dialects = dialectSegments.map((e) => DatabaseNew.ToDialectModel(e)).toList();
-          final tokenStorage = FlutterSecureStorage();
-          final jwt = await tokenStorage.read(key: 'token');
+          logger.i('Sending dialects for recording $recordingId in background');
+          late List<Dialect> dialects;
+          try {
+            logger.i('Getting dialects from DB with recording id $recordingId');
+            dialects = await DatabaseNew.getDialectsByRecordingId(recordingId);
+          }
+          catch(e, stackTrace){
+            logger.e('Failed to get dialects for recording $recordingId: $e', error: e, stackTrace: stackTrace);
+            Sentry.captureException(e, stackTrace: stackTrace);
+          }
+          logger.i('Got dialects for recording $recordingId: ${dialects.length}');
+
+          if (dialects.isEmpty) {
+            logger.i("No dialects found for recording $recordingId");
+          }
+
+          final String? jwt = await FlutterSecureStorage().read(key: 'token');
+          logger.i('Dialects length: ${dialects.length}');
 
           if (jwt == null) {
             logger.e("JWT token not found in secure storage.");
           } else {
-            for (DialectModel dialect in dialects) {
-              final dialectBody = {
-                'recordingId': recording.BEId,
-                'StartDate': recording.createdAt
-                    .add(Duration(milliseconds: dialect.startTime.toInt()))
-                    .toIso8601String(),
-                'endDate': recording.createdAt
-                    .add(Duration(milliseconds: dialect.endTime.toInt()))
-                    .toIso8601String(),
-                'dialectCode': dialect.label,
-              };
+            for (final dialect in dialects) {
+              logger.i('Sending dialect ${dialect.dialect} for recording $recordingId in background');
+              // toBEJson gives us the correct field names; we only need to
+              // override recordingId with the backend ID we just obtained.
+              final Map<String, dynamic> dialectBody = dialect.toBEJson()
+                ..['recordingId'] = recording.BEId;
+
+              logger.t('Dialect body: $dialectBody');
 
               try {
                 final url = Uri(
@@ -129,20 +137,21 @@ void callbackDispatcher() {
                 );
 
                 if (response.statusCode == 200) {
-                  logger.i("Dialect ${dialect.label} sent successfully");
+                  logger.i("Dialect ${dialect.dialect} sent successfully");
                 } else {
                   logger.e(
                     "Dialect sending failed with status ${response.statusCode}. Response: ${response.body}",
                   );
                 }
               } catch (e, stackTrace) {
-                logger.e("Error sending dialect ${dialect.label}: $e", error: e, stackTrace: stackTrace);
+                logger.e("Error sending dialect ${dialect.dialect}: $e",
+                    error: e, stackTrace: stackTrace);
               }
             }
           }
 
-          await DatabaseNew.sendLocalNotification("Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
-
+          await DatabaseNew.sendLocalNotification(
+              "Nahrávka se odeslala", "Nahrávka $recordingId se úspěšně odeslala.");
           // --------------------------
 
         } catch (e, stackTrace) {

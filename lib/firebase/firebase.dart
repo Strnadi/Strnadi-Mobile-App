@@ -83,9 +83,9 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
   if (notification != null && android != null) {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
     AndroidNotificationDetails(
-      'your_channel_id', // Set a unique channel id
-      'your_channel_name', // Set a human-readable channel name
-      channelDescription: 'your_channel_description',
+      'com.delta.strnadi', // Set a unique channel id
+      'Strnadi', // Set a human-readable channel name
+      channelDescription: 'Aplikace Strnadi',
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',

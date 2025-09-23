@@ -18,6 +18,7 @@
  */
 
 import 'dart:async';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:isolate';
 import 'dart:convert';
 import 'dart:io';
@@ -156,12 +157,12 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Informace'),
+      title: Text(t('streamRec.dialogs.info.title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(t('streamRec.dialogs.info.ok')),
         ),
       ],
     ),
@@ -172,12 +173,12 @@ void exitApp(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Informace'),
+      title: Text(t('streamRec.dialogs.info.title')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => SystemNavigator.pop(),
-          child: const Text('OK'),
+          child: Text(t('streamRec.dialogs.info.ok')),
         ),
       ],
     ),
@@ -299,11 +300,11 @@ class _LiveRecState extends State<LiveRec> {
         return;
       }
       if (_recordState == RecordState.record) {
-        _pause();
+        await _pause();
       } else if (_recordState == RecordState.pause) {
-        _resume();
+        await _resume();
       } else {
-        _start();
+        await _start();
       }
     } catch (e, stackTrace) {
       logger.e("Error toggling recording: $e", error: e, stackTrace: stackTrace);
@@ -417,7 +418,7 @@ class _LiveRecState extends State<LiveRec> {
 
   @override
   Widget build(BuildContext context) {
-    final totalTime = _totalRecordedTime + _recordDuration;
+    final totalTime = _recordDuration;
 
     // Define custom colors to match your design.
     final Color primaryRed = const Color(0xFFFF3B3B);
@@ -560,7 +561,7 @@ class _LiveRecState extends State<LiveRec> {
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
               child: Text(
                 _formatTime(totalTime),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
@@ -571,8 +572,7 @@ class _LiveRecState extends State<LiveRec> {
             const SizedBox(height: 10),
             // Status text
             if (_recordState == RecordState.stop) ...[
-              Text(
-                "Stisknutím zahájíte nahrávání",
+              Text(t('streamRec.status.stopped'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -581,8 +581,7 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             ] else if (_recordState == RecordState.record) ...[
-              Text(
-                "Nahrává se…",
+              Text(t('streamRec.status.recording'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -591,8 +590,7 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             ] else if (_recordState == RecordState.pause) ...[
-              Text(
-                "Nahrávání pozastaveno – klepněte pro obnovení",
+              Text(t('streamRec.status.paused'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -614,7 +612,7 @@ class _LiveRecState extends State<LiveRec> {
                       elevation: 0,
                       backgroundColor: secondaryRed,
                       foregroundColor: primaryRed,
-                      textStyle: const TextStyle(
+                      textStyle: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Bricolage Grotesque',
@@ -633,8 +631,7 @@ class _LiveRecState extends State<LiveRec> {
                       children: [
                         Icon(Icons.stop, color: primaryRed),
                         const SizedBox(width: 8),
-                        const Text(
-                          "Dokončit a pokračovat",
+                        Text(t('streamRec.buttons.finishRecording'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -654,7 +651,7 @@ class _LiveRecState extends State<LiveRec> {
                       elevation: 0,
                       backgroundColor: Colors.grey,
                       foregroundColor: Colors.white,
-                      textStyle: const TextStyle(
+                      textStyle: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Bricolage Grotesque',
@@ -673,8 +670,7 @@ class _LiveRecState extends State<LiveRec> {
                       children: [
                         Icon(Icons.delete, color: Colors.white),
                         const SizedBox(width: 8),
-                        const Text(
-                          "Zahodit nahrávání",
+                        Text(t('streamRec.buttons.discardRecording'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -707,12 +703,12 @@ class _LiveRecState extends State<LiveRec> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Potvrdit'),
-            content: const Text('Opravdu chcete opustit nahrávání?'),
+            title: Text(t('streamRec.dialogs.confirmExit.title')),
+            content: Text(t('streamRec.dialogs.confirmExit.message')),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Zpět k nahrávání'),
+                child: Text(t('streamRec.dialogs.confirmExit.cancel')),
               ),
               TextButton(
                 onPressed: () {
@@ -720,7 +716,7 @@ class _LiveRecState extends State<LiveRec> {
                   discard = true;
                   Navigator.of(context).pop();
                 },
-                child: const Text('Opustit nahrávání'),
+                child: Text(t('streamRec.dialogs.confirmExit.confirm')),
               ),
             ],
           );
@@ -897,7 +893,6 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.path = filepath;
     recordingPartsList.add(recordedPart!);
     setState(() {
-      _recordDuration = Duration.zero;
       _recordState = RecordState.pause; // show resume button
     });
   }
@@ -908,8 +903,7 @@ class _LiveRecState extends State<LiveRec> {
       filepath = path;
       _recordState = RecordState.record; // back to recording
     });
-    _elapsedTimer.reset();
-    _elapsedTimer.start();
+    _elapsedTimer.resume();
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Strnadi',
       notificationText: 'Aplikace Strnadi nahrává',

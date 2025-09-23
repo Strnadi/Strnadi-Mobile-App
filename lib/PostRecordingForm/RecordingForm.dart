@@ -18,6 +18,7 @@
  */
 
 import 'dart:io';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
@@ -39,6 +40,7 @@ import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
 import 'addDialect.dart';
 import 'dart:math' as math;
+import 'package:strnadi/dialects/ModelHandler.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
@@ -89,11 +91,16 @@ class _RecordingFormState extends State<RecordingForm> {
 
   final MapController _mapController = MapController();
 
-  var placeTitle = "";
+  late String placeTitle = " ";
 
   @override
   void initState() {
     super.initState();
+
+    setState(() {
+      placeTitle = " ";
+    });
+
     // Initialize spectrogram widget.
     // setState(() {
     //   spectogram = LiveSpectogram.SpectogramLive(
@@ -140,7 +147,7 @@ class _RecordingFormState extends State<RecordingForm> {
     final safeStorage = FlutterSecureStorage();
     // IMPORTANT: assign widget.filepath so that the recording path is not null.
     recording = Recording(
-      createdAt: DateTime.now(),
+      createdAt: widget.recordingParts[0].startTime!,
       mail: "",
       estimatedBirdsCount: _strnadiCountController.toInt(),
       device: "",
@@ -168,7 +175,8 @@ class _RecordingFormState extends State<RecordingForm> {
     });
 
     // Log how many parts we received from streamRec.
-    logger.i("RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
+    logger.i(
+        "RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
 
     // Convert the passed parts.
     for (RecordingPartUnready part in widget.recordingParts) {
@@ -181,11 +189,22 @@ class _RecordingFormState extends State<RecordingForm> {
     }
 
     // Assign the duration (in seconds) to each RecordingPart
-    for (int i = 0; i < recordingParts.length && i < widget.recordingPartsTimeList.length; i++) {
+    for (int i = 0;
+        i < recordingParts.length && i < widget.recordingPartsTimeList.length;
+        i++) {
       recordingParts[i].length = widget.recordingPartsTimeList[i];
     }
 
     _route.addAll(widget.route);
+
+    if (recordingParts.isNotEmpty &&
+        recordingParts[0].gpsLatitudeStart != null &&
+        recordingParts[0].gpsLongitudeStart != null) {
+      reverseGeocode(
+        recordingParts[0].gpsLatitudeStart!,
+        recordingParts[0].gpsLongitudeStart!,
+      );
+    }
   }
 
   // Helper method to display a simple message dialog.
@@ -194,12 +213,12 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Message'),
+          title: Text(t('dialogs.message')),
           content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(t('auth.buttons.ok')),
             ),
           ],
         );
@@ -212,20 +231,24 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Potvrzení'),
-          content: const Text('Opravdu chcete smazat nahrávku?'),
+          title: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+          content: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.message')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(false);
               },
-              child: const Text('Ne'),
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.no')),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
-              child: const Text('Ano'),
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
             ),
           ],
         );
@@ -238,14 +261,17 @@ class _RecordingFormState extends State<RecordingForm> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Potvrzení'),
-          content: const Text('Opravdu chcete smazat nahrávku?'),
+          title: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+          content: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.message')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Ne'),
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.no')),
             ),
             TextButton(
               onPressed: () {
@@ -256,7 +282,8 @@ class _RecordingFormState extends State<RecordingForm> {
                   MaterialPageRoute(builder: (context) => LiveRec()),
                 );
               },
-              child: const Text('Ano'),
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
             ),
           ],
         );
@@ -270,28 +297,29 @@ class _RecordingFormState extends State<RecordingForm> {
     _audioPlayer.seek(currentPos + Duration(seconds: seconds));
   }
 
-  void SendDialects() async {
+  Future<void> SendDialects() async {
     var id = _recordingId;
 
     if (id == null) {
       logger.e("Recording BEID is null");
       return;
     }
-    if(dialectSegments.isNotEmpty) {
+    if (dialectSegments.isNotEmpty) {
       var dialect = dialectSegments.first;
-      var body = RecordingDialect(
-        RecordingId: id,
-        StartDate: recording.createdAt
-            .add(
-            Duration(milliseconds: dialect.startTime.toInt())),
-        EndDate: recording.createdAt.add(
-            Duration(milliseconds: dialect.endTime.toInt())),
-        dialect: dialect.type,
-
-
+      var body = Dialect(
+        id: null, // will be auto‑generated locally
+        BEID: null, // not yet uploaded to BE
+        recordingId: id, // local recording FK
+        recordingBEID: null, // BE ID unknown until sync
+        userGuessDialect: dialect.type, // user‑selected code
+        adminDialect: null,
+        startDate: recording.createdAt
+            .add(Duration(milliseconds: dialect.startTime.toInt())),
+        endDate: recording.createdAt
+            .add(Duration(milliseconds: dialect.endTime.toInt())),
       );
 
-      DatabaseNew.insertRecordingDialect(body);
+      DatabaseNew.insertDialect(body);
       logger.i("Dialect inserted into database");
     }
     // for (DialectModel dialect in dialectSegments) {
@@ -348,7 +376,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   void _showDialectSelectionDialog() {
     var position = spectogramKey.currentState?.currentPositionPx ?? null;
-    var spect = spectogram;;
+    var spect = spectogram;
+    ;
     setState(() {
       spectogram = null;
     });
@@ -394,7 +423,7 @@ class _RecordingFormState extends State<RecordingForm> {
         children: [
           Expanded(
             child: Text(
-              "${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}",
+              '${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
@@ -410,7 +439,9 @@ class _RecordingFormState extends State<RecordingForm> {
               dialect.label,
               style: TextStyle(
                 fontSize: 14,
-                color: dialect.color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                color: dialect.color.computeLuminance() > 0.5
+                    ? Colors.black
+                    : Colors.white,
               ),
             ),
           ),
@@ -421,7 +452,8 @@ class _RecordingFormState extends State<RecordingForm> {
                 dialectSegments.remove(dialect);
               });
             },
-            child: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
+            child: Icon(Icons.delete_outline,
+                color: Colors.red.shade300, size: 20),
           ),
         ],
       ),
@@ -429,7 +461,8 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+    final url = Uri.parse(
+        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
     logger.i("reverse geocode url: $url");
     try {
@@ -440,7 +473,7 @@ class _RecordingFormState extends State<RecordingForm> {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         final results = data['items'];
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
@@ -448,12 +481,12 @@ class _RecordingFormState extends State<RecordingForm> {
             placeTitle = results[0]['name'];
           });
         }
+      } else {
+        logger.e(
+            "Reverse geocode failed with status code ${response.statusCode}");
       }
-      else {
-        logger.e("Reverse geocode failed with status code ${response.statusCode}");
-      }
-    } catch (e) {
-      print('Reverse geocode error: $e');
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', stackTrace: stackTrace, error: e);
     }
   }
 
@@ -480,7 +513,6 @@ class _RecordingFormState extends State<RecordingForm> {
       _selectedImages = images;
     });
   }
-
 
   Future<String> getDeviceModel() async {
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -514,9 +546,13 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> upload() async {
-    logger.i("Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
-    recording.note = _commentController.text.isEmpty ? null : _commentController.text;
-    recording.name = _recordingNameController.text.isEmpty ? null : _recordingNameController.text;
+    logger.i(
+        "Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
+    recording.note =
+        _commentController.text.isEmpty ? null : _commentController.text;
+    recording.name = _recordingNameController.text.isEmpty
+        ? null
+        : _recordingNameController.text;
     recording.downloaded = true;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
 
@@ -524,7 +560,9 @@ class _RecordingFormState extends State<RecordingForm> {
     logger.i("Played recording path: ${widget.filepath}");
     logger.i("Recording before insertion: path=${recording.path}");
     _recordingId = await DatabaseNew.insertRecording(recording);
-    logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
+    recording.id = _recordingId;
+    logger.i(
+        "Recording inserted with ID: $_recordingId, file path: ${recording.path}");
 
     // Log number of parts to insert
     logger.i("Uploading ${recordingParts.length} recording parts.");
@@ -533,30 +571,30 @@ class _RecordingFormState extends State<RecordingForm> {
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
     }
+    logger.i("saving dialects");
+    await SendDialects();
     // Check connectivity and user preference before upload
     if (!await Config.hasBasicInternet) {
-      logger.w("Žádné připojení k internetu, nahrávka uložena offline");
-      _showMessage("Žádné připojení k internetu, nahrávka uložena offline");
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      logger.w("No internet connection, saved offline");
+      _showMessage(t(
+          "postRecordingForm.recordingForm.dialogs.error.noInternet.message"));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => LiveRec()));
       return;
     }
     if (!await Config.canUpload) {
-      logger.w("Nahrávání je povoleno pouze na Wi-Fi");
-      _showMessage("Nahrávání je povoleno pouze na Wi-Fi");
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+      logger.w("Upload only allowed on Wi-Fi, saved offline");
+      _showMessage(
+          t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => LiveRec()));
       return;
     }
     try {
-      await DatabaseNew.sendRecordingBackground(recording.id!);
+      await DatabaseNew.sendRecordingBackground(_recordingId!);
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
-    }
-    try {
-      SendDialects();
-    }
-    catch(e){
-      logger.w('Error sending dialects: $e');
     }
     logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
@@ -591,7 +629,8 @@ class _RecordingFormState extends State<RecordingForm> {
     // Compute half screen width for buttons.
     final halfScreen = MediaQuery.of(context).size.width * 0.45;
     markerPosition = locationService.lastKnownPosition != null
-        ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
+        ? LatLng(locationService.lastKnownPosition!.latitude,
+            locationService.lastKnownPosition!.longitude)
         : null;
 
     // if (spectogram == null) {
@@ -609,13 +648,22 @@ class _RecordingFormState extends State<RecordingForm> {
         final bool shouldPop = await _confirmDiscard() ?? false;
         if (shouldPop) {
           spectogramKey = GlobalKey();
-          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  LiveRec(),
+              settings: const RouteSettings(name: '/Recorder'),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
         }
       },
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
-          title: Text(placeTitle),
+          title: Text(placeTitle ?? " "),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
@@ -625,16 +673,20 @@ class _RecordingFormState extends State<RecordingForm> {
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: const Text('Potvrzení'),
-                        content: const Text('Opravdu chcete uložit tuto nahrávku?'),
+                        title: Text(t(
+                            'postRecordingForm.addDialect.dialogs.confirmation.title')),
+                        content: Text(t(
+                            'postRecordingForm.recordingForm.dialogs.confirmation.message')),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Ne'),
+                            child: Text(t(
+                                'postRecordingForm.addDialect.dialogs.confirmation.no')),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Ano'),
+                            child: Text(t(
+                                'postRecordingForm.addDialect.dialogs.confirmation.yes')),
                           ),
                         ],
                       );
@@ -649,20 +701,24 @@ class _RecordingFormState extends State<RecordingForm> {
                   backgroundColor: yellow,
                   foregroundColor: yellowishBlack,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: const Text("Uložit"),
+                child: Text(t('postRecordingForm.recordingForm.buttons.save')),
               ),
             ),
           ],
           leading: IconButton(
-            icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+            icon: Image.asset('assets/icons/backButton.png',
+                width: 30, height: 30),
             onPressed: () async {
               final bool shouldPop = await _confirmDiscard() ?? false;
               if (shouldPop) {
                 spectogramKey = GlobalKey();
-                Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => LiveRec()));
               }
             },
           ),
@@ -681,30 +737,39 @@ class _RecordingFormState extends State<RecordingForm> {
                 // ),
                 Text(
                   _formatDuration(totalDuration),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
                     IconButton(
-                      icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                        icon: const Icon(Icons.replay_10, size: 32),
+                        onPressed: () => seekRelative(-10)),
+                    IconButton(
+                      icon: Icon(isPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_filled),
                       iconSize: 72,
                       onPressed: togglePlay,
                     ),
-                    IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
+                    IconButton(
+                        icon: const Icon(Icons.forward_10, size: 32),
+                        onPressed: () => seekRelative(10)),
                   ],
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Přidat dialekt'),
+                    label: Text(t(
+                        'postRecordingForm.recordingForm.buttons.addDialect')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFF7C0),
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                     ),
                     onPressed: _showDialectSelectionDialog,
                   ),
@@ -714,7 +779,9 @@ class _RecordingFormState extends State<RecordingForm> {
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                      children: dialectSegments
+                          .map((dialect) => _buildDialectSegment(dialect))
+                          .toList(),
                     ),
                   ),
                 const SizedBox(height: 50),
@@ -725,7 +792,9 @@ class _RecordingFormState extends State<RecordingForm> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Název nahrávky field
-                        Text('Název nahrávky', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                            t('postRecordingForm.recordingForm.fields.recordingName.name'),
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -737,15 +806,18 @@ class _RecordingFormState extends State<RecordingForm> {
                             textAlign: TextAlign.start,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 15, vertical: 12),
                             ),
                             keyboardType: TextInputType.text,
                             maxLength: 49,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Prosím zadejte název nahrávky';
+                                return t(
+                                    'postRecordingForm.recordingForm.fields.recordingName.error.empty');
                               } else if (value.length > 49) {
-                                return 'Název nahrávky nesmí být delší než 49 znaků';
+                                return t(
+                                    'postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
                               }
                               return null;
                             },
@@ -753,12 +825,14 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                         const SizedBox(height: 20),
                         // Počet strnadů slider
-                        Text('Počet strnadů', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                            t('postRecordingForm.recordingForm.fields.birdCount.name'),
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         // Display current slider value above the slider.
                         Text(
                           _strnadiCountController.toInt() == 3
-                              ? "3 a více strnadů"
+                              ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
                               : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
                           style: TextStyle(fontSize: 14),
                         ),
@@ -775,12 +849,15 @@ class _RecordingFormState extends State<RecordingForm> {
                             min: 1,
                             max: 3,
                             divisions: 2,
-                            onChanged: (value) => setState(() => _strnadiCountController = value),
+                            onChanged: (value) =>
+                                setState(() => _strnadiCountController = value),
                           ),
                         ),
                         const SizedBox(height: 20),
                         // Komentář field (multiline)
-                        Text('Komentář', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                            t('postRecordingForm.recordingForm.fields.comment.name'),
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 5),
                         Container(
                           decoration: BoxDecoration(
@@ -792,21 +869,29 @@ class _RecordingFormState extends State<RecordingForm> {
                             textAlign: TextAlign.start,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 15, vertical: 12),
                             ),
                             keyboardType: TextInputType.multiline,
                             maxLines: null,
-                            validator: (value) => (value == null || value.isEmpty)
-                                ? 'Prosím zadejte komentář'
+                            validator: (value) => (value == null ||
+                                    value.isEmpty)
+                                ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
                                 : null,
                           ),
                         ),
                         const SizedBox(height: 20),
                         // Mapa label and map widget with same padding as text fields.
-                        Text('Mapa', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(t('recListItem.placeTitle'),
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        // Map coordinates
+                        Text(placeTitle ?? ' '),
+                        Text(
+                            "${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
                         const SizedBox(height: 5),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 12),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(15),
                             child: SizedBox(
@@ -814,15 +899,20 @@ class _RecordingFormState extends State<RecordingForm> {
                               child: FutureBuilder<bool>(
                                 future: Config.hasBasicInternet,
                                 builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Center(child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData || snapshot.data == false) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  } else if (!snapshot.hasData ||
+                                      snapshot.data == false) {
                                     return Container(
                                       color: Colors.grey.shade300,
                                       alignment: Alignment.center,
-                                      child: const Text(
-                                        "Mapu nelze načíst bez připojení k internetu.",
-                                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                                      child: Text(
+                                        t('postRecordingForm.recordingForm.placeholders.noInternet'),
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black54),
                                       ),
                                     );
                                   } else if (_computedCenter.latitude != 0.0 &&
@@ -831,14 +921,16 @@ class _RecordingFormState extends State<RecordingForm> {
                                       options: MapOptions(
                                         initialCenter: _computedCenter,
                                         initialZoom: _computedZoom,
-                                        interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                        interactionOptions: InteractionOptions(
+                                            flags: InteractiveFlag.none),
                                       ),
                                       mapController: _mapController,
                                       children: [
                                         TileLayer(
                                           urlTemplate:
-                                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                                          userAgentPackageName: 'cz.delta.strnadi',
+                                              'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                          userAgentPackageName:
+                                              'cz.delta.strnadi',
                                         ),
                                         if (_route.isNotEmpty)
                                           PolylineLayer(
@@ -850,25 +942,31 @@ class _RecordingFormState extends State<RecordingForm> {
                                             ],
                                           ),
                                         MarkerLayer(
-                                          markers: widget.recordingParts.map((part) {
+                                          markers:
+                                              widget.recordingParts.map((part) {
                                             return Marker(
-                                              point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
-                                              child: Icon(Icons.place, color: Colors.red, size: 30),
+                                              point: LatLng(
+                                                  part.gpsLatitudeStart!,
+                                                  part.gpsLongitudeStart!),
+                                              child: Icon(Icons.place,
+                                                  color: Colors.red, size: 30),
                                             );
                                           }).toList(),
                                         ),
                                       ],
                                     );
                                   } else {
-                                    return
-                                      Container(
-                                        color: Colors.grey.shade300,
-                                        alignment: Alignment.center,
-                                        child: const Text(
-                                          "Nahrávka neobsahuje žádné GPS body.",
-                                          style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
-                                        ),
-                                      );
+                                    return Container(
+                                      color: Colors.grey.shade300,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black54,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    );
                                   }
                                 },
                               ),
@@ -886,14 +984,17 @@ class _RecordingFormState extends State<RecordingForm> {
                                   context: context,
                                   builder: (BuildContext context) {
                                     return AlertDialog(
-                                      title: const Text('Potvrzení'),
-                                      content: const Text('Opravdu chcete smazat nahrávku?'),
+                                      title: Text(t(
+                                          'postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                      content: Text(t(
+                                          'postRecordingForm.addDialect.dialogs.confirmation.message')),
                                       actions: [
                                         TextButton(
                                           onPressed: () {
                                             Navigator.of(context).pop();
                                           },
-                                          child: const Text('Ne'),
+                                          child: Text(t(
+                                              'postRecordingForm.addDialect.dialogs.confirmation.no')),
                                         ),
                                         TextButton(
                                           onPressed: () {
@@ -901,10 +1002,13 @@ class _RecordingFormState extends State<RecordingForm> {
                                             Navigator.of(context).pop();
                                             Navigator.push(
                                               context,
-                                              MaterialPageRoute(builder: (context) => LiveRec()),
+                                              MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      LiveRec()),
                                             );
                                           },
-                                          child: const Text('Ano'),
+                                          child: Text(t(
+                                              'postRecordingForm.addDialect.dialogs.confirmation.yes')),
                                         ),
                                       ],
                                     );
@@ -915,10 +1019,13 @@ class _RecordingFormState extends State<RecordingForm> {
                                 elevation: 0,
                                 backgroundColor: secondaryRed,
                                 foregroundColor: primaryRed,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              child: const Text('Smazat nahrávku'),
+                              child: Text(t(
+                                  'postRecordingForm.recordingForm.buttons.discard')),
                             ),
                           ),
                         ),

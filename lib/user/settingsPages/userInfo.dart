@@ -13,6 +13,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
+import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
@@ -45,7 +48,7 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      nickname: json['nickname']?? "",
+      nickname: json['nickname'] ?? "",
       email: json['email'],
       firstName: json['firstName'],
       lastName: json['lastName'],
@@ -53,7 +56,6 @@ class User {
       city: json['city'],
     );
   }
-
 }
 
 class ProfileEditPage extends StatefulWidget {
@@ -64,13 +66,13 @@ class ProfileEditPage extends StatefulWidget {
 }
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
-
   User? user;
 
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _firstnameController = TextEditingController();
   final TextEditingController _lastnameController = TextEditingController();
-  final TextEditingController _pscController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
 
   Future<void> fetchUser(int userId, String jwt) async {
     final url = Uri.parse('https://${Config.host}/users/$userId');
@@ -84,12 +86,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     if (response.statusCode == 200) {
       logger.i('Fetched user: ${response.body}');
+
       setState(() {
         user = User.fromJson(jsonDecode(response.body));
         _nicknameController.text = user!.nickname;
         _firstnameController.text = user!.firstName;
         _lastnameController.text = user!.lastName;
-        _pscController.text = user!.postCode?.toString() ?? '';
+        _cityController.text = user!.city ?? '';
+        _emailController.text = user!.email;
       });
     } else {
       logger.i('Failed to load user: ${response.statusCode} ${response.body}');
@@ -97,13 +101,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
   }
 
-  Future<void> updateUser(String email, Map<String, dynamic> updatedData, String jwt) async {
-
+  Future<void> updateUser(
+      String email, Map<String, dynamic> updatedData, String jwt) async {
     final secureStorage = FlutterSecureStorage();
 
     final id = await secureStorage.read(key: "userId");
     final url = Uri.parse('https://${Config.host}/users/$id');
-
 
     logger.i(jsonEncode(updatedData));
 
@@ -119,7 +122,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     if (response.statusCode == 200) {
       _showMessage("Údaje byly úspěšně aktualizovány");
     } else {
-      logger.i('Failed to update user: ${response.statusCode} ${response.body}');
+      logger
+          .i('Failed to update user: ${response.statusCode} ${response.body}');
       _showMessage("Nepodařilo se aktualizovat údaje");
     }
   }
@@ -133,7 +137,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         'nickname': _nicknameController.text,
         'firstName': _firstnameController.text,
         'lastName': _lastnameController.text,
-        'postCode': _pscController.text.isNotEmpty ? int.parse(_pscController.text) : null,
+        'postCode': _cityController.text.isNotEmpty
+            ? int.parse(_cityController.text)
+            : null,
         'city': user!.city,
       };
 
@@ -144,12 +150,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> extractEmailFromJwt() async {
-
     final secureStorage = FlutterSecureStorage();
     String? jwt = await secureStorage.read(key: 'token');
 
     try {
-      if(jwt==null){
+      if (jwt == null) {
         throw Exception('Jwt token invalid');
       }
 
@@ -157,7 +162,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
       fetchUser(userId, jwt);
     } catch (e, stackTrace) {
-      logger.i("Error fetching user data: $e", error: e, stackTrace: stackTrace);
+      logger.i("Error fetching user data: $e",
+          error: e, stackTrace: stackTrace);
     }
   }
 
@@ -170,16 +176,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Smazání účtu"),
-        content: const Text("Opravdu si přejete smazat svůj účet? Tato akce je nevratná."),
+        title: Text(t('user.profile.dialogs.deleteAccount.title')),
+        content: Text(t('user.profile.dialogs.deleteAccount.message')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Zrušit"),
+            child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Smazat", style: TextStyle(color: Colors.red)),
+            child: Text(t('recListItem.dialogs.confirmDelete.delete'),
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -215,20 +222,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
   }
 
-
   @override
   void initState() {
     super.initState();
     extractEmailFromJwt();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Osobní údaje'),
+        title: Text(t('user.profile.title')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -239,57 +243,58 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             onPressed: () {
               updateUserData();
             }, // Save action
-            child: const Text('Uložit', style: TextStyle(color: Colors.white)),
+            child: Text(t('postRecordingForm.recordingForm.buttons.save'),
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text("Profilové údaje", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 20),
-                  _buildTextField('Jméno', _firstnameController),
-                  _buildTextField('Příjmení', _lastnameController),
-                  _buildTextField('Přezdívka', _nicknameController),
-                  _buildTextField('PSČ', _pscController),
-                  ListTile(
-                    title: const Text('Kraj'),
-                    subtitle: Text(user?.city ?? 'Neuvedeno'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {}, // Open region selection
-                  ),
-                ],
-              ),
-              const Divider(),
-              ListTile(
-                title: const Text('Změna hesla'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ForgottenPassword()),
-                  );
-                }, // Open password change
-              ),
-              ListTile(
-                title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  confirmAndDeleteAccount();
-                }, // Open delete account confirmation
-              ),
-            ],
-          ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Text(t("Profilové údaje"),
+                    style:
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                SizedBox(height: 20),
+                _buildTextField('Jméno', _firstnameController),
+                _buildTextField('Příjmení', _lastnameController),
+                _buildTextField('Přezdívka', _nicknameController),
+                _buildTextField('Email', _emailController, readOnly: true),
+                _buildTextField('City', _cityController),
+              ],
+            ),
+            const Divider(),
+            ListTile(
+              title: Text(t('user.profile.buttons.changePassword')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const ForgottenPassword()),
+                );
+              }, // Open password change
+            ),
+            ListTile(
+              title: Text(t('user.profile.buttons.deleteAccount'),
+                  style: TextStyle(color: Colors.red)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                confirmAndDeleteAccount();
+              }, // Open delete account confirmation
+            ),
+          ],
         ),
+      ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController txt) {
+  Widget _buildTextField(String label, TextEditingController txt,
+      {bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextField(
@@ -298,6 +303,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
         controller: txt,
+        readOnly: readOnly,
       ),
     );
   }
@@ -307,19 +313,23 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(t('auth.buttons.ok')))
+        ],
       ),
     );
   }
 
   Future<void> logout(BuildContext context) async {
-
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
 
     await GoogleSignInService.signOut();
     await secureStorage.deleteAll();
     await strnadiFirebase.deleteToken();
 
-    Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil('/authorizator', (route) => false);
   }
 }

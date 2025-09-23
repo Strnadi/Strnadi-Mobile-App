@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 
 class PasswordChangedScreen extends StatelessWidget {
@@ -38,8 +39,7 @@ class PasswordChangedScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Heslo úspěšně změněno',
+                Text(t('Heslo úspěšně změněno'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -47,8 +47,7 @@ class PasswordChangedScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Nyní se můžete přihlásit do vašeho účtu.',
+                Text(t('Nyní se můžete přihlásit do vašeho účtu.'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -69,12 +68,12 @@ class PasswordChangedScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
-                        textStyle: const TextStyle(
+                        textStyle: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      child: const Text('Ok'),
+                      child: Text(t('Ok')),
                     ),
                   ),
                 ),

@@ -32,5 +32,6 @@ Pokud máte lepší přístroj pro pořizování digitálních nahrávek, může
 Výsledky projektu probíhajících v letech 2011-2016 byly shrnuty mimo jiné v článcích časopisech Živa nebo Ptačí svět. Odborné publikace zahrnují články v časopisech Ibis (Diblíková a kol. 2019) a Avian Research (Diblíková a kol. 2023).
 
 Další odkazy:
+ -  [https://strnadi.cz](https://strnadi.cz)
  - [https://www.ceskatelevize.cz/porady/15798010237-snist-hada/](https://www.ceskatelevize.cz/porady/15798010237-snist-hada)
  - [https://bioctvrtky.cz/2021/11/05/t-petruskova-jak-mi-zobak-narost/](https://bioctvrtky.cz/2021/11/05/t-petruskova-jak-mi-zobak-narost/)
