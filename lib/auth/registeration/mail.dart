@@ -26,6 +26,7 @@ import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
+import 'package:strnadi/auth/appleAuth.dart' as apple;
 
 
 import '../../config/config.dart';
@@ -379,6 +380,61 @@ class _RegMailState extends State<RegMail> {
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
                     side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    if (!_isChecked) {
+                      setState(() => _termsError = true);
+                      return;
+                    }
+                    apple.AppleAuth.signInAndGetJwt().then((data) {
+                      if (data != null && (data['status'] ?? 200) != 409) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              email: (data['email'] as String?) ?? '',
+                              jwt: data['jwt'] as String,
+                              name: (data['firstName'] as String?) ?? '',
+                              surname: (data['lastName'] as String?) ?? '',
+                              consent: true,
+                            ),
+                          ),
+                        );
+                      } else if (data != null && data['status'] == 409) {
+                        _showUserExistsPopup();
+                      }
+                    }).catchError((error, stackTrace) {
+                      setState(() {
+                        _emailErrorMessage = 'Přihlášení přes Apple selhalo';
+                      });
+                      logger.e(error, stackTrace: stackTrace);
+                      Sentry.captureException(error);
+                    });
+                  },
+                  icon: Image.asset(
+                    'assets/images/apple.png',
+                    height: 24,
+                    width: 24,
+                  ),
+                  label: const Text(
+                    'Pokračovat přes Apple',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

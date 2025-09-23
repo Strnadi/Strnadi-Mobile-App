@@ -469,6 +469,19 @@ class _LoginState extends State<Login> {
                       // User cancelled or sign‑in failed
                       return;
                     }
+                    else if(data['status'] == 200){
+                      logger.i('Apple sign in successful, returned data: ${data.toString()}');
+                    }
+                    else if(data['status'] == 400){
+                      logger.w('Apple sign in failed: no email returned');
+                      _showMessage(t('login.apple.errors.no_email'));
+                      return;
+                    }
+                    else{
+                      logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _showMessage(t('login.apple.errors.login_failed'));
+                      return;
+                    }
 
                     // Check if we already have the user's full name
                     final String? firstName = data['firstName'] as String?;
