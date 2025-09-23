@@ -47,6 +47,7 @@ class _UserPageState extends State<UserPage> {
 
   late String userName = 'null';
   late String lastName = 'null';
+  late String nickName = 'null';
   String? profileImagePath;
   bool _isConnected = true;
 
@@ -65,6 +66,7 @@ class _UserPageState extends State<UserPage> {
     setState(() async {
       userName = await secureStorage.read(key: 'firstName') ?? 'username';
       lastName = await secureStorage.read(key: 'lastName') ?? 'LastName';
+      nickName = await secureStorage.read(key: 'nick') ?? 'nickName';
     });
   }
 
@@ -284,6 +286,7 @@ class _UserPageState extends State<UserPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  Text("($nickName)"),
                 ],
               ),
             ),

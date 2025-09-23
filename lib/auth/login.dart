@@ -79,9 +79,11 @@ class _LoginState extends State<Login> {
         var jsonResponse = jsonDecode(response.body);
         String firstName = jsonResponse['firstName'];
         String lastName = jsonResponse['lastName'];
+        String nick = jsonResponse['nickname'];
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
         secureStorage.write(key: 'firstName', value: firstName);
         secureStorage.write(key: 'lastName', value: lastName);
+        secureStorage.write(key: 'nick', value: nick);
 
         logger.i("Fetched user name: $firstName $lastName");
       } else {
@@ -206,7 +208,8 @@ class _LoginState extends State<Login> {
       } else if (response.statusCode == 401) {
         _showMessage(t('login.errors.invalidCredentials'));
       } else {
-        logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
+        logger.w(
+            'Login failed: Code: ${response.statusCode} message: ${response.body}');
         _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
