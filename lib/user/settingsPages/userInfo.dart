@@ -71,7 +71,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _firstnameController = TextEditingController();
   final TextEditingController _lastnameController = TextEditingController();
-  final TextEditingController _pscController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
   Future<void> fetchUser(int userId, String jwt) async {
@@ -92,7 +92,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         _nicknameController.text = user!.nickname;
         _firstnameController.text = user!.firstName;
         _lastnameController.text = user!.lastName;
-        _pscController.text = user!.postCode?.toString() ?? '';
+        _cityController.text = user!.city ?? '';
         _emailController.text = user!.email;
       });
     } else {
@@ -137,8 +137,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         'nickname': _nicknameController.text,
         'firstName': _firstnameController.text,
         'lastName': _lastnameController.text,
-        'postCode': _pscController.text.isNotEmpty
-            ? int.parse(_pscController.text)
+        'postCode': _cityController.text.isNotEmpty
+            ? int.parse(_cityController.text)
             : null,
         'city': user!.city,
       };
@@ -264,13 +264,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 _buildTextField('Příjmení', _lastnameController),
                 _buildTextField('Přezdívka', _nicknameController),
                 _buildTextField('Email', _emailController, readOnly: true),
-                _buildTextField('PSČ', _pscController),
-                ListTile(
-                  title: Text(t('Kraj')),
-                  subtitle: Text(user?.city ?? 'Neuvedeno'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {}, // Open region selection
-                ),
+                _buildTextField('City', _cityController),
               ],
             ),
             const Divider(),

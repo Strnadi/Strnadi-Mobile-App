@@ -39,7 +39,5 @@ Contributions are welcome! Feel free to submit a pull request or report any issu
 ## License
 This project is licensed under the Gnu Public Licence v3
 
-## Contact
-For any questions or feedback, please reach out via [marpecqueur@gmail.com].
 
 
