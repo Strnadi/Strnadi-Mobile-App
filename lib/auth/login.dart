@@ -471,15 +471,32 @@ class _LoginState extends State<Login> {
                     }
                     else if(data['status'] == 200){
                       logger.i('Apple sign in successful, returned data: ${data.toString()}');
+                      if (data['exists']==false){
+                        // New user, proceed with registration
+                        logger.i('Apple sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RegName(
+                          name: data['firstName'] as String? ?? '',
+                          surname: data['lastName'] as String? ?? '',
+                          email: data['email'] as String? ?? '',
+                          jwt: data['jwt'] as String,
+                          appleId: data['userIdentifier'] as String? ?? '',
+                          consent: true,
+                        )));
+                        return;
+                      }
+                      else if (data['exists']==true){
+                        // User exists, proceed with login
+
+                      }
                     }
                     else if(data['status'] == 400){
                       logger.w('Apple sign in failed: no email returned');
-                      _showMessage(t('login.apple.errors.no_email'));
+                      _showMessage(t('auth.apple.error.no_email'));
                       return;
                     }
                     else{
                       logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
-                      _showMessage(t('login.apple.errors.login_failed'));
+                      _showMessage(t('auth.apple.error.login_failed'));
                       return;
                     }
 

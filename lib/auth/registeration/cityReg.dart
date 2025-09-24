@@ -41,8 +41,9 @@ class RegLocation extends StatefulWidget {
   final String name;
   final String surname;
   final String nickname;
+  final String? appleId;
 
-  const RegLocation({super.key, required this.email, required this.consent, this.password, required this.jwt, required this.name, required this.surname, required this.nickname});
+  const RegLocation({super.key, required this.email, required this.consent, this.password, required this.jwt, required this.name, required this.surname, required this.nickname, this.appleId});
 
   @override
   State<RegLocation> createState() => _RegLocationState();
@@ -264,7 +265,7 @@ class _RegLocationState extends State<RegLocation> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState?.validate() ?? false) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegOverview(name: widget.name, surname: widget.surname, nickname: widget.nickname, email: widget.email, postCode: _pscController.text, city: _obecController.text, password: widget.password, consent: widget.consent, jwt: widget.jwt)));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegOverview(name: widget.name, surname: widget.surname, nickname: widget.nickname, email: widget.email, postCode: _pscController.text, city: _obecController.text, password: widget.password, consent: widget.consent, jwt: widget.jwt, appleId: widget.appleId,)));
                         //register();
                         // Navigate to the next screen or handle logic
                         // e.g.: Navigator.push(context, MaterialPageRoute(builder: (_) => NextPage()));

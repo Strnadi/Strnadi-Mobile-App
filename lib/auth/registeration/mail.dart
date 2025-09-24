@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/gestures.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -30,7 +31,9 @@ import 'package:strnadi/auth/appleAuth.dart' as apple;
 
 
 import '../../config/config.dart';
+import '../../firebase/firebase.dart' as fb;
 import '../../md_renderer.dart';
+import '../../recording/streamRec.dart';
 
 Logger logger = Logger();
 
@@ -51,6 +54,20 @@ class _RegMailState extends State<RegMail> {
   bool isValidEmail(String email) {
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     return emailRegex.hasMatch(email);
+  }
+
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(t('auth.buttons.ok')))
+        ],
+      ),
+    );
   }
 
   void _showUserExistsPopup() {
@@ -391,36 +408,103 @@ class _RegMailState extends State<RegMail> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     if (!_isChecked) {
                       setState(() => _termsError = true);
                       return;
                     }
-                    apple.AppleAuth.signInAndGetJwt().then((data) {
-                      if (data != null && (data['status'] ?? 200) != 409) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegName(
-                              email: (data['email'] as String?) ?? '',
-                              jwt: data['jwt'] as String,
-                              name: (data['firstName'] as String?) ?? '',
-                              surname: (data['lastName'] as String?) ?? '',
-                              consent: true,
-                            ),
-                          ),
-                        );
-                      } else if (data != null && data['status'] == 409) {
-                        _showUserExistsPopup();
+                    logger.i('Apple button clicked');
+
+                    // Start Apple sign‑in flow
+                    final data = await apple.AppleAuth.signInAndGetJwt();
+                    if (data == null) {
+                      logger.w('Apple sign in return data null');
+                      // User cancelled or sign‑in failed
+                      return;
+                    }
+                    else if(data['status'] == 200){
+                      logger.i('Apple sign in successful, returned data: ${data.toString()}');
+                      if (data['exists']==false){
+                        // New user, proceed with registration
+                        logger.i('Apple sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RegName(
+                          name: data['firstName'] as String? ?? '',
+                          surname: data['lastName'] as String? ?? '',
+                          email: data['email'] as String? ?? '',
+                          jwt: data['jwt'] as String,
+                          appleId: data['userIdentifier'] as String? ?? '',
+                          consent: true,
+                        )));
+                        return;
                       }
-                    }).catchError((error, stackTrace) {
-                      setState(() {
-                        _emailErrorMessage = 'Přihlášení přes Apple selhalo';
-                      });
-                      logger.e(error, stackTrace: stackTrace);
-                      Sentry.captureException(error);
-                    });
-                  },
+                      else if (data['exists']==true){
+                        // User exists, proceed with login
+
+                      }
+                    }
+                    else if(data['status'] == 400){
+                      logger.w('Apple sign in failed: no email returned');
+                      _showMessage(t('auth.apple.error.no_email'));
+                      return;
+                    }
+                    else{
+                      logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _showMessage(t('auth.apple.error.login_failed'));
+                      return;
+                    }
+
+                    // Check if we already have the user's full name
+                    final String? firstName = data['firstName'] as String?;
+                    final String? lastName  = data['lastName']  as String?;
+                    final String? email = data['email'] as String?;
+
+                    if ((firstName != null && lastName != null && email != null)) {
+                      // Missing profile data → go to the registration screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegName(
+                            name: firstName,
+                            surname: lastName,
+                            email: email,
+                            jwt: data['jwt'] as String,
+                            consent: true,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final String jwt = data['jwt'] as String;
+                    final secureStorage = const FlutterSecureStorage();
+
+                    // Persist the token locally
+                    await secureStorage.write(key: 'token', value: jwt);
+                    logger.i('Apple sign‑in successful, token stored');
+
+                    // Retrieve user‑id from backend
+                    final idResponse = await http.get(
+                      Uri.parse('https://${Config.host}/users/get-id'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer $jwt',
+                      },
+                    );
+                    if (idResponse.statusCode != 200) {
+                      logger.w('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                      _showMessage('Chyba při získávání ID uživatele');
+                      return;
+                    }
+                    logger.i('User ID retrieved: ${idResponse.body}');
+
+                    await secureStorage.write(key: 'userId', value: idResponse.body);
+                    await fb.refreshToken();
+
+                    // Go to recorder screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => LiveRec()),
+                    );},
                   icon: Image.asset(
                     'assets/images/apple.png',
                     height: 24,
