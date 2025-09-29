@@ -5,6 +5,20 @@ This document highlights the moving parts of the Návrat krále client and how r
 ## Application bootstrap
 The entry point (`main.dart`) performs a guarded bootstrap that initializes Firebase, loads configuration files, and prepares background services before showing UI. A `PermissionGate` widget requests microphone and notification access before the rest of the app is allowed to run.[F:lib/main.dart†L84-L175]
 
+```mermaid
+flowchart TD
+  A[Start] --> B[WidgetsFlutterBinding.ensureInitialized]
+  B --> C[Firebase.initializeApp]
+  C --> D[Localization.load]
+  D --> E[Config.loadConfig + loadFirebaseConfig]
+  E --> F[Workmanager.initialize]
+  F --> G[FlutterForegroundTask.init]
+  G --> H["runApp(MyApp)"]
+  H --> I{"Permissions granted?"}
+  I -- "No" --> J[PermissionScreen]
+  I -- "Yes" --> K["Continue bootstrap: Sentry, deep links, Workmanager"]
+```
+
 
 ## Navigation shell
 `MyApp` builds a `MaterialApp` whose routes are split between authentication screens (`lib/auth`), the main observation UI, and background surfaces such as maintenance notices and update checks.[F:lib/main.dart†L175-L320] Navigation uses a global `NavigatorState` so deep-link handlers and background callbacks can push screens without a `BuildContext`.[F:lib/main.dart†L35-L83][F:lib/deep_link_handler.dart†L1-L120]
