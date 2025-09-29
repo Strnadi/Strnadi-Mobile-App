@@ -63,7 +63,8 @@ class AppleAuth {
         AppleIDAuthorizationScopes.email,
       ],
       webAuthenticationOptions: WebAuthenticationOptions(
-        clientId: 'com.delta.strnadi', // TODO: replace with your real Services ID
+        clientId:
+            'com.delta.strnadi', // TODO: replace with your real Services ID
         redirectUri: Uri.parse('https://${Config.host}/auth/apple'),
       ),
     );
@@ -86,7 +87,7 @@ class AppleAuth {
   ///
   /// Throws an [Exception] if the backend responds with anything other than
   /// HTTP 200.
-  static Future<Map<String, dynamic>?> signInAndGetJwt() async {
+  static Future<Map<String, dynamic>?> signInAndGetJwt(String? jwt) async {
     final result = await signIn();
     if (result == null) return null;
     Map<String, dynamic> body = {
@@ -101,7 +102,10 @@ class AppleAuth {
     final response = await http.post(
       // Change this URL if your backend listens elsewhere.
       Uri.parse('https://${Config.host}/auth/apple'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        jwt != null ? 'Authorization' : 'Bearer ${jwt ?? ""}': '',
+      },
       body: jsonEncode(body),
     );
 
@@ -113,9 +117,9 @@ class AppleAuth {
     if (response.statusCode == 200) {
       resp = jsonDecode(response.body) as Map<String, dynamic>;
       logger.i('Apple Sign-In successful');
-    }
-    else{
-      logger.w('Apple Sign-In failed with status code: ${response.statusCode} | ${response.body}');
+    } else {
+      logger.w(
+          'Apple Sign-In failed with status code: ${response.statusCode} | ${response.body}');
     }
     resp.addAll({"status": response.statusCode});
     return resp;

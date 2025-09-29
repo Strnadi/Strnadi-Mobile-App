@@ -29,7 +29,6 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 import 'package:strnadi/auth/appleAuth.dart' as apple;
 
-
 import '../../config/config.dart';
 import '../../firebase/firebase.dart' as fb;
 import '../../md_renderer.dart';
@@ -104,7 +103,8 @@ class _RegMailState extends State<RegMail> {
       //_showUserExistsPopup();
       return true;
     } else {
-      logger.w('Failed to check email: ${response.statusCode} | ${response.body}');
+      logger.w(
+          'Failed to check email: ${response.statusCode} | ${response.body}');
       return true;
     }
   }
@@ -115,7 +115,9 @@ class _RegMailState extends State<RegMail> {
     const Color yellow = Color(0xFFFFD641);
 
     // Whether all fields are valid
-    final bool formValid = isValidEmail(_emailController.text) && _isChecked && _emailErrorMessage == null;
+    final bool formValid = isValidEmail(_emailController.text) &&
+        _isChecked &&
+        _emailErrorMessage == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -138,7 +140,8 @@ class _RegMailState extends State<RegMail> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              Text(t('signup.mail.title'),
+              Text(
+                t('signup.mail.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -147,7 +150,8 @@ class _RegMailState extends State<RegMail> {
               const SizedBox(height: 40),
 
               // "E-mail" label
-              Text(t('login.inputs.emailLabel'),
+              Text(
+                t('login.inputs.emailLabel'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -171,7 +175,8 @@ class _RegMailState extends State<RegMail> {
                       _emailErrorMessage = null;
                       _checkEmail(value).then((emailExists) {
                         setState(() {
-                          _emailErrorMessage = emailExists ? 'Email již existuje' : null;
+                          _emailErrorMessage =
+                              emailExists ? 'Email již existuje' : null;
                         });
                       });
                     }
@@ -180,7 +185,8 @@ class _RegMailState extends State<RegMail> {
                 decoration: InputDecoration(
                   fillColor: Colors.grey[200],
                   filled: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   border: OutlineInputBorder(
                     borderSide: BorderSide.none,
                     borderRadius: BorderRadius.circular(16.0),
@@ -193,7 +199,8 @@ class _RegMailState extends State<RegMail> {
               // Smaller grey background for terms
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(16),
@@ -205,7 +212,8 @@ class _RegMailState extends State<RegMail> {
                     CheckboxTheme(
                       data: CheckboxThemeData(
                         side: _isChecked
-                            ? const BorderSide(width: 0, color: Colors.transparent)
+                            ? const BorderSide(
+                                width: 0, color: Colors.transparent)
                             : const BorderSide(width: 2, color: Colors.grey),
                       ),
                       child: Checkbox(
@@ -235,7 +243,7 @@ class _RegMailState extends State<RegMail> {
                           children: [
                             TextSpan(
                               text:
-                              'Zapojením do projektu občanské vědy Nářečí českých strnadů ',
+                                  'Zapojením do projektu občanské vědy Nářečí českých strnadů ',
                             ),
                             TextSpan(
                               text: 'souhlasím s podmínkami',
@@ -249,7 +257,8 @@ class _RegMailState extends State<RegMail> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => MDRender(
-                                        mdPath: 'assets/docs/terms-of-services.md',
+                                        mdPath:
+                                            'assets/docs/terms-of-services.md',
                                         title: 'Podmínky používání',
                                       ),
                                     ),
@@ -266,7 +275,8 @@ class _RegMailState extends State<RegMail> {
               if (_termsError)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(t('signup.mail.errors.continue_consent'),
+                  child: Text(
+                    t('signup.mail.errors.continue_consent'),
                     style: TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
@@ -288,7 +298,9 @@ class _RegMailState extends State<RegMail> {
                         }
                         _termsError = !_isChecked;
                       });
-                      if (isValidEmail(_emailController.text) && _isChecked && !emailExists) {
+                      if (isValidEmail(_emailController.text) &&
+                          _isChecked &&
+                          !emailExists) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -356,7 +368,7 @@ class _RegMailState extends State<RegMail> {
                       return;
                     }
                     gle.GoogleSignInService.signUpWithGoogle().then((user) {
-                      if (user != null && user['status']!=409) {
+                      if (user != null && user['status'] != 409) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -369,18 +381,16 @@ class _RegMailState extends State<RegMail> {
                             ),
                           ),
                         );
-                      }
-                      else if(user != null && user['status']==409){
+                      } else if (user != null && user['status'] == 409) {
                         _showUserExistsPopup();
                       }
                     }).catchError((error) {
-                        setState(() {
-                          _emailErrorMessage = 'Přihlášení přes Google selhalo';
-                        });
-                        logger.e(error);
-                        Sentry.captureException(error);
-                      }
-                    );
+                      setState(() {
+                        _emailErrorMessage = 'Přihlášení přes Google selhalo';
+                      });
+                      logger.e(error);
+                      Sentry.captureException(error);
+                    });
                     // Handle 'Continue with Google' logic here
                   },
                   icon: Image.asset(
@@ -388,7 +398,8 @@ class _RegMailState extends State<RegMail> {
                     height: 24,
                     width: 24,
                   ),
-                  label: Text(t('login.buttons.googleSignIn'),
+                  label: Text(
+                    t('login.buttons.googleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -416,49 +427,55 @@ class _RegMailState extends State<RegMail> {
                     logger.i('Apple button clicked');
 
                     // Start Apple sign‑in flow
-                    final data = await apple.AppleAuth.signInAndGetJwt();
+                    final data = await apple.AppleAuth.signInAndGetJwt(null);
                     if (data == null) {
                       logger.w('Apple sign in return data null');
                       // User cancelled or sign‑in failed
                       return;
-                    }
-                    else if(data['status'] == 200){
-                      logger.i('Apple sign in successful, returned data: ${data.toString()}');
-                      if (data['exists']==false){
+                    } else if (data['status'] == 200) {
+                      logger.i(
+                          'Apple sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
                         // New user, proceed with registration
-                        logger.i('Apple sign in: new user, proceeding to registration');
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RegName(
-                          name: data['firstName'] as String? ?? '',
-                          surname: data['lastName'] as String? ?? '',
-                          email: data['email'] as String? ?? '',
-                          jwt: data['jwt'] as String,
-                          appleId: data['userIdentifier'] as String? ?? '',
-                          consent: true,
-                        )));
+                        logger.i(
+                            'Apple sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                      name: data['firstName'] as String? ?? '',
+                                      surname:
+                                          data['lastName'] as String? ?? '',
+                                      email: data['email'] as String? ?? '',
+                                      jwt: data['jwt'] as String,
+                                      appleId:
+                                          data['userIdentifier'] as String? ??
+                                              '',
+                                      consent: true,
+                                    )));
                         return;
-                      }
-                      else if (data['exists']==true){
+                      } else if (data['exists'] == true) {
                         // User exists, proceed with login
-
                       }
-                    }
-                    else if(data['status'] == 400){
+                    } else if (data['status'] == 400) {
                       logger.w('Apple sign in failed: no email returned');
                       _showMessage(t('auth.apple.error.no_email'));
                       return;
-                    }
-                    else{
-                      logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                    } else {
+                      logger.w(
+                          'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
                       _showMessage(t('auth.apple.error.login_failed'));
                       return;
                     }
 
                     // Check if we already have the user's full name
                     final String? firstName = data['firstName'] as String?;
-                    final String? lastName  = data['lastName']  as String?;
+                    final String? lastName = data['lastName'] as String?;
                     final String? email = data['email'] as String?;
 
-                    if ((firstName != null && lastName != null && email != null)) {
+                    if ((firstName != null &&
+                        lastName != null &&
+                        email != null)) {
                       // Missing profile data → go to the registration screen
                       Navigator.pushReplacement(
                         context,
@@ -491,20 +508,23 @@ class _RegMailState extends State<RegMail> {
                       },
                     );
                     if (idResponse.statusCode != 200) {
-                      logger.w('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                      logger.w(
+                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
                       _showMessage('Chyba při získávání ID uživatele');
                       return;
                     }
                     logger.i('User ID retrieved: ${idResponse.body}');
 
-                    await secureStorage.write(key: 'userId', value: idResponse.body);
+                    await secureStorage.write(
+                        key: 'userId', value: idResponse.body);
                     await fb.refreshToken();
 
                     // Go to recorder screen
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => LiveRec()),
-                    );},
+                    );
+                  },
                   icon: Image.asset(
                     'assets/images/apple.png',
                     height: 24,
@@ -531,7 +551,8 @@ class _RegMailState extends State<RegMail> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+        padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
           children: List.generate(5, (index) {
             bool completed = index < 1;
