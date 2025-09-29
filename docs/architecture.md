@@ -19,6 +19,7 @@ flowchart TD
   I -- Yes --> K[Continue bootstrap (Sentry, deep links, Workmanager)]
 ```
 
+
 ## Navigation shell
 `MyApp` builds a `MaterialApp` whose routes are split between authentication screens (`lib/auth`), the main observation UI, and background surfaces such as maintenance notices and update checks.[F:lib/main.dart†L175-L320] Navigation uses a global `NavigatorState` so deep-link handlers and background callbacks can push screens without a `BuildContext`.[F:lib/main.dart†L35-L83][F:lib/deep_link_handler.dart†L1-L120]
 
