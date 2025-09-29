@@ -13,10 +13,10 @@ flowchart TD
   D --> E[Config.loadConfig + loadFirebaseConfig]
   E --> F[Workmanager.initialize]
   F --> G[FlutterForegroundTask.init]
-  G --> H[runApp(MyApp)]
-  H --> I{Permissions granted?}
-  I -- No --> J[PermissionScreen]
-  I -- Yes --> K[Continue bootstrap (Sentry, deep links, Workmanager)]
+  G --> H["runApp(MyApp)"]
+  H --> I{"Permissions granted?"}
+  I -- "No" --> J[PermissionScreen]
+  I -- "Yes" --> K["Continue bootstrap: Sentry, deep links, Workmanager"]
 ```
 
 
