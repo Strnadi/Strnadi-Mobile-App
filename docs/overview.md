@@ -34,4 +34,5 @@ lib/
 - [Development setup](./development.md)
 - [Architecture guide](./architecture.md)
 - [Data & synchronisation](./data-pipeline.md)
+- [Secure storage key reference](./secure-storage.md)
 
