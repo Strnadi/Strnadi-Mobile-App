@@ -1,43 +1,34 @@
 # Návrat krále
 
-## Overview
-Návrat krále is a Flutter-based mobile application designed to record and track dialect variations of the bird species *Strand*. The app allows users to record bird calls, store them with geolocation data, and visualize the distribution of dialects on an interactive map.
+Návrat krále is a Flutter app for field ornithologists who document dialect variations of the corn bunting (“strnad”). It combines high-fidelity audio capture, location-aware metadata, and collaborative tooling so that researchers can build a shared dialect atlas while working offline or online.【F:docs/overview.md†L1-L23】
 
-## Features
-- **Audio Recording**: Capture bird calls directly from the app.
-- **Geolocation Tagging**: Automatically store the location of each recorded bird.
-- **Dialect Classification**: Categorize bird calls based on their unique dialect patterns.
-- **Interactive Map**: View all recorded birds with pinpoints showing their locations and dialect information.
-- **Data Management**: Store, retrieve, and manage recordings easily.
-
-## Installation
-1. Clone the repository:
-   ```sh
+## Quick start
+1. Install Flutter 3.3+ and clone the repository:
+   ```bash
    git clone https://github.com/Strnadi/Strnadi-Mobile-App.git
    cd Strnadi-Mobile-App
-   ```
-2. Install dependencies:
-   ```sh
    flutter pub get
    ```
-3. Run the app:
-   ```sh
+2. Provide Firebase configuration (via `flutterfire configure`) and add the generated platform files under `android/` and `ios/`.
+3. Run the app on a simulator or device:
+   ```bash
    flutter run
    ```
+4. On first launch, grant microphone and notification permissions when prompted by the in-app permission gate.【F:docs/development.md†L15-L44】
 
-## Usage
-1. Open the app and grant necessary permissions (microphone and location).
-2. Tap the **Record** button to capture bird sounds.
-3. The app will automatically save the recording along with its location.
-4. View all recorded birds on the interactive map.
-5. Tap a map marker to listen to a recording and see its dialect classification.
+## Key capabilities
+- Guided audio capture with spectrogram previews and metadata forms for segment annotations.【F:docs/overview.md†L7-L12】【F:docs/architecture.md†L17-L36】
+- Interactive maps that reveal dialect distribution, filters, and drill-down recording detail pages.【F:docs/overview.md†L12-L16】【F:docs/architecture.md†L37-L47】
+- Offline-first storage with background upload, notifications, and Firebase-powered messaging to keep teams in sync.【F:docs/overview.md†L13-L21】【F:docs/data-pipeline.md†L5-L40】
 
+## Documentation
+- [Project overview](docs/overview.md)
+- [Development setup](docs/development.md)
+- [Architecture guide](docs/architecture.md)
+- [Data & synchronisation pipeline](docs/data-pipeline.md)
 
 ## Contributing
-Contributions are welcome! Feel free to submit a pull request or report any issues.
+We welcome bug reports, feature ideas, and pull requests. Please ensure linting and tests pass before submitting changes.【F:docs/development.md†L47-L71】
 
 ## License
-This project is licensed under the Gnu Public Licence v3
-
-
-
+This project is distributed under the terms of the GNU General Public License v3.0 or later. See [`LICENSE`](LICENSE) for details.【F:LICENSE†L1-L190】
