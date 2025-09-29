@@ -6,7 +6,6 @@ This document highlights the moving parts of the Návrat krále client and how r
 The entry point (`main.dart`) performs a guarded bootstrap that initializes Firebase, loads configuration files, and prepares background services before showing UI. A `PermissionGate` widget requests microphone and notification access before the rest of the app is allowed to run.[F:lib/main.dart†L84-L175]
 
 ```mermaid
-graph TD
   A[Start] --> B[WidgetsFlutterBinding.ensureInitialized]
   B --> C[Firebase.initializeApp]
   C --> D[Localization.load]
