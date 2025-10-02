@@ -1,7 +1,7 @@
 # Nářečí českých strnadů (Czech Yellowhammer Dialects)
 
 <div align="center">
-  <img src="assets/images/logo.webp" alt="Project Logo" width="200"/>
+  <img src="assets/images/logo.png" alt="Project Logo" width="200"/>
 </div>
 
 ## Overview
