@@ -463,49 +463,55 @@ class _LoginState extends State<Login> {
                     logger.i('Apple button clicked');
 
                     // Start Apple sign‑in flow
-                    final data = await apple.AppleAuth.signInAndGetJwt();
+                    final data = await apple.AppleAuth.signInAndGetJwt(null);
                     if (data == null) {
                       logger.w('Apple sign in return data null');
                       // User cancelled or sign‑in failed
                       return;
-                    }
-                    else if(data['status'] == 200){
-                      logger.i('Apple sign in successful, returned data: ${data.toString()}');
-                      if (data['exists']==false){
+                    } else if (data['status'] == 200) {
+                      logger.i(
+                          'Apple sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
                         // New user, proceed with registration
-                        logger.i('Apple sign in: new user, proceeding to registration');
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RegName(
-                          name: data['firstName'] as String? ?? '',
-                          surname: data['lastName'] as String? ?? '',
-                          email: data['email'] as String? ?? '',
-                          jwt: data['jwt'] as String,
-                          appleId: data['userIdentifier'] as String? ?? '',
-                          consent: true,
-                        )));
+                        logger.i(
+                            'Apple sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                      name: data['firstName'] as String? ?? '',
+                                      surname:
+                                          data['lastName'] as String? ?? '',
+                                      email: data['email'] as String? ?? '',
+                                      jwt: data['jwt'] as String,
+                                      appleId:
+                                          data['userIdentifier'] as String? ??
+                                              '',
+                                      consent: true,
+                                    )));
                         return;
-                      }
-                      else if (data['exists']==true){
+                      } else if (data['exists'] == true) {
                         // User exists, proceed with login
-
                       }
-                    }
-                    else if(data['status'] == 400){
+                    } else if (data['status'] == 400) {
                       logger.w('Apple sign in failed: no email returned');
                       _showMessage(t('auth.apple.error.no_email'));
                       return;
-                    }
-                    else{
-                      logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                    } else {
+                      logger.w(
+                          'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
                       _showMessage(t('auth.apple.error.login_failed'));
                       return;
                     }
 
                     // Check if we already have the user's full name
                     final String? firstName = data['firstName'] as String?;
-                    final String? lastName  = data['lastName']  as String?;
+                    final String? lastName = data['lastName'] as String?;
                     final String? email = data['email'] as String?;
 
-                    if ((firstName != null && lastName != null && email != null)) {
+                    if ((firstName != null &&
+                        lastName != null &&
+                        email != null)) {
                       // Missing profile data → go to the registration screen
                       Navigator.pushReplacement(
                         context,
@@ -538,13 +544,15 @@ class _LoginState extends State<Login> {
                       },
                     );
                     if (idResponse.statusCode != 200) {
-                      logger.w('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                      logger.w(
+                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
                       _showMessage('Chyba při získávání ID uživatele');
                       return;
                     }
                     logger.i('User ID retrieved: ${idResponse.body}');
 
-                    await secureStorage.write(key: 'userId', value: idResponse.body);
+                    await secureStorage.write(
+                        key: 'userId', value: idResponse.body);
                     await fb.refreshToken();
 
                     // Go to recorder screen
