@@ -64,7 +64,7 @@ class AppleAuth {
       ],
       webAuthenticationOptions: WebAuthenticationOptions(
         clientId:
-            'com.delta.strnadi', // TODO: replace with your real Services ID
+            'web.delta.strnadi', // TODO: replace with your real Services ID
         redirectUri: Uri.parse('https://${Config.host}/auth/apple'),
       ),
     );
@@ -99,13 +99,15 @@ class AppleAuth {
       'familyName': result.familyName,
     };
 
+    Map<String,String> headers = {
+      'Content-Type': 'application/json',
+      if (jwt != null) 'Authorization': 'Bearer $jwt',
+    };
+
     final response = await http.post(
       // Change this URL if your backend listens elsewhere.
       Uri.parse('https://${Config.host}/auth/apple'),
-      headers: {
-        'Content-Type': 'application/json',
-        jwt != null ? 'Authorization' : 'Bearer ${jwt ?? ""}': '',
-      },
+      headers: headers,
       body: jsonEncode(body),
     );
 
