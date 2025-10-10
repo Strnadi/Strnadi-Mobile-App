@@ -509,7 +509,7 @@ class _RegMailState extends State<RegMail> {
 
                       if ((firstName != null &&
                           lastName != null &&
-                          email != null)) {
+                          email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)) {
                         // Missing profile data → go to the registration screen
                         Navigator.pushReplacement(
                           context,

@@ -512,7 +512,7 @@ class _LoginState extends State<Login> {
 
                       if ((firstName != null &&
                           lastName != null &&
-                          email != null)) {
+                          email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
                         // Missing profile data → go to the registration screen
                         Navigator.pushReplacement(
                           context,

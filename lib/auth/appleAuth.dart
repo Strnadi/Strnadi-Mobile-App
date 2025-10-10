@@ -65,7 +65,7 @@ class AppleAuth {
       webAuthenticationOptions: WebAuthenticationOptions(
         clientId:
             'web.delta.strnadi', // TODO: replace with your real Services ID
-        redirectUri: Uri.parse('https://${Config.host}/auth/apple'),
+        redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
       ),
     );
 
