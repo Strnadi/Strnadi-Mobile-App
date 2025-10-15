@@ -164,6 +164,24 @@ lib/
 └── widgets/           # Reusable UI components
 ```
 
+## App Architecture Overview
+
+```mermaid
+flowchart TD
+    User[Citizen Scientist] -->|Records audio, explores map| UI[Flutter UI Screens\n(Recording, Map, Profile, Notifications)]
+    Sensors[Device Capabilities\n(Microphone, GPS, Connectivity)] --> Services[Domain Services\n(RecordingController, MapController, AuthManager, NotificationManager)]
+    UI --> Services
+    Services --> Storage[Local Persistence\n(SQLite database, secure storage, file cache)]
+    Services --> Background[Background Tasks\n(WorkManager, Foreground Service)]
+    Background --> Backend[(REST API Backend)]
+    Services --> Backend
+    Services --> Firebase[(Firebase Auth & Cloud Messaging)]
+    Backend --> Services
+    Firebase --> UI
+    Storage <-->|Queued recordings, sync state| Background
+    Backend -->|Dialect metadata, maintenance status| UI
+```
+
 ## Contributing
 
 We welcome contributions from developers, ornithologists, and citizen scientists! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on:
