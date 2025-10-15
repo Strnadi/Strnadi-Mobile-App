@@ -203,48 +203,60 @@ flowchart TD
 ## User Journey Overview
 
 ```mermaid
-flowchart LR
-    subgraph UserActions["Citizen scientist's steps"]
+flowchart TB
+    subgraph Entry["Getting ready"]
         OpenApp["Open app"]
-        SignIn["Sign in or register"]
-        Permit["Grant microphone & location access"]
-        StartRec["Start recording session"]
-        Annotate["Review take, add notes & submit"]
-        Explore["Explore map & listen to recordings"]
-        Manage["Manage profile & track contributions"]
+        Splash["App shows splash screen<br/>checks maintenance & cached login"]
+        SignedIn{"Already signed in?"}
+        SignIn["Pick Google, Apple, or email sign-in"]
+        AuthProcess["App validates credentials<br/>refreshes tokens & pulls profile"]
+        Permissions["Allow microphone & location<br/>or revisit system prompts"]
+        ReadyState["App enables GPS listeners<br/>warms caches & prepares recorder"]
     end
 
-    subgraph AppResponses["How the app responds"]
-        Splash["Shows splash screen<br/>checks login & maintenance state"]
-        Decision{"Signed in?"}
-        AuthFlow["Guides through onboarding & auth<br/>validates credentials"]
-        PermissionPrompt["Requests microphone & GPS permissions<br/>stores consent choices"]
-        RecorderUI["Opens recording screen<br/>monitors levels & captures audio + GPS"]
-        UploadQueue["Saves take locally<br/>queues upload & sync status"]
-        MapView["Displays interactive map<br/>filters & playback controls"]
-        ProfileView["Shows stats, badges & recording history"]
-        Notifications["Sends reminders & status updates<br/>via push or local notifications"]
+    OpenApp --> Splash --> SignedIn
+    SignedIn -->|No| SignIn --> AuthProcess --> Permissions
+    SignedIn -->|Yes| Permissions
+    Permissions --> ReadyState --> BottomBar
+
+    subgraph BottomNav["Bottom navigation hub"]
+        BottomBar["Bottom bar tabs<br/>(Map • List • Recorder • Notifications • Profile)"]
     end
 
-    OpenApp --> Splash
-    Splash --> Decision
-    Decision -->|No| SignIn
-    SignIn --> AuthFlow
-    AuthFlow --> Permit
-    Decision -->|Yes| Permit
-    Permit --> PermissionPrompt
-    PermissionPrompt --> StartRec
-    StartRec --> RecorderUI
-    RecorderUI --> Annotate
-    Annotate --> UploadQueue
-    UploadQueue --> Explore
-    Explore --> MapView
-    MapView --> Manage
-    Manage --> ProfileView
-    ProfileView --> Explore
-    UploadQueue --> Notifications
-    Notifications -.-> OpenApp
-    MapView --> StartRec
+    subgraph MapTab["Map tab"]
+        MapAction["Explore nearby recordings<br/>pan, zoom, and tap markers"]
+        MapApp["App streams tiles & dialect overlays<br/>clusters markers, tracks live position<br/>fetches detail cards on demand"]
+    end
+
+    subgraph ListTab["List tab"]
+        ListAction["Review personal & community takes<br/>filter, sort, and open details"]
+        ListApp["App syncs newest uploads<br/>shows verification & upload status<br/>serves cached WAV previews"]
+    end
+
+    subgraph RecorderTab["Recorder tab"]
+        RecordAction["Arm recorder, capture session<br/>add spoken notes or labels"]
+        RecordApp["App runs foreground service<br/>monitors levels & GPS accuracy<br/>stores WAV locally and schedules upload"]
+    end
+
+    subgraph NotificationsTab["Notifications tab"]
+        NotifyAction["Check reminders & project news"]
+        NotifyApp["App fetches inbox from backend<br/>highlights pending uploads or reviews<br/>links back into relevant tabs"]
+    end
+
+    subgraph ProfileTab["Profile tab"]
+        ProfileAction["Inspect stats, badges, preferences"]
+        ProfileApp["App aggregates contribution metrics<br/>loads profile securely<br/>saves updated settings to cloud & device"]
+    end
+
+    BottomBar --> MapAction --> MapApp --> BottomBar
+    BottomBar --> ListAction --> ListApp --> BottomBar
+    BottomBar --> RecordAction --> RecordApp --> BottomBar
+    BottomBar --> NotifyAction --> NotifyApp --> BottomBar
+    BottomBar --> ProfileAction --> ProfileApp --> BottomBar
+
+    RecordApp --> ListAction
+    RecordApp --> NotifyApp
+    MapAction --> RecordAction
 ```
 
 ## Contributing
