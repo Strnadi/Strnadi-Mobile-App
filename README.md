@@ -168,11 +168,11 @@ lib/
 
 ```mermaid
 flowchart TD
-    User[Citizen Scientist] -->|Records audio, explores map| UI[Flutter UI Screens<br/>(Recording, Map, Profile, Notifications)]
-    Sensors[Device Capabilities<br/>(Microphone, GPS, Connectivity)] --> Services[Domain Services<br/>(RecordingController, MapController, AuthManager, NotificationManager)]
+    User["Citizen Scientist"] -->|Records audio, explores map| UI["Flutter UI Screens<br/>(Recording, Map, Profile, Notifications)"]
+    Sensors["Device Capabilities<br/>(Microphone, GPS, Connectivity)"] --> Services["Domain Services<br/>(RecordingController, MapController, AuthManager, NotificationManager)"]
     UI --> Services
-    Services --> Storage[Local Persistence<br/>(SQLite database, secure storage, file cache)]
-    Services --> Background[Background Tasks<br/>(WorkManager, Foreground Service)]
+    Services --> Storage["Local Persistence<br/>(SQLite database, secure storage, file cache)"]
+    Services --> Background["Background Tasks<br/>(WorkManager, Foreground Service)"]
     Background --> Backend[(REST API Backend)]
     Services --> Backend
     Services --> Firebase[(Firebase Auth & Cloud Messaging)]
