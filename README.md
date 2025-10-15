@@ -200,6 +200,53 @@ flowchart TD
     Background -->|Report progress & errors| Services
 ```
 
+## User Journey Overview
+
+```mermaid
+flowchart LR
+    subgraph UserActions["Citizen scientist's steps"]
+        OpenApp["Open app"]
+        SignIn["Sign in or register"]
+        Permit["Grant microphone & location access"]
+        StartRec["Start recording session"]
+        Annotate["Review take, add notes & submit"]
+        Explore["Explore map & listen to recordings"]
+        Manage["Manage profile & track contributions"]
+    end
+
+    subgraph AppResponses["How the app responds"]
+        Splash["Shows splash screen<br/>checks login & maintenance state"]
+        Decision{"Signed in?"}
+        AuthFlow["Guides through onboarding & auth<br/>validates credentials"]
+        PermissionPrompt["Requests microphone & GPS permissions<br/>stores consent choices"]
+        RecorderUI["Opens recording screen<br/>monitors levels & captures audio + GPS"]
+        UploadQueue["Saves take locally<br/>queues upload & sync status"]
+        MapView["Displays interactive map<br/>filters & playback controls"]
+        ProfileView["Shows stats, badges & recording history"]
+        Notifications["Sends reminders & status updates<br/>via push or local notifications"]
+    end
+
+    OpenApp --> Splash
+    Splash --> Decision
+    Decision -->|No| SignIn
+    SignIn --> AuthFlow
+    AuthFlow --> Permit
+    Decision -->|Yes| Permit
+    Permit --> PermissionPrompt
+    PermissionPrompt --> StartRec
+    StartRec --> RecorderUI
+    RecorderUI --> Annotate
+    Annotate --> UploadQueue
+    UploadQueue --> Explore
+    Explore --> MapView
+    MapView --> Manage
+    Manage --> ProfileView
+    ProfileView --> Explore
+    UploadQueue --> Notifications
+    Notifications -.-> OpenApp
+    MapView --> StartRec
+```
+
 ## Contributing
 
 We welcome contributions from developers, ornithologists, and citizen scientists! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on:
