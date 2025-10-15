@@ -168,18 +168,36 @@ lib/
 
 ```mermaid
 flowchart TD
-    User["Citizen Scientist"] -->|Records audio, explores map| UI["Flutter UI Screens<br/>(Recording, Map, Profile, Notifications)"]
-    Sensors["Device Capabilities<br/>(Microphone, GPS, Connectivity)"] --> Services["Domain Services<br/>(RecordingController, MapController, AuthManager, NotificationManager)"]
-    UI --> Services
-    Services --> Storage["Local Persistence<br/>(SQLite database, secure storage, file cache)"]
-    Services --> Background["Background Tasks<br/>(WorkManager, Foreground Service)"]
-    Background --> Backend[(REST API Backend)]
-    Services --> Backend
-    Services --> Firebase[(Firebase Auth & Cloud Messaging)]
-    Backend --> Services
-    Firebase --> UI
-    Storage <-->|Queued recordings, sync state| Background
-    Backend -->|Dialect metadata, maintenance status| UI
+    subgraph UserDevice["On the user's device"]
+        User["Citizen Scientist"]
+        Sensors["Device Capabilities<br/>(Microphone, GPS, Connectivity)"]
+        subgraph FlutterApp["Flutter Mobile App"]
+            UI["Flutter UI Screens<br/>(Recording, Map, Profile, Notifications)"]
+            Services["Domain Controllers & Managers<br/>(RecordingController, MapController, AuthManager, NotificationManager)"]
+            Storage["Local Persistence<br/>(SQLite database, secure storage, file cache)"]
+            Background["Background Workers<br/>(WorkManager, Foreground Service)"]
+        end
+    end
+
+    subgraph CloudServices["Cloud services"]
+        Backend["REST API Backend"]
+        Firebase["Firebase Auth & Cloud Messaging"]
+    end
+
+    User -->|Records audio, reviews map data| UI
+    UI -->|User actions & state updates| Services
+    Services -->|Requests device sensors| Sensors
+    Sensors -->|Audio samples, GPS fixes, network status| Services
+    Services -->|Persist recordings, auth tokens| Storage
+    Storage -->|Queued uploads, cached metadata| Services
+    Services -->|Schedule sync & upload jobs| Background
+    Background -->|Upload queued recordings| Backend
+    Services -->|Submit metadata, fetch dialect data| Backend
+    Backend -->|Dialect metadata, maintenance status| Services
+    Services -->|Trigger push setup, verify users| Firebase
+    Firebase -->|Authentication state, push notifications| Services
+    Services -->|Show messages & status| UI
+    Background -->|Report progress & errors| Services
 ```
 
 ## Contributing
