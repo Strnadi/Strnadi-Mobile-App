@@ -200,6 +200,38 @@ flowchart TD
     Background -->|Report progress & errors| Services
 ```
 
+## Technical Snapshot for Stakeholders
+
+This chart highlights the major moving parts a technical stakeholder should know about without diving into implementation specifics.
+
+```mermaid
+flowchart LR
+    subgraph Device["Flutter app on device"]
+        UI["UI layer<br/>(Flutter widgets)"]
+        Logic["Feature logic<br/>(controllers, managers)"]
+        Local["Local storage<br/>(SQLite, secure files)"]
+    end
+
+    subgraph Cloud["Managed services"]
+        API["REST API backend"]
+        Media["Object storage<br/>(recording archives)"]
+        Firebase["Firebase Auth & Messaging"]
+        Analytics["Monitoring & analytics"]
+    end
+
+    User["Citizen scientist"] --> UI
+    UI --> Logic
+    Logic --> Local
+    Local --> Logic
+    Logic --> API
+    API --> Logic
+    API --> Media
+    Logic --> Firebase
+    Firebase --> UI
+    Firebase --> Analytics
+    Logic --> Analytics
+```
+
 ## User Journey Overview
 
 ```mermaid
