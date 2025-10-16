@@ -30,9 +30,10 @@ class RegName extends StatefulWidget {
   final String? name;
   final String? surname;
   final String? password;
+  final String? appleId;
   final bool consent;
 
-  const RegName({super.key, required this.email, required this.consent, required this.jwt, this.password, this.name, this.surname});
+  const RegName({super.key, required this.email, required this.consent, required this.jwt, this.password, this.name, this.surname, this.appleId});
 
   @override
   State<RegName> createState() => _RegNameState();
@@ -99,7 +100,7 @@ class _RegNameState extends State<RegName> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: Text(t('Zadejte vaše jméno, příjmení\na zvolte si přezdívku'),
+                    child: Text(t('signup.name.title'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -240,6 +241,7 @@ class _RegNameState extends State<RegName> {
                                 surname: _surnameController.text.trim(),
                                 nickname: _nickController.text.trim(),
                                 password: widget.password,
+                                appleId: widget.appleId,
                                 jwt: widget.jwt,
                               ),
                             ),

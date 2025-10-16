@@ -34,6 +34,8 @@ import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
+import 'package:strnadi/auth/appleAuth.dart' as apple;
+import 'package:strnadi/auth/registeration/nameReg.dart';
 
 final logger = Logger();
 
@@ -70,7 +72,7 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
-  void GetUserName(int userID) {
+  void CacheUserData(int userID) {
     Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
 
     http.get(url, headers: {'Content-Type': 'application/json'}).then(
@@ -146,7 +148,7 @@ class _LoginState extends State<Login> {
           });
           int userId = int.parse(response.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
-          GetUserName(userId);
+          CacheUserData(userId);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -168,7 +170,7 @@ class _LoginState extends State<Login> {
           });
           int userId = int.parse(idResponse.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
-          GetUserName(userId);
+          CacheUserData(userId);
         }
         await secureStorage.write(key: 'verified', value: 'true');
         logger.i(response.body);
@@ -195,7 +197,7 @@ class _LoginState extends State<Login> {
         });
         int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
-        GetUserName(userId);
+        CacheUserData(userId);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -446,6 +448,146 @@ class _LoginState extends State<Login> {
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
                     side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    logger.i('Apple button clicked');
+
+                    // Start Apple sign‑in flow
+                    try {
+                      final data = await apple.AppleAuth.signInAndGetJwt(null);
+                      if (data == null) {
+                        logger.w('Apple sign in return data null');
+                        // User cancelled or sign‑in failed
+                        return;
+                      } else if (data['status'] == 200) {
+                        logger.i(
+                            'Apple sign in successful, returned data: ${data.toString()}');
+                        if (data['exists'] == false) {
+                          // New user, proceed with registration
+                          logger.i(
+                              'Apple sign in: new user, proceeding to registration');
+                          Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => RegName(
+                                    name: data['firstName'] as String? ?? '',
+                                    surname:
+                                    data['lastName'] as String? ?? '',
+                                    email: data['email'] as String? ?? '',
+                                    jwt: data['jwt'] as String,
+                                    appleId:
+                                    data['userIdentifier'] as String? ??
+                                        '',
+                                    consent: true,
+                                  )));
+                          return;
+                        } else if (data['exists'] == true) {
+                          // User exists, proceed with login
+                        }
+                      } else if (data['status'] == 400) {
+                        logger.w('Apple sign in failed: no email returned');
+                        _showMessage(t('auth.apple.error.no_email'));
+                        return;
+                      } else {
+                        logger.w(
+                            'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                        _showMessage(t('auth.apple.error.login_failed'));
+                        return;
+                      }
+
+                      // Check if we already have the user's full name
+                      final String? firstName = data['firstName'] as String?;
+                      final String? lastName = data['lastName'] as String?;
+                      final String? email = data['email'] as String?;
+
+                      if ((firstName != null &&
+                          lastName != null &&
+                          email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
+                        // Missing profile data → go to the registration screen
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              name: firstName,
+                              surname: lastName,
+                              email: email,
+                              jwt: data['jwt'] as String,
+                              consent: true,
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final String jwt = data['jwt'] as String;
+                      final secureStorage = const FlutterSecureStorage();
+
+                      // Persist the token locally
+                      await secureStorage.write(key: 'token', value: jwt);
+                      logger.i('Apple sign‑in successful, token stored');
+
+                      // Retrieve user‑id from backend
+                      final idResponse = await http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        },
+                      );
+                      if (idResponse.statusCode != 200) {
+                        logger.w(
+                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                        _showMessage('Chyba při získávání ID uživatele');
+                        return;
+                      }
+                      logger.i('User ID retrieved: ${idResponse.body}');
+
+                      await secureStorage.write(
+                          key: 'userId', value: idResponse.body);
+                      await fb.refreshToken();
+
+                      // Get users data
+
+                      CacheUserData(int.parse(idResponse.body));
+
+                      // Go to recorder screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => LiveRec()),
+                      );
+                    }
+                    catch (e, stackTrace) {
+                      logger.e('Apple sign-in error: $e',
+                          error: e, stackTrace: stackTrace);
+                      Sentry.captureException(e, stackTrace: stackTrace);
+                      _showMessage(t('auth.apple.error.login_failed'));
+                      return;
+                    }
+                  },
+                  icon: Image.asset(
+                    'assets/images/apple.png',
+                    height: 24,
+                    width: 24,
+                  ),
+                  label: const Text(
+                    'Pokračovat přes Apple',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

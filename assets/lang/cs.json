@@ -2,6 +2,13 @@
   "auth": {
     "title": "Nářečí českých strnadů",
     "subtitle": "Nahrávejte, mapujte, dobývejte",
+    "apple": {
+        "continue": "Pokračovat přes Apple",
+        "error": {
+          "login_failed": "Přihlášení přes Apple selhalo",
+          "no_email": "Apple neposkytl e-mailovou adresu. Prosím použijte jiný způsob přihlášení."
+        }
+    },
     "buttons": {
       "register": "Založit účet",
       "login": "Přihlásit se",
@@ -494,7 +501,8 @@
       "title": "Nastavení",
       "fields": {
         "useMobileData": "Použít mobilní data pro nahrávání",
-        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně"
+        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně",
+        "language": "Jazyk aplikace"
       },
       "descriptions": {
         "localRecordingsMax": "Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny."

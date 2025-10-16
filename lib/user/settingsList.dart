@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
+import 'package:strnadi/user/settingsPages/connectedPlatforms.dart';
 import 'package:strnadi/user/settingsPages/userInfo.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/md_renderer.dart';
@@ -27,6 +28,7 @@ class MenuScreen extends StatelessWidget {
   final List<String> menuItems = [
     'Osobní údaje',
     'Nastavení',
+    'Pripojene Sluzby',
     //'Vaše úspěchy',
     'Příručka',
     'O projektu',
@@ -73,19 +75,27 @@ class MenuScreen extends StatelessWidget {
           context, MaterialPageRoute(builder: (context) => ProfileEditPage()));
     } else if (index == 1) {
       //_showMessage("Nastavení ještě není dostupné", context);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => SettingsPage()));
+    } else if (index == 2) {
+      Navigator.push(context,
+          MaterialPageRoute(builder: (context) => Connectedplatforms()));
     } else if (index == 3) {
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) =>
-                  MDRender(mdPath: 'assets/docs/how-to-record.md', title: 'Jak nahrávat',)));
+              builder: (context) => MDRender(
+                    mdPath: 'assets/docs/how-to-record.md',
+                    title: 'Jak nahrávat',
+                  )));
     } else if (index == 3) {
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) =>
-                  MDRender(mdPath: 'assets/docs/about-project.md', title: 'O projektu',)));
+              builder: (context) => MDRender(
+                    mdPath: 'assets/docs/about-project.md',
+                    title: 'O projektu',
+                  )));
     } else if (index == 4) {
       _showAboutDialog(context);
     } else {

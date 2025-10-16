@@ -63,8 +63,9 @@ class AppleAuth {
         AppleIDAuthorizationScopes.email,
       ],
       webAuthenticationOptions: WebAuthenticationOptions(
-        clientId: 'web.delta.strnadi', // TODO: replace with your real Services ID
-        redirectUri: Uri.parse('https://${Config.host}/auth/apple'),
+        clientId:
+            'web.delta.strnadi', // TODO: replace with your real Services ID
+        redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
       ),
     );
 
@@ -85,32 +86,44 @@ class AppleAuth {
   /// and respond with: `{ "jwt": "<token>" }`.
   ///
   /// Throws an [Exception] if the backend responds with anything other than
-  /// HTTP 200.
-  static Future<String?> signInAndGetJwt() async {
+  /// HTTP 200.
+  static Future<Map<String, dynamic>?> signInAndGetJwt(String? jwt) async {
     final result = await signIn();
     if (result == null) return null;
+    Map<String, dynamic> body = {
+      'authorizationCode': result.authorizationCode,
+      'idToken': result.idToken,
+      'userIdentifier': result.userIdentifier,
+      'email': result.email,
+      'givenName': result.givenName,
+      'familyName': result.familyName,
+    };
+
+    Map<String,String> headers = {
+      'Content-Type': 'application/json',
+      if (jwt != null) 'Authorization': 'Bearer $jwt',
+    };
 
     final response = await http.post(
       // Change this URL if your backend listens elsewhere.
       Uri.parse('https://${Config.host}/auth/apple'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'authorizationCode': result.authorizationCode,
-        'idToken': result.idToken,
-        'userIdentifier': result.userIdentifier,
-        'email': result.email,
-        'givenName': result.givenName,
-        'familyName': result.familyName,
-      }),
+      headers: headers,
+      body: jsonEncode(body),
     );
 
+    logger.t(body);
+
+    logger.t(response.body);
+
+    late Map<String, dynamic> resp;
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      return data['jwt'] as String?;
+      resp = jsonDecode(response.body) as Map<String, dynamic>;
+      logger.i('Apple Sign-In successful');
+    } else {
+      logger.w(
+          'Apple Sign-In failed with status code: ${response.statusCode} | ${response.body}');
     }
-
-    throw Exception(
-      'Failed to fetch JWT → ${response.statusCode}: ${response.body}',
-    );
+    resp.addAll({"status": response.statusCode});
+    return resp;
   }
 }

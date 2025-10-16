@@ -1,0 +1,570 @@
+{
+  "auth": {
+    "title": "Dialects of Czech Yellowhammers",
+    "subtitle": "Record, map, conquer",
+    "apple": {
+      "continue": "Continue with Apple",
+      "error": {
+        "login_failed": "Sign in with Apple failed",
+        "no_email": "Apple did not provide an email address. Please use another sign-in method."
+      }
+    },
+    "buttons": {
+      "register": "Create account",
+      "login": "Log in",
+      "ok": "OK"
+    },
+    "alerts": {
+      "offline_no_token": {
+        "title": "Offline",
+        "message": "You are not connected to the internet and no token is stored."
+      },
+      "offline_expired_token": {
+        "title": "Offline",
+        "message": "Your JWT has expired. Please connect to the internet to refresh it."
+      },
+      "offline_not_verified": {
+        "title": "Offline",
+        "message": "Your account is not verified. Please verify your email to continue."
+      },
+      "offline_action_blocked": {
+        "title": "Offline",
+        "message": "This action is not available offline."
+      },
+      "logged_out": "You have been logged out"
+    },
+    "disclaimer": {
+      "back": "Back",
+      "consent_prefix": "by continuing you agree to the",
+      "privacy_policy": "privacy policy.",
+      "info": "A citizen science project focused on the diversity of birdsong. By recording the song of Yellowhammers across the Czech Republic, you can help us understand how bird dialects are maintained in the landscape.",
+      "dev_notice": "The app and the web are still undergoing very rapid development. We apologize for any bugs. Look forward to frequent updates and improvements."
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "path": "assets/docs/terms-of-services.md"
+    }
+  },
+  "login": {
+    "title": "Log in",
+    "inputs": {
+      "emailLabel": "Email",
+      "passwordLabel": "Password"
+    },
+    "or": "Or",
+    "buttons": {
+      "loginButton": "Log in",
+      "forgotPassword": "Forgot password?",
+      "googleSignIn": "Continue with Google"
+    },
+    "errors": {
+      "emptyFieldsError": "Enter both email and password",
+      "invalidCredentials": "Wrong email or password",
+      "loginFailed": "Login failed, please try again",
+      "connection": "Connection error"
+    }
+  },
+  "signup": {
+    "mail": {
+      "title": "Enter your email",
+      "mail": "Email",
+      "or": "Or",
+      "ok": "OK",
+      "buttons": {
+        "continue": "Continue",
+        "con_google": "Continue with Google"
+      },
+      "consent": {
+        "con1": "By participating in the citizen science project Dialects of Czech Yellowhammers ",
+        "con2": "I agree to the terms"
+      },
+      "errors": {
+        "user_exists": {
+          "title": "User already exists",
+          "content": "A user with this email already exists."
+        },
+        "mail_format_err": "Email is not in a valid format",
+        "mail_exists": "Email already exists",
+        "google_login_failed": "Sign in with Google failed",
+        "continue_consent": "You must agree to the terms to continue."
+      }
+    },
+    "password": {
+      "title": "Set your password",
+      "password": "Password *",
+      "repeat_password": "Repeat password *",
+      "password_hint": "Enter password",
+      "password_again_hint": "Repeat password",
+      "password_req": {
+        "capital_letter": "• At least one uppercase letter",
+        "lovercase_letter": "• At least one lowercase letter",
+        "digit": "• At least one digit (0–9)",
+        "lenght_req": "• At least 8 characters"
+      },
+      "buttons": {
+        "continue": "Continue"
+      },
+      "errors": {
+        "req_not_met": "Password does not meet the requirements",
+        "password_match_err": "Passwords do not match"
+      }
+    },
+    "name": {
+      "title": "Enter your first name, last name\nand choose a nickname",
+      "name": "First name *",
+      "last_name": "Last name *",
+      "nickname": "Nickname (optional)",
+      "nickname_hint": "Optional",
+      "real_name_warning": "If you don’t provide a nickname, other users will see your real name.",
+      "continue": "Continue",
+      "errors": {
+        "null_name_err": "Enter first name",
+        "null_last_name_err": "Enter last name"
+      }
+    },
+    "city": {
+      "title": "Where are you located?",
+      "subtitle": "To share news relevant to your area, we’ll need your postal code (used for targeting notifications) and municipality (the town displayed to other users). This step is optional.",
+      "post_code": "Postal code",
+      "city": "Municipality",
+      "continue": "Continue",
+      "errors": {
+        "user_exists": "User already exists",
+        "error_ocured": "An error occurred :( Please try again"
+      }
+    },
+    "overview": {
+      "title": "Information overview",
+      "subtitle": "Information overview",
+      "marketing_consent": "I agree to receive marketing communications",
+      "buttons": {
+        "register": "Register"
+      },
+      "errors": {
+        "user_exists": "User already exists",
+        "error_ocured": "An error occurred :( Please try again"
+      }
+    }
+  },
+  "dialectBadge": {
+    "title": "Dialect"
+  },
+  "editRecording": {
+    "title": "Edit recording",
+    "fields": {
+      "name": "Name",
+      "note": "Note",
+      "count": "Number of yellowhammers",
+      "device": "Device"
+    },
+    "buttons": {
+      "saveChanges": "Save changes"
+    }
+  },
+  "bottomBar": {
+    "errors": {
+      "noInternetMap": "No internet connection. The map is unavailable."
+    }
+  },
+  "dialogs": {
+    "message": "Message"
+  },
+  "recList": {
+    "title": "My recordings",
+    "offlineMode": {
+      "title": "Offline mode",
+      "message": "You are offline. Only locally stored recordings will be available."
+    },
+    "buttons": {
+      "ok": "OK",
+      "sortAndFilter": "Sort & filters",
+      "sortByName": "Sort by name",
+      "sortByDate": "Sort by date",
+      "sortByBirdCount": "Number of birds",
+      "filterDownloaded": "Downloaded",
+      "clearFilter": "Clear filter"
+    },
+    "emptyListMessage": "You don’t have any recordings yet",
+    "status": {
+      "sending": "Sending...",
+      "checkingParts": "Checking parts...",
+      "unsentParts": "Unsent parts",
+      "uploaded": "Uploaded",
+      "waitingForUpload": "Waiting to upload"
+    },
+    "dialect": {
+      "loading": "Loading dialect...",
+      "unknown": "Unknown dialect"
+    },
+    "name": {
+      "loading": "Loading...",
+      "unknown": "Unknown name"
+    }
+  },
+  "recListItem": {
+    "status": {
+      "sending": "Sending...",
+      "checkingParts": "Checking parts...",
+      "unsentParts": "Unsent parts",
+      "uploaded": "Uploaded",
+      "waitingForUpload": "Waiting to upload"
+    },
+    "errors": {
+      "reverseGeocodeFailed": "Reverse geocoding failed",
+      "errorDownloading": "Error downloading recording",
+      "errorDeleting": "Error deleting recording"
+    },
+    "buttons": {
+      "download": "Download recording",
+      "delete": "Delete record",
+      "resendUnsentParts": "Resend",
+      "send": "Send record",
+      "deleteCache": "Delete from cache"
+    },
+    "dialogs": {
+      "confirmDelete": {
+        "title": "Confirm deletion",
+        "message": "Do you really want to permanently delete this record?",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "unsentParts": {
+        "title": "Unsent parts",
+        "message": "Some parts of the recording were not sent. Would you like to try sending them again?",
+        "cancel": "Cancel",
+        "resend": "Resend"
+      },
+      "downloadUnavailable": {
+        "title": "Downloading unavailable",
+        "message": "An internet connection is required to download the recording."
+      }
+    },
+    "placeTitle": "Map",
+    "noRecording": "Recording is not available",
+    "notePlaceholder": "There is no note for this record",
+    "dateTime": "Date and time",
+    "estimatedBirdsCount": "Estimated number of yellowhammers"
+  },
+  "user_badge": {
+    "no_nickname": "User has no nickname"
+  },
+  "map": {
+    "notifications": {
+      "enableLocation": "Please enable location services",
+      "locationDenied": "Location permissions are denied",
+      "locationDeniedForever": "Location permissions are permanently denied",
+      "locationError": "Error retrieving location"
+    },
+    "dialogs": {
+      "notification": {
+        "title": "Notification",
+        "ok": "OK"
+      },
+      "error": {
+        "title": "Error",
+        "close": "Close"
+      },
+      "confirmDelete": {
+        "title": "Confirm deletion",
+        "message": "Do you really want to permanently delete this record?",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
+    },
+    "buttons": {
+      "info": "Info",
+      "mapSettings": "Map Settings",
+      "reset": "Reset orientation & recenter",
+      "close": "Close",
+      "set": "Set",
+      "resetFilters": "Reset"
+    },
+    "filters": {
+      "mapView": {
+        "classic": "Classic",
+        "satellite": "Aerial"
+      },
+      "recordingAuthor": {
+        "all": "All",
+        "me": "Me only"
+      }
+    },
+    "legend": {
+      "title": "Legend",
+      "dialects": {
+        "BC": "BC",
+        "BE": "BE",
+        "BlBh": "BlBh",
+        "BhBl": "BhBl",
+        "XB": "XB",
+        "rare": "Rare",
+        "transitional": "Transitional",
+        "mix": "Mix",
+        "atypical": "Atypical",
+        "unfinished": "Unfinished",
+        "unassessed": "Unassessed",
+        "unusable": "Unusable"
+      },
+      "mapyCz": "Mapy.cz © Seznam.cz, a.s."
+    }
+  },
+  "recordingPage": {
+    "status": {
+      "loading": "Recording is not available",
+      "downloading": "Download recording",
+      "errorDownloading": "Error downloading recording"
+    },
+    "audioPlayer": {
+      "replay": "Rewind 10s",
+      "play": "Play",
+      "pause": "Pause",
+      "forward": "Skip forward 10s"
+    },
+    "note": {
+      "placeholder": "There is no note for this recording"
+    },
+    "dateTime": "Date and time",
+    "estimatedBirdsCount": "Estimated number of yellowhammers",
+    "map": {
+      "title": "Map"
+    }
+  },
+  "postRecordingForm": {
+    "addDialect": {
+      "title": "Add dialect",
+      "confirm": "Confirm",
+      "options": {
+        "BC": "BC",
+        "BE": "BE",
+        "BlBh": "BlBh",
+        "BhBl": "BhBl",
+        "XB": "XB",
+        "other": "Other",
+        "noDialect": "No Dialect",
+        "unknown": "I don’t know"
+      },
+      "dialogs": {
+        "confirmation": {
+          "title": "Confirmation",
+          "message": "Do you really want to delete the recording?",
+          "yes": "Yes",
+          "no": "No"
+        }
+      }
+    },
+    "imageUpload": {
+      "title": "Photos",
+      "selectedCount": "{count} selected",
+      "buttons": {
+        "takePhoto": "Take photo",
+        "upload": "Upload"
+      },
+      "placeholders": {
+        "noImages": "Select photos"
+      }
+    },
+    "recordingForm": {
+      "fields": {
+        "recordingName": {
+          "name": "Recording name",
+          "error": {
+            "empty": "Please enter a recording name",
+            "tooLong": "The recording name must not be longer than 49 characters"
+          }
+        },
+        "comment": {
+          "name": "Comment",
+          "error": {
+            "empty": "Please enter a comment"
+          }
+        },
+        "birdCount": {
+          "name": "Number of yellowhammers",
+          "count": {
+            "threeOrMore": "3 or more"
+          }
+        },
+        "map": "Map"
+      },
+      "buttons": {
+        "addDialect": "Add dialect",
+        "save": "Save",
+        "discard": "Delete recording"
+      },
+      "dialogs": {
+        "confirmation": {
+          "title": "Confirmation",
+          "message": "Do you really want to save this recording?",
+          "yes": "Yes",
+          "no": "No"
+        },
+        "discard": {
+          "title": "Confirmation",
+          "message": "Do you really want to delete the recording?",
+          "yes": "Yes",
+          "no": "No"
+        },
+        "error": {
+          "noInternet": {
+            "title": "Connection error",
+            "message": "You need an internet connection to save the recording"
+          },
+          "wifiOnly": {
+            "title": "Connection error",
+            "message": "Recording is allowed on Wi-Fi only"
+          }
+        }
+      },
+      "placeholders": {
+        "noGpsPoints": "The recording contains no GPS points.",
+        "noInternet": "The map cannot be loaded without an internet connection."
+      },
+      "slider": {
+        "oneBird": "1 yellowhammer",
+        "twoBirds": "2 yellowhammers",
+        "threeOrMoreBirds": "3 or more yellowhammers"
+      }
+    }
+  },
+  "streamRec": {
+    "dialogs": {
+      "info": {
+        "title": "Information",
+        "ok": "OK"
+      },
+      "confirmExit": {
+        "title": "Confirm",
+        "message": "Do you really want to leave the recording?",
+        "cancel": "Back to recording",
+        "confirm": "Leave recording"
+      }
+    },
+    "errors": {
+      "micPermission": "Microphone access is required for the app to work properly",
+      "locationPermission": "You must allow location access to start recording",
+      "noRecordingFound": "No recording found to save",
+      "concatError": "Error while concatenating files",
+      "locationFetchError": "Error obtaining location"
+    },
+    "notifications": {
+      "recordingInProgress": "The Strnadi app is recording",
+      "recordingPaused": "Recording paused"
+    },
+    "buttons": {
+      "startRecording": "Start recording",
+      "pauseRecording": "Pause recording",
+      "resumeRecording": "Resume recording",
+      "finishRecording": "Finish and continue",
+      "discardRecording": "Discard recording"
+    },
+    "status": {
+      "recording": "Recording…",
+      "paused": "Recording paused – tap to resume",
+      "stopped": "Tap to start recording"
+    },
+    "timer": {
+      "format": "{minutes}:{seconds},{hundredths}"
+    }
+  },
+  "user": {
+    "profile": {
+      "title": "Personal data",
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "nickname": "Nickname",
+        "postCode": "Postal code",
+        "city": "Municipality"
+      },
+      "buttons": {
+        "save": "Save",
+        "deleteAccount": "I want to delete my account",
+        "changePassword": "Change password"
+      },
+      "dialogs": {
+        "deleteAccount": {
+          "title": "Delete account",
+          "message": "Do you really wish to delete your account? This action is irreversible.",
+          "cancel": "Cancel",
+          "confirm": "Delete"
+        },
+        "error": {
+          "title": "Error",
+          "message": "Failed to load user or token"
+        },
+        "success": {
+          "message": "Data were successfully updated"
+        }
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "fields": {
+        "useMobileData": "Use mobile data for recording",
+        "localRecordingsMax": "Maximum number of recordings stored locally",
+        "language": "Language"
+      },
+      "descriptions": {
+        "localRecordingsMax": "Upon reaching this limit, the oldest recordings will be removed."
+      }
+    },
+    "menu": {
+      "items": {
+        "personalInfo": "Personal data",
+        "settings": "Settings",
+        "guide": "Guide",
+        "aboutProject": "About the project",
+        "aboutApp": "About the app"
+      },
+      "dialogs": {
+        "aboutApp": {
+          "title": "Strnadi Mobile App",
+          "creators": "Creators: Marian Pecqueur && Jan Drobílek",
+          "contact": "Contact: info@strnadi.cz, developers@strnadi.cz"
+        }
+      }
+    },
+    "settingsPages": {
+      "appSettings": {
+        "title": "Settings",
+        "fields": {
+          "useMobileData": "Use mobile data for recording",
+          "localRecordingsMax": "Maximum number of recordings stored locally"
+        },
+        "descriptions": {
+          "localRecordingsMax": "Upon reaching this limit, the oldest recordings will be removed."
+        }
+      },
+      "userInfo": {
+        "title": "Personal data",
+        "fields": {
+          "firstName": "First name",
+          "lastName": "Last name",
+          "nickname": "Nickname",
+          "postCode": "Postal code",
+          "city": "Municipality"
+        },
+        "buttons": {
+          "save": "Save",
+          "deleteAccount": "I want to delete my account",
+          "changePassword": "Change password"
+        },
+        "dialogs": {
+          "deleteAccount": {
+            "title": "Delete account",
+            "message": "Do you really wish to delete your account? This action is irreversible.",
+            "cancel": "Cancel",
+            "confirm": "Delete"
+          },
+          "error": {
+            "title": "Error",
+            "message": "Failed to load user or token"
+          },
+          "success": {
+            "message": "Data were successfully updated"
+          }
+        }
+      }
+    }
+  }
+}

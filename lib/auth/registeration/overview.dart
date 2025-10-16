@@ -37,6 +37,7 @@ class RegOverview extends StatefulWidget {
   final String nickname;
   final String postCode;
   final String city;
+  final String? appleId;
 
   const RegOverview({
     Key? key,
@@ -49,6 +50,7 @@ class RegOverview extends StatefulWidget {
     required this.nickname,
     required this.postCode,
     required this.city,
+    this.appleId,
   }) : super(key: key);
 
   @override
@@ -98,6 +100,7 @@ class _RegOverviewState extends State<RegOverview> {
       'nickname': widget.nickname.isEmpty ? null : widget.nickname,
       'city': widget.city.isNotEmpty ? widget.city : null,
       'postCode': widget.postCode.isNotEmpty ? int.tryParse(widget.postCode) : null,
+      'appleId': widget.appleId,
       'consent': widget.consent && _marketingConsent,
     });
 
