@@ -14,14 +14,19 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:strnadi/auth/appleAuth.dart';
 import 'package:strnadi/localization/localization.dart';
 import '../../HealthCheck/serverHealth.dart' show logger;
 import '../../bottomBar.dart';
 import 'package:strnadi/localization/localization.dart' show t;
+
+import '../../config/config.dart' hide logger;
 
 class Connectedplatforms extends StatefulWidget {
   const Connectedplatforms({super.key});
@@ -31,8 +36,69 @@ class Connectedplatforms extends StatefulWidget {
 }
 
 class _ConnectedPlatformsState extends State<Connectedplatforms> {
+  late bool? shouldShowAppleSignIn = null;
+
+  @override
+  void initState() {
+    super.initState();
+    shouldShow().then((show) {
+      setState(() {
+        shouldShowAppleSignIn = show;
+      });
+    });
+  }
+
+  Future<bool> shouldShow() async {
+    var storage = FlutterSecureStorage();
+    var jwt = await storage.read(key: 'token');
+    final url = Uri.parse(
+        'https://${Config.host}/auth/has-apple-id?userId=${await storage.read(key: 'userId') ?? ''}');
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+    logger.i(response.statusCode);
+    logger.i(url);
+    if (response.statusCode == 200) {
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (shouldShowAppleSignIn == null) {
+      return ScaffoldWithBottomBar(
+        selectedPage: BottomBarItem.user,
+        appBarTitle: "Propojené služby",
+        allawArrowBack: true,
+        content: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (shouldShowAppleSignIn == false) {
+      return ScaffoldWithBottomBar(
+        selectedPage: BottomBarItem.user,
+        appBarTitle: "Propojené služby",
+        allawArrowBack: true,
+        content: Center(
+            child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: const [
+            Icon(Icons.check_circle, color: Colors.green, size: 64),
+            SizedBox(height: 16),
+            Text(
+              'Váš účet je již propojen s Apple ID.',
+              style: TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        )),
+      );
+    }
+
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
       appBarTitle: "Propojené služby",

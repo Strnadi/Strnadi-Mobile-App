@@ -16,6 +16,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
 import 'package:strnadi/localization/localization.dart';
 import '../../bottomBar.dart';
@@ -30,6 +31,8 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final SettingsService _settingsService = SettingsService();
+
+  late String language = 'cs';
 
   bool useMobileData = true;
 
@@ -47,12 +50,20 @@ class _SettingsPageState extends State<SettingsPage> {
     return true;
   }
 
+  Future<void> _loadLanguage() async {
+    FlutterSecureStorage storage = const FlutterSecureStorage();
+    var language = await storage.read(key: 'language');
+    setState(() {
+      this.language = language ?? 'cs';
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadLanguage();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -87,9 +98,34 @@ class _SettingsPageState extends State<SettingsPage> {
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 20),
+            LanguageDropdown(language),
           ],
         ),
       ),
+    );
+  }
+
+  Widget LanguageDropdown(String? initialValue) {
+    return DropdownButtonFormField<String>(
+      initialValue: initialValue ?? 'cs',
+      decoration: InputDecoration(
+        labelText: t('user.settings.fields.language'),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'cs', child: Text('Čeština')),
+        DropdownMenuItem(value: 'en', child: Text('English')),
+      ],
+      onChanged: (String? newValue) {
+        if (newValue != null) {
+          Localization.load('assets/lang/$newValue.json').then((_) {
+            setState(() {});
+          });
+          FlutterSecureStorage storage = const FlutterSecureStorage();
+          storage.write(key: 'language', value: newValue);
+          // Optionally save the selected language to persistent storage
+        }
+      },
     );
   }
 

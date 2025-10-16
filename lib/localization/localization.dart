@@ -1,16 +1,23 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class Localization {
   static Map<String, String> _localizedStrings = {};
 
-  static Future<void> load() async {
-    final jsonString = await rootBundle.loadString('assets/lang/cs.json');
+  static Future<void> load(String? dict) async {
+    FlutterSecureStorage storage = const FlutterSecureStorage();
+
+    var language = await storage.read(key: 'language');
+    dict ??= 'assets/lang/${language ?? 'cs'}.json';
+
+    final jsonString = await rootBundle.loadString(dict);
     final Map<String, dynamic> jsonMap = json.decode(jsonString);
     _localizedStrings = _flatten(jsonMap);
   }
 
-  static Map<String, String> _flatten(Map<String, dynamic> map, [String prefix = '']) {
+  static Map<String, String> _flatten(Map<String, dynamic> map,
+      [String prefix = '']) {
     final result = <String, String>{};
     map.forEach((key, value) {
       final newKey = prefix.isEmpty ? key : '$prefix.$key';

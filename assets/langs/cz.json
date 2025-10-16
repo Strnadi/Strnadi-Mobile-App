@@ -452,7 +452,8 @@
       "title": "Nastavení",
       "fields": {
         "useMobileData": "Použít mobilní data pro nahrávání",
-        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně"
+        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně",
+        "language": "Jazyk aplikace"
       },
       "descriptions": {
         "localRecordingsMax": "Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny."

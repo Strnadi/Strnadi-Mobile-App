@@ -21,6 +21,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
@@ -69,14 +70,14 @@ void _showMessage(BuildContext context, String message) {
 Future<void> _checkGooglePlayServices(BuildContext context) async {
   // Check only on Android devices.
   if (Platform.isAndroid) {
-    final availability =
-        await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+    final availability = await GoogleApiAvailability.instance
+        .checkGooglePlayServicesAvailability();
     if (availability != GooglePlayServicesAvailability.success) {
       // Attempt to prompt the user to update/install Google Play Services.
       await GoogleApiAvailability.instance.makeGooglePlayServicesAvailable();
       // Re-check availability after attempting resolution.
-      final newAvailability =
-          await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+      final newAvailability = await GoogleApiAvailability.instance
+          .checkGooglePlayServicesAvailability();
       if (newAvailability != GooglePlayServicesAvailability.success) {
         _showMessage(
           context,
@@ -102,7 +103,7 @@ Future<void> _bootstrap() async {
   await Firebase.initializeApp();
 
   // Load localized strings from JSON.
-  await Localization.load();
+  await Localization.load(null);
 
   await Config.loadConfig();
   await Config.loadFirebaseConfig();
@@ -140,6 +141,7 @@ Future<void> _bootstrap() async {
   runApp(MyApp());
   return; // zbytek se spustí až po udělení povolení
 }
+
 // PermissionGate widget – controls runtime permissions and continues app bootstrap
 class PermissionGate extends StatefulWidget {
   const PermissionGate({super.key});
@@ -170,7 +172,8 @@ class _PermissionGateState extends State<PermissionGate> {
   @override
   Widget build(BuildContext context) {
     return _granted
-        ? const SizedBox.shrink() // bude ihned nahrazeno runApp(MyApp) ve _continueBootstrap
+        ? const SizedBox
+            .shrink() // bude ihned nahrazeno runApp(MyApp) ve _continueBootstrap
         : const PermissionScreen();
   }
 }
@@ -210,7 +213,8 @@ Future<void> _continueBootstrap() async {
       try {
         await DatabaseNew.database.timeout(const Duration(seconds: 10));
       } catch (e, stack) {
-        logger.e('Error initializing database: $e', error: e, stackTrace: stack);
+        logger.e('Error initializing database: $e',
+            error: e, stackTrace: stack);
       }
       logger.i('Loaded Database');
 
@@ -248,8 +252,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {
-          final args =
-              ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          final args = ModalRoute.of(context)!.settings.arguments
+              as Map<String, dynamic>?;
           final token = args?['token'] ?? '';
           return ChangePassword(jwt: token);
         },
@@ -299,8 +303,9 @@ class PermissionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Text(t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
-          'Prosím povolte je v nastavení a spusťte Strnadi znovu.'),
+        child: Text(
+          t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
+              'Prosím povolte je v nastavení a spusťte Strnadi znovu.'),
           textAlign: TextAlign.center,
         ),
       ),
