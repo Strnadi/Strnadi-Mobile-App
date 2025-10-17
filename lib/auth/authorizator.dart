@@ -181,8 +181,11 @@ class _AuthState extends State<Authorizator> {
         child: Center(
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Spacing from the top
                   //const SizedBox(height: 0),
@@ -291,41 +294,38 @@ class _AuthState extends State<Authorizator> {
                   ),
 
                   // Add the terms here
-                  const SizedBox(height: 12),
-                  Column(
-                    children: [
-                      Text(
-                        t('auth.disclaimer.consent_prefix'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      GestureDetector(
-                        onTap: () => _launchURL(),
-                        child: Text(
-                          t('auth.disclaimer.privacy_policy'),
+                  const SizedBox(height: 180),
+                  Positioned(
+                    bottom: 10, // 5 pixels from bottom
+                    left: 0,
+                    right: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          t('auth.disclaimer.consent_prefix'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline,
+                          style: TextStyle(fontSize: 12, color: Colors.black),
+                        ),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => _launchURL(),
+                          child: Text(
+                            t('auth.disclaimer.privacy_policy'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   // Add disclaimer and space at the bottom
-                  const SizedBox(height: 60),
-                  Text(
-                    t('auth.disclaimer.dev_notice'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                 ],
               ),
             ),

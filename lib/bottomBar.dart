@@ -42,6 +42,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   final VoidCallback? logout;
   final allawArrowBack;
   final IconData? icon;
+  final bool? isGuestUser;
 
   // New field for selected page
   final BottomBarItem selectedPage;
@@ -54,6 +55,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     this.logout,
     this.allawArrowBack = false,
     this.icon,
+    this.isGuestUser,
   }) : super(key: key);
 
   void Logout(BuildContext context) async {
@@ -78,49 +80,63 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: appBarTitle != null
-          ? AppBar(
-              title: appBarTitle!.isNotEmpty
-                  ? Center(child: Text(appBarTitle!))
-                  : const SizedBox.shrink(),
-              backgroundColor: Colors.white,
-              //toolbarHeight: 40.0,
-              actions: [
-                if (logout != null)
-                  IconButton(
-                    icon: icon != null ? Icon(icon) : const Icon(Icons.logout),
-                    onPressed: () {
-                      logout!();
-                    },
-                  ),
-              ],
-              automaticallyImplyLeading: allawArrowBack,
-            )
-          : null,
-      backgroundColor: Colors.white,
-      body: SizedBox(
-        height: MediaQuery.of(context).size.height -
-            kToolbarHeight -
-            kBottomNavigationBarHeight,
-        child: content,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      // Pass the selectedPage to the bottom bar widget:
-      bottomNavigationBar: ReusableBottomAppBar(
-        currentPage: selectedPage,
-        changeConfirmation: () => Future.value(true),
-      ),
-    );
+        appBar: appBarTitle != null
+            ? AppBar(
+                title: appBarTitle!.isNotEmpty
+                    ? Center(child: Text(appBarTitle!))
+                    : const SizedBox.shrink(),
+                backgroundColor: Colors.white,
+                //toolbarHeight: 40.0,
+                actions: [
+                  if (logout != null)
+                    IconButton(
+                      icon:
+                          icon != null ? Icon(icon) : const Icon(Icons.logout),
+                      onPressed: () {
+                        logout!();
+                      },
+                    ),
+                ],
+                automaticallyImplyLeading: allawArrowBack,
+              )
+            : null,
+        backgroundColor: Colors.white,
+        body: SizedBox(
+          height: MediaQuery.of(context).size.height -
+              kToolbarHeight -
+              kBottomNavigationBarHeight,
+          child: content,
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        // Pass the selectedPage to the bottom bar widget:
+        bottomNavigationBar: ReusableBottomAppBar(
+            currentPage: selectedPage,
+            changeConfirmation: () => Future.value(true),
+            isGuestUser: isGuestUser ?? true));
   }
 }
 
 class ReusableBottomAppBar extends StatelessWidget {
   // New field to capture the current page
   final BottomBarItem currentPage;
+  final bool isGuestUser;
   Future<bool> Function() changeConfirmation;
 
   ReusableBottomAppBar(
-      {super.key, required this.currentPage, required this.changeConfirmation});
+      {super.key,
+      required this.currentPage,
+      required this.changeConfirmation,
+      this.isGuestUser = false});
+
+  String _iconAsset({
+    required String on,
+    required String off,
+    String? disabled,
+    required bool isSelected,
+  }) {
+    if (isGuestUser && disabled != null) return disabled;
+    return isSelected ? on : off;
+  }
 
   Future showGuestUserPopup(context) {
     return Dialogs.showCupertinoDialog(
@@ -176,9 +192,11 @@ class ReusableBottomAppBar extends StatelessWidget {
           // Map Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.map
-                  ? 'assets/icons/mapOn.png'
-                  : 'assets/icons/mapOff.png',
+              _iconAsset(
+                on: 'assets/icons/mapOn.png',
+                off: 'assets/icons/mapOff.png',
+                isSelected: currentPage == BottomBarItem.map,
+              ),
               width: 40,
               height: 40,
             ),
@@ -213,9 +231,12 @@ class ReusableBottomAppBar extends StatelessWidget {
           // List Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.list
-                  ? 'assets/icons/listOn.png'
-                  : 'assets/icons/listOff.png',
+              _iconAsset(
+                on: 'assets/icons/listOn.png',
+                off: 'assets/icons/listOff.png',
+                disabled: 'assets/icons/listDisabled.png',
+                isSelected: currentPage == BottomBarItem.list,
+              ),
               width: 40,
               height: 40,
             ),
@@ -246,9 +267,11 @@ class ReusableBottomAppBar extends StatelessWidget {
           // Recorder Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.recorder
-                  ? 'assets/icons/micOn.png'
-                  : 'assets/icons/micOff.png',
+              _iconAsset(
+                on: 'assets/icons/micOn.png',
+                off: 'assets/icons/micOff.png',
+                isSelected: currentPage == BottomBarItem.recorder,
+              ),
               width: 40,
               height: 40,
             ),
@@ -273,9 +296,12 @@ class ReusableBottomAppBar extends StatelessWidget {
           // Notification Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.notification
-                  ? 'assets/icons/shelfOn.png'
-                  : 'assets/icons/shelfOff.png',
+              _iconAsset(
+                on: 'assets/icons/shelfOn.png',
+                off: 'assets/icons/shelfOff.png',
+                disabled: 'assets/icons/shelfDisabled.png',
+                isSelected: currentPage == BottomBarItem.notification,
+              ),
               width: 40,
               height: 40,
             ),
@@ -306,9 +332,12 @@ class ReusableBottomAppBar extends StatelessWidget {
           // User Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.user
-                  ? 'assets/icons/userOn.png'
-                  : 'assets/icons/userOff.png',
+              _iconAsset(
+                on: 'assets/icons/userOn.png',
+                off: 'assets/icons/userOff.png',
+                disabled: 'assets/icons/userDisabled.png',
+                isSelected: currentPage == BottomBarItem.user,
+              ),
               width: 40,
               height: 40,
             ),

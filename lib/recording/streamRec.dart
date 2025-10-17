@@ -724,8 +724,10 @@ class _LiveRecState extends State<LiveRec> {
         ),
       ),
       bottomNavigationBar: ReusableBottomAppBar(
-          currentPage: BottomBarItem.recorder,
-          changeConfirmation: changeConfirmation),
+        currentPage: BottomBarItem.recorder,
+        changeConfirmation: changeConfirmation,
+        isGuestUser: true,
+      ),
     );
 
     // Return the PopScope widget with an onPopInvokedWithResult callback that completes without returning any widget.
