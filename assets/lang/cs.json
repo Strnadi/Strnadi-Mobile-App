@@ -572,5 +572,13 @@
         }
       }
     }
+  },
+  "widgets": {
+    "guest_user_rules": {
+      "title": "Funkce pro uživatele bez účtu",
+      "content": "Jako uživatel bez účtu máte omezený přístup k funkcím aplikace. Pro plný přístup si prosím vytvořte účet nebo se přihlaste.",
+      "ok": "OK",
+      "login": "Přihlásit se"
+    }
   }
 }

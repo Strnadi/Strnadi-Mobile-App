@@ -18,6 +18,8 @@
  */
 
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/widgets/GuestUserWarning.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:isolate';
@@ -38,6 +40,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:strnadi/widgets/GuestUserWarning.dart';
 import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
@@ -235,6 +238,17 @@ class _LiveRecState extends State<LiveRec> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool shown = prefs.getBool('popupShown') ?? false;
+      if (!shown) {
+        showDialog(
+          context: context,
+          builder: (context) => GuestUserRules(),
+        );
+        await prefs.setBool('popupShown', true);
+      }
+    });
     DatabaseNew.updateRecordingsMail();
     logger.i('updateRecordingsMail called');
     _initAudioSettings();

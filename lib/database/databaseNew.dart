@@ -41,10 +41,6 @@ import '../notificationPage/notifications.dart';
 
 final logger = Logger();
 
-/// Models
-///
-///
-
 Future<String> getPath() async {
   final dir = await getApplicationDocumentsDirectory();
   String path = dir.path + 'audio_${DateTime.now().millisecondsSinceEpoch}.wav';

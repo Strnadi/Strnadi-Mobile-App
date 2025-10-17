@@ -15,6 +15,7 @@
  */
 
 import 'package:flutter/cupertino.dart' as Dialogs;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/cupertino.dart';
@@ -138,9 +139,11 @@ class ReusableBottomAppBar extends StatelessWidget {
             ),
             CupertinoDialogAction(
               isDefaultAction: true,
-              onPressed: () {
+              onPressed: () async {
                 //navigate to login
                 Navigator.of(context).pop();
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                prefs.setBool('popupShown', false);
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
