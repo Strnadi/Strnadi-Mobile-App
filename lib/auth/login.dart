@@ -107,6 +107,13 @@ class _LoginState extends State<Login> {
       return;
     }
 
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(_emailController.text)) {
+      _showMessage("Zadejte platný e-mail");
+      return;
+    }
+
+
     try {
       final response = await http.post(
         url,
