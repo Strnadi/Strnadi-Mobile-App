@@ -176,6 +176,8 @@ class _LoginState extends State<Login> {
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
+        DatabaseNew.updateRecordingsMail();
+        logger.i(DatabaseNew.getAllRecordings());
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
@@ -425,6 +427,7 @@ class _LoginState extends State<Login> {
                                             value: response.body.toString()),
                                       }),
                                   fb.refreshToken(),
+                                  DatabaseNew.updateRecordingsMail(),
                                   Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
@@ -480,16 +483,17 @@ class _LoginState extends State<Login> {
                               context,
                               MaterialPageRoute(
                                   builder: (_) => RegName(
-                                    name: data['firstName'] as String? ?? '',
-                                    surname:
-                                    data['lastName'] as String? ?? '',
-                                    email: data['email'] as String? ?? '',
-                                    jwt: data['jwt'] as String,
-                                    appleId:
-                                    data['userIdentifier'] as String? ??
-                                        '',
-                                    consent: true,
-                                  )));
+                                        name:
+                                            data['firstName'] as String? ?? '',
+                                        surname:
+                                            data['lastName'] as String? ?? '',
+                                        email: data['email'] as String? ?? '',
+                                        jwt: data['jwt'] as String,
+                                        appleId:
+                                            data['userIdentifier'] as String? ??
+                                                '',
+                                        consent: true,
+                                      )));
                           return;
                         } else if (data['exists'] == true) {
                           // User exists, proceed with login
@@ -512,7 +516,10 @@ class _LoginState extends State<Login> {
 
                       if ((firstName != null &&
                           lastName != null &&
-                          email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
+                          email != null &&
+                          firstName.isEmpty &&
+                          lastName.isEmpty &&
+                          email.isEmpty)) {
                         // Missing profile data → go to the registration screen
                         Navigator.pushReplacement(
                           context,
@@ -536,6 +543,7 @@ class _LoginState extends State<Login> {
                       await secureStorage.write(key: 'token', value: jwt);
                       logger.i('Apple sign‑in successful, token stored');
 
+                      DatabaseNew.updateRecordingsMail();
                       // Retrieve user‑id from backend
                       final idResponse = await http.get(
                         Uri.parse('https://${Config.host}/users/get-id'),
@@ -565,8 +573,7 @@ class _LoginState extends State<Login> {
                         context,
                         MaterialPageRoute(builder: (_) => LiveRec()),
                       );
-                    }
-                    catch (e, stackTrace) {
+                    } catch (e, stackTrace) {
                       logger.e('Apple sign-in error: $e',
                           error: e, stackTrace: stackTrace);
                       Sentry.captureException(e, stackTrace: stackTrace);

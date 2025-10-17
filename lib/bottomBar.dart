@@ -14,10 +14,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:flutter/cupertino.dart' as Dialogs;
+import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/archived/map.dart';
@@ -29,7 +31,6 @@ import 'notificationPage/notifList.dart';
 import 'user/userPage.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'config/config.dart';
-
 
 // 1. Add enum for bottom bar items
 enum BottomBarItem { map, list, recorder, notification, user }
@@ -69,7 +70,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
-          (route) => false, // Remove all previous routes
+      (route) => false, // Remove all previous routes
     );
   }
 
@@ -78,22 +79,22 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     return Scaffold(
       appBar: appBarTitle != null
           ? AppBar(
-        title: appBarTitle!.isNotEmpty
-            ? Center(child: Text(appBarTitle!))
-            : const SizedBox.shrink(),
-        backgroundColor: Colors.white,
-        //toolbarHeight: 40.0,
-        actions: [
-          if (logout != null)
-            IconButton(
-              icon: icon != null ? Icon(icon) : const Icon(Icons.logout),
-              onPressed: () {
-                logout!();
-              },
-            ),
-        ],
-        automaticallyImplyLeading: allawArrowBack,
-      )
+              title: appBarTitle!.isNotEmpty
+                  ? Center(child: Text(appBarTitle!))
+                  : const SizedBox.shrink(),
+              backgroundColor: Colors.white,
+              //toolbarHeight: 40.0,
+              actions: [
+                if (logout != null)
+                  IconButton(
+                    icon: icon != null ? Icon(icon) : const Icon(Icons.logout),
+                    onPressed: () {
+                      logout!();
+                    },
+                  ),
+              ],
+              automaticallyImplyLeading: allawArrowBack,
+            )
           : null,
       backgroundColor: Colors.white,
       body: SizedBox(
@@ -104,7 +105,10 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       // Pass the selectedPage to the bottom bar widget:
-      bottomNavigationBar: ReusableBottomAppBar(currentPage: selectedPage, changeConfirmation: () => Future.value(true),),
+      bottomNavigationBar: ReusableBottomAppBar(
+        currentPage: selectedPage,
+        changeConfirmation: () => Future.value(true),
+      ),
     );
   }
 }
@@ -114,7 +118,47 @@ class ReusableBottomAppBar extends StatelessWidget {
   final BottomBarItem currentPage;
   Future<bool> Function() changeConfirmation;
 
-  ReusableBottomAppBar({super.key, required this.currentPage, required this.changeConfirmation});
+  ReusableBottomAppBar(
+      {super.key, required this.currentPage, required this.changeConfirmation});
+
+  Future showGuestUserPopup(context) {
+    return Dialogs.showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: Text(t('bottomBar.errors.guest_user')),
+          content: Text(t('bottomBar.errors.guest_user_desc')),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(t('bottomBar.errors.close')),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () {
+                //navigate to login
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        Authorizator(),
+                    settings: const RouteSettings(name: '/'),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                  ),
+                );
+              },
+              child: Text(t('bottomBar.errors.navigate_to_login')),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +173,9 @@ class ReusableBottomAppBar extends StatelessWidget {
           // Map Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.map ? 'assets/icons/mapOn.png' : 'assets/icons/mapOff.png',
+              currentPage == BottomBarItem.map
+                  ? 'assets/icons/mapOn.png'
+                  : 'assets/icons/mapOff.png',
               width: 40,
               height: 40,
             ),
@@ -151,7 +197,8 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => MapScreenV2(),
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        MapScreenV2(),
                     settings: const RouteSettings(name: '/map'),
                     transitionDuration: Duration.zero,
                     reverseTransitionDuration: Duration.zero,
@@ -163,19 +210,28 @@ class ReusableBottomAppBar extends StatelessWidget {
           // List Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.list ? 'assets/icons/listOn.png' : 'assets/icons/listOff.png',
+              currentPage == BottomBarItem.list
+                  ? 'assets/icons/listOn.png'
+                  : 'assets/icons/listOff.png',
               width: 40,
               height: 40,
             ),
             iconSize: 30.0,
             onPressed: () async {
+              var storage = const FlutterSecureStorage();
+              var token = await storage.read(key: 'userId');
+              if (token == null || token.isEmpty) {
+                showGuestUserPopup(context);
+                return;
+              }
               if (!await changeConfirmation()) return;
 
               if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => RecordingScreen(),
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        RecordingScreen(),
                     settings: const RouteSettings(name: '/list'),
                     transitionDuration: Duration.zero,
                     reverseTransitionDuration: Duration.zero,
@@ -187,7 +243,9 @@ class ReusableBottomAppBar extends StatelessWidget {
           // Recorder Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.recorder ? 'assets/icons/micOn.png' : 'assets/icons/micOff.png',
+              currentPage == BottomBarItem.recorder
+                  ? 'assets/icons/micOn.png'
+                  : 'assets/icons/micOff.png',
               width: 40,
               height: 40,
             ),
@@ -199,7 +257,8 @@ class ReusableBottomAppBar extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        LiveRec(),
                     settings: const RouteSettings(name: '/Recorder'),
                     transitionDuration: Duration.zero,
                     reverseTransitionDuration: Duration.zero,
@@ -211,19 +270,28 @@ class ReusableBottomAppBar extends StatelessWidget {
           // Notification Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.notification ? 'assets/icons/shelfOn.png' : 'assets/icons/shelfOff.png',
+              currentPage == BottomBarItem.notification
+                  ? 'assets/icons/shelfOn.png'
+                  : 'assets/icons/shelfOff.png',
               width: 40,
               height: 40,
             ),
             iconSize: 30.0,
             onPressed: () async {
+              var storage = const FlutterSecureStorage();
+              var token = await storage.read(key: 'userId');
+              if (token == null || token.isEmpty) {
+                showGuestUserPopup(context);
+                return;
+              }
               if (!await changeConfirmation()) return;
 
               if (ModalRoute.of(context)?.settings.name != '/notification') {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => NotificationScreen(),
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        NotificationScreen(),
                     settings: const RouteSettings(name: '/notification'),
                     transitionDuration: Duration.zero,
                     reverseTransitionDuration: Duration.zero,
@@ -235,19 +303,28 @@ class ReusableBottomAppBar extends StatelessWidget {
           // User Button
           IconButton(
             icon: Image.asset(
-              currentPage == BottomBarItem.user ? 'assets/icons/userOn.png' : 'assets/icons/userOff.png',
+              currentPage == BottomBarItem.user
+                  ? 'assets/icons/userOn.png'
+                  : 'assets/icons/userOff.png',
               width: 40,
               height: 40,
             ),
             iconSize: 30.0,
             onPressed: () async {
+              var storage = const FlutterSecureStorage();
+              var token = await storage.read(key: 'userId');
+              if (token == null || token.isEmpty) {
+                showGuestUserPopup(context);
+                return;
+              }
               if (!await changeConfirmation()) return;
 
               if (ModalRoute.of(context)?.settings.name != '/user') {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => UserPage(),
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        UserPage(),
                     settings: const RouteSettings(name: '/user'),
                     transitionDuration: Duration.zero,
                     reverseTransitionDuration: Duration.zero,

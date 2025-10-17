@@ -12,7 +12,8 @@
     "buttons": {
       "register": "Založit účet",
       "login": "Přihlásit se",
-      "ok": "OK"
+      "ok": "OK",
+      "continue_as_guest": "Pokračovat jako host"
     },
     "alerts": {
       "offline_no_token": {
@@ -163,7 +164,12 @@
   },
   "bottomBar": {
     "errors": {
-      "noInternetMap": "Chybí připojení k internetu. Mapa není dostupná."
+      "noInternetMap": "Chybí připojení k internetu. Mapa není dostupná.",
+      "guest_user": "Funkce není dostupná pro uživatele bez účtu.",
+      "guest_user_desc": "Pro přístup k této funkci si vytvořte účet nebo se přihlaste.",
+      "guest_user_desc_rec": "Nejdrive se prihlaste prosim, pote svoji nahravku najdete v lokalnich nahravkach",
+      "close": "Zavřít",
+      "navigate_to_login": "Jít na přihlášení"
     }
   },
   "dialogs": {
