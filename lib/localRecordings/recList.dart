@@ -284,22 +284,22 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         print('rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
 
     // Create a title that shows current filter
-    String appBarTitle = 'Moje nahrávky';
+    String appBarTitle = t('recList.title');
     if (sortOptions != SortBy.none) {
       String sortName = '';
       switch (sortOptions) {
-        case SortBy.name: sortName = 'Název'; break;
-        case SortBy.date: sortName = 'Datum'; break;
-        case SortBy.ebc: sortName = 'Počet ptáků'; break;
-        case SortBy.downloaded: sortName = 'Pouze stažené'; break;
+        case SortBy.name: sortName = t('recList.sort.name'); break;
+        case SortBy.date: sortName = t('recList.sort.date'); break;
+        case SortBy.ebc: sortName = t('recList.sort.birdCount'); break;
+        case SortBy.downloaded: sortName = t('recList.sort.downloaded'); break;
         default: sortName = '';
       }
 
       if (sortName.isNotEmpty) {
         if (sortOptions != SortBy.downloaded) {
-          appBarTitle = 'Moje nahrávky (podle $sortName ${isAscending ? '↑' : '↓'})';
+          appBarTitle = '${t('recList.sort.myRecBy')} $sortName ${isAscending ? '↑' : '↓'})';
         } else {
-          appBarTitle = 'Moje nahrávky (Pouze stažené)';
+          appBarTitle = t('recList.sort.myRecByDownloaded');
         }
       }
     }
@@ -397,9 +397,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                   builder: (context, snapshot) {
                                     String topText;
                                     if (snapshot.connectionState == ConnectionState.waiting) {
-                                      topText = 'Načítání...';
+                                      topText = t('recList.name.loading');
                                     } else if (snapshot.hasError || snapshot.data == null) {
-                                      topText = rec.id?.toString() ?? 'Neznámý název';
+                                      topText = rec.id?.toString() ?? t('recList.name.unknown');
                                     } else {
                                       topText = snapshot.data!;
                                     }
@@ -418,9 +418,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                             builder: (context, snapshot) {
                               String dialectText;
                               if (snapshot.connectionState == ConnectionState.waiting) {
-                                dialectText = 'Načítání dialektu...';
+                                dialectText = t('recList.dialect.loading');
                               } else if (snapshot.hasError || snapshot.data == null) {
-                                dialectText = 'Neznámý dialekt';
+                                dialectText = t('recList.dialect.unknown');
                               } else {
                                 dialectText = snapshot.data!;
                               }
@@ -445,13 +445,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                               String status;
                               Color color;
                               if (rec.sending) {
-                                status = 'Odesílání...';
+                                status = t('recList.status.sending');
                                 color = Colors.blue;
                               } else if (snapshot.connectionState == ConnectionState.waiting) {
-                                status = 'Kontrola částí...';
+                                status = t('recList.status.checkingParts');
                                 color = Colors.grey;
                               } else if (snapshot.hasError) {
-                                status = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+                                status = rec.sent ? t('recList.status.uploaded') : t('recList.status.waitingForUpload');
                                 color = rec.sent ? Colors.green : Colors.orange;
                               } else {
                                 final parts = snapshot.data!;
@@ -460,10 +460,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                   String partsS="";
                                   for (var part in parts) {partsS += '${part.toJson()}\n';}
                                   logger.w('All parts: $partsS');
-                                  status = 'Neodeslané části';
+                                  status = t('recList.status.unsentParts');
                                   color = Colors.red;
                                 } else {
-                                  status = rec.sent ? 'Nahráno' : 'Čeká na nahrání';
+                                  status = rec.sent ? t('recList.status.uploaded') : t('recList.status.waitingForUpload');
                                   color = rec.sent ? Colors.green : Colors.orange;
                                 }
                               }
@@ -541,23 +541,23 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           await DatabaseNew.getDialectsByRecordingId(recordingId);
 
       if (dialects.isEmpty) {
-        return 'Bez dialektu';
+        return t('recList.dialect.without');
       }
 
       // Return the first non‑empty, non‑placeholder dialect we find.
       for (final d in dialects) {
         final String? name = d.userGuessDialect;
-        if (name != null && name.isNotEmpty && name != 'Nevyhodnoceno') {
+        if (name != null && name.isNotEmpty && name != t('recList.dialect.undetermined')) {
           return name;
         }
       }
 
       // If every dialect string is empty or "Nevyhodnoceno", fall back.
-      return 'Neznámý dialekt';
+      return t('recList.dialect.unknown');
     } catch (e, stackTrace) {
       logger.e('Error fetching dialects for recording $recordingId: $e',
           error: e, stackTrace: stackTrace);
-      return 'Neznámý dialekt';
+      return t('recList.dialect.unknown');
     }
   }
 

@@ -175,6 +175,17 @@
       "title": "Offline mode",
       "message": "You are offline. Only locally stored recordings will be available."
     },
+    "sort": {
+      "name": "Name",
+      "date": "Date",
+      "birdCount": "Number of birds",
+      "downloaded": "Downloaded",
+      "myRecBy" : "My recordings (by ",
+      "myRecByDownloaded": "My recordings (Only downloaded)"
+    },
+    "dialects":{
+
+    },
     "buttons": {
       "ok": "OK",
       "sortAndFilter": "Sort & filters",
@@ -194,7 +205,9 @@
     },
     "dialect": {
       "loading": "Loading dialect...",
-      "unknown": "Unknown dialect"
+      "unknown": "Unknown dialect",
+      "without": "Without dialect",
+      "undetermined": "Undetermined dialect"
     },
     "name": {
       "loading": "Loading...",
@@ -474,6 +487,7 @@
         "lastName": "Last name",
         "nickname": "Nickname",
         "postCode": "Postal code",
+        "email": "E-mail",
         "city": "Municipality"
       },
       "buttons": {
@@ -486,22 +500,28 @@
           "title": "Delete account",
           "message": "Do you really wish to delete your account? This action is irreversible.",
           "cancel": "Cancel",
-          "confirm": "Delete"
+          "confirm": "Delete",
+          "success": "Your account has been successfully deleted.",
+          "error": "Failed to delete account. Please try again later."
         },
         "error": {
           "title": "Error",
-          "message": "Failed to load user or token"
+          "load": "Failed to load user data.",
+          "auth": "Authentication error. Please log in again.",
+          "update" : "Failed to update user data. Please try again later."
         },
         "success": {
-          "message": "Data were successfully updated"
+          "update": "User data were successfully updated.",
+          "noChanges": "No changes were made to the user data."
         }
       }
     },
     "settings": {
       "title": "Settings",
+      "app": "App",
       "fields": {
         "useMobileData": "Use mobile data for recording",
-        "localRecordingsMax": "Maximum number of recordings stored locally",
+        "localRecordingsMax": "Maximum number of recordings stored locally. Any recordings beyond this limit will be deleted, starting with the oldest.",
         "language": "Language"
       },
       "descriptions": {
@@ -512,6 +532,7 @@
       "items": {
         "personalInfo": "Personal data",
         "settings": "Settings",
+        "connectedAccounts": "Connected accounts",
         "guide": "Guide",
         "aboutProject": "About the project",
         "aboutApp": "About the app"
@@ -522,6 +543,9 @@
           "creators": "Creators: Marian Pecqueur && Jan Drobílek",
           "contact": "Contact: info@strnadi.cz, developers@strnadi.cz"
         }
+      },
+      "error": {
+        "notImplemented": "This feature is not yet implemented."
       }
     },
     "settingsPages": {
@@ -566,5 +590,8 @@
         }
       }
     }
+  },
+  "notifications": {
+    "title": "Notifications"
   }
 }

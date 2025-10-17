@@ -77,7 +77,7 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            _buildSectionTitle(t('Aplikace')),
+            _buildSectionTitle(t('user.settings.app')),
             _buildSwitchTile(
               t('user.settings.fields.useMobileData'),
               useMobileData,
@@ -93,8 +93,8 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Maximální počet nahrávek uložených lokálně. Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny.',
+            Text(
+              t('user.settings.fields.localRecordingsMax'),
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 20),

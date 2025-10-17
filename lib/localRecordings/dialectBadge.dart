@@ -17,6 +17,8 @@ import 'package:flutter/material.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/ModelHandler.dart';
 
+import '../localization/localization.dart';
+
 class DialectBadge extends StatelessWidget {
 
   final Dialect dialect;
@@ -44,8 +46,8 @@ class DialectBadge extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Dialekt',
+          Text(
+            t('dialectsBadge.title'),
             style: TextStyle(
               color: Colors.black,
               fontSize: 12,

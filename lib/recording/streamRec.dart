@@ -788,14 +788,14 @@ class _LiveRecState extends State<LiveRec> {
     if (!running) {
       await FlutterForegroundTask.startService(
         notificationTitle: 'Strnadi',
-        notificationText: 'Aplikace Strnadi nahrává',
+        notificationText: t('streamRec.notifications.recordingInProgress'),
         callback: startRecordingCallback,
         serviceTypes: [ForegroundServiceTypes.microphone],
       );
     } else {
       await FlutterForegroundTask.updateService(
         notificationTitle: 'Strnadi',
-        notificationText: 'Aplikace Strnadi nahrává',
+        notificationText: t('streamRec.notifications.recordingInProgress'),
       );
     }
     try {
@@ -870,7 +870,7 @@ class _LiveRecState extends State<LiveRec> {
     _elapsedTimer.pause();
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Strnadi',
-      notificationText: 'Nahrávání pozastaveno',
+      notificationText: t('streamRec.notifications.recordingPaused'),
     );
     int segmentDuration = _recordDuration.inSeconds;
     _totalRecordedTime += _recordDuration;
@@ -906,7 +906,7 @@ class _LiveRecState extends State<LiveRec> {
     _elapsedTimer.resume();
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Strnadi',
-      notificationText: 'Aplikace Strnadi nahrává',
+      notificationText: t('streamRec.notifications.recordingInProgress'),
     );
     segmentPaths.add(path);
     await WakelockPlus.enable();

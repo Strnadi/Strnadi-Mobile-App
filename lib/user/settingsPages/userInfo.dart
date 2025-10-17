@@ -97,7 +97,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       });
     } else {
       logger.i('Failed to load user: ${response.statusCode} ${response.body}');
-      _showMessage("Nepodařilo se načíst uživatele");
+      _showMessage(t("user.profile.dialogs.error.load"));
     }
   }
 
@@ -120,11 +120,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
 
     if (response.statusCode == 200) {
-      _showMessage("Údaje byly úspěšně aktualizovány");
+      _showMessage(t("user.profile.dialogs.success.update"));
     } else {
       logger
           .i('Failed to update user: ${response.statusCode} ${response.body}');
-      _showMessage("Nepodařilo se aktualizovat údaje");
+      _showMessage(t("user.profile.dialogs.error.update"));
     }
   }
 
@@ -145,7 +145,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
       updateUser(user!.email, updatedData, jwt);
     } else {
-      _showMessage('Nepodařilo se načíst uživatele nebo token');
+      _showMessage(t('user.profile.dialogs.error.load'));
     }
   }
 
@@ -169,7 +169,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   void UpdateUser() {
     // Update user
-    _showMessage('Nic se nezměnilo');
+    _showMessage(t('user.profile.dialogs.success.noChanges'));
   }
 
   Future<void> confirmAndDeleteAccount() async {
@@ -198,7 +198,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       String? userId = await secureStorage.read(key: 'userId');
 
       if (jwt == null || userId == null) {
-        _showMessage("Chyba ověření uživatele.");
+        _showMessage(t('user.profile.dialogs.error.auth'));
         return;
       }
 
@@ -213,10 +213,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       );
 
       if (response.statusCode == 200) {
-        _showMessage("Účet byl úspěšně smazán.");
+        _showMessage(t('user.profile.dialogs.deleteAccount.success'));
         logout(context);
       } else {
-        _showMessage("Nepodařilo se smazat účet.");
+        _showMessage(t('user.profile.dialogs.deleteAccount.error'));
         logger.i('Delete failed: ${response.statusCode} | ${response.body}');
       }
     }
@@ -256,15 +256,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Text(t("Profilové údaje"),
+                Text(t("user.profile.title"),
                     style:
                         TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 SizedBox(height: 20),
-                _buildTextField('Jméno', _firstnameController),
-                _buildTextField('Příjmení', _lastnameController),
-                _buildTextField('Přezdívka', _nicknameController),
-                _buildTextField('Email', _emailController, readOnly: true),
-                _buildTextField('City', _cityController),
+                _buildTextField(t('user.profile.fields.firstName'), _firstnameController),
+                _buildTextField(t('user.profile.fields.lastName'), _lastnameController),
+                _buildTextField(t('user.profile.fields.nickname'), _nicknameController),
+                _buildTextField(t('user.profile.fields.email'), _emailController, readOnly: true),
+                _buildTextField(t('user.profile.fields.city'), _cityController),
               ],
             ),
             const Divider(),

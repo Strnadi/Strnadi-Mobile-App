@@ -175,6 +175,14 @@
       "title": "Offline režim",
       "message": "Jste offline. Budou dostupné pouze lokálně uložené záznamy."
     },
+    "sort": {
+      "name": "Název",
+      "date": "Datum",
+      "birdCount": "Počet ptáků",
+      "downloaded": "Pouze stažené",
+      "myRecBy" : "Moje nahrávky (podle ",
+      "myRecByDownloaded": "Moje nahrávky (Pouze stažené)"
+    },
     "buttons": {
       "ok": "OK",
       "sortAndFilter": "Třídění a filtry",
@@ -194,7 +202,9 @@
     },
     "dialect": {
       "loading": "Načítání dialektu...",
-      "unknown": "Neznámý dialekt"
+      "unknown": "Neznámý dialekt",
+      "without": "Bez dialektu",
+      "undetermined": "Nevyhodnoceno"
     },
     "name": {
       "loading": "Načítání...",
@@ -473,6 +483,7 @@
         "firstName": "Jméno",
         "lastName": "Příjmení",
         "nickname": "Přezdívka",
+        "email": "E-mail",
         "postCode": "PSČ",
         "city": "Obec"
       },
@@ -486,22 +497,28 @@
           "title": "Smazání účtu",
           "message": "Opravdu si přejete smazat svůj účet? Tato akce je nevratná.",
           "cancel": "Zrušit",
-          "confirm": "Smazat"
+          "confirm": "Smazat",
+          "success": "Váš účet byl úspěšně smazán.",
+          "error": "Při mazání účtu došlo k chybě. Zkuste to prosím znovu."
         },
         "error": {
           "title": "Chyba",
-          "message": "Nepodařilo se načíst uživatele nebo token"
+          "load": "Nepodařilo se načíst uživatele nebo token",
+          "auth": "Chyba ověření uživatele.",
+          "update" : "Nepodařilo se změnit uživatelské údaje."
         },
         "success": {
-          "message": "Údaje byly úspěšně aktualizovány"
+          "update": "Údaje byly úspěšně aktualizovány",
+          "noChanges": "Nebyly provedeny žádné změny."
         }
       }
     },
     "settings": {
       "title": "Nastavení",
+      "app": "Aplikace",
       "fields": {
         "useMobileData": "Použít mobilní data pro nahrávání",
-        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně",
+        "localRecordingsMax": "Maximální počet nahrávek uložených lokálně. Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny.",
         "language": "Jazyk aplikace"
       },
       "descriptions": {
@@ -512,6 +529,7 @@
       "items": {
         "personalInfo": "Osobní údaje",
         "settings": "Nastavení",
+        "connectedAccounts": "Propojené účty",
         "guide": "Příručka",
         "aboutProject": "O projektu",
         "aboutApp": "O aplikaci"
@@ -522,6 +540,9 @@
           "creators": "Creators: Marian Pecqueur && Jan Drobílek",
           "contact": "Kontakt: info@strnadi.cz, developers@strnadi.cz"
         }
+      },
+      "error": {
+        "notImplemented": "Tato funkce není ještě dostupná"
       }
     },
     "settingsPages": {
@@ -566,5 +587,8 @@
         }
       }
     }
+  },
+  "notifications": {
+    "title": "Notifikace"
   }
 }

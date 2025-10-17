@@ -26,13 +26,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 class MenuScreen extends StatelessWidget {
   final List<String> menuItems = [
-    'Osobní údaje',
-    'Nastavení',
-    'Pripojene Sluzby',
+    t('user.menu.items.personalInfo'),
+    t('user.menu.items.settings'),
+    t('user.menu.items.connectedAccounts'),
     //'Vaše úspěchy',
-    'Příručka',
-    'O projektu',
-    'O aplikaci',
+    t('user.menu.items.guide'),
+    t('user.menu.items.aboutProject'),
+    t('user.menu.items.aboutApp'),
   ];
 
   @override
@@ -99,7 +99,7 @@ class MenuScreen extends StatelessWidget {
     } else if (index == 4) {
       _showAboutDialog(context);
     } else {
-      _showMessage("Tato funkce není ještě dostupná", context);
+      _showMessage(t('menu.error.notImplemented'), context);
     }
   }
 
