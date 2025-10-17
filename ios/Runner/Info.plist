@@ -32,9 +32,11 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.delta.strnadi</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.deta.strnadi</string>
+				<string>com.delta.strnadi</string>
 				<string>com.googleusercontent.apps.287278255232-5vej27saatn2qhtevu99n2sank371i91</string>
 			</array>
 		</dict>

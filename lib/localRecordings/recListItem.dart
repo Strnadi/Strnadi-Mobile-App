@@ -471,12 +471,12 @@ class _RecordingItemState extends State<RecordingItem> {
                           onPressed: () async {
                             try {
                               // ensure all parts have been sent
-                              await DatabaseNew.checkRecordingPartsSent(widget.recording.id!);
                               setState(() {
                                 widget.recording.sending = true;
                               });
                               DatabaseNew.sendRecordingBackground(widget.recording.id!);
                               logger.i("Sending recording: ${widget.recording.id}");
+                              await DatabaseNew.checkRecordingPartsSent(widget.recording.id!);
                             } on UnsentPartsException {
                               // prompt to resend unsent parts
                               final shouldResend = await showDialog<bool>(

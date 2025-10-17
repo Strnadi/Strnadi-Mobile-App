@@ -32,7 +32,7 @@ class WIP_warning extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             )
@@ -48,9 +48,15 @@ class WIP_warning extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.arrow_back),
+                    const Icon(Icons.arrow_back, color: Color(0xFF2D2B18)),
                     const SizedBox(width: 4),
-                    Text(t("auth.disclaimer.back")),
+                    Text(
+                      t("auth.disclaimer.back"),
+                      style: const TextStyle(
+                        color: Color(0xFF2D2B18),
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -60,20 +66,33 @@ class WIP_warning extends StatelessWidget {
               'assets/images/WIP.png',
             ),
             const SizedBox(height: 16),
-            Text(t('auth.title'),
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Text(
+              t('auth.title'),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2D2B18),
+                decoration: TextDecoration.none,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            Text(t('auth.disclaimer.info'),
-              style: TextStyle(fontSize: 14),
+            Text(
+              t('auth.disclaimer.info'),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF2D2B18),
+                decoration: TextDecoration.none,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Text(t('auth.disclaimer.dev_notice'),
-              style: TextStyle(
+            Text(
+              t('auth.disclaimer.dev_notice'),
+              style: const TextStyle(
                 color: Colors.red,
                 fontSize: 12,
+                decoration: TextDecoration.none,
               ),
               textAlign: TextAlign.center,
             ),

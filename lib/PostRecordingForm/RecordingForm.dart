@@ -18,6 +18,7 @@
  */
 
 import 'dart:io';
+import 'package:flutter/cupertino.dart' as Dialogs;
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
@@ -35,6 +36,7 @@ import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
+import '../auth/authorizator.dart';
 import '../config/config.dart';
 import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
@@ -559,6 +561,7 @@ class _RecordingFormState extends State<RecordingForm> {
     // Log the recording path before insertion
     logger.i("Played recording path: ${widget.filepath}");
     logger.i("Recording before insertion: path=${recording.path}");
+    logger.i(recording.toJson());
     _recordingId = await DatabaseNew.insertRecording(recording);
     recording.id = _recordingId;
     logger.i(
@@ -570,6 +573,7 @@ class _RecordingFormState extends State<RecordingForm> {
       part.recordingId = _recordingId;
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
+      logger.i(part.toJson());
     }
     logger.i("saving dialects");
     await SendDialects();
@@ -588,6 +592,42 @@ class _RecordingFormState extends State<RecordingForm> {
           t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
+
+    var storage = FlutterSecureStorage();
+
+    if (await storage.read(key: 'userId') == null) {
+      logger.w("User is in guest mode");
+      Dialogs.showCupertinoDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialogs.CupertinoAlertDialog(
+            title: Text(t('bottomBar.errors.guest_user')),
+            content: Text(t('bottomBar.errors.guest_user_desc_rec')),
+            actions: [
+              Dialogs.CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: () {
+                  //navigate to login
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          Authorizator(),
+                      settings: const RouteSettings(name: '/'),
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
+                    ),
+                  );
+                },
+                child: Text(t('bottomBar.errors.navigate_to_login')),
+              ),
+            ],
+          );
+        },
+      );
       return;
     }
     try {
@@ -711,8 +751,8 @@ class _RecordingFormState extends State<RecordingForm> {
             ),
           ],
           leading: IconButton(
-            icon: Image.asset('assets/icons/backButton.png',
-                width: 30, height: 30),
+            icon: Icon(Icons.delete),
+            //width: 30, height: 30),
             onPressed: () async {
               final bool shouldPop = await _confirmDiscard() ?? false;
               if (shouldPop) {

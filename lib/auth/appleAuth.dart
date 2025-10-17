@@ -17,6 +17,7 @@
 
 import 'dart:io' show Platform;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:strnadi/database/databaseNew.dart' hide logger;
 import '../config/config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -99,7 +100,7 @@ class AppleAuth {
       'familyName': result.familyName,
     };
 
-    Map<String,String> headers = {
+    Map<String, String> headers = {
       'Content-Type': 'application/json',
       if (jwt != null) 'Authorization': 'Bearer $jwt',
     };

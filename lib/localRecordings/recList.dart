@@ -71,7 +71,6 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
-    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -105,9 +104,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     });
     getRecordings();
     // Periodically refresh to catch sending status updates
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      getRecordings();
-    });
+    // _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    //   getRecordings();
+    // });
   }
 
   void _showMessage(String message, String title) {
@@ -141,11 +140,15 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   }
 
   String formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
+    final h = dateTime.hour.toString().padLeft(2, '0');
+    final m = dateTime.minute.toString().padLeft(2, '0');
+    return '${dateTime.day}.${dateTime.month}.${dateTime.year} $h:$m';
   }
 
   void FilterDownloaded() {
     List<Recording> recordings = list.where((element) => element.downloaded).toList();
+    recordings += list.where((element) => !element.sent).toList();
+    recordings += list.where((element) => element.sending).toList();
     setState(() {
       list = recordings;
     });
