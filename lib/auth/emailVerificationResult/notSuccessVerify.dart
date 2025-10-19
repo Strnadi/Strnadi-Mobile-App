@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 
 /// A screen shown when e‑mail verification fails.
 class EmailVerificationFailed extends StatelessWidget {
@@ -17,7 +18,7 @@ class EmailVerificationFailed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ověření selhalo'),
+        title: Text(t('signup.emailVerify.failed.title')),
         backgroundColor: const Color(0xFFFFD641), // same brand yellow
         foregroundColor: const Color(0xFF2D2B18), // same brand dark
         elevation: 0,
@@ -33,9 +34,9 @@ class EmailVerificationFailed extends StatelessWidget {
               color: Colors.red,
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Ověření e‑mailu se nezdařilo!',
-              style: TextStyle(
+            Text(
+              t('signup.emailVerify.failed.message'),
+              style: const TextStyle(
                 fontSize: 18,
                 color: Color(0xFF2D2B18),
                 fontWeight: FontWeight.bold,
@@ -43,9 +44,9 @@ class EmailVerificationFailed extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Ověřovací odkaz je neplatný nebo vypršel.\nZkuste to prosím znovu.',
-              style: TextStyle(
+            Text(
+              t('signup.emailVerify.failed.subtitle'),
+              style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF2D2B18),
               ),
@@ -69,7 +70,7 @@ class EmailVerificationFailed extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16.0),
                   ),
                 ),
-                child: const Text('Zkusit znovu'),
+                child: Text(t('signup.emailVerify.buttons.tryAgain')),
               ),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 
 class EmailVerified extends StatelessWidget {
   const EmailVerified({Key? key}) : super(key: key);
@@ -15,7 +16,7 @@ class EmailVerified extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('E-mail ověřen'),
+        title: Text(t('signup.emailVerify.success.title')),
         backgroundColor: const Color(0xFFFFD641),
         foregroundColor: const Color(0xFF2D2B18),
         elevation: 0,
@@ -31,9 +32,9 @@ class EmailVerified extends StatelessWidget {
               color: Color(0xFFFFD641),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Váš e-mail byl úspěšně ověřen!',
-              style: TextStyle(
+            Text(
+              t('signup.emailVerify.success.message'),
+              style: const TextStyle(
                 fontSize: 18,
                 color: Color(0xFF2D2B18),
                 fontWeight: FontWeight.bold,
@@ -41,9 +42,9 @@ class EmailVerified extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Můžete se nyní přihlásit ke svému účtu.',
-              style: TextStyle(
+            Text(
+              t('signup.emailVerify.success.subtitle'),
+              style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF2D2B18),
               ),
@@ -67,7 +68,7 @@ class EmailVerified extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16.0),
                   ),
                 ),
-                child: const Text('Přihlásit se'),
+                child: Text(t('auth.buttons.login')),
               ),
             ),
           ],

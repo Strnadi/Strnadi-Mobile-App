@@ -129,5 +129,7 @@
         <string>applinks:strnadi.cz</string>
         <string>applinks:dev.strnadi.cz</string>
     </array>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Tato aplikace používá vaše údaje jen ke zlepšení analytiky a personalizace obsahu. Souhlas můžete kdykoli změnit v nastavení.</string>
 </dict>
 </plist>

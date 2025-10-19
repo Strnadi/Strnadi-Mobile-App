@@ -1,0 +1,675 @@
+{
+  "auth": {
+    "title": "Dialekte tschechischer Goldammern",
+    "subtitle": "Aufnehmen, kartieren, erobern",
+    "apple": {
+      "continue": "Mit Apple fortfahren",
+      "error": {
+        "login_failed": "Anmeldung mit Apple ist fehlgeschlagen",
+        "no_email": "Apple hat keine E-Mail-Adresse bereitgestellt. Bitte verwenden Sie eine andere Anmeldemethode."
+      }
+    },
+    "buttons": {
+      "register": "Konto erstellen",
+      "login": "Anmelden",
+      "ok": "OK"
+    },
+    "alerts": {
+      "offline_no_token": {
+        "title": "Offline",
+        "message": "Keine Internetverbindung und kein Token gespeichert."
+      },
+      "offline_expired_token": {
+        "title": "Offline",
+        "message": "Ihr JWT ist abgelaufen. Bitte verbinden Sie sich mit dem Internet, um es zu erneuern."
+      },
+      "offline_not_verified": {
+        "title": "Offline",
+        "message": "Ihr Konto ist nicht verifiziert. Bitte bestätigen Sie Ihre E-Mail für weiteren Zugriff."
+      },
+      "offline_action_blocked": {
+        "title": "Offline",
+        "message": "Diese Aktion ist offline nicht verfügbar."
+      },
+      "logged_out": "Sie wurden abgemeldet"
+    },
+    "disclaimer": {
+      "back": "Zurück",
+      "consent_prefix": "Mit dem Fortfahren stimmen Sie den Richtlinien",
+      "privacy_policy": "zum Datenschutz zu.",
+      "info": "Ein Bürgerwissenschaftsprojekt zur Erforschung der Vielfalt des Vogelgesangs. Durch das Aufnehmen des Gesangs von Goldammern in ganz Tschechien tragen Sie dazu bei zu verstehen, wie sich Vogeldialekte in der Landschaft erhalten.",
+      "dev_notice": "App und Web befinden sich weiterhin in intensiver Entwicklung. Wir entschuldigen uns für Fehler. Freuen Sie sich auf häufige Updates und Verbesserungen."
+    },
+    "terms": {
+      "title": "Nutzungsbedingungen",
+      "path": "assets/docs/terms-of-services.md"
+    }
+  },
+  "login": {
+    "title": "Anmeldung",
+    "inputs": {
+      "emailLabel": "E-Mail",
+      "passwordLabel": "Passwort"
+    },
+    "or": "Oder",
+    "buttons": {
+      "loginButton": "Anmelden",
+      "forgotPassword": "Passwort vergessen?",
+      "googleSignIn": "Mit Google fortfahren",
+      "appleSignIn": "Mit Apple fortfahren"
+    },
+    "errors": {
+      "emptyFieldsError": "Bitte E-Mail und Passwort eingeben",
+      "invalidCredentials": "Falsche E-Mail oder falsches Passwort",
+      "loginFailed": "Anmeldung fehlgeschlagen, bitte erneut versuchen",
+      "connection": "Verbindungsfehler",
+      "invalidEmailFormat": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+      "idGetError": "Fehler beim Abrufen der Benutzer-ID"
+    }
+  },
+  "signup": {
+    "mail": {
+      "title": "Geben Sie Ihre E-Mail ein",
+      "mail": "E-Mail",
+      "or": "Oder",
+      "ok": "OK",
+      "buttons": {
+        "continue": "Fortfahren",
+        "con_google": "Mit Google fortfahren",
+        "con_apple": "Mit Apple fortfahren"
+      },
+      "consent": {
+        "con1": "Mit der Teilnahme am Bürgerwissenschaftsprojekt „Dialekte tschechischer Goldammern“ ",
+        "con2": "stimme ich den Bedingungen zu"
+      },
+      "errors": {
+        "user_exists": {
+          "title": "Benutzer existiert bereits",
+          "content": "Ein Benutzer mit dieser E-Mail existiert bereits."
+        },
+        "mail_format_err": "E-Mail hat kein gültiges Format",
+        "mail_exists": "E-Mail existiert bereits",
+        "google_login_failed": "Anmeldung mit Google ist fehlgeschlagen",
+        "continue_consent": "Um fortzufahren, müssen Sie den Bedingungen zustimmen."
+      }
+    },
+    "passwordReset": {
+      "emailSent": {
+        "title": "E‑Mail gesendet",
+        "message": "Wir haben soeben eine E‑Mail an {email} geschickt.\\nDie Zustellung kann bis zu 10 Minuten dauern.\\n\\nWenn die Anweisungen in Kürze nicht ankommen, prüfen Sie bitte Ihren Spam- bzw. Junk-Ordner.\\n\\nFalls das nicht hilft, senden Sie die Anfrage bitte erneut."
+      },
+      "request": {
+        "title": "Geben Sie Ihre E‑Mail für die Passwortänderung ein",
+        "subtitle": "An diese E‑Mail senden wir Anweisungen zum Zurücksetzen des Passworts",
+        "dialogTitle": "Passwort zurücksetzen",
+        "buttons": {
+          "sendLink": "Link senden"
+        },
+        "errors": {
+          "emptyEmail": "Bitte geben Sie Ihre E‑Mail ein",
+          "sendBeforeValid": "Bitte geben Sie vor dem Senden eine gültige E‑Mail ein."
+        },
+        "messages": {
+          "sent": "Eine E‑Mail mit Anweisungen zum Zurücksetzen des Passworts wurde gesendet.",
+          "unregistered": "Die angegebene E‑Mail ist nicht registriert.",
+          "serverError": "Der Server ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
+          "genericFail": "Zurücksetzen des Passworts konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+          "connectionError": "Fehler beim Senden der Anfrage. Bitte prüfen Sie Ihre Verbindung."
+        }
+      },
+      "changed": {
+        "title": "Passwort erfolgreich geändert",
+        "message": "Sie können sich jetzt in Ihr Konto einloggen."
+      }
+    },
+    "password": {
+      "title": "Passwort festlegen",
+      "password": "Passwort *",
+      "repeat_password": "Passwort wiederholen *",
+      "password_hint": "Passwort eingeben",
+      "password_again_hint": "Passwort wiederholen",
+      "password_req": {
+        "capital_letter": "• Mindestens ein Großbuchstabe",
+        "lovercase_letter": "• Mindestens ein Kleinbuchstabe",
+        "digit": "• Mindestens eine Ziffer (0–9)",
+        "lenght_req": "• Mindestens 8 Zeichen"
+      },
+      "buttons": {
+        "continue": "Fortfahren"
+      },
+      "errors": {
+        "req_not_met": "Passwort erfüllt die Anforderungen nicht",
+        "password_match_err": "Passwort wiederholen"
+      }
+    },
+    "name": {
+      "title": "Geben Sie Ihren Vor- und Nachnamen ein\nund wählen Sie einen Spitznamen",
+      "name": "Vorname *",
+      "last_name": "Nachname *",
+      "nickname": "Spitzname (optional)",
+      "nickname_hint": "Optional",
+      "real_name_warning": "Wenn Sie keinen Spitznamen angeben, sehen andere Nutzer Ihren echten Namen.",
+      "continue": "Fortfahren",
+      "errors": {
+        "null_name_err": "Bitte Vornamen eingeben",
+        "null_last_name_err": "Bitte Nachnamen eingeben"
+      }
+    },
+    "city": {
+      "title": "Wo befinden Sie sich?",
+      "subtitle": "Damit wir Sie über Interessantes aus Ihrer Region informieren können, benötigen wir Ihre PLZ (für die Zielauswahl von Benachrichtigungen) und Ihren Ort (wird anderen Nutzern angezeigt). Dieser Schritt ist optional.",
+      "post_code": "PLZ",
+      "city": "Ort",
+      "continue": "Fortfahren",
+      "errors": {
+        "user_exists": "Benutzer existiert bereits",
+        "error_ocured": "Es ist ein Fehler aufgetreten :( Bitte erneut versuchen"
+      }
+    },
+    "overview": {
+      "title": "Informationsübersicht",
+      "subtitle": "Informationsübersicht",
+      "marketing_consent": "Ich stimme dem Erhalt von Marketing-Mitteilungen zu",
+      "check_details": "Bitte überprüfen Sie die eingegebenen Daten und bestätigen Sie die Registrierung.",
+      "buttons": {
+        "register": "Registrieren"
+      },
+      "errors": {
+        "user_exists": "Benutzer existiert bereits",
+        "error_ocured": "Es ist ein Fehler aufgetreten :( Bitte erneut versuchen"
+      },
+      "items": {
+        "email": "E-Mail",
+        "name": "Vorname",
+        "last_name": "Nachname",
+        "nickname": "Spitzname",
+        "post_code": "PLZ",
+        "city": "Ort"
+      }
+    },
+    "emailVerify": {
+      "alreadyVerified": {
+        "title": "E-Mail bereits verifiziert",
+        "message": "Ihre E-Mail wurde bereits verifiziert. Sie können sich anmelden."
+      },
+      "info": "Wir haben einen Bestätigungslink an „{email}” gesendet. Klicken Sie auf den Link, um Ihre E-Mail-Adresse zu bestätigen.",
+      "resend": "Erneut senden",
+      "buttons": {
+        "openEmailApp": "E-Mail öffnen",
+        "tryAgain": "Erneut versuchen"
+      },
+      "success": {
+        "title": "E‑Mail verifiziert",
+        "message": "Ihre E‑Mail wurde erfolgreich verifiziert!",
+        "subtitle": "Sie können sich jetzt in Ihr Konto einloggen."
+      },
+      "failed": {
+        "title": "Verifizierung fehlgeschlagen",
+        "message": "Die E‑Mail‑Verifizierung ist fehlgeschlagen!",
+        "subtitle": "Der Verifizierungslink ist ungültig oder abgelaufen.\\nBitte versuchen Sie es erneut."
+      },
+      "emailSent": {
+        "dialogs": {
+          "alreadyVerified": {
+            "title": "E‑Mail bereits verifiziert",
+            "message": "Diese E‑Mail wurde bereits verifiziert."
+          },
+          "notVerified": "E‑Mail ist nicht verifiziert",
+          "info": "Bitte verifizieren Sie Ihre E‑Mail ({email}), um mit der Anmeldung fortzufahren.\\nAn diese Adresse wurde ein Verifizierungslink gesendet. Klicken Sie auf den Link, um zu bestätigen."
+        }
+      }
+    }
+  },
+  "dialectBadge": {
+    "title": "Dialekt"
+  },
+  "editRecording": {
+    "title": "Aufnahme bearbeiten",
+    "fields": {
+      "name": "Name",
+      "note": "Notiz",
+      "count": "Anzahl der Goldammern",
+      "device": "Gerät"
+    },
+    "buttons": {
+      "saveChanges": "Änderungen speichern"
+    }
+  },
+  "bottomBar": {
+    "errors": {
+      "noInternetMap": "Keine Internetverbindung. Karte nicht verfügbar."
+    }
+  },
+  "dialogs": {
+    "message": "Nachricht"
+  },
+  "recList": {
+    "title": "Meine Aufnahmen",
+    "offlineMode": {
+      "title": "Offlinemodus",
+      "message": "Sie sind offline. Es sind nur lokal gespeicherte Aufnahmen verfügbar."
+    },
+    "sort": {
+      "name": "Name",
+      "date": "Datum",
+      "birdCount": "Anzahl der Vögel",
+      "downloaded": "Nur heruntergeladene",
+      "myRecBy": "Meine Aufnahmen (nach ",
+      "myRecByDownloaded": "Meine Aufnahmen (Nur heruntergeladen)"
+    },
+    "buttons": {
+      "ok": "OK",
+      "sortAndFilter": "Sortieren & Filtern",
+      "sortByName": "Nach Name sortieren",
+      "sortByDate": "Nach Datum sortieren",
+      "sortByBirdCount": "Anzahl der Vögel",
+      "filterDownloaded": "Heruntergeladen",
+      "clearFilter": "Filter entfernen"
+    },
+    "emptyListMessage": "Sie haben noch keine Aufnahmen",
+    "status": {
+      "sending": "Senden …",
+      "checkingParts": "Teile werden geprüft …",
+      "unsentParts": "Nicht gesendete Teile",
+      "uploaded": "Hochgeladen",
+      "waitingForUpload": "Wartet auf Upload"
+    },
+    "dialect": {
+      "loading": "Dialekt wird geladen …",
+      "unknown": "Unbekannter Dialekt",
+      "without": "Ohne Dialekt",
+      "undetermined": "Nicht bewertet"
+    },
+    "name": {
+      "loading": "Laden …",
+      "unknown": "Unbekannter Name"
+    }
+  },
+  "recListItem": {
+    "status": {
+      "sending": "Senden …",
+      "checkingParts": "Teile werden geprüft …",
+      "unsentParts": "Nicht gesendete Teile",
+      "uploaded": "Hochgeladen",
+      "waitingForUpload": "Wartet auf Upload"
+    },
+    "errors": {
+      "reverseGeocodeFailed": "Reverse Geocoding fehlgeschlagen",
+      "errorDownloading": "Fehler beim Herunterladen der Aufnahme",
+      "errorDeleting": "Fehler beim Löschen der Aufnahme"
+    },
+    "buttons": {
+      "download": "Aufnahme herunterladen",
+      "delete": "Eintrag löschen",
+      "resendUnsentParts": "Erneut senden",
+      "send": "Eintrag senden",
+      "deleteCache": "Aus Cache löschen"
+    },
+    "dialogs": {
+      "confirmDelete": {
+        "title": "Löschen bestätigen",
+        "message": "Möchten Sie diesen Eintrag wirklich dauerhaft löschen?",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      },
+      "unsentParts": {
+        "title": "Nicht gesendete Teile",
+        "message": "Einige Teile der Aufnahme wurden nicht gesendet. Möchten Sie es erneut versuchen?",
+        "cancel": "Abbrechen",
+        "resend": "Erneut senden"
+      },
+      "downloadUnavailable": {
+        "title": "Herunterladen nicht verfügbar",
+        "message": "Für das Herunterladen der Aufnahme ist eine Internetverbindung erforderlich."
+      }
+    },
+    "placeTitle": "Karte",
+    "noRecording": "Aufnahme ist nicht verfügbar",
+    "notePlaceholder": "Keine Notiz zu dieser Aufnahme",
+    "dateTime": "Datum und Uhrzeit",
+    "estimatedBirdsCount": "Geschätzte Anzahl der Goldammern"
+  },
+  "user_badge": {
+    "no_nickname": "Benutzer hat keinen Spitznamen"
+  },
+  "map": {
+    "notifications": {
+      "enableLocation": "Bitte Standortdienste aktivieren",
+      "locationDenied": "Standortberechtigungen wurden verweigert",
+      "locationDeniedForever": "Standortberechtigungen wurden dauerhaft verweigert",
+      "locationError": "Fehler beim Abrufen des Standorts"
+    },
+    "dialogs": {
+      "notification": {
+        "title": "Benachrichtigung",
+        "ok": "OK"
+      },
+      "error": {
+        "title": "Fehler",
+        "close": "Schließen"
+      },
+      "confirmDelete": {
+        "title": "Löschen bestätigen",
+        "message": "Möchten Sie diesen Eintrag wirklich dauerhaft löschen?",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      }
+    },
+    "buttons": {
+      "info": "Info",
+      "mapSettings": "Karteneinstellungen",
+      "reset": "Ausrichtung zurücksetzen & neu zentrieren",
+      "close": "Schließen",
+      "set": "Festlegen",
+      "resetFilters": "Zurücksetzen"
+    },
+    "filters": {
+      "mapView": {
+        "classic": "Klassisch",
+        "satellite": "Satellit"
+      },
+      "recordingAuthor": {
+        "all": "Alle",
+        "me": "Nur ich"
+      }
+    },
+    "legend": {
+      "title": "Legende",
+      "dialects": {
+        "BC": "BC",
+        "BE": "BE",
+        "BlBh": "BlBh",
+        "BhBl": "BhBl",
+        "XB": "XB",
+        "rare": "Selten",
+        "transitional": "Übergang",
+        "mix": "Mischung",
+        "atypical": "Atypisch",
+        "unfinished": "Unvollständig",
+        "unassessed": "Nicht bewertet",
+        "unusable": "Unbrauchbar"
+      },
+      "mapyCz": "Mapy.cz © Seznam.cz, a.s."
+    }
+  },
+  "recordingPage": {
+    "status": {
+      "loading": "Aufnahme ist nicht verfügbar",
+      "downloading": "Aufnahme herunterladen",
+      "errorDownloading": "Fehler beim Herunterladen der Aufnahme"
+    },
+    "audioPlayer": {
+      "replay": "10 s zurückspulen",
+      "play": "Abspielen",
+      "pause": "Pause",
+      "forward": "10 s vorspulen"
+    },
+    "note": {
+      "placeholder": "Keine Notiz zu dieser Aufnahme"
+    },
+    "dateTime": "Datum und Uhrzeit",
+    "estimatedBirdsCount": "Geschätzte Anzahl der Goldammern",
+    "map": {
+      "title": "Karte"
+    }
+  },
+  "postRecordingForm": {
+    "addDialect": {
+      "title": "Dialekt hinzufügen",
+      "confirm": "Bestätigen",
+      "options": {
+        "BC": "BC",
+        "BE": "BE",
+        "BlBh": "BlBh",
+        "BhBl": "BhBl",
+        "XB": "XB",
+        "other": "Andere",
+        "noDialect": "Ohne Dialekt",
+        "unknown": "Ich weiß nicht"
+      },
+      "dialogs": {
+        "confirmation": {
+          "title": "Bestätigung",
+          "message": "Möchten Sie die Aufnahme wirklich löschen?",
+          "yes": "Ja",
+          "no": "Nein"
+        }
+      }
+    },
+    "imageUpload": {
+      "title": "Fotos",
+      "selectedCount": "{count} ausgewählt",
+      "buttons": {
+        "takePhoto": "Foto aufnehmen",
+        "upload": "Hochladen"
+      },
+      "placeholders": {
+        "noImages": "Fotos auswählen"
+      }
+    },
+    "recordingForm": {
+      "fields": {
+        "recordingName": {
+          "name": "Name der Aufnahme",
+          "error": {
+            "empty": "Bitte geben Sie einen Namen für die Aufnahme ein",
+            "tooLong": "Der Name der Aufnahme darf nicht länger als 49 Zeichen sein"
+          }
+        },
+        "comment": {
+          "name": "Kommentar",
+          "error": {
+            "empty": "Bitte geben Sie einen Kommentar ein"
+          }
+        },
+        "birdCount": {
+          "name": "Anzahl der Goldammern",
+          "count": {
+            "threeOrMore": "3 und mehr"
+          }
+        },
+        "map": "Karte"
+      },
+      "buttons": {
+        "addDialect": "Dialekt hinzufügen",
+        "save": "Speichern",
+        "discard": "Aufnahme löschen"
+      },
+      "dialogs": {
+        "confirmation": {
+          "title": "Bestätigung",
+          "message": "Möchten Sie diese Aufnahme wirklich speichern?",
+          "yes": "Ja",
+          "no": "Nein"
+        },
+        "discard": {
+          "title": "Bestätigung",
+          "message": "Möchten Sie die Aufnahme wirklich löschen?",
+          "yes": "Ja",
+          "no": "Nein"
+        },
+        "error": {
+          "noInternet": {
+            "title": "Verbindungsfehler",
+            "message": "Zum Speichern der Aufnahme ist eine Internetverbindung erforderlich"
+          },
+          "wifiOnly": {
+            "title": "Verbindungsfehler",
+            "message": "Uploads sind nur über WLAN erlaubt"
+          }
+        }
+      },
+      "placeholders": {
+        "noGpsPoints": "Die Aufnahme enthält keine GPS-Punkte.",
+        "noInternet": "Die Karte kann ohne Internetverbindung nicht geladen werden."
+      },
+      "slider": {
+        "oneBird": "1 Goldammer",
+        "twoBirds": "2 Goldammern",
+        "threeOrMoreBirds": "3 und mehr Goldammern"
+      }
+    }
+  },
+  "streamRec": {
+    "dialogs": {
+      "info": {
+        "title": "Information",
+        "ok": "OK"
+      },
+      "confirmExit": {
+        "title": "Bestätigen",
+        "message": "Möchten Sie die Aufnahme wirklich beenden?",
+        "cancel": "Zur Aufnahme zurück",
+        "confirm": "Aufnahme verlassen"
+      }
+    },
+    "errors": {
+      "micPermission": "Für die korrekte Funktion der App muss das Mikrofon erlaubt werden",
+      "locationPermission": "Zum Starten der Aufnahme müssen Standortberechtigungen erlaubt werden",
+      "noRecordingFound": "Keine Aufnahme zum Speichern gefunden",
+      "concatError": "Fehler beim Zusammenfügen der Dateien",
+      "locationFetchError": "Fehler beim Abrufen des Standorts"
+    },
+    "notifications": {
+      "recordingInProgress": "Die Strnadi-App nimmt auf",
+      "recordingPaused": "Aufnahme pausiert"
+    },
+    "buttons": {
+      "startRecording": "Aufnahme starten",
+      "pauseRecording": "Aufnahme pausieren",
+      "resumeRecording": "Fortsetzen",
+      "finishRecording": "Fertigstellen und fortfahren",
+      "discardRecording": "Aufnahme verwerfen"
+    },
+    "status": {
+      "recording": "Wird aufgenommen …",
+      "paused": "Aufnahme pausiert – tippen zum Fortsetzen",
+      "stopped": "Zum Starten tippen"
+    },
+    "timer": {
+      "format": "{minutes}:{seconds},{hundredths}"
+    }
+  },
+  "user": {
+    "profile": {
+      "title": "Persönliche Daten",
+      "fields": {
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "nickname": "Spitzname",
+        "email": "E-Mail",
+        "postCode": "PLZ",
+        "city": "Ort"
+      },
+      "buttons": {
+        "save": "Speichern",
+        "deleteAccount": "Ich möchte mein Konto löschen",
+        "changePassword": "Passwort ändern"
+      },
+      "dialogs": {
+        "deleteAccount": {
+          "title": "Konto löschen",
+          "message": "Möchten Sie Ihr Konto wirklich löschen? Diese Aktion ist endgültig.",
+          "cancel": "Abbrechen",
+          "confirm": "Löschen",
+          "success": "Ihr Konto wurde erfolgreich gelöscht.",
+          "error": "Beim Löschen des Kontos ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut."
+        },
+        "error": {
+          "title": "Fehler",
+          "load": "Benutzer oder Token konnten nicht geladen werden",
+          "auth": "Fehler bei der Benutzerverifizierung.",
+          "update": "Benutzerdaten konnten nicht aktualisiert werden."
+        },
+        "success": {
+          "update": "Daten wurden erfolgreich aktualisiert",
+          "noChanges": "Es wurden keine Änderungen vorgenommen."
+        }
+      }
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "app": "App",
+      "fields": {
+        "useMobileData": "Mobile Daten für Uploads verwenden",
+        "localRecordingsMax": "Maximale Anzahl lokal gespeicherter Aufnahmen. Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht.",
+        "language": "App-Sprache"
+      },
+      "descriptions": {
+        "localRecordingsMax": "Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht."
+      }
+    },
+    "menu": {
+      "items": {
+        "personalInfo": "Persönliche Daten",
+        "settings": "Einstellungen",
+        "connectedAccounts": "Verknüpfte Konten",
+        "guide": "Leitfaden",
+        "aboutProject": "Über das Projekt",
+        "aboutApp": "Über die App"
+      },
+      "dialogs": {
+        "aboutApp": {
+          "title": "Strnadi Mobile App",
+          "creators": "Erstellt von: Marian Pecqueur && Jan Drobílek",
+          "contact": "Kontakt: info@strnadi.cz, developers@strnadi.cz"
+        }
+      },
+      "error": {
+        "notImplemented": "Diese Funktion ist noch nicht verfügbar",
+        "noInternet": "Persönliche Daten sind ohne Internetverbindung nicht verfügbar"
+      }
+    },
+    "settingsPages": {
+      "appSettings": {
+        "title": "Einstellungen",
+        "fields": {
+          "useMobileData": "Mobile Daten für Uploads verwenden",
+          "localRecordingsMax": "Maximale Anzahl lokal gespeicherter Aufnahmen"
+        },
+        "descriptions": {
+          "localRecordingsMax": "Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht."
+        }
+      },
+      "userInfo": {
+        "title": "Persönliche Daten",
+        "fields": {
+          "firstName": "Vorname",
+          "lastName": "Nachname",
+          "nickname": "Spitzname",
+          "postCode": "PLZ",
+          "city": "Ort"
+        },
+        "buttons": {
+          "save": "Speichern",
+          "deleteAccount": "Ich möchte mein Konto löschen",
+          "changePassword": "Passwort ändern"
+        },
+        "dialogs": {
+          "deleteAccount": {
+            "title": "Konto löschen",
+            "message": "Möchten Sie Ihr Konto wirklich löschen? Diese Aktion ist endgültig.",
+            "cancel": "Abbrechen",
+            "confirm": "Löschen"
+          },
+          "error": {
+            "title": "Fehler",
+            "message": "Benutzer oder Token konnten nicht geladen werden"
+          },
+          "success": {
+            "message": "Daten wurden erfolgreich aktualisiert"
+          }
+        }
+      }
+    }
+  },
+  "notifications": {
+    "title": "Benachrichtigungen"
+  },
+  "logout": {
+    "title": "Abmelden",
+    "message": "Möchten Sie sich wirklich abmelden?",
+    "cancel": "Abbrechen",
+    "logout": "Abmelden"
+  }
+}

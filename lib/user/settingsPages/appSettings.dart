@@ -115,6 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
       items: const [
         DropdownMenuItem(value: 'cs', child: Text('Čeština')),
         DropdownMenuItem(value: 'en', child: Text('English')),
+        DropdownMenuItem(value: 'de', child: Text('Deutsch')),
       ],
       onChanged: (String? newValue) {
         if (newValue != null) {

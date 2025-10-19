@@ -272,10 +272,10 @@ class _RegMailState extends State<RegMail> {
                           children: [
                             TextSpan(
                               text:
-                                  'Zapojením do projektu občanské vědy Nářečí českých strnadů ',
+                                  t('signup.consent.con1'),
                             ),
                             TextSpan(
-                              text: 'souhlasím s podmínkami',
+                              text: t('signup.consent.con2'),
                               style: TextStyle(
                                 color: Colors.blue,
                                 decoration: TextDecoration.underline,
@@ -288,7 +288,7 @@ class _RegMailState extends State<RegMail> {
                                       builder: (_) => MDRender(
                                         mdPath:
                                             'assets/docs/terms-of-services.md',
-                                        title: 'Podmínky používání',
+                                        title: t('auth.terms.title'),
                                       ),
                                     ),
                                   );
@@ -319,9 +319,9 @@ class _RegMailState extends State<RegMail> {
                     _checkEmail(_emailController.text).then((emailExists) {
                       setState(() {
                         if (!isValidEmail(_emailController.text)) {
-                          _emailErrorMessage = 'Email není v platném formátu';
+                          _emailErrorMessage = t('signup.mail.errors.mail_format_err');
                         } else if (emailExists) {
-                          _emailErrorMessage = 'Email již existuje';
+                          _emailErrorMessage = t('signup.mail.errors.mail_exists');
                         } else {
                           _emailErrorMessage = null;
                         }
@@ -415,7 +415,7 @@ class _RegMailState extends State<RegMail> {
                       }
                     }).catchError((error) {
                       setState(() {
-                        _emailErrorMessage = 'Přihlášení přes Google selhalo';
+                        _emailErrorMessage = t('signup.mail.errors.google_login_failed');
                       });
                       logger.e(error);
                       Sentry.captureException(error);
@@ -546,7 +546,7 @@ class _RegMailState extends State<RegMail> {
                         logger.w(
                             'Failed to retrieve user ID: ${idResponse
                                 .statusCode} | ${idResponse.body}');
-                        _showMessage('Chyba při získávání ID uživatele');
+                        _showMessage(t('login.errors.idGetError'));
                         return;
                       }
                       logger.i('User ID retrieved: ${idResponse.body}');
@@ -574,8 +574,8 @@ class _RegMailState extends State<RegMail> {
                     height: 24,
                     width: 24,
                   ),
-                  label: const Text(
-                    'Pokračovat přes Apple',
+                  label: Text(
+                    t('login.buttons.con_apple'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(

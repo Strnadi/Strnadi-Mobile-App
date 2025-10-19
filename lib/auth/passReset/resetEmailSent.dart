@@ -16,8 +16,6 @@
 
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
-import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 
 class ResetEmailSent extends StatelessWidget {
   final String userEmail;
@@ -48,7 +46,7 @@ class ResetEmailSent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 36),
-              Text(t('E-mail poslán'),
+              Text(t('passwordReset.emailSent.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -56,8 +54,7 @@ class ResetEmailSent extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                t('Právě jsme odeslali e-mail na {email}.\nDoručení může trvat až 10 minut.\n\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\n\nPokud ani to nepomůže, zkuste odeslat žádost znovu.')
-                    .replaceFirst('{email}', userEmail),
+                t('passwordReset.emailSent.message').replaceFirst('{email}', userEmail),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[700],
@@ -93,7 +90,7 @@ class ResetEmailSent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: Text(t('Ok')),
+            child: Text(t('auth.buttons.ok')),
           ),
         ),
       ),

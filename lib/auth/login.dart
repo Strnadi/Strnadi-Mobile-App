@@ -103,13 +103,13 @@ class _LoginState extends State<Login> {
     final url = Uri.https(Config.host, '/auth/login');
 
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showMessage("Vyplňte email i heslo");
+      _showMessage(t('login.errors.emptyFieldsError'));
       return;
     }
 
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailRegex.hasMatch(_emailController.text)) {
-      _showMessage("Zadejte platný e-mail");
+      _showMessage(t('login.errors.invalidEmailError'));
       return;
     }
 
@@ -554,7 +554,7 @@ class _LoginState extends State<Login> {
                       if (idResponse.statusCode != 200) {
                         logger.w(
                             'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
-                        _showMessage('Chyba při získávání ID uživatele');
+                        _showMessage('login.errors.idGetError');
                         return;
                       }
                       logger.i('User ID retrieved: ${idResponse.body}');
@@ -586,8 +586,8 @@ class _LoginState extends State<Login> {
                     height: 24,
                     width: 24,
                   ),
-                  label: const Text(
-                    'Pokračovat přes Apple',
+                  label: Text(
+                    t('login.buttons.appleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(

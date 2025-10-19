@@ -55,13 +55,16 @@
     "buttons": {
       "loginButton": "Přihlásit se",
       "forgotPassword": "Zapomenuté heslo?",
-      "googleSignIn": "Pokračovat přes Google"
+      "googleSignIn": "Pokračovat přes Google",
+      "appleSignIn": "Pokračovat přes Apple"
     },
     "errors": {
       "emptyFieldsError": "Vyplňte jméno i heslo",
       "invalidCredentials": "Špatné jméno nebo heslo",
       "loginFailed": "Přihlášení selhalo, zkuste to znovu",
-      "connection": "Chyba připojení"
+      "connection": "Chyba připojení",
+      "invalidEmailFormat": "Zadejte platný e-mail",
+      "idGetError": "Chyba při získávání ID uživatele"
     }
   },
   "signup": {
@@ -72,7 +75,8 @@
       "ok": "OK",
       "buttons": {
         "continue": "Pokračovat",
-        "con_google": "Pokračovat přes Google"
+        "con_google": "Pokračovat přes Google",
+        "con_apple": "Pokračovat přes Apple"
       },
       "consent": {
         "con1": "Zapojením do projektu občanské vědy Nářečí českých strnadů ",
@@ -89,6 +93,35 @@
         "continue_consent": "Pro pokračování musíte souhlasit s podmínkami."
       }
     },
+  "passwordReset": {
+    "emailSent": {
+      "title": "E-mail poslán",
+      "message": "Právě jsme odeslali e-mail na {email}.\nDoručení může trvat až 10 minut.\n\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\n\nPokud ani to nepomůže, zkuste odeslat žádost znovu."
+    },
+    "request": {
+      "title": "Zadejte váš e-mail pro změnu hesla",
+      "subtitle": "Na tento e-mail vám pošleme instrukce pro reset hesla",
+      "dialogTitle": "Reset hesla",
+      "buttons": {
+        "sendLink": "Poslat odkaz"
+      },
+      "errors": {
+        "emptyEmail": "Vyplňte prosím e-mail",
+        "sendBeforeValid": "Zadejte platný e-mail před odesláním."
+      },
+      "messages": {
+        "sent": "E-mail s pokyny pro reset hesla byl odeslán.",
+        "unregistered": "Zadaný e-mail není registrován.",
+        "serverError": "Server je momentálně nedostupný. Zkuste to prosím později.",
+        "genericFail": "Nepodařilo se odeslat reset hesla. Zkuste to prosím znovu.",
+        "connectionError": "Chyba při odesílání požadavku. Zkontrolujte připojení."
+      }
+    },
+    "changed": {
+      "title": "Heslo úspěšně změněno",
+      "message": "Nyní se můžete přihlásit do vašeho účtu."
+    }
+  },
     "password": {
       "title": "Nastavte si heslo",
       "password": "Heslo *",
@@ -106,7 +139,7 @@
       },
       "errors": {
         "req_not_met": "Heslo nesplňuje požadavky",
-        "password_match_err": "Zopakujte heslo"
+        "password_match_err": "Hesla se neshodují"
       }
     },
     "name": {
@@ -136,6 +169,7 @@
     "overview": {
       "title": "Přehled informací",
       "subtitle": "Přehled informací",
+      "check_details": "Zkontrolujte prosím zadané údaje a potvrďte registraci.",
       "marketing_consent": "Souhlasím se zasíláním marketingových sdělení",
       "buttons": {
         "register": "Registrovat"
@@ -143,6 +177,47 @@
       "errors": {
         "user_exists": "Uživatel již existuje",
         "error_ocured": "Nastala chyba :( Zkuste to znovu"
+      },
+      "items": {
+        "email": "E-mail",
+        "name": "Jméno",
+        "last_name": "Příjmení",
+        "nickname": "Přezdívka",
+        "post_code": "PSČ",
+        "city": "Obec"
+      }
+    },
+    "emailVerify": {
+      "alreadyVerified": {
+        "title": "E-mail již ověřen",
+        "message": "Váš e-mail byl již ověřen. Můžete se přihlásit."
+      },
+      "info": "Na „{email}” jsme vám poslali odkaz na ověření e-mailové adresy. Kliknutím na odkaz potvrdíte svoji emailovou adresu.",
+      "resend": "Poslat znovu",
+      "buttons": {
+        "openEmailApp": "Otevřít e-mail",
+        "tryAgain": "Zkusit znovu"
+      }
+      ,
+      "success": {
+        "title": "E-mail ověřen",
+        "message": "Váš e-mail byl úspěšně ověřen!",
+        "subtitle": "Můžete se nyní přihlásit ke svému účtu."
+      }
+      ,
+      "failed": {
+        "title": "Ověření selhalo",
+        "message": "Ověření e‑mailu se nezdařilo!",
+        "subtitle": "Ověřovací odkaz je neplatný nebo vypršel.\nZkuste to prosím znovu."
+      },
+      "emailSent": {
+        "dialogs": {
+        "alreadyVerified": {
+          "title": "E-mail již ověřen",
+          "message": "Tento e-mail byl již ověřen."
+        },
+          "notVerified": "Email není ověřen",
+          "info": "Pro pokračování se přihlášením ověřte prosím svůj e-mail ({email}).\\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení."
       }
     }
   },
@@ -542,7 +617,8 @@
         }
       },
       "error": {
-        "notImplemented": "Tato funkce není ještě dostupná"
+        "notImplemented": "Tato funkce není ještě dostupná",
+        "noInternet": "Osobní údaje nejsou dostupné bez připojení k internetu"
       }
     },
     "settingsPages": {
@@ -590,5 +666,11 @@
   },
   "notifications": {
     "title": "Notifikace"
+  },
+  "logout": {
+    "title": "Odhlásit se",
+    "message": "Opravdu se chcete odhlásit?",
+    "cancel": "Zrušit",
+    "logout": "Odhlásit se"
   }
 }
