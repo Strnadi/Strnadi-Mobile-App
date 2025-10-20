@@ -12,7 +12,8 @@
     "buttons": {
       "register": "Konto erstellen",
       "login": "Anmelden",
-      "ok": "OK"
+      "ok": "OK",
+      "continue_as_guest": "Als Gast fortfahren"
     },
     "alerts": {
       "offline_no_token": {
@@ -237,7 +238,12 @@
   },
   "bottomBar": {
     "errors": {
-      "noInternetMap": "Keine Internetverbindung. Karte nicht verfügbar."
+      "noInternetMap": "Keine Internetverbindung. Karte nicht verfügbar.",
+      "guest_user": "Funktion ist für Benutzer ohne Konto nicht verfügbar.",
+      "guest_user_desc": "Erstellen Sie ein Konto oder melden Sie sich an, um auf diese Funktion zuzugreifen.",
+      "guest_user_desc_rec": "Bitte melden Sie sich zuerst an; danach finden Sie Ihre Aufnahme unter den lokalen Aufnahmen.",
+      "close": "Schließen",
+      "navigate_to_login": "Zum Login"
     }
   },
   "dialogs": {
@@ -671,5 +677,13 @@
     "message": "Möchten Sie sich wirklich abmelden?",
     "cancel": "Abbrechen",
     "logout": "Abmelden"
+  },
+  "widgets": {
+    "guest_user_rules": {
+      "title": "Funktionen für Benutzer ohne Konto",
+      "content": "Als Benutzer ohne Konto haben Sie nur eingeschränkten Zugriff auf die Funktionen der App. Für den vollen Zugriff erstellen Sie bitte ein Konto oder melden Sie sich an.",
+      "ok": "OK",
+      "login": "Anmelden"
+    }
   }
 }
