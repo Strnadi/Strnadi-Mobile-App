@@ -29,7 +29,7 @@ enum DataUsageOption { wifiOnly, wifiAndMobile }
 /// Server health status codes
 enum ServerHealth { healthy, maintenance, offline }
 
-enum LanguagePreference { systemDefault, english, czech , german }
+enum LanguagePreference { systemDefault, en, cs , de }
 
 Logger logger = Logger();
 
