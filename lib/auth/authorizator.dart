@@ -356,6 +356,8 @@ class _AuthState extends State<Authorizator> {
                 await Localization.load('assets/lang/${newValue.code}.json');
                 if (!mounted) return;
                 setState(() => selectedLanguage = newValue);
+                Config.setLanguagePreference(
+                    Config.LangFromString(newValue.code));
                 logger.i('Language changed to ${newValue.code}');
               },
             ),

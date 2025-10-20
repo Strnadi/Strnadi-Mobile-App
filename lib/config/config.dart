@@ -29,7 +29,7 @@ enum DataUsageOption { wifiOnly, wifiAndMobile }
 /// Server health status codes
 enum ServerHealth { healthy, maintenance, offline }
 
-enum LanguagePreference { systemDefault, en, cs , de }
+enum LanguagePreference { systemDefault, en, cs, de }
 
 Logger logger = Logger();
 
@@ -48,8 +48,36 @@ class Config {
     await loadDataUsageOption();
   }
 
+  static StringFromLanguagePreference(LanguagePreference lang) {
+    switch (lang) {
+      case LanguagePreference.en:
+        return 'en';
+      case LanguagePreference.cs:
+        return 'cs';
+      case LanguagePreference.de:
+        return 'de';
+      case LanguagePreference.systemDefault:
+      default:
+        return 'system';
+    }
+  }
+
+  static LangFromString(String code) {
+    switch (code) {
+      case 'en':
+        return LanguagePreference.en;
+      case 'cs':
+        return LanguagePreference.cs;
+      case 'de':
+        return LanguagePreference.de;
+      default:
+        return LanguagePreference.systemDefault;
+    }
+  }
+
   static Future<void> loadFirebaseConfig() async {
-    String jsonString = await rootBundle.loadString('assets/firebase-secrets.json');
+    String jsonString =
+        await rootBundle.loadString('assets/firebase-secrets.json');
     _Fconfig = json.decode(jsonString);
   }
 
@@ -80,8 +108,9 @@ class Config {
     await prefs.setString(_dataUsagePrefKey, option.toString());
     _dataUsageOption = option;
   }
-  
-  static Future<void> setLanguagePreference(LanguagePreference languageCode) async {
+
+  static Future<void> setLanguagePreference(
+      LanguagePreference languageCode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languagePrefKey, languageCode.toString());
   }
@@ -117,14 +146,14 @@ class Config {
     return _config!["host"];
   }
 
-  static String get firebaseProjectId{
+  static String get firebaseProjectId {
     if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
     return _Fconfig!["project_id"];
   }
 
-  static Map<String, dynamic>? get firebaseServiceAccountJson{
+  static Map<String, dynamic>? get firebaseServiceAccountJson {
     if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
@@ -136,7 +165,8 @@ class Config {
     final uri = Uri.parse('https://${host}/utils/health');
     try {
       final response = await http.head(uri).timeout(const Duration(seconds: 5));
-      logger.i('Checking API health at $uri: status code ${response.statusCode}');
+      logger
+          .i('Checking API health at $uri: status code ${response.statusCode}');
       if (response.statusCode == 200) {
         return ServerHealth.healthy;
       } else if (response.statusCode == 503) {
@@ -176,7 +206,8 @@ class Config {
   static Future<bool> get canUpload async {
     if (!await hasBasicInternet) return false;
     final conn = await Connectivity().checkConnectivity();
-    if (conn == ConnectivityResult.mobile && dataUsageOption == DataUsageOption.wifiOnly) {
+    if (conn == ConnectivityResult.mobile &&
+        dataUsageOption == DataUsageOption.wifiOnly) {
       return false;
     }
     return await isBackendAvailable;

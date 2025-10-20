@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/localization/localization.dart';
 import '../../bottomBar.dart';
 import '../settingsManager.dart';
+import 'package:strnadi/config/config.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -53,10 +54,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadLanguage() async {
     var prefs = await SharedPreferences.getInstance();
-    var language = prefs.getString('lang');
-
+    var language = await Config.getLanguagePreference();
     setState(() {
-      this.language = language ?? 'cs';
+      this.language = Config.StringFromLanguagePreference(language) ?? 'cs';
     });
   }
 
@@ -127,6 +127,7 @@ class _SettingsPageState extends State<SettingsPage> {
           final prefs = await SharedPreferences.getInstance();
 
           await prefs.setString('lang', newValue);
+          Config.setLanguagePreference(Config.LangFromString(newValue));
           // Optionally save the selected language to persistent storage
         }
       },
