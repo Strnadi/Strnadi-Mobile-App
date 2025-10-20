@@ -52,31 +52,54 @@ class _RegMailState extends State<RegMail> {
   late bool _termsError = false;
   String? _emailErrorMessage;
 
-  void CacheUserdata(int userID) {
+  bool _isLoading = false;
+
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  // Guards against duplicate presses and ensures loader is shown/hidden
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // already running; ignore duplicate press
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
+
+  Future<void> cacheUserData(int userID) async {
     Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
 
-    http.get(url, headers: {'Content-Type': 'application/json'}).then(
-            (http.Response response) {
-          if (response.statusCode == 200) {
-            var jsonResponse = jsonDecode(response.body);
-            String firstName = jsonResponse['firstName'];
-            String lastName = jsonResponse['lastName'];
-            String nick = jsonResponse['nickname'];
-            FlutterSecureStorage secureStorage = FlutterSecureStorage();
-            secureStorage.write(key: 'firstName', value: firstName);
-            secureStorage.write(key: 'lastName', value: lastName);
-            secureStorage.write(key: 'nick', value: nick);
+    http.Response response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    try {
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        String firstName = jsonResponse['firstName'];
+        String lastName = jsonResponse['lastName'];
+        String nick = jsonResponse['nickname'];
+        String role = jsonResponse['role'];
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
+        await secureStorage.write(key: 'firstName', value: firstName);
+        await secureStorage.write(key: 'lastName', value: lastName);
+        await secureStorage.write(key: 'nick', value: nick);
+        await secureStorage.write(key: 'role', value: role);
 
-            logger.i("Fetched user name: $firstName $lastName");
-          } else {
-            logger.w(
-                'Failed to fetch user name. Status code: ${response.statusCode}');
-          }
-        }).catchError((error, stackTrace) {
+        logger.i("Fetched user name: $firstName $lastName");
+      } else {
+        logger.w(
+            'Failed to fetch user name. Status code: ${response.statusCode}');
+      }
+    } catch (error, stackTrace){
       logger.e('Error fetching user name: $error',
           error: error, stackTrace: stackTrace);
-      Sentry.captureException(error, stackTrace: stackTrace);
-    });
+      await Sentry.captureException(error, stackTrace: stackTrace);
+    }
   }
 
   bool isValidEmail(String email) {
@@ -148,26 +171,27 @@ class _RegMailState extends State<RegMail> {
         _isChecked &&
         _emailErrorMessage == null;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Image.asset(
-            'assets/icons/backButton.png',
-            width: 30,
-            height: 30,
+    // Optional: Prevent back navigation during loading
+    return WillPopScope(
+      onWillPop: () async => !_isLoading,
+      child: Stack(
+        children: [
+          Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Title
               Text(
                 t('signup.mail.title'),
@@ -315,34 +339,34 @@ class _RegMailState extends State<RegMail> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    _checkEmail(_emailController.text).then((emailExists) {
-                      setState(() {
-                        if (!isValidEmail(_emailController.text)) {
-                          _emailErrorMessage = t('signup.mail.errors.mail_format_err');
-                        } else if (emailExists) {
-                          _emailErrorMessage = t('signup.mail.errors.mail_exists');
-                        } else {
-                          _emailErrorMessage = null;
-                        }
-                        _termsError = !_isChecked;
-                      });
-                      if (isValidEmail(_emailController.text) &&
-                          _isChecked &&
-                          !emailExists) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegPassword(
-                              email: _emailController.text,
-                              jwt: '',
-                              consent: true,
+                  onPressed: !_isLoading ? () {
+                    _withLoader(() async {
+                      await _checkEmail(_emailController.text).then((emailExists) {
+                        setState(() {
+                          if (!isValidEmail(_emailController.text)) {
+                            _emailErrorMessage = t('signup.mail.errors.mail_format_err');
+                          } else if (emailExists) {
+                            _emailErrorMessage = t('signup.mail.errors.mail_exists');
+                          } else {
+                            _emailErrorMessage = null;
+                          }
+                          _termsError = !_isChecked;
+                        });
+                        if (isValidEmail(_emailController.text) && _isChecked && !emailExists) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegPassword(
+                                email: _emailController.text,
+                                jwt: '',
+                                consent: true,
+                              ),
                             ),
-                          ),
-                        );
-                      }
+                          );
+                        }
+                      }).catchError((_) {});
                     });
-                  },
+                  } : null,
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
                     shadowColor: Colors.transparent,
@@ -389,39 +413,38 @@ class _RegMailState extends State<RegMail> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: !_isLoading ? () {
                     if (!_isChecked) {
-                      setState(() {
-                        _termsError = true;
-                      });
+                      setState(() { _termsError = true; });
                       return;
                     }
-                    gle.GoogleSignInService.signUpWithGoogle().then((user) {
-                      if (user != null && user['status'] != 409) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegName(
-                              email: JwtDecoder.decode(user['jwt'])['sub'],
-                              jwt: user['jwt'],
-                              name: user['firstName'],
-                              surname: user['lastName'],
-                              consent: true,
+                    _withLoader(() async {
+                      await gle.GoogleSignInService.signUpWithGoogle().then((user) {
+                        if (user != null && user['status'] != 409) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegName(
+                                email: JwtDecoder.decode(user['jwt'])['sub'],
+                                jwt: user['jwt'],
+                                name: user['firstName'],
+                                surname: user['lastName'],
+                                consent: true,
+                              ),
                             ),
-                          ),
-                        );
-                      } else if (user != null && user['status'] == 409) {
-                        _showUserExistsPopup();
-                      }
-                    }).catchError((error) {
-                      setState(() {
-                        _emailErrorMessage = t('signup.mail.errors.google_login_failed');
+                          );
+                        } else if (user != null && user['status'] == 409) {
+                          _showUserExistsPopup();
+                        }
+                      }).catchError((error) {
+                        setState(() {
+                          _emailErrorMessage = t('signup.mail.errors.google_login_failed');
+                        });
+                        logger.e(error);
+                        Sentry.captureException(error);
                       });
-                      logger.e(error);
-                      Sentry.captureException(error);
                     });
-                    // Handle 'Continue with Google' logic here
-                  },
+                  } : null,
                   icon: Image.asset(
                     'assets/images/google.webp',
                     height: 24,
@@ -448,127 +471,103 @@ class _RegMailState extends State<RegMail> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () async {
+                  onPressed: !_isLoading ? () {
                     if (!_isChecked) {
                       setState(() => _termsError = true);
                       return;
                     }
-                    logger.i('Apple button clicked');
-
-                    try {
-                      // Start Apple sign‑in flow
-                      final data = await apple.AppleAuth.signInAndGetJwt(null);
-                      if (data == null) {
-                        logger.w('Apple sign in return data null');
-                        // User cancelled or sign‑in failed
-                        return;
-                      } else if (data['status'] == 200) {
-                        logger.i(
-                            'Apple sign in successful, returned data: ${data
-                                .toString()}');
-                        if (data['exists'] == false) {
-                          // New user, proceed with registration
-                          logger.i(
-                              'Apple sign in: new user, proceeding to registration');
-                          Navigator.pushReplacement(
+                    _withLoader(() async {
+                      logger.i('Apple button clicked');
+                      try {
+                        final data = await apple.AppleAuth.signInAndGetJwt(null);
+                        if (data == null) {
+                          logger.w('Apple sign in return data null');
+                          return;
+                        } else if (data['status'] == 200) {
+                          logger.i('Apple sign in successful, returned data: ${data.toString()}');
+                          if (data['exists'] == false) {
+                            logger.i('Apple sign in: new user, proceeding to registration');
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) =>
-                                      RegName(
-                                        name: data['firstName'] as String? ??
-                                            '',
-                                        surname:
-                                        data['lastName'] as String? ?? '',
-                                        email: data['email'] as String? ?? '',
-                                        jwt: data['jwt'] as String,
-                                        appleId:
-                                        data['userIdentifier'] as String? ??
-                                            '',
-                                        consent: true,
-                                      )));
-                          return;
-                        } else if (data['exists'] == true) {
-                          // User exists, proceed with login
-                        }
-                      } else if (data['status'] == 400) {
-                        logger.w('Apple sign in failed: no email returned');
-                        _showMessage(t('auth.apple.error.no_email'));
-                        return;
-                      } else {
-                        logger.w(
-                            'Apple sign in failed with status code: ${data['status']} | ${data
-                                .toString()}');
-                        _showMessage(t('auth.apple.error.login_failed'));
-                        return;
-                      }
-
-                      // Check if we already have the user's full name
-                      final String? firstName = data['firstName'] as String?;
-                      final String? lastName = data['lastName'] as String?;
-                      final String? email = data['email'] as String?;
-
-                      if ((firstName != null &&
-                          lastName != null &&
-                          email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)) {
-                        // Missing profile data → go to the registration screen
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                RegName(
-                                  name: firstName,
-                                  surname: lastName,
-                                  email: email,
+                                builder: (_) => RegName(
+                                  name: data['firstName'] as String? ?? '',
+                                  surname: data['lastName'] as String? ?? '',
+                                  email: data['email'] as String? ?? '',
                                   jwt: data['jwt'] as String,
+                                  appleId: data['userIdentifier'] as String? ?? '',
                                   consent: true,
                                 ),
-                          ),
+                              ),
+                            );
+                            return;
+                          } else if (data['exists'] == true) {
+                            // User exists, proceed with login
+                          }
+                        } else if (data['status'] == 400) {
+                          logger.w('Apple sign in failed: no email returned');
+                          _showMessage(t('auth.apple.error.no_email'));
+                          return;
+                        } else {
+                          logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                          _showMessage(t('auth.apple.error.login_failed'));
+                          return;
+                        }
+
+                        final String? firstName = data['firstName'] as String?;
+                        final String? lastName = data['lastName'] as String?;
+                        final String? email = data['email'] as String?;
+
+                        if ((firstName != null && lastName != null && email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegName(
+                                name: firstName,
+                                surname: lastName,
+                                email: email,
+                                jwt: data['jwt'] as String,
+                                consent: true,
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final String jwt = data['jwt'] as String;
+                        final secureStorage = const FlutterSecureStorage();
+                        await secureStorage.write(key: 'token', value: jwt);
+                        logger.i('Apple sign‑in successful, token stored');
+
+                        final idResponse = await http.get(
+                          Uri.parse('https://${Config.host}/users/get-id'),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer $jwt',
+                          },
                         );
-                        return;
+                        if (idResponse.statusCode != 200) {
+                          logger.w('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                          _showMessage(t('login.errors.idGetError'));
+                          return;
+                        }
+                        logger.i('User ID retrieved: ${idResponse.body}');
+
+                        await secureStorage.write(key: 'userId', value: idResponse.body);
+                        await fb.refreshToken();
+                        await cacheUserData(int.parse(idResponse.body));
+
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => LiveRec()),
+                        );
+                      } catch (e, stackTrace) {
+                        logger.e('Apple sign in error: $e');
+                        Sentry.captureException(e, stackTrace: stackTrace);
+                        _showMessage(t('auth.apple.error.login_failed'));
                       }
-
-                      final String jwt = data['jwt'] as String;
-                      final secureStorage = const FlutterSecureStorage();
-
-                      // Persist the token locally
-                      await secureStorage.write(key: 'token', value: jwt);
-                      logger.i('Apple sign‑in successful, token stored');
-
-                      // Retrieve user‑id from backend
-                      final idResponse = await http.get(
-                        Uri.parse('https://${Config.host}/users/get-id'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': 'Bearer $jwt',
-                        },
-                      );
-                      if (idResponse.statusCode != 200) {
-                        logger.w(
-                            'Failed to retrieve user ID: ${idResponse
-                                .statusCode} | ${idResponse.body}');
-                        _showMessage(t('login.errors.idGetError'));
-                        return;
-                      }
-                      logger.i('User ID retrieved: ${idResponse.body}');
-
-                      await secureStorage.write(
-                          key: 'userId', value: idResponse.body);
-                      await fb.refreshToken();
-
-                      CacheUserdata(int.parse(idResponse.body));
-
-                      // Go to recorder screen
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => LiveRec()),
-                      );
-                    }
-                    catch (e, stackTrace) {
-                      logger.e('Apple sign in error: $e');
-                      Sentry.captureException(e, stackTrace: stackTrace);
-                      _showMessage(t('auth.apple.error.login_failed'));
-                    }
-                  },
+                    });
+                  } : null,
                   icon: Image.asset(
                     'assets/images/apple.png',
                     height: 24,
@@ -595,8 +594,7 @@ class _RegMailState extends State<RegMail> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding:
-            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
           children: List.generate(5, (index) {
             bool completed = index < 1;
@@ -613,6 +611,19 @@ class _RegMailState extends State<RegMail> {
           }),
         ),
       ),
-    );
+    ),
+    if (_isLoading)
+      Positioned.fill(
+        child: AbsorbPointer(
+          absorbing: true,
+          child: Container(
+            color: Colors.black.withOpacity(0.5),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      ),
+  ],
+  )
+  );
   }
 }

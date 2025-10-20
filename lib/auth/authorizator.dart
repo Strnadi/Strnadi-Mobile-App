@@ -143,6 +143,25 @@ Future<AuthStatus> isLoggedIn() async {
 
 class _AuthState extends State<Authorizator> {
   bool _isOnline = true;
+  bool _isLoading = false;
+
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // ignore repeated presses while loading
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
 
   @override
   void initState() {
@@ -156,7 +175,11 @@ class _AuthState extends State<Authorizator> {
         _isOnline = online;
       });
     });
-    checkLoggedIn(); // token check if needed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _withLoader(() async {
+        await checkLoggedIn();
+      });
+    });
   }
 
   void _showWIPwarning() {
@@ -171,180 +194,226 @@ class _AuthState extends State<Authorizator> {
     const Color textColor = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: Column(
-                children: [
-                  // Spacing from the top
-                  //const SizedBox(height: 0),
-
-                  // Bird image
-                  Image.asset(
-                    'assets/images/ncs_logo_tall_large.png', // Update path if needed
-                    width: 200,
-                    height: 200,
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Main title
-                  Text(t('auth.title'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Subtitle
-                  Text(t('auth.subtitle'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: textColor,
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // "Založit účet" button (yellow background, no elevation)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _navigateIfAllowed(const RegMail()),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0, // No elevation
-                        shadowColor: Colors.transparent, // Remove shadow
-                        backgroundColor: yellow,
-                        foregroundColor: textColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+    return WillPopScope(
+      onWillPop: () async => !_isLoading,
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                    child: Column(
+                      children: [
+                        Image.asset(
+                          'assets/images/ncs_logo_tall_large.png',
+                          width: 200,
+                          height: 200,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        const SizedBox(height: 32),
+                        Text(t('auth.title'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
                         ),
-                      ),
-                      child: Text(t('auth.buttons.register'), style: TextStyle(color: textColor),),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // "Přihlásit se" button (outlined)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _navigateIfAllowed(const Login()),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: textColor,
-                        side: BorderSide(color: Colors.grey[200]!, width: 2),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 8),
+                        Text(t('auth.subtitle'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: textColor,
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        const SizedBox(height: 40),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: !_isLoading ? () => _withLoader(() async {
+                              await _navigateIfAllowed(const RegMail());
+                            }) : null,
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              backgroundColor: yellow,
+                              foregroundColor: textColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              textStyle: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(t('auth.buttons.register'), style: TextStyle(color: textColor)),
+                          ),
                         ),
-                      ),
-                      child: Text(t('auth.buttons.login'), style: TextStyle(color: textColor)),
-                    ),
-                  ),
-
-                  // Add the terms here
-                  const SizedBox(height: 12),
-                  Column(
-                    children: [
-                      Text(t('auth.disclaimer.consent_prefix'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      GestureDetector(
-                        onTap: () => _launchURL(),
-                        child: Text(t('auth.disclaimer.privacy_policy'),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: !_isLoading ? () => _withLoader(() async {
+                              await _navigateIfAllowed(const Login());
+                            }) : null,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: textColor,
+                              side: BorderSide(color: Colors.grey[200]!, width: 2),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              textStyle: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(t('auth.buttons.login'), style: TextStyle(color: textColor)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Column(
+                          children: [
+                            Text(t('auth.disclaimer.consent_prefix'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.black),
+                            ),
+                            const SizedBox(height: 4),
+                            GestureDetector(
+                              onTap: () => _launchURL(),
+                              child: Text(t('auth.disclaimer.privacy_policy'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 60),
+                        Text(t('auth.disclaimer.dev_notice'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline,
+                            color: Colors.red,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-
-                  // Add disclaimer and space at the bottom
-                  const SizedBox(height: 60),
-                  Text(t('auth.disclaimer.dev_notice'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red,
+                        const SizedBox(height: 16),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          if (_isLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
   Future<void> checkLoggedIn() async {
-    bool online = await Config.hasBasicInternet;
-    if (!online) {
-      final secureStorage = FlutterSecureStorage();
-      String? token = await secureStorage.read(key: 'token');
-      if (token == null) {
-        _showAlert("Offline", "Nemáte připojení k internetu a žádný token není uložen.");
+    _showLoader();
+    try {
+      bool online = await Config.hasBasicInternet;
+      if (!online) {
+        final secureStorage = FlutterSecureStorage();
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) {
+          _showAlert("Offline", "Nemáte připojení k internetu a žádný token není uložen.");
+          return;
+        } else {
+          DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+          if (expirationDate.isBefore(DateTime.now())) {
+            _showAlert("Offline", "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+            return;
+          }
+          String? verified = await secureStorage.read(key: 'verified');
+          if (verified != 'true') {
+            _showAlert("Offline", "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+            return;
+          }
+        }
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+            settings: const RouteSettings(name: '/Recorder'),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
         return;
-      } else {
-        DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
-        if (expirationDate.isBefore(DateTime.now())) {
-          _showAlert("Offline", "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
-          return;
-        }
-        String? verified = await secureStorage.read(key: 'verified');
-        if (verified != 'true') {
-          _showAlert("Offline", "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
-          return;
-        }
       }
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
-          settings: const RouteSettings(name: '/Recorder'),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
-      return;
-    }
-    final secureStorage = FlutterSecureStorage();
-    final AuthStatus status = await isLoggedIn();
+      final secureStorage = FlutterSecureStorage();
+      final AuthStatus status = await isLoggedIn();
 
+      if (status == AuthStatus.loggedIn) {
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) return;
+        String? userIdS = await secureStorage.read(key: 'userId');
+        int? userId;
 
-    if (status == AuthStatus.loggedIn) {
-      String? token = await secureStorage.read(key: 'token');
-      if (token == null) return;
-      String? userIdS = await secureStorage.read(key: 'userId');
-      int? userId;
+        if(userIdS==null){
+          Uri url = Uri(
+              scheme: 'https',
+              host: Config.host,
+              path: '/users/get-id'
+          );
+          var idResponse = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          });
+          userId = int.parse(idResponse.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
+        }
+        else{
+          userId = int.parse(userIdS);
+        }
+        final Uri url = Uri.parse('https://${Config.host}/users/$userId').replace(queryParameters: {'jwt': token});
 
-      if(userIdS==null){
+        final response = await http.get(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        secureStorage.write(key: 'user', value: data['firstName']);
+        secureStorage.write(key: 'lastname', value: data['lastName']);
+
+        logger.i('Syncing recordings on login');
+        DatabaseNew.syncRecordings();
+        logger.i('Syncing recordings on login done');
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+            settings: const RouteSettings(name: '/Recorder'),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      } else if(status == AuthStatus.notVerified) {
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) return;
         Uri url = Uri(
             scheme: 'https',
             host: Config.host,
@@ -354,67 +423,25 @@ class _AuthState extends State<Authorizator> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         });
-        userId = int.parse(idResponse.body);
+        int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'], userId: userId,)),
+        );
+      } else {
+        // If there is a token but user is not logged in (invalid token),
+        // remove it and show message.
+        if (await secureStorage.read(key: 'token') != null) {
+          _showMessage("Byli jste odhlášeni");
+          await secureStorage.delete(key: 'token');
+          await secureStorage.delete(key: 'user');
+          await secureStorage.delete(key: 'lastname');
+          await firebase.deleteToken();
+        }
       }
-      else{
-        userId = int.parse(userIdS);
-      }
-      final Uri url = Uri.parse('https://${Config.host}/users/$userId').replace(queryParameters: {'jwt': token});
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      secureStorage.write(key: 'user', value: data['firstName']);
-      secureStorage.write(key: 'lastname', value: data['lastName']);
-
-      logger.i('Syncing recordings on login');
-      DatabaseNew.syncRecordings();
-      logger.i('Syncing recordings on login done');
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
-          settings: const RouteSettings(name: '/Recorder'),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
-    } else if(status == AuthStatus.notVerified) {
-      String? token = await secureStorage.read(key: 'token');
-      if (token == null) return;
-      Uri url = Uri(
-          scheme: 'https',
-          host: Config.host,
-          path: '/users/get-id'
-      );
-      var idResponse = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      });
-      int userId = int.parse(idResponse.body);
-      await secureStorage.write(key: 'userId', value: userId.toString());
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => EmailNotVerified(userEmail: JwtDecoder.decode(token!)['sub'], userId: userId,)),
-      );
-    } else {
-      // If there is a token but user is not logged in (invalid token),
-      // remove it and show message.
-      if (await secureStorage.read(key: 'token') != null) {
-        _showMessage("Byli jste odhlášeni");
-        await secureStorage.delete(key: 'token');
-        await secureStorage.delete(key: 'user');
-        await secureStorage.delete(key: 'lastname');
-        await firebase.deleteToken();
-      }
+    } finally {
+      _hideLoader();
     }
   }
 

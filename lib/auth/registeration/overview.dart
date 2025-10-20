@@ -65,6 +65,24 @@ class _RegOverviewState extends State<RegOverview> {
   bool _isLoading = false;
   bool _marketingConsent = false;
 
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // prevent duplicate presses
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
+
   void _showMessage(String message) {
     showDialog(
       context: context,
@@ -82,9 +100,6 @@ class _RegOverviewState extends State<RegOverview> {
   }
 
   Future<void> register() async {
-    setState(() {
-      _isLoading = true;
-    });
     final secureStorage = FlutterSecureStorage();
     final url = Uri(
       scheme: 'https',
@@ -160,11 +175,7 @@ class _RegOverviewState extends State<RegOverview> {
       GoogleSignInService.signOut();
       logger.e("An error occurred: $error");
       _showMessage(t('signup.overview.errors.error_ocured'));
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    } finally {}
   }
 
   Widget _buildInfoItem(String label, String value) {
@@ -196,115 +207,132 @@ class _RegOverviewState extends State<RegOverview> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Image.asset(
-            'assets/icons/backButton.png',
-            width: 30,
-            height: 30,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t('signup.overview.title'),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
+    return WillPopScope(
+      onWillPop: () async => !_isLoading,
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: Image.asset(
+                  'assets/icons/backButton.png',
+                  width: 30,
+                  height: 30,
                 ),
+                onPressed: () => Navigator.of(context).pop(),
               ),
-              const SizedBox(height: 8),
-              Text(t('signup.overview.check_details'),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 32),
-              _buildInfoItem(t('signup.overview.items.email'), widget.email),
-              _buildInfoItem(t('signup.overview.items.name'), widget.name),
-              _buildInfoItem(t('signup.overview.items.lastname'), widget.surname),
-              _buildInfoItem(t('signup.overview.items.nickname'), widget.nickname.isNotEmpty ? widget.nickname : '-'),
-              _buildInfoItem(t('signup.overview.items.post_code'), widget.postCode),
-              _buildInfoItem(t('signup.overview.items.city'), widget.city),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _marketingConsent,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _marketingConsent = value ?? false;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: Text(t('signup.overview.marketing_consent'),
+            ),
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t('signup.overview.title'),
                       style: TextStyle(
-                        fontSize: 14,
-                        color: _RegOverviewState.textColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: register,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    backgroundColor: yellow,
-                    foregroundColor: textColor,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 8),
+                    Text(t('signup.overview.check_details'),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: textColor,
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
+                    const SizedBox(height: 32),
+                    _buildInfoItem(t('signup.overview.items.email'), widget.email),
+                    _buildInfoItem(t('signup.overview.items.name'), widget.name),
+                    _buildInfoItem(t('signup.overview.items.lastname'), widget.surname),
+                    _buildInfoItem(t('signup.overview.items.nickname'), widget.nickname.isNotEmpty ? widget.nickname : '-'),
+                    _buildInfoItem(t('signup.overview.items.post_code'), widget.postCode),
+                    _buildInfoItem(t('signup.overview.items.city'), widget.city),
+                    const SizedBox(height: 32),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _marketingConsent,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _marketingConsent = value ?? false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: Text(t('signup.overview.marketing_consent'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _RegOverviewState.textColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  child: Text(t('signup.overview.buttons.register')),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: !_isLoading ? () {
+                          _withLoader(() async {
+                            await register();
+                          });
+                        } : null,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          backgroundColor: yellow,
+                          foregroundColor: textColor,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          textStyle: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                          ),
+                        ),
+                        child: Text(t('signup.overview.buttons.register')),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
+            bottomNavigationBar: Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+              child: Row(
+                children: List.generate(5, (index) {
+                  bool completed = index < 5;
+                  return Expanded(
+                    child: Container(
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: completed ? yellow : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
           ),
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
-        child: Row(
-          children: List.generate(5, (index) {
-            // You can customize which segment(s) are considered "completed"
-            // For example, if this page is the 2nd or 3rd step:
-            bool completed = index < 5; // or index < 3, etc.
-            return Expanded(
-              child: Container(
-                height: 4,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: completed ? yellow : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
+          if (_isLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
               ),
-            );
-          }),
-        ),
+            ),
+        ],
       ),
     );
   }

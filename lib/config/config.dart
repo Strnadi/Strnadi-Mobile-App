@@ -176,7 +176,8 @@ class Config {
   static Future<bool> get canUpload async {
     if (!await hasBasicInternet) return false;
     final conn = await Connectivity().checkConnectivity();
-    if (conn == ConnectivityResult.mobile && dataUsageOption == DataUsageOption.wifiOnly) {
+    logger.i('Current connectivity: $conn');
+    if (conn.first == ConnectivityResult.mobile && dataUsageOption == DataUsageOption.wifiOnly) {
       return false;
     }
     return await isBackendAvailable;
