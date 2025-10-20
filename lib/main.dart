@@ -18,7 +18,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
@@ -46,6 +45,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+
+import 'privacy/tracking_consent.dart';
 
 // Create a global logger instance.
 final logger = Logger();
@@ -131,10 +132,16 @@ void main() {
       ),
     );
 
-    // 4) Continue with app bootstrap directly
-    await _continueBootstrap();
+    // 4) Handle tracking consent before finishing app bootstrap
+    final trackingAuthorized =
+        await TrackingConsentManager.ensureTrackingConsent();
+
+    // 5) Continue with app bootstrap directly
+    await _continueBootstrap(trackingAuthorized: trackingAuthorized);
     }, (error, stack) {
-      Sentry.captureException(error, stackTrace: stack);
+      if (TrackingConsentManager.isAuthorized) {
+        Sentry.captureException(error, stackTrace: stack);
+      }
   });
 }
 
@@ -160,7 +167,9 @@ class _PermissionGateState extends State<PermissionGate> {
     final notif = await perm.Permission.notification.request();
     _granted = mic.isGranted && notif.isGranted;
     if (_granted) {
-      await _continueBootstrap();
+      final trackingAuthorized =
+          await TrackingConsentManager.ensureTrackingConsent();
+      await _continueBootstrap(trackingAuthorized: trackingAuthorized);
     }
     setState(() {}); // rebuild UI based on _granted
   }
@@ -174,7 +183,7 @@ class _PermissionGateState extends State<PermissionGate> {
   }
 }
 
-Future<void> _continueBootstrap() async {
+Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
   // 4) Ostatní inicializace
   await Config.loadConfig();
   await Config.loadFirebaseConfig();
@@ -182,49 +191,57 @@ Future<void> _continueBootstrap() async {
 
   DeepLinkHandler().setNavigatorKey(navigatorKey);
 
-  await SentryFlutter.init(
-    (options) {
-      options
-        ..dsn =
-            'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
-        ..addIntegration(LoggingIntegration())
-        ..profilesSampleRate = 1.0
-        ..tracesSampleRate = 1.0
-        ..experimental.replay.sessionSampleRate = 1.0
-        ..experimental.replay.onErrorSampleRate = 1.0
-        ..environment = kDebugMode ? 'development' : 'production';
-    },
-    appRunner: () async {
-      // Check server health before app initialization
-      final health = await Config.checkServerHealth();
-      if (health == ServerHealth.maintenance) {
-        runApp(MaterialApp(home: const MaintenancePage()));
-        return;
-      }
+  Future<void> runAppBootstrap() async {
+    // Check server health before app initialization
+    final health = await Config.checkServerHealth();
+    if (health == ServerHealth.maintenance) {
+      runApp(MaterialApp(home: const MaintenancePage()));
+      return;
+    }
 
-      // Initialize your database and other services.
-      logger.i('Loading database');
-      try {
-        await DatabaseNew.database.timeout(const Duration(seconds: 10));
-      } catch (e, stack) {
-        logger.e('Error initializing database: $e',
-            error: e, stackTrace: stack);
-      }
-      logger.i('Loaded Database');
+    // Initialize your database and other services.
+    logger.i('Loading database');
+    try {
+      await DatabaseNew.database.timeout(const Duration(seconds: 10));
+    } catch (e, stack) {
+      logger.e('Error initializing database: $e',
+          error: e, stackTrace: stack);
+    }
+    logger.i('Loaded Database');
 
-      // Init Firebase messaging + lokální notifikace
-      initFirebaseMessaging();
-      initLocalNotifications();
+    // Init Firebase messaging + lokální notifikace
+    initFirebaseMessaging();
+    initLocalNotifications();
 
-      runApp(const MyApp());
+    runApp(const MyApp());
 
-      // Initialize deep links after the first frame so the Navigator exists.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        DeepLinkHandler().initialize();
-      });
-    },
-  );
-  return;
+    // Initialize deep links after the first frame so the Navigator exists.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkHandler().initialize();
+    });
+  }
+
+  if (trackingAuthorized) {
+    await SentryFlutter.init(
+      (options) {
+        options
+          ..dsn =
+              'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
+          ..addIntegration(LoggingIntegration())
+          ..profilesSampleRate = 1.0
+          ..tracesSampleRate = 1.0
+          ..experimental.replay.sessionSampleRate = 1.0
+          ..experimental.replay.onErrorSampleRate = 1.0
+          ..environment = kDebugMode ? 'development' : 'production';
+      },
+      appRunner: () async {
+        await runAppBootstrap();
+      },
+    );
+  } else {
+    logger.i('Tracking consent denied – starting without Sentry telemetry.');
+    await runAppBootstrap();
+  }
 }
 
 class MyApp extends StatelessWidget {
