@@ -18,6 +18,9 @@
  */
 
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/widgets/GuestUserWarning.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:isolate';
 import 'dart:convert';
@@ -37,6 +40,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:strnadi/widgets/GuestUserWarning.dart';
 import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
@@ -64,7 +68,8 @@ class RecordingTaskHandler extends TaskHandler {
       await _audioRecorder.hasPermission();
     }
     final dir = await getApplicationDocumentsDirectory();
-    _filepath = p.join(dir.path, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+    _filepath =
+        p.join(dir.path, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
     await _audioRecorder.start(
       RecordConfig(
         encoder: AudioEncoder.pcm16bits,
@@ -89,7 +94,8 @@ class RecordingTaskHandler extends TaskHandler {
   @override
   Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
     await _audioRecorder.stop();
-    logger.i("Foreground task destroyed at \$timestamp (isTimeout: \$isTimeout)");
+    logger
+        .i("Foreground task destroyed at \$timestamp (isTimeout: \$isTimeout)");
   }
 
   @override
@@ -190,11 +196,13 @@ Future<void> getLocationPermission(BuildContext context) async {
   logger.i("Location permission: $permission");
   while (permission != LocationPermission.whileInUse &&
       permission != LocationPermission.always) {
-    _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+    _showMessage(
+        context, "Pro správné fungování aplikace je potřeba povolit lokaci");
     permission = await Geolocator.requestPermission();
     logger.i("Location permission: $permission");
     if (permission == LocationPermission.deniedForever) {
-      exitApp(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+      exitApp(
+          context, "Pro správné fungování aplikace je potřeba povolit lokaci");
     }
   }
 }
@@ -227,9 +235,14 @@ class _LiveRecState extends State<LiveRec> {
 
   bool _isProcessingRecording = false;
 
+  late bool _isGuestUser = false;
+
   @override
   void initState() {
     super.initState();
+    _loadGuestStatus();
+    DatabaseNew.updateRecordingsMail();
+    logger.i('updateRecordingsMail called');
     _initAudioSettings();
     _audioRecorder = AudioRecorder();
     _audioRecorder.hasPermission().then((allowed) {
@@ -245,14 +258,27 @@ class _LiveRecState extends State<LiveRec> {
         _recordDuration = elapsed;
       });
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool shown = prefs.getBool('popupShown') ?? false;
+      bool isGuest = await FlutterSecureStorage().read(key: 'userId') == null;
+      if (!shown && isGuest) {
+        showDialog(
+          context: context,
+          builder: (context) => GuestUserRules(),
+        );
+        await prefs.setBool('popupShown', true);
+      }
+    });
   }
 
-  static const MethodChannel _platform = MethodChannel('com.delta.strnadi/audio');
+  static const MethodChannel _platform =
+      MethodChannel('com.delta.strnadi/audio');
 
   Future<void> _initAudioSettings() async {
     try {
       final Map<dynamic, dynamic>? settings =
-      await _platform.invokeMethod('getBestAudioSettings');
+          await _platform.invokeMethod('getBestAudioSettings');
       if (settings != null) {
         setState(() {
           sampleRate = settings['sampleRate'] ?? 48000;
@@ -286,17 +312,21 @@ class _LiveRecState extends State<LiveRec> {
             _hasMicPermission = true;
           });
         } else {
-          _showMessage(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+          _showMessage(context,
+              'Pro správné fungování aplikace je potřeba povolit mikrofon');
           return;
         }
       }
       // Check and request location permission before recording
       LocationPermission locationPerm = await Geolocator.checkPermission();
-      if (locationPerm != LocationPermission.whileInUse && locationPerm != LocationPermission.always) {
+      if (locationPerm != LocationPermission.whileInUse &&
+          locationPerm != LocationPermission.always) {
         locationPerm = await Geolocator.requestPermission();
       }
-      if (locationPerm != LocationPermission.whileInUse && locationPerm != LocationPermission.always) {
-        _showMessage(context, 'Pro zahájení nahrávání musíte povolit přístup k poloze');
+      if (locationPerm != LocationPermission.whileInUse &&
+          locationPerm != LocationPermission.always) {
+        _showMessage(
+            context, 'Pro zahájení nahrávání musíte povolit přístup k poloze');
         return;
       }
       if (_recordState == RecordState.record) {
@@ -307,7 +337,8 @@ class _LiveRecState extends State<LiveRec> {
         await _start();
       }
     } catch (e, stackTrace) {
-      logger.e("Error toggling recording: $e", error: e, stackTrace: stackTrace);
+      logger.e("Error toggling recording: $e",
+          error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     } finally {
       setState(() {
@@ -329,7 +360,8 @@ class _LiveRecState extends State<LiveRec> {
         _showMessage(context, 'Nenalezena žádná nahrávka k uložení');
         return;
       }
-      files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      files.sort(
+          (a, b) => b.statSync().modified.compareTo(a.statSync().modified));
       filepath = files.first.path;
     }
     if (_recordState == RecordState.record) {
@@ -338,7 +370,8 @@ class _LiveRecState extends State<LiveRec> {
         WakelockPlus.disable();
         _elapsedTimer.pause();
       } catch (e, stackTrace) {
-        logger.e("Error stopping recorder: $e", error: e, stackTrace: stackTrace);
+        logger.e("Error stopping recorder: $e",
+            error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         return;
       }
@@ -351,14 +384,15 @@ class _LiveRecState extends State<LiveRec> {
       recordingPartsTimeList.add(segmentDuration);
       recordedPart!.endTime = DateTime.now();
       logger.i('Segment end time: ${recordedPart!.endTime}');
-    // Always fetch the latest location for segment end
-          try {
-            final loc = await _locService.getCurrentLocation();
-            recordedPart!.gpsLatitudeEnd = loc.latitude;
-            recordedPart!.gpsLongitudeEnd = loc.longitude;
-          } catch (e, stackTrace) {
-            logger.e('Error fetching location on stop: $e', error: e, stackTrace: stackTrace);
-          }
+      // Always fetch the latest location for segment end
+      try {
+        final loc = await _locService.getCurrentLocation();
+        recordedPart!.gpsLatitudeEnd = loc.latitude;
+        recordedPart!.gpsLongitudeEnd = loc.longitude;
+      } catch (e, stackTrace) {
+        logger.e('Error fetching location on stop: $e',
+            error: e, stackTrace: stackTrace);
+      }
       Uint8List data = await File(filepath).readAsBytes();
       final dataWithHeader =
           createWavHeader(data.length, sampleRate, bitRate) + data;
@@ -414,6 +448,15 @@ class _LiveRecState extends State<LiveRec> {
     );
     logger.i('Generated file path: $path');
     return path;
+  }
+
+  Future<void> _loadGuestStatus() async {
+    final storage = const FlutterSecureStorage();
+    final userId = await storage.read(key: 'userId');
+    if (!mounted) return;
+    setState(() {
+      _isGuestUser = userId == null || userId.isEmpty;
+    });
   }
 
   @override
@@ -553,7 +596,9 @@ class _LiveRecState extends State<LiveRec> {
             Container(
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: _recordState == RecordState.record ? primaryRed : Colors.grey,
+                  color: _recordState == RecordState.record
+                      ? primaryRed
+                      : Colors.grey,
                   width: 2,
                 ),
                 borderRadius: BorderRadius.circular(30),
@@ -572,7 +617,8 @@ class _LiveRecState extends State<LiveRec> {
             const SizedBox(height: 10),
             // Status text
             if (_recordState == RecordState.stop) ...[
-              Text(t('streamRec.status.stopped'),
+              Text(
+                t('streamRec.status.stopped'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -581,7 +627,8 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             ] else if (_recordState == RecordState.record) ...[
-              Text(t('streamRec.status.recording'),
+              Text(
+                t('streamRec.status.recording'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -590,7 +637,8 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             ] else if (_recordState == RecordState.pause) ...[
-              Text(t('streamRec.status.paused'),
+              Text(
+                t('streamRec.status.paused'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -601,9 +649,11 @@ class _LiveRecState extends State<LiveRec> {
             ],
             const SizedBox(height: 10),
             // Finish button
-            if (_recordState == RecordState.record || _recordState == RecordState.pause)
+            if (_recordState == RecordState.record ||
+                _recordState == RecordState.pause)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -631,7 +681,8 @@ class _LiveRecState extends State<LiveRec> {
                       children: [
                         Icon(Icons.stop, color: primaryRed),
                         const SizedBox(width: 8),
-                        Text(t('streamRec.buttons.finishRecording'),
+                        Text(
+                          t('streamRec.buttons.finishRecording'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -640,9 +691,11 @@ class _LiveRecState extends State<LiveRec> {
                 ),
               ),
             // Discard button
-            if (_recordState == RecordState.record || _recordState == RecordState.pause)
+            if (_recordState == RecordState.record ||
+                _recordState == RecordState.pause)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 3),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -670,7 +723,8 @@ class _LiveRecState extends State<LiveRec> {
                       children: [
                         Icon(Icons.delete, color: Colors.white),
                         const SizedBox(width: 8),
-                        Text(t('streamRec.buttons.discardRecording'),
+                        Text(
+                          t('streamRec.buttons.discardRecording'),
                           style: TextStyle(fontFamily: 'Bricolage Grotesque'),
                         ),
                       ],
@@ -683,9 +737,11 @@ class _LiveRecState extends State<LiveRec> {
         ),
       ),
       bottomNavigationBar: ReusableBottomAppBar(
-          currentPage: BottomBarItem.recorder, changeConfirmation: changeConfirmation),
+        currentPage: BottomBarItem.recorder,
+        changeConfirmation: changeConfirmation,
+        isGuestUser: _isGuestUser,
+      ),
     );
-
     // Return the PopScope widget with an onPopInvokedWithResult callback that completes without returning any widget.
     return PopScope(
       canPop: false,
@@ -697,7 +753,8 @@ class _LiveRecState extends State<LiveRec> {
   }
 
   Future<bool> changeConfirmation() async {
-    if (_recordState == RecordState.record || _recordState == RecordState.pause) {
+    if (_recordState == RecordState.record ||
+        _recordState == RecordState.pause) {
       bool discard = false;
       await showDialog(
         context: context,
@@ -742,10 +799,10 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  void _discardRecording() async{
+  void _discardRecording() async {
     _pause();
     bool discard = await changeConfirmation();
-    if(discard){
+    if (discard) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -770,7 +827,8 @@ class _LiveRecState extends State<LiveRec> {
         _liveRoute.add(loc);
       });
     }).catchError((e, stackTrace) {
-      logger.e('Error fetching initial location: $e', error: e, stackTrace: stackTrace);
+      logger.e('Error fetching initial location: $e',
+          error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     });
     _locationSub = _locService.positionStream.listen((position) {
@@ -841,7 +899,8 @@ class _LiveRecState extends State<LiveRec> {
   String _formatTime(Duration duration) {
     final minutes = duration.inMinutes.toString().padLeft(2, '0');
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-    final hundredths = ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
+    final hundredths =
+        ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
     return '$minutes:$seconds,$hundredths';
   }
 
@@ -851,7 +910,7 @@ class _LiveRecState extends State<LiveRec> {
     final stream = await recorder.startStream(config);
     final completer = Completer<String>();
     stream.listen(
-          (data) {
+      (data) {
         file.writeAsBytes(data, mode: FileMode.append);
       },
       onDone: () {
@@ -878,15 +937,17 @@ class _LiveRecState extends State<LiveRec> {
     recordedPart!.endTime = DateTime.now();
     logger.i('Recorded part end time: ${recordedPart!.endTime}');
     // Always fetch the latest location for segment end
-        try {
-          final loc = await _locService.getCurrentLocation();
-          recordedPart!.gpsLongitudeEnd = loc.longitude;
-          recordedPart!.gpsLatitudeEnd = loc.latitude;
-        } catch (e, stackTrace) {
-          logger.e('Error fetching location on pause: $e', error: e, stackTrace: stackTrace);
-        }
+    try {
+      final loc = await _locService.getCurrentLocation();
+      recordedPart!.gpsLongitudeEnd = loc.longitude;
+      recordedPart!.gpsLatitudeEnd = loc.latitude;
+    } catch (e, stackTrace) {
+      logger.e('Error fetching location on pause: $e',
+          error: e, stackTrace: stackTrace);
+    }
     Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
+    final dataWithHeader =
+        createWavHeader(data.length, sampleRate, bitRate) + data;
     await File(filepath).delete();
     File newFile = await File(filepath).create();
     await newFile.writeAsBytes(dataWithHeader);
@@ -928,7 +989,8 @@ class _LiveRecState extends State<LiveRec> {
     if (recordedPart!.gpsLongitudeStart == null ||
         recordedPart!.gpsLatitudeStart == null) {
       await _locService.getCurrentLocation();
-      recordedPart!.gpsLongitudeStart = _locService.lastKnownPosition?.longitude;
+      recordedPart!.gpsLongitudeStart =
+          _locService.lastKnownPosition?.longitude;
       recordedPart!.gpsLatitudeStart = _locService.lastKnownPosition?.latitude;
     }
   }

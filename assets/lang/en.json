@@ -12,7 +12,8 @@
     "buttons": {
       "register": "Create account",
       "login": "Log in",
-      "ok": "OK"
+      "ok": "OK",
+      "continue_as_guest": "Continue as guest"
     },
     "alerts": {
       "offline_no_token": {
@@ -237,7 +238,11 @@
   },
   "bottomBar": {
     "errors": {
-      "noInternetMap": "No internet connection. The map is unavailable."
+      "noInternetMap": "No internet connection. The map is unavailable.",
+      "close": "Close",
+      "navigate_to_login": "Login",
+      "guest_user": "This feature is not available for guest users.",
+      "guest_user_desc": "To unlock the full potential of the app, please create an account or log in."
     }
   },
   "dialogs": {
@@ -674,5 +679,13 @@
     "message": "Are you sure you want to log out?",
     "cancel": "Cancel",
     "logout": "Log out"
+  },
+  "widgets": {
+    "guest_user_rules": {
+      "title": "Functionality for guest users",
+      "content": "Since you are using the app as a guest user, some functionalities are limited. You won't be able to save or upload recordings, and certain features may be restricted. To unlock the full potential of the app, please create an account or log in.",
+      "ok": "Ok",
+      "login": "Login"
+    }
   }
 }

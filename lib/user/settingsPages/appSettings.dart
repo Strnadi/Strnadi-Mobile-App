@@ -18,9 +18,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/localization/localization.dart';
 import '../../bottomBar.dart';
 import '../settingsManager.dart';
+import 'package:strnadi/config/config.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -51,10 +53,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadLanguage() async {
-    FlutterSecureStorage storage = const FlutterSecureStorage();
-    var language = await storage.read(key: 'language');
+    var prefs = await SharedPreferences.getInstance();
+    var language = await Config.getLanguagePreference();
     setState(() {
-      this.language = language ?? 'cs';
+      this.language = Config.StringFromLanguagePreference(language) ?? 'cs';
     });
   }
 
@@ -117,13 +119,15 @@ class _SettingsPageState extends State<SettingsPage> {
         DropdownMenuItem(value: 'en', child: Text('English')),
         DropdownMenuItem(value: 'de', child: Text('Deutsch')),
       ],
-      onChanged: (String? newValue) {
+      onChanged: (String? newValue) async {
         if (newValue != null) {
           Localization.load('assets/lang/$newValue.json').then((_) {
             setState(() {});
           });
-          FlutterSecureStorage storage = const FlutterSecureStorage();
-          storage.write(key: 'language', value: newValue);
+          final prefs = await SharedPreferences.getInstance();
+
+          await prefs.setString('lang', newValue);
+          Config.setLanguagePreference(Config.LangFromString(newValue));
           // Optionally save the selected language to persistent storage
         }
       },

@@ -18,6 +18,7 @@
  */
 
 import 'dart:io';
+import 'package:flutter/cupertino.dart' as Dialogs;
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
@@ -35,6 +36,7 @@ import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
+import '../auth/authorizator.dart';
 import '../config/config.dart';
 import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
@@ -580,6 +582,7 @@ class _RecordingFormState extends State<RecordingForm> {
     // Log the recording path before insertion
     logger.i("Played recording path: ${widget.filepath}");
     logger.i("Recording before insertion: path=${recording.path}");
+    logger.i(recording.toJson());
     _recordingId = await DatabaseNew.insertRecording(recording);
     recording.id = _recordingId;
     logger.i(
@@ -591,6 +594,7 @@ class _RecordingFormState extends State<RecordingForm> {
       part.recordingId = _recordingId;
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
+      logger.i(part.toJson());
     }
     logger.i("saving dialects");
     await SendDialects();
@@ -609,6 +613,42 @@ class _RecordingFormState extends State<RecordingForm> {
           t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
+
+    var storage = FlutterSecureStorage();
+
+    if (await storage.read(key: 'userId') == null) {
+      logger.w("User is in guest mode");
+      Dialogs.showCupertinoDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialogs.CupertinoAlertDialog(
+            title: Text(t('bottomBar.errors.guest_user')),
+            content: Text(t('bottomBar.errors.guest_user_desc_rec')),
+            actions: [
+              Dialogs.CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: () {
+                  //navigate to login
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          Authorizator(),
+                      settings: const RouteSettings(name: '/'),
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
+                    ),
+                  );
+                },
+                child: Text(t('bottomBar.errors.navigate_to_login')),
+              ),
+            ],
+          );
+        },
+      );
       return;
     }
     try {
@@ -647,21 +687,14 @@ class _RecordingFormState extends State<RecordingForm> {
     final Color yellowishBlack = const Color(0xFF2D2B18);
     final Color yellow = const Color(0xFFFFD641);
 
-    // Compute half screen width for buttons.
-    final halfScreen = MediaQuery.of(context).size.width * 0.45;
+    // Update marker pos from last known (if any)
     markerPosition = locationService.lastKnownPosition != null
-        ? LatLng(locationService.lastKnownPosition!.latitude,
-            locationService.lastKnownPosition!.longitude)
+        ? LatLng(
+            locationService.lastKnownPosition!.latitude,
+            locationService.lastKnownPosition!.longitude,
+          )
         : null;
 
-    // if (spectogram == null) {
-    //   return const Scaffold(
-    //     body: Center(
-    //       child: CircularProgressIndicator(),
-    //     ),
-    //   );
-    // }
-    //
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
@@ -686,42 +719,47 @@ class _RecordingFormState extends State<RecordingForm> {
           Scaffold(
             appBar: AppBar(
               centerTitle: true,
-              title: Text(placeTitle ?? " "),
+              title: Text(placeTitle),
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 12.0),
                   child: ElevatedButton(
-                    onPressed: !_isLoading ? () async {
-                      final shouldSave = await showDialog<bool>(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
-                            content: Text(t('postRecordingForm.recordingForm.dialogs.confirmation.message')),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(false),
-                                child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(true),
-                                child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
-                              ),
-                            ],
-                          );
-                        },
-                      );
+                    onPressed: !_isLoading
+                        ? () async {
+                            final shouldSave = await showDialog<bool>(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                  content: Text(t('postRecordingForm.recordingForm.dialogs.confirmation.message')),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(false),
+                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(true),
+                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
 
-                      if (shouldSave == true) {
-                        await _withLoader(() async { await upload(); });
-                      }
-                    } : null,
+                            if (shouldSave == true) {
+                              await _withLoader(() async {
+                                await upload();
+                              });
+                            }
+                          }
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: yellow,
                       foregroundColor: yellowishBlack,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                     child: Text(t('postRecordingForm.recordingForm.buttons.save')),
@@ -730,22 +768,25 @@ class _RecordingFormState extends State<RecordingForm> {
               ],
               leading: IconButton(
                 icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
-                onPressed: !_isLoading ? () async {
-                  final bool shouldPop = await _confirmDiscard() ?? false;
-                  if (shouldPop) {
-                    spectogramKey = GlobalKey();
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-                  }
-                } : null,
+                onPressed: !_isLoading
+                    ? () async {
+                        final bool shouldPop = await _confirmDiscard() ?? false;
+                        if (shouldPop) {
+                          spectogramKey = GlobalKey();
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                        }
+                      }
+                    : null,
               ),
             ),
             body: SingleChildScrollView(
               child: Center(
                 child: Column(
                   children: [
+                    // Duration / playback controls
                     Text(
                       _formatDuration(totalDuration),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -765,6 +806,8 @@ class _RecordingFormState extends State<RecordingForm> {
                         ),
                       ],
                     ),
+
+                    // Add dialect button
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                       child: ElevatedButton.icon(
@@ -779,22 +822,28 @@ class _RecordingFormState extends State<RecordingForm> {
                         onPressed: !_isLoading ? _showDialectSelectionDialog : null,
                       ),
                     ),
+
+                    // Dialect list (if any)
                     if (dialectSegments.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                          children: dialectSegments.map((d) => _buildDialectSegment(d)).toList(),
                         ),
                       ),
+
                     const SizedBox(height: 50),
+
+                    // Form
                     Form(
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'), style: TextStyle(fontWeight: FontWeight.bold)),
+                            // Recording name
+                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Container(
                               decoration: BoxDecoration(
@@ -820,14 +869,17 @@ class _RecordingFormState extends State<RecordingForm> {
                                 },
                               ),
                             ),
+
                             const SizedBox(height: 20),
-                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'), style: TextStyle(fontWeight: FontWeight.bold)),
+
+                            // Bird count
+                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Text(
                               _strnadiCountController.toInt() == 3
                                   ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
                                   : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
-                              style: TextStyle(fontSize: 14),
+                              style: const TextStyle(fontSize: 14),
                             ),
                             const SizedBox(height: 5),
                             SliderTheme(
@@ -845,8 +897,11 @@ class _RecordingFormState extends State<RecordingForm> {
                                 onChanged: (value) => setState(() => _strnadiCountController = value),
                               ),
                             ),
+
                             const SizedBox(height: 20),
-                            Text(t('postRecordingForm.recordingForm.fields.comment.name'), style: TextStyle(fontWeight: FontWeight.bold)),
+
+                            // Comment
+                            Text(t('postRecordingForm.recordingForm.fields.comment.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Container(
                               decoration: BoxDecoration(
@@ -867,9 +922,12 @@ class _RecordingFormState extends State<RecordingForm> {
                                     : null,
                               ),
                             ),
+
                             const SizedBox(height: 20),
-                            Text(t('recListItem.placeTitle'), style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text(placeTitle ?? ' '),
+
+                            // Map label
+                            Text(t('recListItem.placeTitle'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(placeTitle),
                             Text("${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
                             const SizedBox(height: 5),
                             Padding(
@@ -889,7 +947,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                           alignment: Alignment.center,
                                           child: Text(
                                             t('postRecordingForm.recordingForm.placeholders.noInternet'),
-                                            style: TextStyle(fontSize: 14, color: Colors.black54),
+                                            style: const TextStyle(fontSize: 14, color: Colors.black54),
                                           ),
                                         );
                                       } else if (_computedCenter.latitude != 0.0 && _computedCenter.longitude != 0.0) {
@@ -915,7 +973,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                               markers: widget.recordingParts.map((part) {
                                                 return Marker(
                                                   point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
-                                                  child: Icon(Icons.place, color: Colors.red, size: 30),
+                                                  child: const Icon(Icons.place, color: Colors.red, size: 30),
                                                 );
                                               }).toList(),
                                             ),
@@ -927,7 +985,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                           alignment: Alignment.center,
                                           child: Text(
                                             t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
-                                            style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
                                           ),
                                         );
                                       }
@@ -936,36 +994,40 @@ class _RecordingFormState extends State<RecordingForm> {
                                 ),
                               ),
                             ),
+
+                            // Discard button
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 20),
                               child: SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: !_isLoading ? () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
-                                          content: Text(t('postRecordingForm.recordingForm.dialogs.confirmation.message')),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () { Navigator.of(context).pop(); },
-                                              child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
-                                            ),
-                                            TextButton(
-                                              onPressed: () {
-                                                spectogramKey = GlobalKey();
-                                                Navigator.of(context).pop();
-                                                Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-                                              },
-                                              child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  } : null,
+                                  onPressed: !_isLoading
+                                      ? () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                                content: Text(t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () { Navigator.of(context).pop(); },
+                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      spectogramKey = GlobalKey();
+                                                      Navigator.of(context).pop();
+                                                      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                                    },
+                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        }
+                                      : null,
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,
                                     backgroundColor: secondaryRed,
@@ -986,6 +1048,8 @@ class _RecordingFormState extends State<RecordingForm> {
               ),
             ),
           ),
+
+          // Global loader overlay
           if (_isLoading)
             Positioned.fill(
               child: AbsorbPointer(
