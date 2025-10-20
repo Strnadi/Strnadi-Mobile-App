@@ -235,9 +235,12 @@ class _LiveRecState extends State<LiveRec> {
 
   bool _isProcessingRecording = false;
 
+  late bool _isGuestUser;
+
   @override
   void initState() {
     super.initState();
+    _loadGuestStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       bool shown = prefs.getBool('popupShown') ?? false;
@@ -444,6 +447,15 @@ class _LiveRecState extends State<LiveRec> {
     );
     logger.i('Generated file path: $path');
     return path;
+  }
+
+  Future<void> _loadGuestStatus() async {
+    final storage = const FlutterSecureStorage();
+    final userId = await storage.read(key: 'userId');
+    if (!mounted) return;
+    setState(() {
+      _isGuestUser = userId == null || userId.isEmpty;
+    });
   }
 
   @override
@@ -726,10 +738,9 @@ class _LiveRecState extends State<LiveRec> {
       bottomNavigationBar: ReusableBottomAppBar(
         currentPage: BottomBarItem.recorder,
         changeConfirmation: changeConfirmation,
-        isGuestUser: true,
+        isGuestUser: _isGuestUser,
       ),
     );
-
     // Return the PopScope widget with an onPopInvokedWithResult callback that completes without returning any widget.
     return PopScope(
       canPop: false,

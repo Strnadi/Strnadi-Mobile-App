@@ -9,7 +9,7 @@ class Localization {
     FlutterSecureStorage storage = const FlutterSecureStorage();
 
     var language = await storage.read(key: 'language');
-    dict ??= 'assets/lang/${language ?? 'en'}.json';
+    dict ??= 'assets/lang/${language ?? 'cs'}.json';
 
     final jsonString = await rootBundle.loadString(dict);
     final Map<String, dynamic> jsonMap = json.decode(jsonString);

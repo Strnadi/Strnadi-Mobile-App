@@ -112,7 +112,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         bottomNavigationBar: ReusableBottomAppBar(
             currentPage: selectedPage,
             changeConfirmation: () => Future.value(true),
-            isGuestUser: isGuestUser ?? true));
+            isGuestUser: isGuestUser ?? false));
   }
 }
 

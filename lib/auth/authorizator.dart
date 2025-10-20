@@ -32,6 +32,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
 import 'package:strnadi/md_renderer.dart';
+import 'package:strnadi/widgets/FlagDropdown.dart';
 // Removed: import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../config/config.dart';
@@ -147,9 +148,20 @@ Future<AuthStatus> isLoggedIn() async {
 class _AuthState extends State<Authorizator> {
   bool _isOnline = true;
 
+  final List<Language> languages = [
+    Language(name: 'Czech', code: 'cs', flag: '🇨🇿'),
+    Language(name: 'English', code: 'en', flag: '🇬🇧'),
+    Language(name: 'German', code: 'de', flag: '🇩🇪'),
+  ];
+
+  Language? selectedLanguage;
+
   @override
   void initState() {
     super.initState();
+    setState(() {
+      selectedLanguage = languages[0];
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showWIPwarning();
@@ -178,160 +190,178 @@ class _AuthState extends State<Authorizator> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Spacing from the top
-                  //const SizedBox(height: 0),
+          child: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32.0, vertical: 20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Spacing from the top
+                    //const SizedBox(height: 0),
 
-                  // Bird image
-                  Image.asset(
-                    'assets/images/ncs_logo_tall_large.png', // Update path if needed
-                    width: 200,
-                    height: 200,
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Main title
-                  Text(
-                    t('auth.title'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
+                    // Bird image
+                    Image.asset(
+                      'assets/images/ncs_logo_tall_large.png', // Update path if needed
+                      width: 200,
+                      height: 200,
                     ),
-                  ),
 
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 32),
 
-                  // Subtitle
-                  Text(
-                    t('auth.subtitle'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: textColor,
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // "Založit účet" button (yellow background, no elevation)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _navigateIfAllowed(const RegMail()),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0, // No elevation
-                        shadowColor: Colors.transparent, // Remove shadow
-                        backgroundColor: yellow,
-                        foregroundColor: textColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        t('auth.buttons.register'),
-                        style: TextStyle(color: textColor),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // "Přihlásit se" button (outlined)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _navigateIfAllowed(const Login()),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: textColor,
-                        side: BorderSide(color: Colors.grey[200]!, width: 2),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(t('auth.buttons.login'),
-                          style: TextStyle(color: textColor)),
-                    ),
-                  ),
-
-                  // Text to continue as guest
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LiveRec()),
-                      );
-                    },
-                    child: Text(
-                      t('auth.buttons.continue_as_guest'),
+                    // Main title
+                    Text(
+                      t('auth.title'),
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.blue,
-                        decoration: TextDecoration.underline,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
-                  ),
 
-                  // Add the terms here
-                  const SizedBox(height: 180),
-                  Positioned(
-                    bottom: 10, // 5 pixels from bottom
-                    left: 0,
-                    right: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          t('auth.disclaimer.consent_prefix'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12, color: Colors.black),
-                        ),
-                        const SizedBox(height: 4),
-                        GestureDetector(
-                          onTap: () => _launchURL(),
-                          child: Text(
-                            t('auth.disclaimer.privacy_policy'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue,
-                              decoration: TextDecoration.underline,
-                            ),
+                    const SizedBox(height: 8),
+
+                    // Subtitle
+                    Text(
+                      t('auth.subtitle'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: textColor,
+                      ),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // "Založit účet" button (yellow background, no elevation)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _navigateIfAllowed(const RegMail()),
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0, // No elevation
+                          shadowColor: Colors.transparent, // Remove shadow
+                          backgroundColor: yellow,
+                          foregroundColor: textColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          textStyle: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                      ],
+                        child: Text(
+                          t('auth.buttons.register'),
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
                     ),
-                  ),
 
-                  // Add disclaimer and space at the bottom
-                ],
+                    const SizedBox(height: 16),
+
+                    // "Přihlásit se" button (outlined)
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => _navigateIfAllowed(const Login()),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: textColor,
+                          side: BorderSide(color: Colors.grey[200]!, width: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          textStyle: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(t('auth.buttons.login'),
+                            style: TextStyle(color: textColor)),
+                      ),
+                    ),
+
+                    // Text to continue as guest
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LiveRec()),
+                        );
+                      },
+                      child: Text(
+                        t('auth.buttons.continue_as_guest'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+
+                    // Add the terms here
+                    const SizedBox(height: 180),
+                    Positioned(
+                      bottom: 10, // 5 pixels from bottom
+                      left: 0,
+                      right: 0,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            t('auth.disclaimer.consent_prefix'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.black),
+                          ),
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () => _launchURL(),
+                            child: Text(
+                              t('auth.disclaimer.privacy_policy'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Add disclaimer and space at the bottom
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+          Positioned(
+            top: 8,
+            left: 8,
+            child: CompactLanguageDropdown(
+              languages: languages,
+              selectedLanguage: selectedLanguage ?? languages.first,
+              onChanged: (Language? newValue) async {
+                if (newValue == null) return;
+                await Localization.load('assets/lang/${newValue.code}.json');
+                if (!mounted) return;
+                setState(() => selectedLanguage = newValue);
+                logger.i('Language changed to ${newValue.code}');
+              },
+            ),
+          )
+        ],
+      )),
     );
   }
 
