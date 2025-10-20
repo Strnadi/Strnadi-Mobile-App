@@ -103,9 +103,16 @@ class _LoginState extends State<Login> {
     final url = Uri.https(Config.host, '/auth/login');
 
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showMessage("Vyplňte email i heslo");
+      _showMessage(t('login.errors.emptyFieldsError'));
       return;
     }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(_emailController.text)) {
+      _showMessage(t('login.errors.invalidEmailError'));
+      return;
+    }
+
 
     try {
       final response = await http.post(
@@ -176,6 +183,8 @@ class _LoginState extends State<Login> {
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
+        DatabaseNew.updateRecordingsMail();
+        logger.i(DatabaseNew.getAllRecordings());
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
@@ -425,6 +434,7 @@ class _LoginState extends State<Login> {
                                             value: response.body.toString()),
                                       }),
                                   fb.refreshToken(),
+                                  DatabaseNew.updateRecordingsMail(),
                                   Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
@@ -480,16 +490,17 @@ class _LoginState extends State<Login> {
                               context,
                               MaterialPageRoute(
                                   builder: (_) => RegName(
-                                    name: data['firstName'] as String? ?? '',
-                                    surname:
-                                    data['lastName'] as String? ?? '',
-                                    email: data['email'] as String? ?? '',
-                                    jwt: data['jwt'] as String,
-                                    appleId:
-                                    data['userIdentifier'] as String? ??
-                                        '',
-                                    consent: true,
-                                  )));
+                                        name:
+                                            data['firstName'] as String? ?? '',
+                                        surname:
+                                            data['lastName'] as String? ?? '',
+                                        email: data['email'] as String? ?? '',
+                                        jwt: data['jwt'] as String,
+                                        appleId:
+                                            data['userIdentifier'] as String? ??
+                                                '',
+                                        consent: true,
+                                      )));
                           return;
                         } else if (data['exists'] == true) {
                           // User exists, proceed with login
@@ -512,7 +523,10 @@ class _LoginState extends State<Login> {
 
                       if ((firstName != null &&
                           lastName != null &&
-                          email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
+                          email != null &&
+                          firstName.isEmpty &&
+                          lastName.isEmpty &&
+                          email.isEmpty)) {
                         // Missing profile data → go to the registration screen
                         Navigator.pushReplacement(
                           context,
@@ -536,6 +550,7 @@ class _LoginState extends State<Login> {
                       await secureStorage.write(key: 'token', value: jwt);
                       logger.i('Apple sign‑in successful, token stored');
 
+                      DatabaseNew.updateRecordingsMail();
                       // Retrieve user‑id from backend
                       final idResponse = await http.get(
                         Uri.parse('https://${Config.host}/users/get-id'),
@@ -547,7 +562,7 @@ class _LoginState extends State<Login> {
                       if (idResponse.statusCode != 200) {
                         logger.w(
                             'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
-                        _showMessage('Chyba při získávání ID uživatele');
+                        _showMessage('login.errors.idGetError');
                         return;
                       }
                       logger.i('User ID retrieved: ${idResponse.body}');
@@ -565,8 +580,7 @@ class _LoginState extends State<Login> {
                         context,
                         MaterialPageRoute(builder: (_) => LiveRec()),
                       );
-                    }
-                    catch (e, stackTrace) {
+                    } catch (e, stackTrace) {
                       logger.e('Apple sign-in error: $e',
                           error: e, stackTrace: stackTrace);
                       Sentry.captureException(e, stackTrace: stackTrace);
@@ -579,8 +593,8 @@ class _LoginState extends State<Login> {
                     height: 24,
                     width: 24,
                   ),
-                  label: const Text(
-                    'Pokračovat přes Apple',
+                  label: Text(
+                    t('login.buttons.appleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(

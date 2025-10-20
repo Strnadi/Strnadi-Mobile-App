@@ -37,7 +37,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.notification,
-      appBarTitle: t('Oznámení'),
+      appBarTitle: t('notifications.title'),
       content: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: notifications.length,

@@ -65,7 +65,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     'XB': Colors.red,
     'Jiné': Colors.white,
     'Nevím': Colors.grey.shade300,
-    'Bez Dielektu': Colors.grey.shade300,
+    'Bez dialektu': Colors.grey.shade300,
   };
 
   @override

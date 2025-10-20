@@ -150,16 +150,16 @@ class _RegOverviewState extends State<RegOverview> {
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
         logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
-        _showMessage('Uživatel již existuje');
+        _showMessage(t('signup.overview.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
-        _showMessage('Nastala chyba :( Zkuste to znovu');
+        _showMessage(t('signup.overview.errors.error_ocured'));
         logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
       }
     } catch (error) {
       GoogleSignInService.signOut();
       logger.e("An error occurred: $error");
-      _showMessage('Nastala chyba :( Zkuste to znovu');
+      _showMessage(t('signup.overview.errors.error_ocured'));
     } finally {
       setState(() {
         _isLoading = false;
@@ -226,19 +226,19 @@ class _RegOverviewState extends State<RegOverview> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(t('Zkontrolujte prosím zadané údaje a potvrďte registraci.'),
+              Text(t('signup.overview.check_details'),
                 style: TextStyle(
                   fontSize: 14,
                   color: textColor,
                 ),
               ),
               const SizedBox(height: 32),
-              _buildInfoItem('Email', widget.email),
-              _buildInfoItem('Jméno', widget.name),
-              _buildInfoItem('Příjmení', widget.surname),
-              _buildInfoItem('Přezdívka', widget.nickname.isNotEmpty ? widget.nickname : '-'),
-              _buildInfoItem('PSČ', widget.postCode),
-              _buildInfoItem('Obec', widget.city),
+              _buildInfoItem(t('signup.overview.items.email'), widget.email),
+              _buildInfoItem(t('signup.overview.items.name'), widget.name),
+              _buildInfoItem(t('signup.overview.items.lastname'), widget.surname),
+              _buildInfoItem(t('signup.overview.items.nickname'), widget.nickname.isNotEmpty ? widget.nickname : '-'),
+              _buildInfoItem(t('signup.overview.items.post_code'), widget.postCode),
+              _buildInfoItem(t('signup.overview.items.city'), widget.city),
               const SizedBox(height: 32),
               Row(
                 children: [

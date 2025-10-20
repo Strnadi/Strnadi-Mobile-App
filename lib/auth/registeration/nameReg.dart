@@ -143,7 +143,7 @@ class _RegNameState extends State<RegName> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Zadejte jméno';
+                        return t('signup.name.errors.null_name_err');
                       }
                       return null;
                     },
@@ -183,7 +183,7 @@ class _RegNameState extends State<RegName> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Zadejte příjmení';
+                        return t('signup.name.errors.null_surname_err');
                       }
                       return null;
                     },
@@ -204,7 +204,7 @@ class _RegNameState extends State<RegName> {
                     controller: _nickController,
                     keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      hintText: 'Volitelné',
+                      hintText: t('signup.name.nickname_hint'),
                       fillColor: Colors.grey[200],
                       filled: true,
                       contentPadding:

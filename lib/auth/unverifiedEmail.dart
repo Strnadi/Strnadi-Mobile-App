@@ -99,8 +99,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: Text(t('Email již ověřen')),
-            content: Text(t('Tento e-mail již byl ověřen.')),
+            title: Text(t('signup.emailSent.dialogs.alreadyVerified.title')),
+            content: Text(t('signup.emailSent.dialogs.alreadyVerified.message')),
             actions: [
               TextButton(
                 onPressed: alreadyVerified,
@@ -160,7 +160,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              Text(t('Email není ověřen'),
+              Text(t('signup.emailSent.notVerified'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -169,7 +169,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
               ),
               const SizedBox(height: 8),
               Text(
-                t('Pro pokračování se přihlášením ověřte prosím svůj e-mail ({email}).\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení.')
+                t('signup.emailSent.info')
                     .replaceFirst('{email}', widget.userEmail),
                 style: TextStyle(
                   fontSize: 14,
@@ -194,7 +194,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                     ),
                   ),
                   child: Text(
-                    _counter > 0 ? 'Poslat znovu ($_counter s)' : 'Poslat znovu',
+                    _counter > 0 ? '${t('signup.emailVerify.resend')} ($_counter s)' : t('signup.emailVerify.resend'),
                   ),
                 ),
               ),
@@ -215,7 +215,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
-                  child: Text(t('Otevřít e-mail')),
+                  child: Text(t('signup.emailVerify.buttons.openEmailApp')),
                 ),
               ),
               const SizedBox(height: 16),

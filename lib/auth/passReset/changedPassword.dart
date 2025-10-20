@@ -39,7 +39,7 @@ class PasswordChangedScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t('Heslo úspěšně změněno'),
+                Text(t('passwordReset.changed.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -47,7 +47,7 @@ class PasswordChangedScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(t('Nyní se můžete přihlásit do vašeho účtu.'),
+                Text(t('passwordReset.changed.message'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -73,7 +73,7 @@ class PasswordChangedScreen extends StatelessWidget {
                           fontSize: 16,
                         ),
                       ),
-                      child: Text(t('Ok')),
+                      child: Text(t('auth.buttons.ok')),
                     ),
                   ),
                 ),

@@ -71,7 +71,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 20),
 
                 // Heading
-                Text(t('Zadejte váš e-mail pro změnu hesla'),
+                Text(t('passwordReset.request.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -80,7 +80,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 8),
 
                 // Subheading
-                Text(t('Na tento e-mail vám pošleme instrukce pro reset hesla'),
+                Text(t('passwordReset.request.subtitle'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
@@ -118,12 +118,12 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Vyplňte prosím e-mail';
+                      return t('passwordReset.request.errors.emptyEmail');
                     }
                     if (!RegExp(
                       r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
                     ).hasMatch(value)) {
-                      return 'Zadejte platný e-mail';
+                      return t('login.errors.invalidEmailFormat');
                     }
                     return null;
                   },
@@ -152,7 +152,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
               if (_GlobalKey.currentState?.validate() ?? false) {
                 requestPasswordReset(_emailController.text);
               } else {
-                _showMessage('Zadejte platný e-mail před odesláním.');
+                _showMessage(t('passwordReset.request.errors.sendBeforeValid'));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -169,7 +169,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: Text(t('Poslat odkaz')),
+            child: Text(t('passwordReset.request.buttons.sendLink')),
           ),
         ),
       ),
@@ -183,21 +183,21 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        _showMessage("E-mail s pokyny pro reset hesla byl odeslán.");
+        _showMessage(t('passwordReset.request.messages.sent'));
         Navigator.replace(context, newRoute: MaterialPageRoute(builder: (_) => ResetEmailSent(userEmail: email)), oldRoute: ModalRoute.of(context)!,);
       } else if(response.statusCode == 401) {
         logger.w('Unregistred email: ${response.statusCode} | ${response.body}');
-        _showMessage("Zadaný e-mail není registrován.");
+        _showMessage(t('passwordReset.request.messages.unregistered'));
       } else if(response.statusCode == 500) {
         logger.w('Server error: ${response.statusCode} | ${response.body}');
-        _showMessage("Server je momentálně nedostupný. Zkuste to prosím později.");
+        _showMessage(t('passwordReset.request.messages.serverError'));
       } else {
         logger.i('Failed to send password reset: ${response.statusCode}');
-        _showMessage("Nepodařilo se odeslat reset hesla. Zkuste to prosím znovu.");
+        _showMessage(t('passwordReset.request.messages.genericFail'));
       }
     } catch (e, stackTrace) {
       logger.e('Error sending password reset request: $e', error: e, stackTrace: stackTrace);
-      _showMessage("Chyba při odesílání požadavku. Zkontrolujte připojení.");
+      _showMessage(t('passwordReset.request.messages.connectionError'));
     }
   }
 
@@ -205,7 +205,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Reset hesla')),
+        title: Text(t('passwordReset.request.dialogTitle')),
         content: Text(message),
         actions: [
           TextButton(

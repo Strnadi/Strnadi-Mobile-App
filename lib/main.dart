@@ -15,15 +15,12 @@
  */
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/material.dart';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import 'package:permission_handler/permission_handler.dart' as perm;
 
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/login.dart';
@@ -31,7 +28,10 @@ import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/auth/passReset/newPassword.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
+import 'package:strnadi/auth/unverifiedEmail.dart';
 import 'package:strnadi/updateChecker.dart';
+import 'auth/emailVerificationResult/notSuccessVerify.dart';
+import 'auth/emailVerificationResult/successVerify.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
@@ -45,7 +45,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:permission_handler/permission_handler.dart' as perm;
+
+import 'privacy/tracking_consent.dart';
 
 // Create a global logger instance.
 final logger = Logger();
@@ -90,56 +91,58 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
 
 void main() {
   runZonedGuarded(() async {
-    await _bootstrap();
-  }, (error, stack) {
-    Sentry.captureException(error, stackTrace: stack);
-  });
-}
+    WidgetsFlutterBinding.ensureInitialized();
 
-Future<void> _bootstrap() async {
-  WidgetsFlutterBinding.ensureInitialized();
+    // 1) Firebase initialization
+    await Firebase.initializeApp();
+    await Config.loadConfig();
+    await Config.loadFirebaseConfig();
 
-  // 1) Firebase jako první
-  await Firebase.initializeApp();
+    // 2) Workmanager initialization
+    Workmanager().initialize(
+      callbackDispatcher, // The top-level function
+      isInDebugMode: false,
+    );
 
   // Load localized strings from JSON.
   await Localization.load(null);
 
-  await Config.loadConfig();
-  await Config.loadFirebaseConfig();
+    await Config.loadConfig();
+    await Config.loadFirebaseConfig();
+    // 3) Foreground‑task setup
+    FlutterForegroundTask.initCommunicationPort();
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'strnadi_hlavni_sluzba',
+        channelName: 'Strnadi – služba na pozadí',
+        channelDescription:
+            'Trvalá notifikace služby Strnadi, která zajišťuje chod aplikace i při běhu na pozadí.',
+        channelImportance: NotificationChannelImportance.DEFAULT,
+        priority: NotificationPriority.DEFAULT,
+        onlyAlertOnce: true,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(
+        showNotification: true,
+        playSound: false,
+      ),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.repeat(600000),
+        autoRunOnBoot: true,
+        allowWakeLock: true,
+      ),
+    );
 
-  // Initialize workmanager with our callback.
-  Workmanager().initialize(
-    callbackDispatcher, // The top-level function
-    isInDebugMode: false, // Set this to false for production
-  );
+    // 4) Handle tracking consent before finishing app bootstrap
+    final trackingAuthorized =
+        await TrackingConsentManager.ensureTrackingConsent();
 
-  // 3) Foreground‑task
-  FlutterForegroundTask.initCommunicationPort();
-  FlutterForegroundTask.init(
-    androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'strnadi_hlavni_sluzba',
-      channelName: 'Strnadi – služba na pozadí',
-      channelDescription:
-          'Trvalá notifikace služby Strnadi, která zajišťuje chod aplikace i při běhu na pozadí.',
-      channelImportance: NotificationChannelImportance.DEFAULT,
-      priority: NotificationPriority.DEFAULT,
-      onlyAlertOnce: true,
-    ),
-    iosNotificationOptions: const IOSNotificationOptions(
-      showNotification: true,
-      playSound: false,
-    ),
-    foregroundTaskOptions: ForegroundTaskOptions(
-      eventAction: ForegroundTaskEventAction.repeat(600000),
-      autoRunOnBoot: true,
-      allowWakeLock: true,
-    ),
-  );
-
-  // 2) Spusť UI s kontrolou povolení
-  runApp(MyApp());
-  return; // zbytek se spustí až po udělení povolení
+    // 5) Continue with app bootstrap directly
+    await _continueBootstrap(trackingAuthorized: trackingAuthorized);
+    }, (error, stack) {
+      if (TrackingConsentManager.isAuthorized) {
+        Sentry.captureException(error, stackTrace: stack);
+      }
+  });
 }
 
 // PermissionGate widget – controls runtime permissions and continues app bootstrap
@@ -164,7 +167,9 @@ class _PermissionGateState extends State<PermissionGate> {
     final notif = await perm.Permission.notification.request();
     _granted = mic.isGranted && notif.isGranted;
     if (_granted) {
-      await _continueBootstrap();
+      final trackingAuthorized =
+          await TrackingConsentManager.ensureTrackingConsent();
+      await _continueBootstrap(trackingAuthorized: trackingAuthorized);
     }
     setState(() {}); // rebuild UI based on _granted
   }
@@ -178,57 +183,65 @@ class _PermissionGateState extends State<PermissionGate> {
   }
 }
 
-Future<void> _continueBootstrap() async {
+Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
   // 4) Ostatní inicializace
   await Config.loadConfig();
   await Config.loadFirebaseConfig();
   initFirebase();
 
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
-
   DeepLinkHandler().setNavigatorKey(navigatorKey);
 
-  await SentryFlutter.init(
-    (options) {
-      options
-        ..dsn =
-            'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
-        ..addIntegration(LoggingIntegration())
-        ..profilesSampleRate = 1.0
-        ..tracesSampleRate = 1.0
-        ..experimental.replay.sessionSampleRate = 1.0
-        ..experimental.replay.onErrorSampleRate = 1.0
-        ..environment = kDebugMode ? 'development' : 'production';
-    },
-    appRunner: () async {
-      // Check server health before app initialization
-      final health = await Config.checkServerHealth();
-      if (health == ServerHealth.maintenance) {
-        runApp(MaterialApp(home: const MaintenancePage()));
-        return;
-      }
+  Future<void> runAppBootstrap() async {
+    // Check server health before app initialization
+    final health = await Config.checkServerHealth();
+    if (health == ServerHealth.maintenance) {
+      runApp(MaterialApp(home: const MaintenancePage()));
+      return;
+    }
 
-      // Initialize your database and other services.
-      logger.i('Loading database');
-      try {
-        await DatabaseNew.database.timeout(const Duration(seconds: 10));
-      } catch (e, stack) {
-        logger.e('Error initializing database: $e',
-            error: e, stackTrace: stack);
-      }
-      logger.i('Loaded Database');
+    // Initialize your database and other services.
+    logger.i('Loading database');
+    try {
+      await DatabaseNew.database.timeout(const Duration(seconds: 10));
+    } catch (e, stack) {
+      logger.e('Error initializing database: $e',
+          error: e, stackTrace: stack);
+    }
+    logger.i('Loaded Database');
 
-      // Init Firebase messaging + lokální notifikace
-      initFirebaseMessaging();
-      initLocalNotifications();
+    // Init Firebase messaging + lokální notifikace
+    initFirebaseMessaging();
+    initLocalNotifications();
 
-      // Deep‑linky
+    runApp(const MyApp());
+
+    // Initialize deep links after the first frame so the Navigator exists.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkHandler().initialize();
+    });
+  }
 
-      runApp(const MyApp());
-    },
-  );
-  return;
+  if (trackingAuthorized) {
+    await SentryFlutter.init(
+      (options) {
+        options
+          ..dsn =
+              'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
+          ..addIntegration(LoggingIntegration())
+          ..profilesSampleRate = 1.0
+          ..tracesSampleRate = 1.0
+          ..experimental.replay.sessionSampleRate = 1.0
+          ..experimental.replay.onErrorSampleRate = 1.0
+          ..environment = kDebugMode ? 'development' : 'production';
+      },
+      appRunner: () async {
+        await runAppBootstrap();
+      },
+    );
+  } else {
+    logger.i('Tracking consent denied – starting without Sentry telemetry.');
+    await runAppBootstrap();
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -248,7 +261,33 @@ class MyApp extends StatelessWidget {
         ),
         fontFamily: 'Bricolage Grotesque',
       ),
-      home: const HomeScreen(),
+      home: Authorizator(),
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        switch (name) {
+          case '/ucet/email-neoveren':
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/email-not-verified'),
+              builder: (_) => EmailVerificationFailed(),
+            );
+          case '/ucet/email-overen':
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/email-verified'),
+              builder: (_) => EmailVerified(),
+            );
+          case '/ucet/obnova-hesla':
+            final args = settings.arguments as Map<String, dynamic>?;
+            final token = args?['token'] as String? ?? '';
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/reset-password'),
+              builder: (_) => ChangePassword(jwt: token),
+            );
+          default:
+            return null; // fall through to routes/onUnknownRoute
+        }
+      },
+      onUnknownRoute: (settings) =>
+          MaterialPageRoute(builder: (_) => Authorizator()),
       routes: {
         '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {
@@ -257,6 +296,8 @@ class MyApp extends StatelessWidget {
           final token = args?['token'] ?? '';
           return ChangePassword(jwt: token);
         },
+        '/email-not-verified': (context) => EmailVerificationFailed(),
+        '/email-verified': (context) => EmailVerified(),
       },
     );
   }
