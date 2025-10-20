@@ -235,23 +235,12 @@ class _LiveRecState extends State<LiveRec> {
 
   bool _isProcessingRecording = false;
 
-  late bool _isGuestUser;
+  late bool _isGuestUser = false;
 
   @override
   void initState() {
     super.initState();
     _loadGuestStatus();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      bool shown = prefs.getBool('popupShown') ?? false;
-      if (!shown) {
-        showDialog(
-          context: context,
-          builder: (context) => GuestUserRules(),
-        );
-        await prefs.setBool('popupShown', true);
-      }
-    });
     DatabaseNew.updateRecordingsMail();
     logger.i('updateRecordingsMail called');
     _initAudioSettings();
@@ -268,6 +257,18 @@ class _LiveRecState extends State<LiveRec> {
       setState(() {
         _recordDuration = elapsed;
       });
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool shown = prefs.getBool('popupShown') ?? false;
+      bool isGuest = await FlutterSecureStorage().read(key: 'userId') == null;
+      if (!shown && isGuest) {
+        showDialog(
+          context: context,
+          builder: (context) => GuestUserRules(),
+        );
+        await prefs.setBool('popupShown', true);
+      }
     });
   }
 

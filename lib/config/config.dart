@@ -29,7 +29,7 @@ enum DataUsageOption { wifiOnly, wifiAndMobile }
 /// Server health status codes
 enum ServerHealth { healthy, maintenance, offline }
 
-enum LanguagePreference { systemDefault, en, cs, de }
+enum LanguagePreference { en, cs, de }
 
 Logger logger = Logger();
 
@@ -56,9 +56,6 @@ class Config {
         return 'cs';
       case LanguagePreference.de:
         return 'de';
-      case LanguagePreference.systemDefault:
-      default:
-        return 'system';
     }
   }
 
@@ -70,8 +67,6 @@ class Config {
         return LanguagePreference.cs;
       case 'de':
         return LanguagePreference.de;
-      default:
-        return LanguagePreference.systemDefault;
     }
   }
 
@@ -119,11 +114,11 @@ class Config {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_languagePrefKey);
     if (raw == null) {
-      return LanguagePreference.systemDefault;
+      return LanguagePreference.cs;
     } else {
       return LanguagePreference.values.firstWhere(
         (e) => e.toString() == raw,
-        orElse: () => LanguagePreference.systemDefault,
+        orElse: () => LanguagePreference.cs,
       );
     }
   }
