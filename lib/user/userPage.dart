@@ -229,12 +229,12 @@ class _UserPageState extends State<UserPage> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: Text(t('Odhlásit se')),
-            content: Text(t('Opravdu se chcete odhlásit?')),
+            title: Text(t('logout.title')),
+            content: Text(t('logout.message')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
+                child: Text(t('logout.cancel')),
               ),
               TextButton(
                 onPressed: () async {
@@ -245,7 +245,7 @@ class _UserPageState extends State<UserPage> {
                   Navigator.of(context).pushNamedAndRemoveUntil(
                       '/authorizator', (route) => false);
                 },
-                child: Text(t('Odhlásit se')),
+                child: Text(t('logout.logout')),
               ),
             ],
           );
@@ -293,7 +293,7 @@ class _UserPageState extends State<UserPage> {
             _isConnected
                 ? MenuScreen()
                 : Text(t(
-                    'Osobní údaje nejsou dostupné bez připojení k internetu')),
+                    'user.menu.error.noInternet')),
           ],
         ),
       ),

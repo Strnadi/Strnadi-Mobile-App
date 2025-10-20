@@ -55,28 +55,30 @@
 	<string></string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>newapi.strnadi.cz</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<false/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-			<key>devapi.strnadi.cz</key>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+            <key>NSExceptionDomains</key>
             <dict>
-                <key>NSExceptionAllowsInsecureHTTPLoads</key>
-                <false/>
-                <key>NSIncludesSubdomains</key>
-                <true/>
-            </dict>
-		</dict>
-	</dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Tato aplikace potřebuje přístup k fotoaparátu pro pořizování fotografií ptáků k identifikaci a zaznamenávání.</string>
+                    <key>newapi.strnadi.cz</key>
+        <dict>
+            <key>NSExceptionAllowsInsecureHTTPLoads</key>
+            <false/>
+            <key>NSIncludesSubdomains</key>
+            <true/>
+        </dict>
+        <key>devapi.strnadi.cz</key>
+        <dict>
+            <key>NSExceptionAllowsInsecureHTTPLoads</key>
+            <false/>
+            <key>NSIncludesSubdomains</key>
+            <true/>
+        </dict>
+    </dict>
+    </dict>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Tato aplikace používá vaše údaje pouze ke zlepšení analytiky a personalizace obsahu. Souhlas můžete kdykoli změnit v nastavení.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Tato aplikace potřebuje přístup k fotoaparátu pro pořizování fotografií ptáků k identifikaci a zaznamenávání.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Tato aplikace potřebuje přístup pro určení lokace nahrávky.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -118,12 +120,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>com.posthog.posthog.API_KEY</key>
+    <key>com.posthog.posthog.API_KEY</key>
     <string>phc_z9EJPD4Mx7tvxn4ERnub3lSPkMg51hMgmthaiqM3QDj</string>
     <key>com.posthog.posthog.POSTHOG_HOST</key>
     <string>https://eu.i.posthog.com</string>
     <key>com.posthog.posthog.CAPTURE_APPLICATION_LIFECYCLE_EVENTS</key>
     <true/>
+    <key>com.posthog.posthog.AUTO_INIT</key>
+    <false/>
     <key>com.apple.developer.associated-domains</key>
     <array>
         <string>applinks:strnadi.cz</string>

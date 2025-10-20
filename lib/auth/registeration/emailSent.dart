@@ -111,8 +111,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
       else if(response.statusCode == 208){
         logger.i('Email already verified');
         showDialog(context: context, builder: (_) => AlertDialog(
-          title: Text(t('Email již ověřen')),
-          content: Text(t('Tento e-mail již byl ověřen.')),
+          title: Text(t('signup.emailVerify.alreadyVerified.title')),
+          content: Text(t('signup.emailVerify.alreadyVerified.message')),
           actions: [
             TextButton(
               onPressed: alreadyVerified,
@@ -195,7 +195,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  t('Na „{email}” jsme vám poslali odkaz na ověření e-mailové adresy. Kliknutím na odkaz potvrdíte svoji emailovou adresu.')
+                  t('signup.emailVerify.info')
                       .replaceFirst('{email}', widget.userEmail),
                   style: TextStyle(
                     fontSize: 14,
@@ -225,8 +225,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
                     ),
                     child: Text(
                       _counter > 0
-                          ? 'Poslat znovu ($_counter s)'
-                          : 'Poslat znovu',
+                          ? '${t('signup.emailVerify.resend')} ($_counter s)'
+                          : t('signup.emailVerify.resend'),
                     ),
                   ),
                 ),
@@ -254,7 +254,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: Text(t('Otevřít e-mail')),
+                    child: Text(t('signup.emailVerify.openEmailApp')),
                   ),
                 ),
                 const SizedBox(height: 16),

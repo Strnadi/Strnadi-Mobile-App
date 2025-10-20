@@ -18,8 +18,6 @@ import 'dart:convert';
 
 import 'package:strnadi/localization/localization.dart';
 
-import 'package:strnadi/localization/localization.dart';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -154,7 +152,7 @@ class _RegPasswordState extends State<ChangePassword> {
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
-                      hintText: 'Zadejte heslo',
+                      hintText: t('signup.password.password_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
                       contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -184,12 +182,10 @@ class _RegPasswordState extends State<ChangePassword> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value
-                          .trim()
-                          .isEmpty) {
-                        return 'Zadejte heslo';
+                      if (value == null || value.trim().isEmpty) {
+                        return t('signup.password.password_hint');
                       } else if (!_passwordMeetsRequirements(value)) {
-                        return 'Heslo nesplňuje požadavky';
+                        return t('signup.password.errors.req_not_met');
                       }
                       return null;
                     },
@@ -214,7 +210,7 @@ class _RegPasswordState extends State<ChangePassword> {
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
-                      hintText: 'Zopakujte heslo',
+                      hintText: t('signup.password.password_again_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
                       contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -246,13 +242,10 @@ class _RegPasswordState extends State<ChangePassword> {
                     ),
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (value) {
-                      if (value == null || value
-                          .trim()
-                          .isEmpty) {
-                        return 'Zopakujte heslo';
-                      } else
-                      if (value.trim() != _passwordController.text.trim()) {
-                        return 'Hesla se neshodují';
+                      if (value == null || value.trim().isEmpty) {
+                        return t('signup.password.password_again_hint');
+                      } else if (value.trim() != _passwordController.text.trim()) {
+                        return t('signup.password.errors.password_match_err');
                       }
                       return null;
                     },
@@ -336,7 +329,7 @@ class _RegPasswordState extends State<ChangePassword> {
                           borderRadius: BorderRadius.circular(16.0),
                         ),
                       ),
-                      child: Text(t('signup.mail.buttons.continue')),
+                      child: Text(t('signup.password.buttons.continue')),
                     ),
                   ),
                 ],

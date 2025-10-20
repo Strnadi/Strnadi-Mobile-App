@@ -66,7 +66,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   final MapController _mapController = MapController();
 
-  String placeTitle = 'Mapa';
+  String placeTitle = t('recListItem.placeTitle');
   Widget? _cachedSpectrogram;
 
   @override
@@ -277,7 +277,7 @@ class _RecordingItemState extends State<RecordingItem> {
       Sentry.captureException(e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t('Error deleting recording'))),
+          SnackBar(content: Text(t('recListItem.errors.errorDownloading'))),
         );
       }
     }
@@ -412,7 +412,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        widget.recording.note ?? 'K tomuto zaznamu neni poznamka',
+                        widget.recording.note ?? t('recListItem.notePlaceholder'),
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -456,7 +456,7 @@ class _RecordingItemState extends State<RecordingItem> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(t("Predpokladany pocet strnadu: ")),
+                          Text(t('recListItem.estimatedBirdsCount')),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
                       ),

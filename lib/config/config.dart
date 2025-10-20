@@ -29,6 +29,8 @@ enum DataUsageOption { wifiOnly, wifiAndMobile }
 /// Server health status codes
 enum ServerHealth { healthy, maintenance, offline }
 
+enum LanguagePreference { systemDefault, en, cs , de }
+
 Logger logger = Logger();
 
 class Config {
@@ -37,6 +39,7 @@ class Config {
 
   static const String _dataUsagePrefKey = 'data_usage_option';
   static DataUsageOption? _dataUsageOption;
+  static const String _languagePrefKey = 'preferred_language';
 
   // Load config.json
   static Future<void> loadConfig() async {
@@ -76,6 +79,24 @@ class Config {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_dataUsagePrefKey, option.toString());
     _dataUsageOption = option;
+  }
+  
+  static Future<void> setLanguagePreference(LanguagePreference languageCode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_languagePrefKey, languageCode.toString());
+  }
+
+  static Future<LanguagePreference> getLanguagePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_languagePrefKey);
+    if (raw == null) {
+      return LanguagePreference.systemDefault;
+    } else {
+      return LanguagePreference.values.firstWhere(
+        (e) => e.toString() == raw,
+        orElse: () => LanguagePreference.systemDefault,
+      );
+    }
   }
 
   // Get API Key
