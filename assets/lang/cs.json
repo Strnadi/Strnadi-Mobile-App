@@ -3,11 +3,11 @@
     "title": "Nářečí českých strnadů",
     "subtitle": "Nahrávejte, mapujte, dobývejte",
     "apple": {
-        "continue": "Pokračovat přes Apple",
-        "error": {
-          "login_failed": "Přihlášení přes Apple selhalo",
-          "no_email": "Apple neposkytl e-mailovou adresu. Prosím použijte jiný způsob přihlášení."
-        }
+      "continue": "Pokračovat přes Apple",
+      "error": {
+        "login_failed": "Přihlášení přes Apple selhalo",
+        "no_email": "Apple neposkytl e-mailovou adresu. Prosím použijte jiný způsob přihlášení."
+      }
     },
     "buttons": {
       "register": "Založit účet",
@@ -93,35 +93,35 @@
         "continue_consent": "Pro pokračování musíte souhlasit s podmínkami."
       }
     },
-  "passwordReset": {
-    "emailSent": {
-      "title": "E-mail poslán",
-      "message": "Právě jsme odeslali e-mail na {email}.\nDoručení může trvat až 10 minut.\n\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\n\nPokud ani to nepomůže, zkuste odeslat žádost znovu."
-    },
-    "request": {
-      "title": "Zadejte váš e-mail pro změnu hesla",
-      "subtitle": "Na tento e-mail vám pošleme instrukce pro reset hesla",
-      "dialogTitle": "Reset hesla",
-      "buttons": {
-        "sendLink": "Poslat odkaz"
+    "passwordReset": {
+      "emailSent": {
+        "title": "E-mail poslán",
+        "message": "Právě jsme odeslali e-mail na {email}.\nDoručení může trvat až 10 minut.\n\nPokud brzy neobdržíte pokyny, zkontrolujte složku se spamem nebo nevyžádanou poštou.\n\nPokud ani to nepomůže, zkuste odeslat žádost znovu."
       },
-      "errors": {
-        "emptyEmail": "Vyplňte prosím e-mail",
-        "sendBeforeValid": "Zadejte platný e-mail před odesláním."
+      "request": {
+        "title": "Zadejte váš e-mail pro změnu hesla",
+        "subtitle": "Na tento e-mail vám pošleme instrukce pro reset hesla",
+        "dialogTitle": "Reset hesla",
+        "buttons": {
+          "sendLink": "Poslat odkaz"
+        },
+        "errors": {
+          "emptyEmail": "Vyplňte prosím e-mail",
+          "sendBeforeValid": "Zadejte platný e-mail před odesláním."
+        },
+        "messages": {
+          "sent": "E-mail s pokyny pro reset hesla byl odeslán.",
+          "unregistered": "Zadaný e-mail není registrován.",
+          "serverError": "Server je momentálně nedostupný. Zkuste to prosím později.",
+          "genericFail": "Nepodařilo se odeslat reset hesla. Zkuste to prosím znovu.",
+          "connectionError": "Chyba při odesílání požadavku. Zkontrolujte připojení."
+        }
       },
-      "messages": {
-        "sent": "E-mail s pokyny pro reset hesla byl odeslán.",
-        "unregistered": "Zadaný e-mail není registrován.",
-        "serverError": "Server je momentálně nedostupný. Zkuste to prosím později.",
-        "genericFail": "Nepodařilo se odeslat reset hesla. Zkuste to prosím znovu.",
-        "connectionError": "Chyba při odesílání požadavku. Zkontrolujte připojení."
+      "changed": {
+        "title": "Heslo úspěšně změněno",
+        "message": "Nyní se můžete přihlásit do vašeho účtu."
       }
     },
-    "changed": {
-      "title": "Heslo úspěšně změněno",
-      "message": "Nyní se můžete přihlásit do vašeho účtu."
-    }
-  },
     "password": {
       "title": "Nastavte si heslo",
       "password": "Heslo *",
@@ -197,14 +197,12 @@
       "buttons": {
         "openEmailApp": "Otevřít e-mail",
         "tryAgain": "Zkusit znovu"
-      }
-      ,
+      },
       "success": {
         "title": "E-mail ověřen",
         "message": "Váš e-mail byl úspěšně ověřen!",
         "subtitle": "Můžete se nyní přihlásit ke svému účtu."
-      }
-      ,
+      },
       "failed": {
         "title": "Ověření selhalo",
         "message": "Ověření e‑mailu se nezdařilo!",
@@ -212,12 +210,13 @@
       },
       "emailSent": {
         "dialogs": {
-        "alreadyVerified": {
-          "title": "E-mail již ověřen",
-          "message": "Tento e-mail byl již ověřen."
-        },
+          "alreadyVerified": {
+            "title": "E-mail již ověřen",
+            "message": "Tento e-mail byl již ověřen."
+          },
           "notVerified": "Email není ověřen",
           "info": "Pro pokračování se přihlášením ověřte prosím svůj e-mail ({email}).\\nNa tuto adresu byl zaslán ověřovací odkaz. Klikněte na odkaz pro potvrzení."
+        }
       }
     }
   },
@@ -255,7 +254,7 @@
       "date": "Datum",
       "birdCount": "Počet ptáků",
       "downloaded": "Pouze stažené",
-      "myRecBy" : "Moje nahrávky (podle ",
+      "myRecBy": "Moje nahrávky (podle ",
       "myRecByDownloaded": "Moje nahrávky (Pouze stažené)"
     },
     "buttons": {
@@ -450,7 +449,7 @@
     },
     "recordingForm": {
       "fields": {
-        "recordingName":{
+        "recordingName": {
           "name": "Název nahrávky",
           "error": {
             "empty": "Prosím zadejte název nahrávky",
@@ -465,7 +464,7 @@
         },
         "birdCount": {
           "name": "Počet strnadů",
-          "count":{
+          "count": {
             "threeOrMore": "3 a více"
           }
         },
@@ -494,7 +493,7 @@
             "title": "Chyba připojení",
             "message": "Pro uložení nahrávky je potřeba připojení k internetu"
           },
-          "wifiOnly" :{
+          "wifiOnly": {
             "title": "Chyba připojení",
             "message": "Nahrávání je povoleno pouze na Wi-Fi"
           }
@@ -580,7 +579,7 @@
           "title": "Chyba",
           "load": "Nepodařilo se načíst uživatele nebo token",
           "auth": "Chyba ověření uživatele.",
-          "update" : "Nepodařilo se změnit uživatelské údaje."
+          "update": "Nepodařilo se změnit uživatelské údaje."
         },
         "success": {
           "update": "Údaje byly úspěšně aktualizovány",
