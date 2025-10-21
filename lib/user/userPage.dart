@@ -15,6 +15,7 @@
  */
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:strnadi/localization/localization.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -132,6 +133,18 @@ class _UserPageState extends State<UserPage> {
     } else {
       email = mail;
     }
+
+    final cacheKey = 'profilePic_$id';
+    final cacheManager = DefaultCacheManager();
+
+    // Try to load from cache first
+    final cachedFile = await cacheManager.getFileFromCache(cacheKey);
+    if (cachedFile != null && await cachedFile.file.exists()) {
+      setState(() => profileImagePath = cachedFile.file.path);
+      logger.i("Loaded profile picture from cache: ${cachedFile.file.path}");
+      return;
+    }
+
     final url = Uri.parse('https://${Config.host}/users/$id/get-profile-photo');
     logger.i(url);
 
@@ -149,13 +162,17 @@ class _UserPageState extends State<UserPage> {
           data['photoBase64'],
           'profilePic.${data['format']}',
         );
+
+        await cacheManager.putFile(cacheKey, await file.readAsBytes());
+
         if (!mounted) return;
         setState(() {
           profileImagePath = file.path;
         });
-        logger.i("Profile picture downloaded");
+        logger.i("Profile picture downloaded $profileImagePath");
       } else {
-        logger.e("Profile picture download failed with status code ${value.statusCode} ${value.body}");
+        logger.e(
+            "Profile picture download failed with status code ${value.statusCode} ${value.body}");
       }
     } catch (e, st) {
       logger.e('Profile picture download error', error: e, stackTrace: st);
@@ -214,7 +231,15 @@ class _UserPageState extends State<UserPage> {
         profileImagePath = pickedFile.path;
       });
       await secureStorage.write(key: 'profileImage', value: pickedFile.path);
-      await _withLoader(() async { await UploadProfilePic(); });
+      var userId = await secureStorage.read(key: 'userId');
+      final cacheKey = 'profilePic_$userId';
+      await DefaultCacheManager().removeFile('profilePic_$userId');
+      await DefaultCacheManager()
+          .putFile(cacheKey, await File(profileImagePath!).readAsBytes());
+
+      await _withLoader(() async {
+        await UploadProfilePic();
+      });
     }
   }
 
@@ -222,7 +247,8 @@ class _UserPageState extends State<UserPage> {
     final jwt = await secureStorage.read(key: 'token');
     final id = await secureStorage.read(key: "userId");
 
-    final url = Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
+    final url =
+        Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
     final body = jsonEncode({
       'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
       'format': profileImagePath!.split('.').last,
@@ -242,7 +268,8 @@ class _UserPageState extends State<UserPage> {
         logger.i("Profile picture uploaded");
       } else {
         _showMessage(t('Profile picture upload failed'), context);
-        logger.e("Profile picture upload failed with status code ${value.statusCode}");
+        logger.e(
+            "Profile picture upload failed with status code ${value.statusCode}");
       }
     } catch (e, st) {
       logger.e('Profile picture upload error', error: e, stackTrace: st);
@@ -271,7 +298,8 @@ class _UserPageState extends State<UserPage> {
                     await secureStorage.deleteAll();
                     await strnadiFirebase.deleteToken();
                     if (!mounted) return;
-                    Navigator.of(context).pushNamedAndRemoveUntil('/authorizator', (route) => false);
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/authorizator', (route) => false);
                   });
                 },
                 child: Text(t('logout.logout')),
@@ -308,7 +336,9 @@ class _UserPageState extends State<UserPage> {
                             radius: 50,
                             backgroundImage: profileImagePath != null
                                 ? FileImage(File(profileImagePath!))
-                                : const AssetImage('./assets/images/default.jpg') as ImageProvider,
+                                : const AssetImage(
+                                        './assets/images/default.jpg')
+                                    as ImageProvider,
                           ),
                         ),
                         Text(
@@ -322,7 +352,9 @@ class _UserPageState extends State<UserPage> {
                       ],
                     ),
                   ),
-                  _isConnected ? MenuScreen() : Text(t('user.menu.error.noInternet')),
+                  _isConnected
+                      ? MenuScreen()
+                      : Text(t('user.menu.error.noInternet')),
                 ],
               ),
             ),
