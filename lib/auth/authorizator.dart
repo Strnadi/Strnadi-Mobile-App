@@ -398,7 +398,8 @@ class _AuthState extends State<Authorizator> {
 
   Future<void> checkLoggedIn() async {
     bool online = await Config.hasBasicInternet;
-    if (!online) {
+    bool serverAvailable = await Config.isBackendAvailable;
+    if (!online && !serverAvailable) {
       final secureStorage = FlutterSecureStorage();
       String? token = await secureStorage.read(key: 'token');
       if (token == null) {
@@ -504,10 +505,12 @@ class _AuthState extends State<Authorizator> {
         // If there is a token but user is not logged in (invalid token),
         // remove it and show message.
         if (await secureStorage.read(key: 'token') != null) {
-          _showMessage("Byli jste odhlášeni");
+          _showMessage(t('auth.alerts.logged_out'));
           await secureStorage.delete(key: 'token');
           await secureStorage.delete(key: 'user');
           await secureStorage.delete(key: 'lastname');
+          await secureStorage.delete(key: 'role');
+          await secureStorage.delete(key: 'userId');
           await firebase.deleteToken();
         }
       }

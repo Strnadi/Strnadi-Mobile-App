@@ -31,6 +31,8 @@ enum ServerHealth { healthy, maintenance, offline }
 
 enum LanguagePreference { en, cs, de }
 
+enum HostEnvironment { prod, dev }
+
 Logger logger = Logger();
 
 class Config {
@@ -40,12 +42,15 @@ class Config {
   static const String _dataUsagePrefKey = 'data_usage_option';
   static DataUsageOption? _dataUsageOption;
   static const String _languagePrefKey = 'preferred_language';
+  static const String _hostEnvPrefKey = 'host_environment';
+  static HostEnvironment? _hostEnv;
 
   // Load config.json
   static Future<void> loadConfig() async {
     String jsonString = await rootBundle.loadString('assets/secrets.json');
     _config = json.decode(jsonString);
     await loadDataUsageOption();
+    await loadHostEnvironment();
   }
 
   static StringFromLanguagePreference(LanguagePreference lang) {
@@ -92,9 +97,36 @@ class Config {
     }
   }
 
+  /// Loads the selected host environment (prod/dev) from SharedPreferences
+  static Future<void> loadHostEnvironment() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_hostEnvPrefKey);
+    if (raw == null) {
+      _hostEnv = HostEnvironment.prod; // default
+      await prefs.setString(_hostEnvPrefKey, _hostEnv.toString());
+    } else {
+      _hostEnv = HostEnvironment.values.firstWhere(
+        (e) => e.toString() == raw,
+        orElse: () => HostEnvironment.prod,
+      );
+    }
+  }
+
   /// Gets the current mobile data preference
   static DataUsageOption get dataUsageOption {
     return _dataUsageOption ?? DataUsageOption.wifiOnly;
+  }
+
+  /// Gets the current host environment (prod/dev)
+  static HostEnvironment get hostEnvironment {
+    return _hostEnv ?? HostEnvironment.prod;
+  }
+
+  /// Sets the host environment and persists it
+  static Future<void> setHostEnvironment(HostEnvironment env) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_hostEnvPrefKey, env.toString());
+    _hostEnv = env;
   }
 
   /// Sets the user's mobile data preference
@@ -135,7 +167,8 @@ class Config {
     if (_config == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    if (kDebugMode && _config!.containsKey("devhost")) {
+    final useDev = (hostEnvironment == HostEnvironment.dev);
+    if (useDev && _config!.containsKey("devhost")) {
       return _config!["devhost"];
     }
     return _config!["host"];
@@ -169,14 +202,14 @@ class Config {
       } else {
         return ServerHealth.offline;
       }
-    } on SocketException catch (e) {
-      logger.w('SocketException when checking API health: $e');
+    } on SocketException catch (e, stackTrace) {
+      logger.w('SocketException when checking API health: $e', error: e, stackTrace: stackTrace);
       return ServerHealth.offline;
-    } on TimeoutException catch (e) {
-      logger.w('Timeout when checking API health: $e');
+    } on TimeoutException catch (e, stackTrace) {
+      logger.w('Timeout when checking API health: $e', error: e, stackTrace: stackTrace);
       return ServerHealth.offline;
-    } catch (e) {
-      logger.e('Unexpected error checking API health: $e');
+    } catch (e, stackTrace) {
+      logger.e('Unexpected error checking API health: $e', error: e, stackTrace: stackTrace);
       return ServerHealth.offline;
     }
   }

@@ -40,6 +40,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   int _localRecodingsMax = 50;
 
+  // Secure role-gated environment switch
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
+  bool _canEditEnv = false;
+  HostEnvironment _env = HostEnvironment.prod;
+  bool _envChanging = false;
+
   Future<void> _loadSettings() async {
     useMobileData = await _settingsService.isCellular();
     _localRecodingsMax = await _settingsService.getLocalRecordingsMax();
@@ -60,11 +66,25 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+  Future<void> _loadEnvAccessAndValue() async {
+    try {
+      final role = await _secure.read(key: 'role') ?? '';
+      final allowed = role == 'admin' || role == 'tester';
+      _canEditEnv = allowed;
+      _env = Config.hostEnvironment;
+    } catch (e) {
+      _canEditEnv = false;
+      _env = Config.hostEnvironment;
+    }
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
     _loadLanguage();
+    _loadEnvAccessAndValue();
   }
 
   @override
@@ -101,6 +121,11 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 20),
             LanguageDropdown(language),
+            if (_canEditEnv) ...[
+              const SizedBox(height: 20),
+              _buildSectionTitle('Developer settings'),
+              _buildEnvDropdown(),
+            ],
           ],
         ),
       ),
@@ -131,6 +156,80 @@ class _SettingsPageState extends State<SettingsPage> {
           // Optionally save the selected language to persistent storage
         }
       },
+    );
+  }
+
+  Widget _buildEnvDropdown() {
+    return DropdownButtonFormField<HostEnvironment>(
+      value: _env,
+      decoration: InputDecoration(
+        labelText: 'Server environment',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      items: const [
+        DropdownMenuItem(
+          value: HostEnvironment.prod,
+          child: Text('Production'),
+        ),
+        DropdownMenuItem(
+          value: HostEnvironment.dev,
+          child: Text('Development'),
+        ),
+      ],
+      onChanged: _envChanging
+          ? null
+          : (HostEnvironment? newVal) async {
+              if (newVal == null || newVal == _env) return;
+
+              final confirmed = await showDialog<bool>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Change environment?'),
+                      content: const Text(
+                        'Switching environment will sign you out immediately. Continue?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Continue'),
+                        ),
+                      ],
+                    ),
+                  ) ??
+                  false;
+
+              if (!confirmed) return;
+
+              setState(() => _envChanging = true);
+              try {
+                await Config.setHostEnvironment(newVal);
+
+                // Reload local env + role access (role likely wiped on logout)
+                await _loadEnvAccessAndValue();
+
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      newVal == HostEnvironment.dev
+                          ? 'Environment set to Development. You have been signed out.'
+                          : 'Environment set to Production. You have been signed out.',
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+
+                // Return to app root so auth guard can redirect to sign-in
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              } finally {
+                if (mounted) setState(() => _envChanging = false);
+              }
+            },
     );
   }
 
