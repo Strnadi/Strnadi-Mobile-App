@@ -58,7 +58,6 @@ import '../database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 
-
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
@@ -142,7 +141,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
   List<Polyline> _gridLines = [];
   Map<int, List<String>> _dialectsByRecording = {};
 
-
   final secureStorage = const FlutterSecureStorage();
 
   // Store the current camera values.
@@ -158,8 +156,19 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Size? _mapSize;
 
+  late bool _isGuestUser = false;
+
   // Subscribe to location updates via the centralized service.
   StreamSubscription? _positionStreamSubscription;
+
+  Future<void> _loadGuestStatus() async {
+    final storage = const FlutterSecureStorage();
+    final userId = await storage.read(key: 'userId');
+    if (!mounted) return;
+    setState(() {
+      _isGuestUser = userId == null || userId.isEmpty;
+    });
+  }
 
   void _showMessage(String message) {
     showDialog(
@@ -224,14 +233,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   void initState() {
     super.initState();
-    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 0.0, LocationService().lastKnownPosition?.longitude ?? 0.0);
+    _loadGuestStatus();
+    _currentPosition = LatLng(
+        LocationService().lastKnownPosition?.latitude ?? 0.0,
+        LocationService().lastKnownPosition?.longitude ?? 0.0);
 
     _getCurrentLocation();
 
     getRecordings().then((_) => _fetchDialects());
 
     // Subscribe to the centralized location stream.
-    _positionStreamSubscription = LocationService().positionStream.listen((Position position) {
+    _positionStreamSubscription =
+        LocationService().positionStream.listen((Position position) {
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
@@ -294,8 +307,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       else {
         logger.e('Failed to fetch recordings ${response.statusCode}');
       }
-    }
-    catch (error) {
+    } catch (error) {
       logger.e(error);
     }
   }
@@ -443,26 +455,25 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final jwt = await secureStorage.read(key: 'token');
 
     userId = userId_;
-    final url = Uri.parse(
-        'https://${Config.host}/users/${userId}/get-profile-photo');
+    final url =
+        Uri.parse('https://${Config.host}/users/${userId}/get-profile-photo');
     logger.i(url);
 
     try {
-      http.get(url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt'
-          }).then((value) {
+      http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt'
+      }).then((value) {
         if (value.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(value.body);
           return (data['photoBase64'], data['format']);
-        }else{
-          logger.e("Profile picture download failed with status code ${value.statusCode} $url");
+        } else {
+          logger.e(
+              "Profile picture download failed with status code ${value.statusCode} $url");
           return null;
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       return null;
     }
     return null;
@@ -482,7 +493,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     logger.i("mail: $mail url: $url");
 
-    try{
+    try {
       final resp = await http.get(url, headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt'
@@ -499,39 +510,45 @@ class _MapScreenV2State extends State<MapScreenV2> {
       //   resp.format = profilePicData.$2;
       //   return resp;
       // }
-    }
-    catch(e){
+    } catch (e) {
       Sentry.captureException(e, stackTrace: StackTrace.current);
       return null;
     }
   }
 
   void getRecordingFromPartId(int id) async {
-      for (int rec = 0; rec < _fullRecordings.length; rec++) {
-          if (_fullRecordings[rec].BEId == id) {
-            UserData? user = await getUser(_fullRecordings[rec]);
-            logger.i("user is $user");
-            List<RecordingPart?> parts = List.empty(growable: true);
-            parts.add(await DatabaseNew.getRecordingPartByBEID(_fullRecordings[rec].BEId!));
+    for (int rec = 0; rec < _fullRecordings.length; rec++) {
+      if (_fullRecordings[rec].BEId == id) {
+        UserData? user = await getUser(_fullRecordings[rec]);
+        logger.i("user is $user");
+        List<RecordingPart?> parts = List.empty(growable: true);
+        parts.add(await DatabaseNew.getRecordingPartByBEID(
+            _fullRecordings[rec].BEId!));
 
-            logger.i(parts[0]);
+        logger.i(parts[0]);
 
-            showCupertinoSheet
-              (context: context, pageBuilder: (context) => RecordingFromMap(recording: _fullRecordings[rec], user: user,));
-            return;
-          }
+        showCupertinoSheet(
+            context: context,
+            pageBuilder: (context) => RecordingFromMap(
+                  recording: _fullRecordings[rec],
+                  user: user,
+                ));
+        return;
       }
+    }
 
-      showDialog(context: context, builder: (context) => AlertDialog(
-        title: Text(t('map.dialogs.error.title')),
-        content: Text('${t('Nahrávka nenalezena')} $id'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('map.dialogs.error.close')),
-          ),
-        ],
-      ));
+    showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: Text(t('map.dialogs.error.title')),
+              content: Text('${t('Nahrávka nenalezena')} $id'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(t('map.dialogs.error.close')),
+                ),
+              ],
+            ));
   }
 
   @override
@@ -545,6 +562,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.map,
       appBarTitle: null,
+      isGuestUser: _isGuestUser,
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -558,11 +576,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
             children: [
               FlutterMap(
                 mapController: _mapController,
-
                 options: MapOptions(
                   initialCenter: _currentPosition,
                   initialZoom: 13,
-                  interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                  interactionOptions: InteractionOptions(
+                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   minZoom: 1,
                   maxZoom: 19,
                   initialRotation: 0,
@@ -570,13 +588,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 children: [
                   TileLayer(
                     urlTemplate:
-                    'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                        'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                     userAgentPackageName: 'cz.delta.strnadi',
                   ),
                   if (_isSatelliteView)
                     TileLayer(
                       urlTemplate:
-                      'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                          'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                       userAgentPackageName: 'cz.delta.strnadi',
                     ),
                   PolylineLayer(
@@ -599,7 +617,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   MarkerLayer(
                     markers: _buildRecordingMarkers(),
                   )
-
                 ],
               ),
               Positioned(
@@ -621,9 +638,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             backgroundColor: Colors.white,
-                              onPressed: _showLegendDialog,
-                            child: Image.asset('assets/icons/info.png', width: 30, height: 30),
+                            onPressed: _showLegendDialog,
                             tooltip: 'Info',
+                            child: Image.asset('assets/icons/info.png',
+                                width: 30, height: 30),
                           ),
                         );
                       },
@@ -654,10 +672,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Image.asset('assets/icons/sort.png', width: 24, height: 24),
                         backgroundColor: Colors.white,
                         onPressed: _openMapFilter,
                         tooltip: 'Map Settings',
+                        child: Image.asset('assets/icons/sort.png',
+                            width: 24, height: 24),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -676,8 +695,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           _mapController.move(_currentPosition, _currentZoom);
                           _updateGrid();
                         },
-                        child: Image.asset('assets/icons/location.png', width: 24, height: 24),
                         backgroundColor: Colors.white,
+                        child: Image.asset('assets/icons/location.png',
+                            width: 24, height: 24),
                       ),
                     ),
                   ],
@@ -687,10 +707,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 bottom: 10,
                 left: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 2, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
                   color: Colors.white70,
-                  child: Text(t('map.legend.mapyCz'),
+                  child: Text(
+                    t('map.legend.mapyCz'),
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -789,7 +810,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
-
   void _openMapFilter() {
     showModalBottomSheet(
       context: context,
@@ -828,7 +848,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                       const SizedBox(height: 8),
                       Center(
-                        child: Text(t('Nastavení mapy'),
+                        child: Text(
+                          t('Nastavení mapy'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -852,12 +873,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: !_isSatelliteView ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: !_isSatelliteView
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                   child: Text(t('map.filters.mapView.classic')),
                                 ),
@@ -871,14 +895,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: _isSatelliteView ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _isSatelliteView
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  child: Text(t('map.filters.mapView.satellite')),
+                                  child:
+                                      Text(t('map.filters.mapView.satellite')),
                                 ),
                               ),
                             ],
@@ -907,14 +935,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     getRecordings();
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: _recordingAuthorFilter == 'all' ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _recordingAuthorFilter == 'all'
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  child: Text(t('map.filters.recordingAuthor.all')),
+                                  child: Text(
+                                      t('map.filters.recordingAuthor.all')),
                                 ),
                               ),
                               Padding(
@@ -931,14 +963,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     getRecordings();
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: _recordingAuthorFilter == 'me' ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _recordingAuthorFilter == 'me'
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  child: Text(t('map.filters.recordingAuthor.me')),
+                                  child:
+                                      Text(t('map.filters.recordingAuthor.me')),
                                 ),
                               ),
                             ],
@@ -1113,7 +1149,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                               ),
                               onPressed: () {
                                 setModalState(() {
@@ -1133,8 +1170,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 shadowColor: Colors.transparent,
                                 backgroundColor: const Color(0xFFFFD641),
                                 foregroundColor: const Color(0xFF2D2B18),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                textStyle: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16.0),
                                 ),
@@ -1142,9 +1181,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               onPressed: () {
                                 setState(() {
                                   // Apply filters if needed.
-                                  showUnconfirmedDialects = _showUnconfirmedDialects;
+                                  showUnconfirmedDialects =
+                                      _showUnconfirmedDialects;
                                 });
-                                _fetchDialects();        // refetch dialect data after the setting changes
+                                _fetchDialects(); // refetch dialect data after the setting changes
                                 Navigator.pop(context);
                               },
                               child: Text(t('map.buttons.set')),
@@ -1208,7 +1248,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     borderRadius: BorderRadius.circular(2.5),
                   ),
                 ),
-                Text(t('map.legend.title'),
+                Text(
+                  t('map.legend.title'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                 ),
                 const SizedBox(height: 16),
@@ -1241,7 +1282,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         backgroundColor: const Color(0xFFFFD641),
                         foregroundColor: const Color(0xFF2D2B18),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        textStyle: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16.0),
                         ),
