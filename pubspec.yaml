@@ -78,7 +78,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_api_availability: ^5.0.1
   flutter_local_notifications: ^18.0.1
-  flutter_cache_manager: ^3.3.1
+  flutter_cache_manager: ^3.4.1
   package_info_plus: ^8.3.0
   version: ^3.0.2
   url_launcher: ^6.3.1
@@ -98,6 +98,7 @@ dependencies:
   flutter_foreground_task: ^9.1.0
   posthog_flutter: ^4.10.8
   sign_in_with_apple: ^7.0.1
+
 
 
 dev_dependencies:
