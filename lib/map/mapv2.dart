@@ -46,6 +46,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/map/RecordingPage.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
 import 'package:strnadi/user/userPage.dart';
@@ -73,11 +74,13 @@ class MapScreenV2 extends StatefulWidget {
 }
 
 class _MapScreenV2State extends State<MapScreenV2> {
+  late bool _clusterPoints = true;
 
   /// Loads filtered recording parts from the public BE endpoint instead of the local DB cache.
   /// When [verified] is true, the BE returns only FRPs with workflow states indicating verification (1 or 2).
   /// When false, the BE can return also unverified FRPs.
-  Future<({List<FilteredRecordingPart> frps, List<DetectedDialect> dds})> _fetchFilteredPartsFromApi({
+  Future<({List<FilteredRecordingPart> frps, List<DetectedDialect> dds})>
+      _fetchFilteredPartsFromApi({
     int? recordingId,
     required bool verified,
   }) async {
@@ -101,7 +104,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
         return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
       }
       if (resp.statusCode != 200) {
-        logger.e('[MapV2] /recordings/filtered failed: ' + resp.statusCode.toString() + ' body=' + resp.body);
+        logger.e('[MapV2] /recordings/filtered failed: ' +
+            resp.statusCode.toString() +
+            ' body=' +
+            resp.body);
         return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
       }
 
@@ -114,24 +120,31 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final frp = FilteredRecordingPart.fromBEJson(item);
         frps.add(frp);
 
-        final List<dynamic>? dialects = item['detectedDialects'] as List<dynamic>?;
+        final List<dynamic>? dialects =
+            item['detectedDialects'] as List<dynamic>?;
         if (dialects != null) {
           for (final d in dialects) {
             if (d is! Map<String, dynamic>) continue;
-            final row = DetectedDialect.fromBEJson(d, parentFilteredPartBEID: frp.BEId ?? -1);
+            final row = DetectedDialect.fromBEJson(d,
+                parentFilteredPartBEID: frp.BEId ?? -1);
             dds.add(row);
           }
         }
       }
 
-      logger.i('[MapV2] /recordings/filtered parsed: FRPs=' + frps.length.toString() + ', DDs=' + dds.length.toString());
+      logger.i('[MapV2] /recordings/filtered parsed: FRPs=' +
+          frps.length.toString() +
+          ', DDs=' +
+          dds.length.toString());
       return (frps: frps, dds: dds);
     } catch (e, st) {
-      logger.e('[MapV2] /recordings/filtered exception: ' + e.toString(), error: e, stackTrace: st);
+      logger.e('[MapV2] /recordings/filtered exception: ' + e.toString(),
+          error: e, stackTrace: st);
       Sentry.captureException(e, stackTrace: st);
       return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
     }
   }
+
   final MapController _mapController = MapController();
   bool _isSatelliteView = false;
   String _recordingAuthorFilter = 'all';
@@ -224,9 +237,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
       _mapController.move(_currentPosition, _currentZoom);
-    } catch (e,stackTrace) {
-      logger.e("Error retrieving location: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e ,stackTrace: stackTrace);
+    } catch (e, stackTrace) {
+      logger.e("Error retrieving location: $e",
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -296,38 +310,46 @@ class _MapScreenV2State extends State<MapScreenV2> {
         setState(() {
           _recordings = parts;
         });
-        logger.i('[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
+        logger.i(
+            '[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
         List<Recording> recordings = await GetRecordings(response.body);
         setState(() {
           _fullRecordings = recordings;
         });
-        logger.i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
+        logger
+            .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
         await _fetchDialects();
-      }
-      else {
+      } else {
         logger.e('Failed to fetch recordings ${response.statusCode}');
       }
     } catch (error, stackTrace) {
-      logger.e("Error generariong map ${error}",error:error, stackTrace: stackTrace);
+      logger.e("Error generariong map ${error}",
+          error: error, stackTrace: stackTrace);
     }
   }
 
   Future<void> _fetchDialects() async {
     try {
       // Snapshot sizes for quick diagnosis
-      logger.i('[MapV2] _fetchDialects(): start; fullRecs=' + _fullRecordings.length.toString() +
-          ', showUnconfirmed=' + _showUnconfirmedDialects.toString());
+      logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
+          _fullRecordings.length.toString() +
+          ', showUnconfirmed=' +
+          _showUnconfirmedDialects.toString());
 
       // Pull filtered parts from BE (global), not from local DB cache
-      final bool verifiedOnly = !_showUnconfirmedDialects; // hide unconfirmed => ask BE for verified only
+      final bool verifiedOnly =
+          !_showUnconfirmedDialects; // hide unconfirmed => ask BE for verified only
       final api = await _fetchFilteredPartsFromApi(
         // We call once globally to avoid N calls per recording. If needed, we can later scope by recordingId.
         verified: verifiedOnly,
       );
       final frps = api.frps; // List<FilteredRecordingPart>
-      final dds = api.dds;   // List<DetectedDialect>
+      final dds = api.dds; // List<DetectedDialect>
 
-      logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' + frps.length.toString() + ', DDs=' + dds.length.toString());
+      logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
+          frps.length.toString() +
+          ', DDs=' +
+          dds.length.toString());
 
       final Map<int, List<String>> byRecording = {};
       int recsWithNoCodes = 0;
@@ -340,25 +362,44 @@ class _MapScreenV2State extends State<MapScreenV2> {
         }
 
         // Only representative filtered parts for this recording (by BE id)
-        final reps = frps.where((f) => f.recordingBEID == beId && f.isRepresentant).toList();
-        logger.d('[MapV2] recBE=' + beId.toString() + ': representative FRPs=' + reps.length.toString());
+        final reps = frps
+            .where((f) => f.recordingBEID == beId && f.isRepresentant)
+            .toList();
+        logger.d('[MapV2] recBE=' +
+            beId.toString() +
+            ': representative FRPs=' +
+            reps.length.toString());
 
         final codes = <String>{};
         for (final frp in reps) {
-          final frpDesc = 'FRP be=' + (frp.BEId?.toString() ?? 'null') +
-              ' state=' + frp.state.toString();
+          final frpDesc = 'FRP be=' +
+              (frp.BEId?.toString() ?? 'null') +
+              ' state=' +
+              frp.state.toString();
 
           // Join detected dialects by BE link
-          final rows = dds.where((d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId)).toList();
-          logger.d('[MapV2]   ' + frpDesc + ' -> dialectRows=' + rows.length.toString());
+          final rows = dds
+              .where(
+                  (d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId))
+              .toList();
+          logger.d('[MapV2]   ' +
+              frpDesc +
+              ' -> dialectRows=' +
+              rows.length.toString());
 
           for (final d in rows) {
             final String? confirmed = d.confirmedDialect;
             final String? guessed = d.userGuessDialect;
-            final String? chosen = _showUnconfirmedDialects ? (confirmed ?? guessed) : confirmed;
-            logger.v('[MapV2]     dialectRow be=' + (d.BEId?.toString() ?? 'null') +
-                ' confirmed=' + (confirmed ?? '-') + ' guessed=' + (guessed ?? '-') +
-                ' chosen=' + (chosen ?? '-'));
+            final String? chosen =
+                _showUnconfirmedDialects ? (confirmed ?? guessed) : confirmed;
+            logger.v('[MapV2]     dialectRow be=' +
+                (d.BEId?.toString() ?? 'null') +
+                ' confirmed=' +
+                (confirmed ?? '-') +
+                ' guessed=' +
+                (guessed ?? '-') +
+                ' chosen=' +
+                (chosen ?? '-'));
             if (chosen != null && chosen.trim().isNotEmpty) {
               codes.add(chosen.trim());
             }
@@ -369,15 +410,24 @@ class _MapScreenV2State extends State<MapScreenV2> {
         List<String> out;
         if (codes.isEmpty) {
           recsWithNoCodes++;
-          logger.w('[MapV2] recBE=' + beId.toString() + ': no dialect codes collected; fallback=Neurceno (repFRPs=' + reps.length.toString() + ')');
+          logger.w('[MapV2] recBE=' +
+              beId.toString() +
+              ': no dialect codes collected; fallback=Neurceno (repFRPs=' +
+              reps.length.toString() +
+              ')');
           out = <String>['Neurceno'];
         } else {
           out = codes
-              .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
+              .map((c) =>
+                  (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
               .where((c) => c.trim().isNotEmpty)
               .toSet()
               .toList();
-          logger.i('[MapV2] recBE=' + beId.toString() + ': codes=[' + out.join(',') + ']');
+          logger.i('[MapV2] recBE=' +
+              beId.toString() +
+              ': codes=[' +
+              out.join(',') +
+              ']');
         }
 
         byRecording[beId] = out.isEmpty ? <String>['Neznámý'] : out;
@@ -386,10 +436,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
       setState(() {
         _dialectsByRecording = byRecording;
       });
-      logger.i('[MapV2] _fetchDialects(): done; records=' + byRecording.length.toString() +
-          ', emptyOrUnknown=' + recsWithNoCodes.toString());
+      logger.i('[MapV2] _fetchDialects(): done; records=' +
+          byRecording.length.toString() +
+          ', emptyOrUnknown=' +
+          recsWithNoCodes.toString());
     } catch (e, stackTrace) {
-      logger.e('Failed to fetch representative dialects: ' + e.toString(), error: e, stackTrace: stackTrace);
+      logger.e('Failed to fetch representative dialects: ' + e.toString(),
+          error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
@@ -404,19 +457,28 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   List<Marker> _buildRecordingMarkers() {
-    logger.i('[MapV2] _buildRecordingMarkers(): parts=' + _recordings.length.toString());
+    logger.i('[MapV2] _buildRecordingMarkers(): parts=' +
+        _recordings.length.toString());
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
     final Map<int, Part> lastPartByRecording = {};
     for (final p in _recordings) {
       lastPartByRecording[p.recordingId] = p; // last wins
     }
-    logger.i('[MapV2] unique recordings for markers=' + lastPartByRecording.length.toString());
+    logger.i('[MapV2] unique recordings for markers=' +
+        lastPartByRecording.length.toString());
 
     final markers = <Marker>[];
     lastPartByRecording.forEach((recId, part) {
       final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
       final dList = _dialectsForRecordingId(recId);
-      logger.i('[MapV2] marker recId=' + recId.toString() + ' lat=' + part.gpsLatitudeStart.toString() + ' lon=' + part.gpsLongitudeStart.toString() + ' dialects=' + dList.join(','));
+      logger.i('[MapV2] marker recId=' +
+          recId.toString() +
+          ' lat=' +
+          part.gpsLatitudeStart.toString() +
+          ' lon=' +
+          part.gpsLongitudeStart.toString() +
+          ' dialects=' +
+          dList.join(','));
       final dialects = dList;
       markers.add(
         Marker(
@@ -437,7 +499,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   iconSize: 20,
                   padding: EdgeInsets.zero,
                   backgroundColor: Colors.transparent,
-                  dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+                  dialects:
+                      dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
                 ),
               ),
             ),
@@ -481,9 +544,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Future<UserData?> getUser(Recording rec) async {
     for (int i = 0; i < _fullRecordings.length; i++) {
-
-      logger.i("rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name} ${_fullRecordings[i].id}");
-
+      logger.i(
+          "rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name} ${_fullRecordings[i].id}");
     }
     var mail = rec.userId;
 
@@ -614,9 +676,34 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                     ],
                   ),
-                  MarkerLayer(
-                    markers: _buildRecordingMarkers(),
-                  )
+                  if (_clusterPoints == true)
+                    MarkerClusterLayerWidget(
+                      options: MarkerClusterLayerOptions(
+                        maxClusterRadius: 45,
+                        size: const Size(40, 40),
+                        alignment: Alignment.center,
+                        markers: _buildRecordingMarkers(),
+                        builder: (context, clusteredMarkers) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Center(
+                              child: Text(
+                                clusteredMarkers.length.toString(),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 14),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  if (_clusterPoints == false)
+                    MarkerLayer(
+                      markers: _buildRecordingMarkers(),
+                    ),
                 ],
               ),
               Positioned(
@@ -1036,6 +1123,63 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t('map.filters.clustering.title')),
+                          const SizedBox(height: 8),
+                          // TODO: add clustering on/off buttons
+                          Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _clusterPoints = true;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _clusterPoints == true
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(t('map.filters.clustering.on')),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _clusterPoints = false;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _clusterPoints == false
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(t('map.filters.clustering.off')),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                       // const SizedBox(height: 8),
                       // Column(
                       //   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1259,7 +1403,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     runSpacing: 12,
                     alignment: WrapAlignment.center,
                     children: [
-                      _buildAutoDialectLegend(),                           // <-- auto dialects
+                      _buildAutoDialectLegend(), // <-- auto dialects
                       // _buildSymbolLegendItem('Vzácné', 'Vzácné'),
                       // _buildSymbolLegendItem('Přechodný', 'Přechodný'),
                       // _buildSymbolLegendItem('Mix', 'Mix'),
@@ -1351,10 +1495,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return FutureBuilder<Map<String, Color>>(
       future: DynamicIcon.getLegendDialectColors(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done || !snapshot.hasData) {
+        if (snapshot.connectionState != ConnectionState.done ||
+            !snapshot.hasData) {
           return const SizedBox.shrink();
         }
-        final entries = snapshot.data!; // key -> Color (DynamicIcon resolves colors itself)
+        final entries =
+            snapshot.data!; // key -> Color (DynamicIcon resolves colors itself)
         final items = <Widget>[];
 
         for (final key in entries.keys) {
@@ -1375,7 +1521,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Widget _buildDialectLegendItem(String dialectName) {
     // Map BE label used in backend to color key used by DynamicIcon
-    final String key = (dialectName == 'Nevyhodnoceno') ? 'Neznámý' : dialectName;
+    final String key =
+        (dialectName == 'Nevyhodnoceno') ? 'Neznámý' : dialectName;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(

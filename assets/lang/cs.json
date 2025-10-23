@@ -370,6 +370,11 @@
       "resetFilters": "Resetovat"
     },
     "filters": {
+      "clustering": {
+        "title": "Seskupování nahrávek",
+        "on": "Zapnuto",
+        "off": "Vypnuto"
+      },
       "mapView": {
         "classic": "Klasické",
         "satellite": "Letecké"

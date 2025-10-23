@@ -70,6 +70,7 @@ dependencies:
   wav: any
   webview_flutter: ^4.10.0
   flutter_map_location_marker: ^9.1.1
+  flutter_map_marker_cluster: any
   shared_preferences: ^2.0.8
   flutter_spinbox: any
   image_picker: ^0.8.6  # Check for the latest version_
