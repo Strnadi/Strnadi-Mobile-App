@@ -372,6 +372,11 @@
       "resetFilters": "Reset"
     },
     "filters": {
+      "clustering": {
+        "title": "Point clustering",
+        "on": "Enabled",
+        "off": "Disabled"
+      },
       "mapView": {
         "classic": "Classic",
         "satellite": "Aerial"

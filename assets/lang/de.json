@@ -370,6 +370,11 @@
       "resetFilters": "Zurücksetzen"
     },
     "filters": {
+      "clustering": {
+        "title": "Clustering",
+        "on": "Clustering aktivieren",
+        "off": "Clustering deaktivieren"
+      },
       "mapView": {
         "classic": "Klassisch",
         "satellite": "Satellit"
