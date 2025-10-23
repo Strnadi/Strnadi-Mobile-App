@@ -266,8 +266,8 @@
     "buttons": {
       "ok": "OK",
       "sortAndFilter": "Třídění a filtry",
-      "sortByName": "Třídit podle názvu",
-      "sortByDate": "Třídit podle data",
+      "sortByName": "Řadit podle názvu",
+      "sortByDate": "Řadit podle data",
       "sortByBirdCount": "Počet ptáků",
       "filterDownloaded": "Stažené",
       "clearFilter": "Zrušit filtr"

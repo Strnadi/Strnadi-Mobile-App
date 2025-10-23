@@ -70,7 +70,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadEnvAccessAndValue() async {
     try {
       final role = await _secure.read(key: 'role') ?? '';
-      final allowed = role == 'admin' || role == 'tester';
+      final allowed = role == 'admin' || role == 'tester' || Config.hostEnvironment == HostEnvironment.dev;
       _canEditEnv = allowed;
       _env = Config.hostEnvironment;
     } catch (e) {
