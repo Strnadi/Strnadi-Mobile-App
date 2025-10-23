@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -30,6 +31,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/md_renderer.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/FlagDropdown.dart';
+import 'package:strnadi/widgets/loader.dart';
 
 // Removed: import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -190,9 +192,8 @@ class _AuthState extends State<Authorizator> {
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _withLoader(() async {
-        await checkLoggedIn();
-      });
+        logger.i('Checking logged-in status on app start');
+        checkLoggedIn();
     });
   }
 
@@ -208,235 +209,247 @@ class _AuthState extends State<Authorizator> {
     // Example color definitions
     const Color textColor = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
+    return Loader(
+        isLoading: _isLoading,
+        child:
+        Scaffold(
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  Center(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32.0, vertical: 20.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Spacing from the top
+                            //const SizedBox(height: 0),
 
-    return Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Center(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32.0, vertical: 20.0),
+                            // Bird image
+                            Image.asset(
+                              'assets/images/ncs_logo_tall_large.png',
+                              // Update path if needed
+                              width: 200,
+                              height: 200,
+                            ),
+
+                            const SizedBox(height: 32),
+
+                            // Main title
+                            Text(
+                              t('auth.title'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            // Subtitle
+                            Text(
+                              t('auth.subtitle'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: textColor,
+                              ),
+                            ),
+
+                            const SizedBox(height: 40),
+
+                            // "Založit účet" button (yellow background, no elevation)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () =>
+                                    _navigateIfAllowed(const RegMail()),
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 0,
+                                  // No elevation
+                                  shadowColor: Colors.transparent,
+                                  // Remove shadow
+                                  backgroundColor: yellow,
+                                  foregroundColor: textColor,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  textStyle: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: Text(
+                                  t('auth.buttons.register'),
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // "Přihlásit se" button (outlined)
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: () => _navigateIfAllowed(const Login()),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: textColor,
+                                  side: BorderSide(
+                                      color: Colors.grey[200]!, width: 2),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  textStyle: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: Text(t('auth.buttons.login'),
+                                    style: TextStyle(color: textColor)),
+                              ),
+                            ),
+
+                            // Text to continue as guest
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const LiveRec()),
+                                );
+                              },
+                              child: Text(
+                                t('auth.buttons.continue_as_guest'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+
+                            // Add the terms here
+                            const SizedBox(height: 180),
+
+                            // Add disclaimer and space at the bottom
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 10, // 5 pixels from bottom
+                    left: 0,
+                    right: 0,
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        // Spacing from the top
-                        //const SizedBox(height: 0),
-
-                        // Bird image
-                        Image.asset(
-                          'assets/images/ncs_logo_tall_large.png',
-                          // Update path if needed
-                          width: 200,
-                          height: 200,
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Main title
                         Text(
-                          t('auth.title'),
+                          t('auth.disclaimer.consent_prefix'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.black),
                         ),
-
-                        const SizedBox(height: 8),
-
-                        // Subtitle
-                        Text(
-                          t('auth.subtitle'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: textColor,
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
-
-                        // "Založit účet" button (yellow background, no elevation)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () =>
-                                _navigateIfAllowed(const RegMail()),
-                            style: ElevatedButton.styleFrom(
-                              elevation: 0,
-                              // No elevation
-                              shadowColor: Colors.transparent,
-                              // Remove shadow
-                              backgroundColor: yellow,
-                              foregroundColor: textColor,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              textStyle: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Text(
-                              t('auth.buttons.register'),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // "Přihlásit se" button (outlined)
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: () => _navigateIfAllowed(const Login()),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: textColor,
-                              side: BorderSide(
-                                  color: Colors.grey[200]!, width: 2),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              textStyle: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Text(t('auth.buttons.login'),
-                                style: TextStyle(color: textColor)),
-                          ),
-                        ),
-
-                        // Text to continue as guest
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 4),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const LiveRec()),
-                            );
-                          },
+                          onTap: () => _launchURL(),
                           child: Text(
-                            t('auth.buttons.continue_as_guest'),
+                            t('auth.disclaimer.privacy_policy'),
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.blue,
                               decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
-
-                        // Add the terms here
-                        const SizedBox(height: 180),
-
-                        // Add disclaimer and space at the bottom
                       ],
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                bottom: 10, // 5 pixels from bottom
-                left: 0,
-                right: 0,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      t('auth.disclaimer.consent_prefix'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Colors.black),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: CompactLanguageDropdown(
+                      languages: languages,
+                      selectedLanguage: selectedLanguage ?? languages.first,
+                      onChanged: (Language? newValue) async {
+                        if (newValue == null) return;
+                        await Localization.load(
+                            'assets/lang/${newValue.code}.json');
+                        if (!mounted) return;
+                        setState(() => selectedLanguage = newValue);
+                        Config.setLanguagePreference(
+                            Config.LangFromString(newValue.code));
+                        logger.i('Language changed to ${newValue.code}');
+                      },
                     ),
-                    const SizedBox(height: 4),
-                    GestureDetector(
-                      onTap: () => _launchURL(),
-                      child: Text(
-                        t('auth.disclaimer.privacy_policy'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  )
+                ],
               ),
-              Positioned(
-                top: 8,
-                left: 8,
-                child: CompactLanguageDropdown(
-                  languages: languages,
-                  selectedLanguage: selectedLanguage ?? languages.first,
-                  onChanged: (Language? newValue) async {
-                    if (newValue == null) return;
-                    await Localization.load(
-                        'assets/lang/${newValue.code}.json');
-                    if (!mounted) return;
-                    setState(() => selectedLanguage = newValue);
-                    Config.setLanguagePreference(
-                        Config.LangFromString(newValue.code));
-                    logger.i('Language changed to ${newValue.code}');
-                  },
-                ),
-              )
-            ],
-          ),
-        ));
+            )
+        )
+    );
   }
 
   Future<void> checkLoggedIn() async {
-    bool online = await Config.hasBasicInternet;
-    bool serverAvailable = await Config.isBackendAvailable;
-    if (!online && !serverAvailable) {
+    _withLoader(() async {
+      bool online = await Config.hasBasicInternet;
+      bool serverAvailable = await Config.isBackendAvailable;
       final secureStorage = FlutterSecureStorage();
-      String? token = await secureStorage.read(key: 'token');
-      if (token == null) {
-        _showAlert("Offline",
-            "Nemáte připojení k internetu a žádný token není uložen.");
-        return;
-      } else {
-        DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
-        if (expirationDate.isBefore(DateTime.now())) {
+      if (!online && !serverAvailable) {
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) {
+          logger.i("No internet and no token stored.");
           _showAlert("Offline",
-              "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+              "Nemáte připojení k internetu a žádný token není uložen.");
           return;
         } else {
-          DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+          DateTime expirationDate = JwtDecoder.getExpirationDate(token);
           if (expirationDate.isBefore(DateTime.now())) {
+            logger.i('JWT expired and no internet.');
             _showAlert("Offline",
                 "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
             return;
+          } else {
+            DateTime expirationDate = JwtDecoder.getExpirationDate(token);
+            if (expirationDate.isBefore(DateTime.now())) {
+              logger.i('JWT expired and no internet.');
+              _showAlert("Offline",
+                  "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+              return;
+            }
+            String? verified = await secureStorage.read(key: 'verified');
+            if (verified != 'true') {
+              logger.i('Account not verified and no internet.');
+              _showAlert("Offline",
+                  "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+              return;
+            }
           }
           String? verified = await secureStorage.read(key: 'verified');
           if (verified != 'true') {
+            logger.i('Account not verified and no internet.');
             _showAlert("Offline",
                 "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
             return;
           }
-        }
-        String? verified = await secureStorage.read(key: 'verified');
-        if (verified != 'true') {
-          _showAlert("Offline",
-              "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
-          return;
         }
       }
       //final secureStorage = FlutterSecureStorage();
       final AuthStatus status = await isLoggedIn();
 
       if (status == AuthStatus.loggedIn) {
+        logger.i('User is logged in, fetching user data');
         String? token = await secureStorage.read(key: 'token');
         if (token == null) return;
         String? userIdS = await secureStorage.read(key: 'userId');
@@ -466,11 +479,13 @@ class _AuthState extends State<Authorizator> {
         );
 
         final Map<String, dynamic> data = jsonDecode(response.body);
-        secureStorage.write(key: 'user', value: data['firstName']);
-        secureStorage.write(key: 'lastname', value: data['lastName']);
+        await secureStorage.write(key: 'user', value: data['firstName']);
+        await secureStorage.write(key: 'lastname', value: data['lastName']);
+        await secureStorage.write(key: 'nick', value: data['nickname']);
+        await secureStorage.write(key: 'role', value: data['role']);
 
         logger.i('Syncing recordings on login');
-        DatabaseNew.syncRecordings();
+        await DatabaseNew.syncRecordings();
         logger.i('Syncing recordings on login done');
         Navigator.pushReplacement(
           context,
@@ -482,6 +497,7 @@ class _AuthState extends State<Authorizator> {
           ),
         );
       } else if (status == AuthStatus.notVerified) {
+        logger.i('User email not verified, navigating to verification page');
         String? token = await secureStorage.read(key: 'token');
         if (token == null) return;
         Uri url = Uri(
@@ -497,11 +513,12 @@ class _AuthState extends State<Authorizator> {
           MaterialPageRoute(
               builder: (_) =>
                   EmailNotVerified(
-                    userEmail: JwtDecoder.decode(token!)['sub'],
+                    userEmail: JwtDecoder.decode(token)['sub'],
                     userId: userId,
                   )),
         );
       } else {
+        logger.i('User is not logged in');
         // If there is a token but user is not logged in (invalid token),
         // remove it and show message.
         if (await secureStorage.read(key: 'token') != null) {
@@ -514,7 +531,7 @@ class _AuthState extends State<Authorizator> {
           await firebase.deleteToken();
         }
       }
-    }
+    });
   }
 
   void _showMessage(String message) {
@@ -563,9 +580,9 @@ class _AuthState extends State<Authorizator> {
       context,
       MaterialPageRoute(
           builder: (_) => MDRender(
-                mdPath: 'assets/docs/terms-of-services.md',
-                title: 'Podmínky používání',
-              )),
+            mdPath: 'assets/docs/terms-of-services.md',
+            title: 'Podmínky používání',
+          )),
     );
   }
 }

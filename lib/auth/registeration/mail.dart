@@ -554,6 +554,7 @@ class _RegMailState extends State<RegMail> {
                         logger.i('User ID retrieved: ${idResponse.body}');
 
                         await secureStorage.write(key: 'userId', value: idResponse.body);
+                        await secureStorage.write(key: 'verified', value: true.toString());
                         await fb.refreshToken();
                         await cacheUserData(int.parse(idResponse.body));
 

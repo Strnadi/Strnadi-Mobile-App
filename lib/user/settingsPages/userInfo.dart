@@ -15,6 +15,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -59,7 +60,9 @@ class User {
 }
 
 class ProfileEditPage extends StatefulWidget {
-  const ProfileEditPage({Key? key}) : super(key: key);
+  Function() refreshUserCallback;
+
+  ProfileEditPage({Key? key, required this.refreshUserCallback}) : super(key: key);
 
   @override
   _ProfileEditPageState createState() => _ProfileEditPageState();
@@ -73,6 +76,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _lastnameController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _postCodeController = TextEditingController();
 
   Future<void> fetchUser(int userId, String jwt) async {
     final url = Uri.parse('https://${Config.host}/users/$userId');
@@ -93,11 +97,35 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         _firstnameController.text = user!.firstName;
         _lastnameController.text = user!.lastName;
         _cityController.text = user!.city ?? '';
+        _postCodeController.text = user!.postCode?.toString() ?? '';
         _emailController.text = user!.email;
       });
     } else {
       logger.i('Failed to load user: ${response.statusCode} ${response.body}');
       _showMessage(t("user.profile.dialogs.error.load"));
+    }
+  }
+
+  Future<void> refreshUser(int userId) async{
+    final secureStorage = FlutterSecureStorage();
+
+    final http.Response response = await http.get(
+      Uri.parse('https://${Config.host}/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${secureStorage.read(key: 'token')}',
+      });
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      await secureStorage.write(key: 'user', value: data['firstName']);
+      await secureStorage.write(key: 'lastname', value: data['lastName']);
+      await secureStorage.write(key: 'nick', value: data['nickname']);
+      await secureStorage.write(key: 'role', value: data['role']);
+      await widget.refreshUserCallback();
+      setState(() {
+        user = User.fromJson(jsonDecode(response.body));
+      });
+
     }
   }
 
@@ -120,6 +148,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
 
     if (response.statusCode == 200) {
+      await refreshUser(int.parse(id!));
       _showMessage(t("user.profile.dialogs.success.update"));
     } else {
       logger
@@ -128,19 +157,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
   }
 
-  void updateUserData() async {
+  Future<void> updateUserData() async {
     final secureStorage = FlutterSecureStorage();
     String? jwt = await secureStorage.read(key: 'token');
 
     if (user != null && jwt != null) {
       Map<String, dynamic> updatedData = {
-        'nickname': _nicknameController.text,
-        'firstName': _firstnameController.text,
-        'lastName': _lastnameController.text,
-        'postCode': _cityController.text.isNotEmpty
-            ? int.parse(_cityController.text)
-            : null,
-        'city': user!.city,
+        'nickname': _nicknameController.text.isEmpty ? null : _nicknameController.text,
+        'firstName': _firstnameController.text.isEmpty ? null : _firstnameController.text,
+        'lastName': _lastnameController.text.isEmpty ? null : _lastnameController.text,
+        'postCode': _postCodeController.text.trim().isEmpty ? null : int.parse(_postCodeController.text.trim()),
+        'city': _cityController.text.isEmpty ? null : _cityController.text,
       };
 
       updateUser(user!.email, updatedData, jwt);
@@ -238,13 +265,19 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          TextButton(
-            style: TextButton.styleFrom(backgroundColor: Colors.amber),
-            onPressed: () {
-              updateUserData();
-            }, // Save action
-            child: Text(t('postRecordingForm.recordingForm.buttons.save'),
-                style: TextStyle(color: Colors.white)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.amber,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              ),
+              onPressed: () {
+                updateUserData();
+              }, // Save action
+              child: Text(t('postRecordingForm.recordingForm.buttons.save'),
+                  style: TextStyle(color: Colors.white)),
+            ),
           ),
         ],
       ),
@@ -265,6 +298,18 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 _buildTextField(t('user.profile.fields.nickname'), _nicknameController),
                 _buildTextField(t('user.profile.fields.email'), _emailController, readOnly: true),
                 _buildTextField(t('user.profile.fields.city'), _cityController),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      labelText: t('user.profile.fields.postCode'),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                    controller: _postCodeController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                ),
               ],
             ),
             const Divider(),

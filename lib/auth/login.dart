@@ -435,7 +435,8 @@ class _LoginState extends State<Login> {
                     // Handle 'Continue with Google' logic here
                     if (jwt != null)
                     {
-                      await FlutterSecureStorage().write(key: 'token', value: jwt);
+                      FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+                      secureStorage.write(key: 'token', value: jwt);
                       http.Response response = await http.get(
                         Uri.parse('https://${Config.host}/users/get-id'),
                         headers: {
@@ -443,10 +444,11 @@ class _LoginState extends State<Login> {
                           'Authorization': 'Bearer $jwt',
                         });
                       if (response.statusCode == 200) {
-                        await cacheUserData(int.parse(response.body.toString()));
-                        await FlutterSecureStorage().write(
+                        await secureStorage.write(key: 'verified', value: true.toString());
+                        await secureStorage.write(
                             key: 'userId',
                             value: response.body.toString());
+                        await cacheUserData(int.parse(response.body.toString()));
                     }
 
                     await fb.refreshToken();
@@ -563,6 +565,7 @@ class _LoginState extends State<Login> {
 
                     // Persist the token locally
                     await secureStorage.write(key: 'token', value: jwt);
+                    await secureStorage.write(key: 'verified', value: true.toString());
                     logger.i('Apple sign‑in successful, token stored');
 
                     // Retrieve user‑id from backend

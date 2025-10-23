@@ -30,6 +30,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../config/config.dart';
 
 class MenuScreen extends StatelessWidget {
+  Function() refreshUserCallback;
+
+  MenuScreen({Key? key, required this.refreshUserCallback}) : super(key: key);
+
   final List<String> menuItems = [
     t('user.menu.items.personalInfo'),
     t('user.menu.items.settings'),
@@ -100,7 +104,7 @@ class MenuScreen extends StatelessWidget {
   void Executor(int index, BuildContext context) async {
     if (index == 0) {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => ProfileEditPage()));
+          context, MaterialPageRoute(builder: (context) => ProfileEditPage(refreshUserCallback: refreshUserCallback,)));
     } else if (index == 1) {
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => SettingsPage()));

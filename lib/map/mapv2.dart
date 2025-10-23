@@ -278,7 +278,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           queryParameters: {
             'parts': 'true',
             'sound': 'false',
-            if (userId != null) 'userId': userId,
+            if (userId != null) 'userId': userId.toString(),
           },
         ),
         headers: {
@@ -307,8 +307,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
       else {
         logger.e('Failed to fetch recordings ${response.statusCode}');
       }
-    } catch (error) {
-      logger.e(error);
+    } catch (error, stackTrace) {
+      logger.e("Error generariong map ${error}",error:error, stackTrace: stackTrace);
     }
   }
 

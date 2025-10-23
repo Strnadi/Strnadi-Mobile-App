@@ -78,6 +78,7 @@ class _UserPageState extends State<UserPage> {
     final f = await secureStorage.read(key: 'firstName') ?? 'username';
     final l = await secureStorage.read(key: 'lastName') ?? 'LastName';
     final n = await secureStorage.read(key: 'nick') ?? 'nickName';
+    logger.i("Loaded name from local storage: $f $l ($n)");
     if (!mounted) return;
     setState(() {
       userName = f;
@@ -120,6 +121,14 @@ class _UserPageState extends State<UserPage> {
     // Write the bytes to the file
     await file.writeAsBytes(bytes);
     return file;
+  }
+
+  Future<void> refreshUserData() async {
+    await _withLoader(() async {
+      await getUserData();
+      await getProfilePic(null);
+      await setName(); // also refresh nickname (and first/last) from secure storage
+    });
   }
 
   Future<void> getProfilePic(String? mail) async {
@@ -348,12 +357,13 @@ class _UserPageState extends State<UserPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Text("($nickName)"),
+                        if (nickName.isNotEmpty && nickName != 'null')
+                          Text("($nickName)"),
                       ],
                     ),
                   ),
                   _isConnected
-                      ? MenuScreen()
+                      ? MenuScreen(refreshUserCallback: refreshUserData,)
                       : Text(t('user.menu.error.noInternet')),
                 ],
               ),
