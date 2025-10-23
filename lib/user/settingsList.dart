@@ -31,8 +31,9 @@ import '../config/config.dart';
 
 class MenuScreen extends StatelessWidget {
   Function() refreshUserCallback;
+  Function(BuildContext, {bool popUp}) logout;
 
-  MenuScreen({Key? key, required this.refreshUserCallback}) : super(key: key);
+  MenuScreen({Key? key, required this.refreshUserCallback, required this.logout}) : super(key: key);
 
   final List<String> menuItems = [
     t('user.menu.items.personalInfo'),
@@ -107,7 +108,7 @@ class MenuScreen extends StatelessWidget {
           context, MaterialPageRoute(builder: (context) => ProfileEditPage(refreshUserCallback: refreshUserCallback,)));
     } else if (index == 1) {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SettingsPage()));
+          context, MaterialPageRoute(builder: (context) => SettingsPage(logout: logout)));
     } else if (index == 2) {
       Navigator.push(context,
           MaterialPageRoute(builder: (context) => Connectedplatforms()));

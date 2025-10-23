@@ -23,6 +23,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:io';
 
+import '../main.dart';
+
 /// User preference for mobile data usage
 enum DataUsageOption { wifiOnly, wifiAndMobile }
 
@@ -127,6 +129,7 @@ class Config {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_hostEnvPrefKey, env.toString());
     _hostEnv = env;
+    myAppKey.currentState?.refreshBadge();
   }
 
   /// Sets the user's mobile data preference

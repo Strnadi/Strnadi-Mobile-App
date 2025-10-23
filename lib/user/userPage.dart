@@ -286,36 +286,48 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
-  Future<void> logout(BuildContext context) async {
-    showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(t('logout.title')),
-            content: Text(t('logout.message')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(t('logout.cancel')),
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (_isLoading) return;
-                  Navigator.of(context).pop(); // close dialog first
-                  await _withLoader(() async {
-                    await GoogleSignInService.signOut();
-                    await secureStorage.deleteAll();
-                    await strnadiFirebase.deleteToken();
-                    if (!mounted) return;
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                        '/authorizator', (route) => false);
-                  });
-                },
-                child: Text(t('logout.logout')),
-              ),
-            ],
-          );
-        });
+  Future<void> logout(BuildContext context, {bool popUp = true}) async {
+    if(popUp) {
+      showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text(t('logout.title')),
+              content: Text(t('logout.message')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(t('logout.cancel')),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (_isLoading) return;
+                    Navigator.of(context).pop(); // close dialog first
+                    await _withLoader(() async {
+                      await GoogleSignInService.signOut();
+                      await secureStorage.deleteAll();
+                      await strnadiFirebase.deleteToken();
+                      if (!mounted) return;
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                          '/authorizator', (route) => false);
+                    });
+                  },
+                  child: Text(t('logout.logout')),
+                ),
+              ],
+            );
+          });
+    }
+    else {
+      await _withLoader(() async {
+        await GoogleSignInService.signOut();
+        await secureStorage.deleteAll();
+        await strnadiFirebase.deleteToken();
+        if (!mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+            '/authorizator', (route) => false);
+      });
+    }
   }
 
   @override
@@ -363,7 +375,7 @@ class _UserPageState extends State<UserPage> {
                     ),
                   ),
                   _isConnected
-                      ? MenuScreen(refreshUserCallback: refreshUserData,)
+                      ? MenuScreen(refreshUserCallback: refreshUserData,logout: logout,)
                       : Text(t('user.menu.error.noInternet')),
                 ],
               ),

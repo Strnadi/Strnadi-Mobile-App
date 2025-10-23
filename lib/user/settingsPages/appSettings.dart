@@ -25,7 +25,8 @@ import '../settingsManager.dart';
 import 'package:strnadi/config/config.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  SettingsPage({super.key, required this.logout});
+  Function(BuildContext, {bool popUp}) logout;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -224,8 +225,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 );
 
+                widget.logout(context, popUp: false);
                 // Return to app root so auth guard can redirect to sign-in
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                //Navigator.of(context).popUntil((route) => route.isFirst);
               } finally {
                 if (mounted) setState(() => _envChanging = false);
               }
