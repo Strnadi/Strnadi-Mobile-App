@@ -189,24 +189,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        var storage = FlutterSecureStorage();
-                        var jwt = await storage.read(key: 'token');
-                        if (kIsWeb) {
-                          logger
-                              .w("Google Sign-In is not supported on the web.");
-                          return;
-                        }
-                        try {
-                          var resp =
-                              await GoogleSignInService.signInWithGoogle();
-                          if (resp == null) {
-                            logger.w("Google Sign-In was cancelled or failed.");
-                            return;
-                          }
-                          logger.i('Google Sign-In successful.');
-                        } catch (e) {
-                          logger.e("Error during Google Sign-In: $e");
-                        }
+                        logger.i('Negger Schwartz');
                       },
                       icon: Image.asset(
                         'assets/images/google.webp',
