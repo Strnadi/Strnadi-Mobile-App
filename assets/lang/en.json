@@ -272,7 +272,8 @@
       "sortByDate": "Sort by date",
       "sortByBirdCount": "Number of birds",
       "filterDownloaded": "Downloaded",
-      "clearFilter": "Clear filter"
+      "clearFilter": "Clear filter",
+      "sendAllUnsent": "Send all unsent recordings"
     },
     "emptyListMessage": "You don’t have any recordings yet",
     "status": {

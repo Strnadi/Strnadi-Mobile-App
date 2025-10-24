@@ -387,12 +387,6 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
               onPressed: () => _showSortFilterOptions(context),
               tooltip: t('recList.buttons.sortAndFilter'),
             ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              color: Colors.black,
-              onPressed: () => sendAllUnsent(),
-              tooltip: t('recList.buttons.sendAllUnsent'),
-            ),
           ]),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -401,197 +395,235 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             await DatabaseNew.syncRecordings();
             getRecordings();
           },
-          child: records.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: 500,
-                      child: Center(child: Text(t('recList.emptyListMessage'))),
-                    )
-                  ],
-                )
-              : ListView.separated(
-                  itemCount: records.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final rec = records[index];
-                    final dateText = rec.createdAt != null
-                        ? formatDateTime(rec.createdAt!)
-                        : '';
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => sendAllUnsent(),
+                    icon: const Icon(Icons.send),
+                    label: Text(t('recList.buttons.sendAllUnsent')),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: records.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: 500,
+                            child: Center(
+                                child: Text(t('recList.emptyListMessage'))),
+                          )
+                        ],
+                      )
+                    : ListView.separated(
+                        itemCount: records.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final rec = records[index];
+                          final dateText = rec.createdAt != null
+                              ? formatDateTime(rec.createdAt!)
+                              : '';
 
-                    return InkWell(
-                        onTap: () => openRecording(rec),
-                        child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      rec.name != null
-                                          ? Text(
-                                              _truncateName(rec.name!),
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            )
-                                          : FutureBuilder<String?>(
-                                              future: () async {
-                                                var parts = await DatabaseNew
-                                                    .getPartsById(rec.id!);
-                                                if (parts.isEmpty) {
-                                                  return rec.id?.toString();
-                                                }
-                                                String? text = await reverseGeocode(
-                                                        parts[0]
-                                                            .gpsLatitudeStart,
-                                                        parts[0]
-                                                            .gpsLongitudeStart) ??
-                                                    rec.id?.toString();
-                                                rec.name = text;
-                                                return text;
-                                              }(),
+                          return InkWell(
+                              onTap: () => openRecording(rec),
+                              child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            rec.name != null
+                                                ? Text(
+                                                    _truncateName(rec.name!),
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  )
+                                                : FutureBuilder<String?>(
+                                                    future: () async {
+                                                      var parts =
+                                                          await DatabaseNew
+                                                              .getPartsById(
+                                                                  rec.id!);
+                                                      if (parts.isEmpty) {
+                                                        return rec.id
+                                                            ?.toString();
+                                                      }
+                                                      String? text =
+                                                          await reverseGeocode(
+                                                                  parts[0]
+                                                                      .gpsLatitudeStart,
+                                                                  parts[0]
+                                                                      .gpsLongitudeStart) ??
+                                                              rec.id
+                                                                  ?.toString();
+                                                      rec.name = text;
+                                                      return text;
+                                                    }(),
+                                                    builder:
+                                                        (context, snapshot) {
+                                                      String topText;
+                                                      if (snapshot
+                                                              .connectionState ==
+                                                          ConnectionState
+                                                              .waiting) {
+                                                        topText = t(
+                                                            'recList.name.loading');
+                                                      } else if (snapshot
+                                                              .hasError ||
+                                                          snapshot.data ==
+                                                              null) {
+                                                        topText = rec.id
+                                                                ?.toString() ??
+                                                            t('recList.name.unknown');
+                                                      } else {
+                                                        topText =
+                                                            snapshot.data!;
+                                                      }
+                                                      return Text(
+                                                        _truncateName(topText),
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                            const SizedBox(height: 4),
+                                            FutureBuilder<String>(
+                                              future: getDialectName(rec.id!),
                                               builder: (context, snapshot) {
-                                                String topText;
+                                                String dialectText;
                                                 if (snapshot.connectionState ==
                                                     ConnectionState.waiting) {
-                                                  topText =
-                                                      t('recList.name.loading');
+                                                  dialectText = t(
+                                                      'recList.dialect.loading');
                                                 } else if (snapshot.hasError ||
                                                     snapshot.data == null) {
-                                                  topText = rec.id
-                                                          ?.toString() ??
-                                                      t('recList.name.unknown');
+                                                  dialectText = t(
+                                                      'recList.dialect.unknown');
                                                 } else {
-                                                  topText = snapshot.data!;
+                                                  dialectText = snapshot.data!;
                                                 }
                                                 return Text(
-                                                  _truncateName(topText),
+                                                  dialectText,
                                                   style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                    color: Colors.grey,
                                                   ),
                                                 );
                                               },
                                             ),
-                                      const SizedBox(height: 4),
-                                      FutureBuilder<String>(
-                                        future: getDialectName(rec.id!),
-                                        builder: (context, snapshot) {
-                                          String dialectText;
-                                          if (snapshot.connectionState ==
-                                              ConnectionState.waiting) {
-                                            dialectText =
-                                                t('recList.dialect.loading');
-                                          } else if (snapshot.hasError ||
-                                              snapshot.data == null) {
-                                            dialectText =
-                                                t('recList.dialect.unknown');
-                                          } else {
-                                            dialectText = snapshot.data!;
-                                          }
-                                          return Text(
-                                            dialectText,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  // Right Column
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      FutureBuilder<List<RecordingPart>>(
-                                        future: Future.value(
-                                            DatabaseNew.getPartsById(rec.id!)),
-                                        builder: (context, snapshot) {
-                                          String status;
-                                          Color color;
-                                          if (rec.sending) {
-                                            status =
-                                                t('recList.status.sending');
-                                            color = Colors.blue;
-                                          } else if (snapshot.connectionState ==
-                                              ConnectionState.waiting) {
-                                            status = t(
-                                                'recList.status.checkingParts');
-                                            color = Colors.grey;
-                                          } else if (snapshot.hasError) {
-                                            status = rec.sent
-                                                ? t('recList.status.uploaded')
-                                                : t('recList.status.waitingForUpload');
-                                            color = rec.sent
-                                                ? Colors.green
-                                                : Colors.orange;
-                                          } else {
-                                            final parts = snapshot.data!;
-                                            if (rec.sent &&
-                                                parts.any((p) => !p.sent)) {
-                                              logger.w('Unsent parts found');
-                                              String partsS = "";
-                                              for (var part in parts) {
-                                                partsS += '${part.toJson()}\n';
-                                              }
-                                              logger.w('All parts: $partsS');
-                                              status = t(
-                                                  'recList.status.unsentParts');
-                                              color = Colors.red;
-                                            } else {
-                                              status = rec.sent
-                                                  ? t('recList.status.uploaded')
-                                                  : t('recList.status.waitingForUpload');
-                                              color = rec.sent
-                                                  ? Colors.green
-                                                  : Colors.orange;
-                                            }
-                                          }
-                                          return Text(
-                                            status,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: color,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        dateText,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
+                                          ],
                                         ),
-                                      ),
-                                      const Icon(Icons.chevron_right,
-                                          color: Colors.grey),
-                                    ],
-                                  ),
-                                ])));
-                  },
-                ),
+                                        // Right Column
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            FutureBuilder<List<RecordingPart>>(
+                                              future: Future.value(
+                                                  DatabaseNew.getPartsById(
+                                                      rec.id!)),
+                                              builder: (context, snapshot) {
+                                                String status;
+                                                Color color;
+                                                if (rec.sending) {
+                                                  status = t(
+                                                      'recList.status.sending');
+                                                  color = Colors.blue;
+                                                } else if (snapshot
+                                                        .connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  status = t(
+                                                      'recList.status.checkingParts');
+                                                  color = Colors.grey;
+                                                } else if (snapshot.hasError) {
+                                                  status = rec.sent
+                                                      ? t('recList.status.uploaded')
+                                                      : t('recList.status.waitingForUpload');
+                                                  color = rec.sent
+                                                      ? Colors.green
+                                                      : Colors.orange;
+                                                } else {
+                                                  final parts = snapshot.data!;
+                                                  if (rec.sent &&
+                                                      parts.any(
+                                                          (p) => !p.sent)) {
+                                                    logger.w(
+                                                        'Unsent parts found');
+                                                    String partsS = "";
+                                                    for (var part in parts) {
+                                                      partsS +=
+                                                          '${part.toJson()}\n';
+                                                    }
+                                                    logger.w(
+                                                        'All parts: $partsS');
+                                                    status = t(
+                                                        'recList.status.unsentParts');
+                                                    color = Colors.red;
+                                                  } else {
+                                                    status = rec.sent
+                                                        ? t('recList.status.uploaded')
+                                                        : t('recList.status.waitingForUpload');
+                                                    color = rec.sent
+                                                        ? Colors.green
+                                                        : Colors.orange;
+                                                  }
+                                                }
+                                                return Text(
+                                                  status,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: color,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              dateText,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const Icon(Icons.chevron_right,
+                                                color: Colors.grey),
+                                          ],
+                                        ),
+                                      ])));
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: ReusableBottomAppBar(

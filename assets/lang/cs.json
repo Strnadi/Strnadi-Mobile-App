@@ -270,7 +270,8 @@
       "sortByDate": "Řadit podle data",
       "sortByBirdCount": "Počet ptáků",
       "filterDownloaded": "Stažené",
-      "clearFilter": "Zrušit filtr"
+      "clearFilter": "Zrušit filtr",
+      "sendAllUnsent": "Odeslat všechny neodeslané nahrávky"
     },
     "emptyListMessage": "Zatím nemáte žádné záznamy",
     "status": {

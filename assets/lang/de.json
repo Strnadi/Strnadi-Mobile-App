@@ -270,7 +270,8 @@
       "sortByDate": "Nach Datum sortieren",
       "sortByBirdCount": "Anzahl der Vögel",
       "filterDownloaded": "Heruntergeladen",
-      "clearFilter": "Filter entfernen"
+      "clearFilter": "Filter entfernen",
+      "sendAllUnsent": "Alle nicht gesendeten senden"
     },
     "emptyListMessage": "Sie haben noch keine Aufnahmen",
     "status": {
