@@ -51,6 +51,7 @@ import 'privacy/tracking_consent.dart';
 // Create a global logger instance.
 final logger = Logger();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
@@ -213,7 +214,7 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
     initFirebaseMessaging();
     initLocalNotifications();
 
-    runApp(const MyApp());
+    runApp(MyApp(key: myAppKey));
 
     // Initialize deep links after the first frame so the Navigator exists.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -244,13 +245,25 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
+
+  void refreshBadge(){
+    setState(() => debugBadge = Config.hostEnvironment == HostEnvironment.dev);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: (debugBadge),
       title: 'Strnadi',
       navigatorKey: navigatorKey,
       theme: ThemeData(

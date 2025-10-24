@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
@@ -33,6 +34,66 @@ class GoogleSignInService {
     serverClientId: '287278255232-2rfu5vd3j233uhn4ktacpfs7rep0s44d.apps.googleusercontent.com'
   );
 
+  static Future<Map<String, dynamic>?> googleAuth({String? jwt}) async {
+    logger.i('Starting google auth process');
+    try{
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the sign in.
+        logger.w('google sign in canceled');
+        return null;
+        //throw Exception('Google sign in canceled');
+      }
+
+      // Obtain the auth details from the request.
+      final GoogleSignInAuthentication googleAuth = await googleUser
+          .authentication;
+
+      late String idToken;
+      if(googleAuth.idToken != null) {
+        idToken = googleAuth.idToken!;
+      }
+      else {
+        logger.e('Google sign in failed: idToken is null');
+        signOut();
+        return null;
+      }
+      logger.i('got auth');
+
+      logger.i('google idToken: $idToken');
+
+      FlutterSecureStorage secureStorage = FlutterSecureStorage();
+
+      Map<String, String> headers = {'Content-Type': 'application/json'};
+      if (jwt != null && jwt.isNotEmpty){
+        headers.addAll({'Authentication': 'Bearer ${jwt}'});
+      }
+
+      //Send to BE
+
+      http.Response response = await http.post(
+        Uri(scheme: 'https', host: Config.host, path: '/auth/google'),
+            headers: headers,
+            body: jsonEncode({"idToken": idToken})
+      );
+
+      Map<String, dynamic> product = {"status": response.statusCode};
+
+      if (response.statusCode != 200){
+        logger.w('Google sign in failed: ${response.statusCode} | ${response.body}');
+        return product;
+      }
+      product.addAll(jsonDecode(response.body));
+      logger.i('Google sign in successful');
+      return product;
+
+    } catch (e, stackTrace){
+      logger.e('Error processing Google Auth: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      return null;
+    }
+  }
+
   static Future<String?> signInWithGoogle() async {
     // Trigger the authentication flow.
     try {
@@ -49,7 +110,7 @@ class GoogleSignInService {
       final GoogleSignInAuthentication googleAuth = await googleUser
           .authentication;
 
-      String idToken = '';
+      late String idToken;
       if(googleAuth.idToken != null) {
         idToken = googleAuth.idToken!;
       }

@@ -23,10 +23,12 @@ import 'package:flutter/material.dart';
 /// A widget that renders a Markdown file from the given asset path.
 class MDRender extends StatefulWidget {
   /// The asset path to the Markdown file.
-  final String mdPath;
+  final String? mdPath;
+  final String? mdContent;
   final String title;
 
-  const MDRender({Key? key, required this.mdPath, required this.title}) : super(key: key);
+  const MDRender({Key? key, this.mdPath, required this.title, this.mdContent})
+      : super(key: key);
 
   @override
   _MDRenderState createState() => _MDRenderState();
@@ -42,8 +44,14 @@ class _MDRenderState extends State<MDRender> {
   }
 
   Future<void> _loadMarkdownContent() async {
+    if (widget.mdContent != null) {
+      setState(() {
+        _markdownContent = widget.mdContent;
+      });
+      return;
+    }
     try {
-      final data = await rootBundle.loadString(widget.mdPath);
+      final data = await rootBundle.loadString(widget.mdPath!);
       setState(() {
         _markdownContent = data;
       });
@@ -59,13 +67,29 @@ class _MDRenderState extends State<MDRender> {
     if (_markdownContent == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    final markdownStyle = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+    final markdownStyle =
+        MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black),
-      h1: Theme.of(context).textTheme.displayLarge?.copyWith(color: Colors.black),
-      h2: Theme.of(context).textTheme.displayMedium?.copyWith(color: Colors.black),
-      h3: Theme.of(context).textTheme.displaySmall?.copyWith(color: Colors.black),
-      h4: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.black),
-      h5: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.black),
+      h1: Theme.of(context)
+          .textTheme
+          .displayLarge
+          ?.copyWith(color: Colors.black),
+      h2: Theme.of(context)
+          .textTheme
+          .displayMedium
+          ?.copyWith(color: Colors.black),
+      h3: Theme.of(context)
+          .textTheme
+          .displaySmall
+          ?.copyWith(color: Colors.black),
+      h4: Theme.of(context)
+          .textTheme
+          .headlineMedium
+          ?.copyWith(color: Colors.black),
+      h5: Theme.of(context)
+          .textTheme
+          .headlineSmall
+          ?.copyWith(color: Colors.black),
       h6: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black),
     );
     return Scaffold(

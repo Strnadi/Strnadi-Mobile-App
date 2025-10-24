@@ -95,6 +95,27 @@ class _RecordingFormState extends State<RecordingForm> {
 
   late String placeTitle = " ";
 
+  bool _isLoading = false;
+
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  /// Runs [action] with the loader on, prevents duplicate presses.
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // ignore re-press
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -666,24 +687,18 @@ class _RecordingFormState extends State<RecordingForm> {
     final Color yellowishBlack = const Color(0xFF2D2B18);
     final Color yellow = const Color(0xFFFFD641);
 
-    // Compute half screen width for buttons.
-    final halfScreen = MediaQuery.of(context).size.width * 0.45;
+    // Update marker pos from last known (if any)
     markerPosition = locationService.lastKnownPosition != null
-        ? LatLng(locationService.lastKnownPosition!.latitude,
-            locationService.lastKnownPosition!.longitude)
+        ? LatLng(
+            locationService.lastKnownPosition!.latitude,
+            locationService.lastKnownPosition!.longitude,
+          )
         : null;
 
-    // if (spectogram == null) {
-    //   return const Scaffold(
-    //     body: Center(
-    //       child: CircularProgressIndicator(),
-    //     ),
-    //   );
-    // }
-    //
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (_isLoading) return; // block back while loading
         if (didPop) return;
         final bool shouldPop = await _confirmDiscard() ?? false;
         if (shouldPop) {
@@ -691,8 +706,7 @@ class _RecordingFormState extends State<RecordingForm> {
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  LiveRec(),
+              pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
               settings: const RouteSettings(name: '/Recorder'),
               transitionDuration: Duration.zero,
               reverseTransitionDuration: Duration.zero,
@@ -700,383 +714,353 @@ class _RecordingFormState extends State<RecordingForm> {
           );
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: Text(placeTitle ?? " "),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: ElevatedButton(
-                onPressed: () async {
-                  final shouldSave = await showDialog<bool>(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: Text(t(
-                            'postRecordingForm.addDialect.dialogs.confirmation.title')),
-                        content: Text(t(
-                            'postRecordingForm.recordingForm.dialogs.confirmation.message')),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: Text(t(
-                                'postRecordingForm.addDialect.dialogs.confirmation.no')),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: Text(t(
-                                'postRecordingForm.addDialect.dialogs.confirmation.yes')),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-
-                  if (shouldSave == true) {
-                    upload();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: yellow,
-                  foregroundColor: yellowishBlack,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                child: Text(t('postRecordingForm.recordingForm.buttons.save')),
-              ),
-            ),
-          ],
-          leading: IconButton(
-            icon: Icon(Icons.delete),
-            //width: 30, height: 30),
-            onPressed: () async {
-              final bool shouldPop = await _confirmDiscard() ?? false;
-              if (shouldPop) {
-                spectogramKey = GlobalKey();
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => LiveRec()));
-              }
-            },
-          ),
-        ),
-        body: SingleChildScrollView(
-          child: Center(
-            child: Column(
-              children: [
-                // Spectrogram and playback controls remain unchanged.
-                // RepaintBoundary(
-                //   child: SizedBox(
-                //     height: 300,
-                //     width: double.infinity,
-                //     child: spectogram,
-                //   ),
-                // ),
-                Text(
-                  _formatDuration(totalDuration),
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                        icon: const Icon(Icons.replay_10, size: 32),
-                        onPressed: () => seekRelative(-10)),
-                    IconButton(
-                      icon: Icon(isPlaying
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_filled),
-                      iconSize: 72,
-                      onPressed: togglePlay,
-                    ),
-                    IconButton(
-                        icon: const Icon(Icons.forward_10, size: 32),
-                        onPressed: () => seekRelative(10)),
-                  ],
-                ),
+      child: Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              centerTitle: true,
+              title: Text(placeTitle),
+              actions: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: Text(t(
-                        'postRecordingForm.recordingForm.buttons.addDialect')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFF7C0),
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
-                    onPressed: _showDialectSelectionDialog,
-                  ),
-                ),
-                if (dialectSegments.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: dialectSegments
-                          .map((dialect) => _buildDialectSegment(dialect))
-                          .toList(),
-                    ),
-                  ),
-                const SizedBox(height: 50),
-                Form(
-                  child: Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Název nahrávky field
-                        Text(
-                            t('postRecordingForm.recordingForm.fields.recordingName.name'),
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: TextFormField(
-                            controller: _recordingNameController,
-                            textAlign: TextAlign.start,
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 15, vertical: 12),
-                            ),
-                            keyboardType: TextInputType.text,
-                            maxLength: 49,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return t(
-                                    'postRecordingForm.recordingForm.fields.recordingName.error.empty');
-                              } else if (value.length > 49) {
-                                return t(
-                                    'postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        // Počet strnadů slider
-                        Text(
-                            t('postRecordingForm.recordingForm.fields.birdCount.name'),
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        // Display current slider value above the slider.
-                        Text(
-                          _strnadiCountController.toInt() == 3
-                              ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
-                              : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        const SizedBox(height: 5),
-                        SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: yellow,
-                            inactiveTrackColor: Colors.yellow.shade200,
-                            thumbColor: yellow,
-                            overlayColor: Colors.yellow.withOpacity(0.3),
-                          ),
-                          child: Slider(
-                            value: _strnadiCountController,
-                            min: 1,
-                            max: 3,
-                            divisions: 2,
-                            onChanged: (value) =>
-                                setState(() => _strnadiCountController = value),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        // Komentář field (multiline)
-                        Text(
-                            t('postRecordingForm.recordingForm.fields.comment.name'),
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: TextFormField(
-                            controller: _commentController,
-                            textAlign: TextAlign.start,
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 15, vertical: 12),
-                            ),
-                            keyboardType: TextInputType.multiline,
-                            maxLines: null,
-                            validator: (value) => (value == null ||
-                                    value.isEmpty)
-                                ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        // Mapa label and map widget with same padding as text fields.
-                        Text(t('recListItem.placeTitle'),
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        // Map coordinates
-                        Text(placeTitle ?? ' '),
-                        Text(
-                            "${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
-                        const SizedBox(height: 5),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 12),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: SizedBox(
-                              height: 200,
-                              child: FutureBuilder<bool>(
-                                future: Config.hasBasicInternet,
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData ||
-                                      snapshot.data == false) {
-                                    return Container(
-                                      color: Colors.grey.shade300,
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        t('postRecordingForm.recordingForm.placeholders.noInternet'),
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black54),
-                                      ),
-                                    );
-                                  } else if (_computedCenter.latitude != 0.0 &&
-                                      _computedCenter.longitude != 0.0) {
-                                    return FlutterMap(
-                                      options: MapOptions(
-                                        initialCenter: _computedCenter,
-                                        initialZoom: _computedZoom,
-                                        interactionOptions: InteractionOptions(
-                                            flags: InteractiveFlag.none),
-                                      ),
-                                      mapController: _mapController,
-                                      children: [
-                                        TileLayer(
-                                          urlTemplate:
-                                              'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                                          userAgentPackageName:
-                                              'cz.delta.strnadi',
-                                        ),
-                                        if (_route.isNotEmpty)
-                                          PolylineLayer(
-                                            polylines: [
-                                              Polyline(
-                                                  points: List.from(_route),
-                                                  strokeWidth: 4.0,
-                                                  color: Colors.blue),
-                                            ],
-                                          ),
-                                        MarkerLayer(
-                                          markers:
-                                              widget.recordingParts.map((part) {
-                                            return Marker(
-                                              point: LatLng(
-                                                  part.gpsLatitudeStart!,
-                                                  part.gpsLongitudeStart!),
-                                              child: Icon(Icons.place,
-                                                  color: Colors.red, size: 30),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ],
-                                    );
-                                  } else {
-                                    return Container(
-                                      color: Colors.grey.shade300,
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black54,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Zahodit button at bottom.
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text(t(
-                                          'postRecordingForm.addDialect.dialogs.confirmation.title')),
-                                      content: Text(t(
-                                          'postRecordingForm.addDialect.dialogs.confirmation.message')),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: Text(t(
-                                              'postRecordingForm.addDialect.dialogs.confirmation.no')),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            spectogramKey = GlobalKey();
-                                            Navigator.of(context).pop();
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      LiveRec()),
-                                            );
-                                          },
-                                          child: Text(t(
-                                              'postRecordingForm.addDialect.dialogs.confirmation.yes')),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: ElevatedButton(
+                    onPressed: !_isLoading
+                        ? () async {
+                            final shouldSave = await showDialog<bool>(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                  content: Text(t('postRecordingForm.recordingForm.dialogs.confirmation.message')),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(false),
+                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(true),
+                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                    ),
+                                  ],
                                 );
                               },
-                              style: ElevatedButton.styleFrom(
-                                elevation: 0,
-                                backgroundColor: secondaryRed,
-                                foregroundColor: primaryRed,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: Text(t(
-                                  'postRecordingForm.recordingForm.buttons.discard')),
-                            ),
-                          ),
-                        ),
-                      ],
+                            );
+
+                            if (shouldSave == true) {
+                              await _withLoader(() async {
+                                await upload();
+                              });
+                            }
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: yellow,
+                      foregroundColor: yellowishBlack,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
+                    child: Text(t('postRecordingForm.recordingForm.buttons.save')),
                   ),
                 ),
               ],
+              leading: IconButton(
+                icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+                onPressed: !_isLoading
+                    ? () async {
+                        final bool shouldPop = await _confirmDiscard() ?? false;
+                        if (shouldPop) {
+                          spectogramKey = GlobalKey();
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                        }
+                      }
+                    : null,
+              ),
+            ),
+            body: SingleChildScrollView(
+              child: Center(
+                child: Column(
+                  children: [
+                    // Duration / playback controls
+                    Text(
+                      _formatDuration(totalDuration),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.replay_10, size: 32),
+                          onPressed: !_isLoading ? () => seekRelative(-10) : null,
+                        ),
+                        IconButton(
+                          icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                          iconSize: 72,
+                          onPressed: !_isLoading ? togglePlay : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.forward_10, size: 32),
+                          onPressed: !_isLoading ? () => seekRelative(10) : null,
+                        ),
+                      ],
+                    ),
+
+                    // Add dialect button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: Text(t('postRecordingForm.recordingForm.buttons.addDialect')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFF7C0),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onPressed: !_isLoading ? _showDialectSelectionDialog : null,
+                      ),
+                    ),
+
+                    // Dialect list (if any)
+                    if (dialectSegments.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: dialectSegments.map((d) => _buildDialectSegment(d)).toList(),
+                        ),
+                      ),
+
+                    const SizedBox(height: 50),
+
+                    // Form
+                    Form(
+                      child: Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Recording name
+                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TextFormField(
+                                controller: _recordingNameController,
+                                textAlign: TextAlign.start,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                                ),
+                                keyboardType: TextInputType.text,
+                                maxLength: 49,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return t('postRecordingForm.recordingForm.fields.recordingName.error.empty');
+                                  } else if (value.length > 49) {
+                                    return t('postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // Bird count
+                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Text(
+                              _strnadiCountController.toInt() == 3
+                                  ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
+                                  : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 5),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: yellow,
+                                inactiveTrackColor: Colors.yellow.shade200,
+                                thumbColor: yellow,
+                                overlayColor: Colors.yellow.withOpacity(0.3),
+                              ),
+                              child: Slider(
+                                value: _strnadiCountController,
+                                min: 1,
+                                max: 3,
+                                divisions: 2,
+                                onChanged: (value) => setState(() => _strnadiCountController = value),
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // Comment
+                            Text(t('postRecordingForm.recordingForm.fields.comment.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TextFormField(
+                                controller: _commentController,
+                                textAlign: TextAlign.start,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                                ),
+                                keyboardType: TextInputType.multiline,
+                                maxLines: null,
+                                validator: (value) => (value == null || value.isEmpty)
+                                    ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
+                                    : null,
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // Map label
+                            Text(t('recListItem.placeTitle'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(placeTitle),
+                            Text("${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
+                            const SizedBox(height: 5),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: SizedBox(
+                                  height: 200,
+                                  child: FutureBuilder<bool>(
+                                    future: Config.hasBasicInternet,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator());
+                                      } else if (!snapshot.hasData || snapshot.data == false) {
+                                        return Container(
+                                          color: Colors.grey.shade300,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            t('postRecordingForm.recordingForm.placeholders.noInternet'),
+                                            style: const TextStyle(fontSize: 14, color: Colors.black54),
+                                          ),
+                                        );
+                                      } else if (_computedCenter.latitude != 0.0 && _computedCenter.longitude != 0.0) {
+                                        return FlutterMap(
+                                          options: MapOptions(
+                                            initialCenter: _computedCenter,
+                                            initialZoom: _computedZoom,
+                                            interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                          ),
+                                          mapController: _mapController,
+                                          children: [
+                                            TileLayer(
+                                              urlTemplate: 'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                              userAgentPackageName: 'cz.delta.strnadi',
+                                            ),
+                                            if (_route.isNotEmpty)
+                                              PolylineLayer(
+                                                polylines: [
+                                                  Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                                                ],
+                                              ),
+                                            MarkerLayer(
+                                              markers: widget.recordingParts.map((part) {
+                                                return Marker(
+                                                  point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
+                                                  child: const Icon(Icons.place, color: Colors.red, size: 30),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ],
+                                        );
+                                      } else {
+                                        return Container(
+                                          color: Colors.grey.shade300,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
+                                            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Discard button
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: !_isLoading
+                                      ? () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                                content: Text(t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () { Navigator.of(context).pop(); },
+                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      spectogramKey = GlobalKey();
+                                                      Navigator.of(context).pop();
+                                                      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                                    },
+                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: secondaryRed,
+                                    foregroundColor: primaryRed,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  child: Text(t('postRecordingForm.recordingForm.buttons.discard')),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+
+          // Global loader overlay
+          if (_isLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

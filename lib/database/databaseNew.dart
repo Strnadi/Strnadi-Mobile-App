@@ -522,12 +522,163 @@ class RecordingPart {
   }
 }
 
+class FilteredRecordingPart {
+  int? id;                 // local PK
+  int? BEId;               // backend filtered part id (unique if provided)
+  int? recordingLocalId;   // FK -> recordings.id
+  int? recordingBEID;      // parent backend recording id
+  DateTime startDate;
+  DateTime endDate;
+  int state;               // workflow state
+  bool isRepresentant;
+  int? parentBEID;         // optional parent filtered part id (backend)
+  int? parentLocalId;      // optional parent filtered part id (local)
+
+  FilteredRecordingPart({
+    this.id,
+    this.BEId,
+    this.recordingLocalId,
+    this.recordingBEID,
+    required this.startDate,
+    required this.endDate,
+    required this.state,
+    required this.isRepresentant,
+    this.parentBEID,
+    this.parentLocalId,
+  });
+
+  factory FilteredRecordingPart.fromDb(Map<String, Object?> row) {
+    return FilteredRecordingPart(
+      id: row['id'] as int?,
+      BEId: row['BEId'] as int?,
+      recordingLocalId: row['recordingLocalId'] as int?,
+      recordingBEID: row['recordingBEID'] as int?,
+      startDate: DateTime.parse(row['startDate'] as String),
+      endDate: DateTime.parse(row['endDate'] as String),
+      state: (row['state'] as num).toInt(),
+      isRepresentant: ((row['representant'] as int?) ?? 0) == 1,
+      parentBEID: row['parentBEID'] as int?,
+      parentLocalId: row['parentLocalId'] as int?,
+    );
+  }
+
+  static bool _parseBool(dynamic v) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) {
+      final s = v.toLowerCase();
+      return s == '1' || s == 'true' || s == 'yes';
+    }
+    return false;
+  }
+
+  factory FilteredRecordingPart.fromBEJson(Map<String, Object?> json) {
+    final beidDyn = json['id'];
+    final beid = (beidDyn is int) ? beidDyn : (beidDyn is String ? int.tryParse(beidDyn) : null);
+    return FilteredRecordingPart(
+      BEId: beid,
+      recordingBEID: (json['recordingId'] as num?)?.toInt(),
+      startDate: DateTime.parse(json['startDate'] as String),
+      endDate: DateTime.parse(json['endDate'] as String),
+      state: (json['state'] as num).toInt(),
+      isRepresentant: _parseBool(json['representantFlag']),
+      parentBEID: (json['parentId'] as num?)?.toInt(),
+    );
+  }
+
+  Map<String, Object?> toDbJson() {
+    return {
+      'id': id,
+      'BEId': BEId,
+      'recordingLocalId': recordingLocalId,
+      'recordingBEID': recordingBEID,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'state': state,
+      'representant': isRepresentant ? 1 : 0,
+      'parentBEID': parentBEID,
+      'parentLocalId': parentLocalId,
+    };
+  }
+}
+
+class DetectedDialect {
+  int? id;                      // local PK
+  int? BEId;                    // backend dialect id
+  int? filteredPartLocalId;     // FK -> FilteredRecordingParts.id
+  int? filteredPartBEID;        // parent FRP backend id
+  int? userGuessDialectId;
+  String? userGuessDialect;
+  int? confirmedDialectId;
+  String? confirmedDialect;
+
+  DetectedDialect({
+    this.id,
+    this.BEId,
+    this.filteredPartLocalId,
+    this.filteredPartBEID,
+    this.userGuessDialectId,
+    this.userGuessDialect,
+    this.confirmedDialectId,
+    this.confirmedDialect,
+  });
+
+  factory DetectedDialect.fromDb(Map<String, Object?> row) {
+    return DetectedDialect(
+      id: row['id'] as int?,
+      BEId: row['BEId'] as int?,
+      filteredPartLocalId: row['filteredPartLocalId'] as int?,
+      filteredPartBEID: row['filteredPartBEID'] as int?,
+      userGuessDialectId: row['userGuessDialectId'] as int?,
+      userGuessDialect: row['userGuessDialect'] as String?,
+      confirmedDialectId: row['confirmedDialectId'] as int?,
+      confirmedDialect: row['confirmedDialect'] as String?,
+    );
+  }
+
+  factory DetectedDialect.fromBEJson(
+      Map<String, Object?> json, {
+        required int parentFilteredPartBEID,
+      }) {
+    final beidDyn = json['id'];
+    final beid = (beidDyn is int) ? beidDyn : (beidDyn is String ? int.tryParse(beidDyn) : null);
+    return DetectedDialect(
+      BEId: beid,
+      filteredPartBEID: parentFilteredPartBEID,
+      userGuessDialectId: (json['userGuessDialectId'] as num?)?.toInt(),
+      userGuessDialect: json['userGuessDialect'] as String?,
+      confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
+      confirmedDialect: json['confirmedDialect'] as String?,
+    );
+  }
+
+  Map<String, Object?> toDbJson() {
+    return {
+      'id': id,
+      'BEId': BEId,
+      'filteredPartLocalId': filteredPartLocalId,
+      'filteredPartBEID': filteredPartBEID,
+      'userGuessDialectId': userGuessDialectId,
+      'userGuessDialect': userGuessDialect,
+      'confirmedDialectId': confirmedDialectId,
+      'confirmedDialect': confirmedDialect,
+    };
+  }
+}
+
 /// Database helper class
 class DatabaseNew {
   static Database? _database;
   static List<Recording> recordings = List<Recording>.empty(growable: true);
   static List<RecordingPart> recordingParts =
       List<RecordingPart>.empty(growable: true);
+  static List<FilteredRecordingPart> filteredRecordingParts =
+  List<FilteredRecordingPart>.empty(growable: true);
+  static List<DetectedDialect> detectedDialects =
+  List<DetectedDialect>.empty(growable: true);
+
+  static List<FilteredRecordingPart>? fetchedFilteredRecordingParts;
+  static List<DetectedDialect>? fetchedDetectedDialects;
 
   static List<Recording>? fetchedRecordings;
   static List<RecordingPart>? fetchedRecordingParts;
@@ -728,6 +879,10 @@ class DatabaseNew {
         }
       }
       await onFetchFinished();
+      if (fetchedRecordings != null && fetchedRecordings!.isNotEmpty) {
+        await fetchFilteredPartsForRecordingsFromBE(fetchedRecordings!);
+        await persistFetchedFilteredParts();
+      }
       logger.i("✅ Recordings fetched and synced.");
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
@@ -1183,6 +1338,96 @@ class DatabaseNew {
     }
   }
 
+  static Future<void> fetchFilteredPartsForRecordingsFromBE(List<Recording> recs, {bool verified = false}) async {
+    fetchedFilteredRecordingParts = <FilteredRecordingPart>[];
+    fetchedDetectedDialects = <DetectedDialect>[];
+
+    String? jwt = await FlutterSecureStorage().read(key: 'token');
+    for (final rec in recs) {
+      if (rec.BEId == null) continue;
+      final uri = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/recordings/filtered',
+        queryParameters: {
+          'recordingId': '${rec.BEId}',
+          'verified': verified ? 'true' : 'false',
+        },
+      );
+      try {
+        final resp = await http.get(uri, headers: {
+          'Content-Type': 'application/json',
+          if (jwt != null) 'Authorization': 'Bearer $jwt',
+        });
+        if (resp.statusCode == 200) {
+          final List<dynamic> arr = json.decode(resp.body) as List<dynamic>;
+          for (final item in arr) {
+            if (item is! Map) continue;
+            final map = (item as Map).cast<String, Object?>();
+            final frp = FilteredRecordingPart.fromBEJson(map);
+            fetchedFilteredRecordingParts!.add(frp);
+
+            final dynList = map['detectedDialects'];
+            if (dynList is List) {
+              for (final d in dynList) {
+                if (d is Map) {
+                  final dd = DetectedDialect.fromBEJson(
+                    (d as Map).cast<String, Object?>(),
+                    parentFilteredPartBEID: frp.BEId ?? 0,
+                  );
+                  fetchedDetectedDialects!.add(dd);
+                }
+              }
+            }
+          }
+        } else if (resp.statusCode == 204) {
+          // none for this recording
+        } else {
+          logger.w('Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}');
+        }
+      } catch (e, st) {
+        logger.e('Error fetching filtered parts for recording ${rec.BEId}: $e', error: e, stackTrace: st);
+        Sentry.captureException(e, stackTrace: st);
+      }
+    }
+  }
+
+  static Future<void> persistFetchedFilteredParts() async {
+    if (fetchedFilteredRecordingParts == null || fetchedFilteredRecordingParts!.isEmpty) return;
+
+    // Build recording BEId -> local id map
+    final localRecs = await getRecordings();
+    final Map<int, int> recBeToLocal = {
+      for (final r in localRecs)
+        if (r.BEId != null && r.id != null) r.BEId!: r.id!
+    };
+
+    // Insert/update filtered parts first
+    final Map<int, int> frpBeToLocal = <int, int>{};
+    for (final frp in fetchedFilteredRecordingParts!) {
+      if (frp.recordingBEID != null) {
+        frp.recordingLocalId = recBeToLocal[frp.recordingBEID!];
+      }
+      if (frp.parentBEID != null && frpBeToLocal.containsKey(frp.parentBEID)) {
+        frp.parentLocalId = frpBeToLocal[frp.parentBEID!];
+      }
+      final id = await insertFilteredRecordingPart(frp);
+      if (frp.BEId != null && id > 0) {
+        frpBeToLocal[frp.BEId!] = id;
+      }
+    }
+
+    // Insert/update detected dialects, linked to local FRP ids
+    if (fetchedDetectedDialects != null && fetchedDetectedDialects!.isNotEmpty) {
+      for (final dd in fetchedDetectedDialects!) {
+        if (dd.filteredPartBEID != null && frpBeToLocal.containsKey(dd.filteredPartBEID)) {
+          dd.filteredPartLocalId = frpBeToLocal[dd.filteredPartBEID!];
+        }
+        await insertDetectedDialect(dd);
+      }
+    }
+  }
+
   static Future<List<RecordingPart>> fetchPartsFromDbById(int id) async {
     final db = await database;
     final List<Map<String, dynamic>> parts = await db
@@ -1346,7 +1591,7 @@ class DatabaseNew {
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 6,
+    return openDatabase('soundNew.db', version: 8,
         onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
@@ -1416,6 +1661,35 @@ class DatabaseNew {
         endDate TEXT
       )
       ''');
+      await db.execute('''
+    CREATE TABLE FilteredRecordingParts(
+      id INTEGER PRIMARY KEY,
+      BEId INTEGER UNIQUE,
+      recordingLocalId INTEGER,
+      recordingBEID INTEGER,
+      startDate TEXT,
+      endDate TEXT,
+      state INTEGER,
+      representant INTEGER,
+      parentBEID INTEGER,
+      parentLocalId INTEGER,
+      FOREIGN KEY(recordingLocalId) REFERENCES recordings(id)
+    )
+    ''');
+
+      await db.execute('''
+    CREATE TABLE DetectedDialects(
+      id INTEGER PRIMARY KEY,
+      BEId INTEGER UNIQUE,
+      filteredPartLocalId INTEGER,
+      filteredPartBEID INTEGER,
+      userGuessDialectId INTEGER,
+      userGuessDialect TEXT,
+      confirmedDialectId INTEGER,
+      confirmedDialect TEXT,
+      FOREIGN KEY(filteredPartLocalId) REFERENCES FilteredRecordingParts(id)
+    )
+    ''');
     }, onOpen: (Database db) async {
       final String? jwt = await FlutterSecureStorage().read(key: 'token');
       if (jwt == null) {
@@ -1430,6 +1704,17 @@ class DatabaseNew {
       final List<Map<String, dynamic>> parts = await db.query("recordingParts");
       recordingParts =
           List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
+      final List<Map<String, dynamic>> fparts = await db.query("FilteredRecordingParts");
+      filteredRecordingParts = List.generate(
+        fparts.length,
+            (i) => FilteredRecordingPart.fromDb(fparts[i]),
+      );
+
+      final List<Map<String, dynamic>> ddRows = await db.query("DetectedDialects");
+      detectedDialects = List.generate(
+        ddRows.length,
+            (i) => DetectedDialect.fromDb(ddRows[i]),
+      );
       loadedRecordings = true;
       enforceMaxRecordings(); // ← this blocks the open
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
@@ -1552,6 +1837,37 @@ class DatabaseNew {
             endDate TEXT
           )
         ''');
+        await db.setVersion(newVersion);
+      }
+      if (oldVersion <= 7) {
+        await db.execute('''
+    CREATE TABLE IF NOT EXISTS FilteredRecordingParts(
+      id INTEGER PRIMARY KEY,
+      BEId INTEGER UNIQUE,
+      recordingLocalId INTEGER,
+      recordingBEID INTEGER,
+      startDate TEXT,
+      endDate TEXT,
+      state INTEGER,
+      representant INTEGER,
+      parentBEID INTEGER,
+      parentLocalId INTEGER,
+      FOREIGN KEY(recordingLocalId) REFERENCES recordings(id)
+    )
+  ''');
+        await db.execute('''
+    CREATE TABLE IF NOT EXISTS DetectedDialects(
+      id INTEGER PRIMARY KEY,
+      BEId INTEGER UNIQUE,
+      filteredPartLocalId INTEGER,
+      filteredPartBEID INTEGER,
+      userGuessDialectId INTEGER,
+      userGuessDialect TEXT,
+      confirmedDialectId INTEGER,
+      confirmedDialect TEXT,
+      FOREIGN KEY(filteredPartLocalId) REFERENCES FilteredRecordingParts(id)
+    )
+  ''');
         await db.setVersion(newVersion);
       }
     });
@@ -1700,5 +2016,79 @@ class DatabaseNew {
     final List<Map<String, dynamic>> results = await db.query("Dialects",
         where: "recordingBEID = ?", whereArgs: [recordingBEID]);
     return List.generate(results.length, (i) => Dialect.fromJson(results[i]));
+  }
+
+  // === Filtered Recording Parts CRUD ===
+  static Future<int> insertFilteredRecordingPart(FilteredRecordingPart frp) async {
+    final db = await database;
+    if (frp.BEId != null) {
+      final existing = await db.query('FilteredRecordingParts', where: 'BEId = ?', whereArgs: [frp.BEId], limit: 1);
+      if (existing.isNotEmpty) {
+        frp.id = existing.first['id'] as int?;
+        await db.update('FilteredRecordingParts', frp.toDbJson(), where: 'id = ?', whereArgs: [frp.id]);
+        final idx = filteredRecordingParts.indexWhere((e) => e.id == frp.id);
+        if (idx != -1) filteredRecordingParts[idx] = frp; else filteredRecordingParts.add(frp);
+        return frp.id ?? -1;
+      }
+    }
+    final id = await db.insert('FilteredRecordingParts', frp.toDbJson());
+    frp.id = id;
+    filteredRecordingParts.add(frp);
+    return id;
+  }
+
+  static Future<void> updateFilteredRecordingPart(FilteredRecordingPart frp) async {
+    final db = await database;
+    await db.update('FilteredRecordingParts', frp.toDbJson(), where: 'id = ?', whereArgs: [frp.id]);
+    final idx = filteredRecordingParts.indexWhere((e) => e.id == frp.id);
+    if (idx != -1) filteredRecordingParts[idx] = frp; else filteredRecordingParts.add(frp);
+  }
+
+// === Detected Dialects CRUD ===
+  static Future<int> insertDetectedDialect(DetectedDialect dd) async {
+    final db = await database;
+    if (dd.BEId != null) {
+      final existing = await db.query('DetectedDialects', where: 'BEId = ?', whereArgs: [dd.BEId], limit: 1);
+      if (existing.isNotEmpty) {
+        dd.id = existing.first['id'] as int?;
+        await db.update('DetectedDialects', dd.toDbJson(), where: 'id = ?', whereArgs: [dd.id]);
+        final idx = detectedDialects.indexWhere((e) => e.id == dd.id);
+        if (idx != -1) detectedDialects[idx] = dd; else detectedDialects.add(dd);
+        return dd.id ?? -1;
+      }
+    }
+    final id = await db.insert('DetectedDialects', dd.toDbJson());
+    dd.id = id;
+    detectedDialects.add(dd);
+    return id;
+  }
+
+  static Future<void> updateDetectedDialect(DetectedDialect dd) async {
+    final db = await database;
+    await db.update('DetectedDialects', dd.toDbJson(), where: 'id = ?', whereArgs: [dd.id]);
+    final idx = detectedDialects.indexWhere((e) => e.id == dd.id);
+    if (idx != -1) detectedDialects[idx] = dd; else detectedDialects.add(dd);
+  }
+
+  /// Representative dialects for a local recording (prefers confirmed, else user guess)
+  static Future<List<String>> getRepresentativeDialectCodesForRecording(int recordingLocalId) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+    SELECT DISTINCT COALESCE(dd.confirmedDialect, dd.userGuessDialect) AS code
+    FROM FilteredRecordingParts frp
+    JOIN DetectedDialects dd ON dd.filteredPartLocalId = frp.id
+    WHERE frp.recordingLocalId = ?
+      AND frp.representant = 1
+      AND COALESCE(dd.confirmedDialect, dd.userGuessDialect) IS NOT NULL
+      AND COALESCE(dd.confirmedDialect, dd.userGuessDialect) <> ''
+  ''', [recordingLocalId]);
+
+    final codes = rows
+        .map((r) => (r['code'] as String).trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+
+    return codes.isEmpty ? <String>['Neurceno'] : codes;
   }
 }

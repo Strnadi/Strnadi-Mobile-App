@@ -17,6 +17,9 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 
 class DialectModel {
   final String type;
@@ -57,16 +60,51 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   late double startTime;
   late double endTime;
 
-  final Map<String, Color> dialectColors = {
-    'BC': Colors.yellow,
-    'BE': Colors.green,
-    'BlBh': Colors.lightBlue,
-    'BhBl': Colors.blue,
-    'XB': Colors.red,
+  // Fallback colors for non-dialect options, dialects resolved from cache/defaults.
+  final Map<String, Color> specialTypeColors = {
     'Jiné': Colors.white,
-    'Nevím': Colors.grey.shade300,
-    'Bez dialektu': Colors.grey.shade300,
+    'Nevím': Colors.grey,
+    'Bez dialektu': Colors.black,
   };
+
+  static const String _prefsKey = 'dialect_colors_v1';
+  static const Map<String, String> _defaults = {
+    'BC': '#FDE441',
+    'BE': '#52DC4D',
+    'BD': '#666666',
+    'BhBl': '#8ED0FF',
+    'BlBh': '#4E68F0',
+    'XB': '#F04D4D',
+    'Neznámý': '#aaaaaa',
+    'Bez dialektu': '#000000',
+  };
+
+  Color _hexToColor(String hex) {
+    return Color(int.parse(hex.replaceFirst('#', '0xff')));
+  }
+
+  Future<Color> _resolveDialectColor(String type) async {
+    // Non-dialect special options
+    if (specialTypeColors.containsKey(type)) return specialTypeColors[type]!;
+
+    // Dialect color from cache, with defaults fallback
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsKey);
+      if (raw != null && raw.isNotEmpty) {
+        final Map<String, dynamic> parsed = jsonDecode(raw);
+        final String? hex = parsed[type] as String?;
+        if (hex != null) return _hexToColor(hex);
+      }
+    } catch (_) {}
+
+    // Fallback to internal defaults
+    final hex = _defaults[type];
+    if (hex != null) return _hexToColor(hex);
+
+    // Last resort
+    return Colors.grey;
+  }
 
   @override
   void initState() {
@@ -196,17 +234,17 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           padding: EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: selectedDialect != null
-                            ? () {
-                          widget.onDialectAdded(DialectModel(
-                            type: selectedDialect!,
-                            label: selectedDialect!,
-                            color: dialectColors[selectedDialect]!,
-                            startTime: startTime,
-                            endTime: endTime,
-                          ));
-
-                          Navigator.pop(context);
-                        }
+                            ? () async {
+                                final color = await _resolveDialectColor(selectedDialect!);
+                                widget.onDialectAdded(DialectModel(
+                                  type: selectedDialect!,
+                                  label: selectedDialect!,
+                                  color: color,
+                                  startTime: startTime,
+                                  endTime: endTime,
+                                ));
+                                if (mounted) Navigator.pop(context);
+                              }
                             : null,
                         child: Text(t('postRecordingForm.addDialect.confirm')),
                       ),
@@ -277,12 +315,14 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       if (showLogo) ...[
-                        Image.asset(
-                          'assets/dialects/$type.png',
-                          width: 24,
-                          height: 24,
+                        DynamicIcon(
+                          icon: Icons.circle,
+                          iconSize: 18,
+                          padding: EdgeInsets.zero,
+                          backgroundColor: Colors.transparent,
+                          dialects: [type],
                         ),
-                        SizedBox(width: 4),
+                        SizedBox(width: 6),
                       ],
                       Expanded(
                         child: Text(

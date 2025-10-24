@@ -71,7 +71,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 20),
 
                 // Heading
-                Text(t('passwordReset.request.title'),
+                Text(t('signup.passwordReset.request.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -80,7 +80,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 const SizedBox(height: 8),
 
                 // Subheading
-                Text(t('passwordReset.request.subtitle'),
+                Text(t('signup.passwordReset.request.subtitle'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
@@ -118,7 +118,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return t('passwordReset.request.errors.emptyEmail');
+                      return t('signup.passwordReset.request.errors.emptyEmail');
                     }
                     if (!RegExp(
                       r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
@@ -152,7 +152,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
               if (_GlobalKey.currentState?.validate() ?? false) {
                 requestPasswordReset(_emailController.text);
               } else {
-                _showMessage(t('passwordReset.request.errors.sendBeforeValid'));
+                _showMessage(t('signup.passwordReset.request.errors.sendBeforeValid'));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -169,7 +169,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
             ),
-            child: Text(t('passwordReset.request.buttons.sendLink')),
+            child: Text(t('signup.passwordReset.request.buttons.sendLink')),
           ),
         ),
       ),
@@ -183,21 +183,21 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        _showMessage(t('passwordReset.request.messages.sent'));
+        _showMessage(t('signup.passwordReset.request.messages.sent'));
         Navigator.replace(context, newRoute: MaterialPageRoute(builder: (_) => ResetEmailSent(userEmail: email)), oldRoute: ModalRoute.of(context)!,);
       } else if(response.statusCode == 401) {
         logger.w('Unregistred email: ${response.statusCode} | ${response.body}');
-        _showMessage(t('passwordReset.request.messages.unregistered'));
+        _showMessage(t('signup.passwordReset.request.messages.unregistered'));
       } else if(response.statusCode == 500) {
         logger.w('Server error: ${response.statusCode} | ${response.body}');
-        _showMessage(t('passwordReset.request.messages.serverError'));
+        _showMessage(t('signup.passwordReset.request.messages.serverError'));
       } else {
         logger.i('Failed to send password reset: ${response.statusCode}');
-        _showMessage(t('passwordReset.request.messages.genericFail'));
+        _showMessage(t('signup.passwordReset.request.messages.genericFail'));
       }
     } catch (e, stackTrace) {
       logger.e('Error sending password reset request: $e', error: e, stackTrace: stackTrace);
-      _showMessage(t('passwordReset.request.messages.connectionError'));
+      _showMessage(t('signup.passwordReset.request.messages.connectionError'));
     }
   }
 
@@ -205,7 +205,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('passwordReset.request.dialogTitle')),
+        title: Text(t('signup.passwordReset.request.dialogTitle')),
         content: Text(message),
         actions: [
           TextButton(
