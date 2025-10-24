@@ -21,7 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/config.dart';
 
-class _DialectColorCache {
+class DialectColorCache {
   static const _prefsKey = 'dialect_colors_v1';
   static const Map<String, String> _defaults = {
     'BC': '#FDE441',
@@ -59,7 +59,8 @@ class _DialectColorCache {
     final Map<String, String> source = raw.isEmpty ? _defaults : raw;
 
     for (final d in dialects) {
-      final hex = source[d] ?? _defaults[d]; // fallback per-key if missing in cache
+      final hex =
+          source[d] ?? _defaults[d]; // fallback per-key if missing in cache
       if (hex == null) continue;
       try {
         colors.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
@@ -68,8 +69,6 @@ class _DialectColorCache {
     return colors;
   }
 }
-
-
 
 class DynamicIcon extends StatelessWidget {
   const DynamicIcon({
@@ -104,6 +103,14 @@ class DynamicIcon extends StatelessWidget {
   final BoxBorder? border;
   final List<BoxShadow>? shadow;
 
+  static int getColorFromHex(String hexColor) {
+    hexColor = hexColor.toUpperCase().replaceAll("#", "");
+    if (hexColor.length == 6) {
+      hexColor = "FF" + hexColor;
+    }
+    return int.parse(hexColor, radix: 16);
+  }
+
   /// Fetch all dialect colors from the server in a single request.
   /// Accepts either of these response shapes:
   /// 1) Map: { "BC": "#FDE441", ... }
@@ -123,7 +130,8 @@ class DynamicIcon extends StatelessWidget {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to fetch dialect colors: HTTP ${response.statusCode}');
+      throw Exception(
+          'Failed to fetch dialect colors: HTTP ${response.statusCode}');
     }
 
     final data = jsonDecode(response.body);
@@ -142,7 +150,8 @@ class DynamicIcon extends StatelessWidget {
       // List form: [ {"code":"BC","color":"#FDE441"}, ... ]
       for (final item in data) {
         if (item is Map) {
-          final code = (item['code'] ?? item['dialect'] ?? item['dialect_code'])?.toString();
+          final code = (item['code'] ?? item['dialect'] ?? item['dialect_code'])
+              ?.toString();
           final color = item['color']?.toString();
           if (code != null && color != null) {
             result[code] = color;
@@ -160,22 +169,25 @@ class DynamicIcon extends StatelessWidget {
     if (dialects == null || dialects!.isEmpty) return [];
     try {
       // Read only from cache for offline usage. Do NOT fetch over network here.
-      return await _DialectColorCache.getColors(dialects!);
+      return await DialectColorCache.getColors(dialects!);
     } catch (e) {
       logger.e('Failed to read cached dialect colors: $e');
       return [];
     }
   }
+
   /// Refresh (update) the cached dialect colors from the server in one call.
   /// Any provided [dialects] are ignored; the server response is authoritative.
-  static Future<void> refreshDialects([List<String> dialects = const []]) async {
+  static Future<void> refreshDialects(
+      [List<String> dialects = const []]) async {
     try {
       final serverMap = await _fetchAllDialectColors();
       if (serverMap.isEmpty) {
-        logger.w('refreshDialects: server returned empty map; keeping existing cache.');
+        logger.w(
+            'refreshDialects: server returned empty map; keeping existing cache.');
         return;
       }
-      await _DialectColorCache._writeRaw(serverMap);
+      await DialectColorCache._writeRaw(serverMap);
     } catch (e) {
       logger.e('Failed to refresh dialect colors: $e');
     }
@@ -190,13 +202,13 @@ class DynamicIcon extends StatelessWidget {
   /// Only includes dialects defined in the built-in defaults, but uses
   /// cached values when available; falls back to defaults for missing keys.
   static Future<Map<String, Color>> getLegendDialectColors() async {
-    final raw = await _DialectColorCache._readRaw();
+    final raw = await DialectColorCache._readRaw();
     final Map<String, String> source =
-    raw.isEmpty ? _DialectColorCache._defaults : raw;
+        raw.isEmpty ? DialectColorCache._defaults : raw;
 
     final result = <String, Color>{};
-    for (final key in _DialectColorCache._defaults.keys) {
-      final hex = source[key] ?? _DialectColorCache._defaults[key];
+    for (final key in DialectColorCache._defaults.keys) {
+      final hex = source[key] ?? DialectColorCache._defaults[key];
       if (hex == null) continue;
       try {
         result[key] = Color(int.parse(hex.replaceFirst('#', '0xff')));
@@ -215,7 +227,9 @@ class DynamicIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Future<List<Color>>? colorsFuture =
-        (dialects != null && dialects!.isNotEmpty) ? _fetchDialectColors() : null;
+        (dialects != null && dialects!.isNotEmpty)
+            ? _fetchDialectColors()
+            : null;
 
     return FutureBuilder<List<Color>>(
       future: colorsFuture,

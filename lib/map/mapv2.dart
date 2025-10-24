@@ -76,6 +76,12 @@ class MapScreenV2 extends StatefulWidget {
 class _MapScreenV2State extends State<MapScreenV2> {
   late bool _clusterPoints = true;
 
+  Map<String, List<Marker>> _dialectSeparatedMarkers = {};
+
+  List<String> keys = ['rest'];
+
+  List<Widget> markersWidgets = [];
+
   /// Loads filtered recording parts from the public BE endpoint instead of the local DB cache.
   /// When [verified] is true, the BE returns only FRPs with workflow states indicating verification (1 or 2).
   /// When false, the BE can return also unverified FRPs.
@@ -254,7 +260,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     _getCurrentLocation();
 
-    getRecordings().then((_) => _fetchDialects());
+    getRecordings().then((_) => {_fetchDialects(), fetchClusters()});
 
     // Subscribe to the centralized location stream.
     _positionStreamSubscription =
@@ -272,6 +278,26 @@ class _MapScreenV2State extends State<MapScreenV2> {
         });
         _updateGrid();
       }
+    });
+  }
+
+  void fetchClusters() {
+    var markers = getDialectSeparatedRecordings();
+    logger.i(
+        '[MapV2] initState(): dialectSeparatedMarkers building clusters $markers');
+    for (var d in markers.keys) {
+      createClusterOfDialect(markers[d]!, d).then((widget) {
+        setState(() {
+          markersWidgets.add(widget);
+        });
+      });
+    }
+
+    logger.i('[MapV2] initState(): dialectSeparatedMarkers count=' +
+        markers.length.toString());
+    setState(() {
+      _dialectSeparatedMarkers = markers;
+      keys = markers.keys.toList();
     });
   }
 
@@ -457,28 +483,21 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   List<Marker> _buildRecordingMarkers() {
-    logger.i('[MapV2] _buildRecordingMarkers(): parts=' +
-        _recordings.length.toString());
+    logger.i('[MapV2] _buildRecordingMarkers(): parts=${_recordings.length}');
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
     final Map<int, Part> lastPartByRecording = {};
     for (final p in _recordings) {
       lastPartByRecording[p.recordingId] = p; // last wins
     }
-    logger.i('[MapV2] unique recordings for markers=' +
-        lastPartByRecording.length.toString());
+    logger.i(
+        '[MapV2] unique recordings for markers=${lastPartByRecording.length}');
 
     final markers = <Marker>[];
     lastPartByRecording.forEach((recId, part) {
       final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
       final dList = _dialectsForRecordingId(recId);
-      logger.i('[MapV2] marker recId=' +
-          recId.toString() +
-          ' lat=' +
-          part.gpsLatitudeStart.toString() +
-          ' lon=' +
-          part.gpsLongitudeStart.toString() +
-          ' dialects=' +
-          dList.join(','));
+      logger.i(
+          '[MapV2] marker recId=$recId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
       final dialects = dList;
       markers.add(
         Marker(
@@ -510,6 +529,60 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
 
     return markers;
+  }
+
+  Map<String, List<Marker>> getDialectSeparatedRecordings() {
+    Map<String, List<Marker>> dialectMarkers = {};
+
+    for (var rec in _recordings) {
+      logger.i(
+          '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
+      var dialects = _dialectsForRecordingId(rec.recordingId);
+      final point = LatLng(rec.gpsLatitudeStart, rec.gpsLongitudeStart);
+
+      var recId = rec.recordingId;
+
+      var marker = Marker(
+        width: 30.0,
+        height: 30.0,
+        point: point,
+        child: GestureDetector(
+          onTap: () {
+            getRecordingFromPartId(recId);
+          },
+          child: SizedBox(
+            width: 30.0,
+            height: 30.0,
+            child: Center(
+              child: DynamicIcon(
+                key: ValueKey('rec_${recId}_${dialects.join('+')}'),
+                icon: Icons.circle,
+                iconSize: 20,
+                padding: EdgeInsets.zero,
+                backgroundColor: Colors.transparent,
+                dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+              ),
+            ),
+          ),
+        ),
+      );
+
+      if (dialects.length == 1) {
+        var dialect = dialects[0];
+        if (dialectMarkers.containsKey(dialect)) {
+          dialectMarkers[dialect]!.add(marker);
+        } else {
+          dialectMarkers[dialect] = [marker];
+        }
+      } else {
+        if (dialectMarkers.containsKey('rest')) {
+          dialectMarkers['rest']!.add(marker);
+        } else {
+          dialectMarkers['rest'] = [marker];
+        }
+      }
+    }
+    return dialectMarkers;
   }
 
   Future<(String?, String?)?> getProfilePic(int? userId_) async {
@@ -613,6 +686,35 @@ class _MapScreenV2State extends State<MapScreenV2> {
             ));
   }
 
+  Future<Widget> createClusterOfDialect(
+      List<Marker> markers, String dialect) async {
+    var colors = await DialectColorCache.getColors(List.from([dialect]));
+    var color = colors[0];
+
+    return MarkerClusterLayerWidget(
+      options: MarkerClusterLayerOptions(
+        maxClusterRadius: 45,
+        size: const Size(40, 40),
+        alignment: Alignment.center,
+        markers: markers,
+        builder: (context, clusteredMarkers) {
+          return Container(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                clusteredMarkers.length.toString(),
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
@@ -677,29 +779,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     ],
                   ),
                   if (_clusterPoints == true)
-                    MarkerClusterLayerWidget(
-                      options: MarkerClusterLayerOptions(
-                        maxClusterRadius: 45,
-                        size: const Size(40, 40),
-                        alignment: Alignment.center,
-                        markers: _buildRecordingMarkers(),
-                        builder: (context, clusteredMarkers) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Center(
-                              child: Text(
-                                clusteredMarkers.length.toString(),
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 14),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    for (var widget in markersWidgets) widget,
                   if (_clusterPoints == false)
                     MarkerLayer(
                       markers: _buildRecordingMarkers(),
