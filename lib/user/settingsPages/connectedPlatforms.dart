@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/auth/appleAuth.dart';
+import 'package:strnadi/auth/google_sign_in_service.dart' hide logger;
 import 'package:strnadi/localization/localization.dart';
 import '../../HealthCheck/serverHealth.dart' show logger;
 import '../../bottomBar.dart';
@@ -37,18 +38,43 @@ class Connectedplatforms extends StatefulWidget {
 
 class _ConnectedPlatformsState extends State<Connectedplatforms> {
   late bool? shouldShowAppleSignIn = null;
+  late bool? ShouldShowGoogleSignIn = null;
 
   @override
   void initState() {
     super.initState();
-    shouldShow().then((show) {
+    shouldShowGoogle().then((show) {
+      setState(() {
+        ShouldShowGoogleSignIn = show;
+      });
+    });
+    shouldShowApple().then((show) {
       setState(() {
         shouldShowAppleSignIn = show;
       });
     });
   }
 
-  Future<bool> shouldShow() async {
+  Future<bool> shouldShowGoogle() async {
+    var storage = FlutterSecureStorage();
+    var jwt = await storage.read(key: 'token');
+    final url = Uri.parse(
+        'https://${Config.host}/auth/has-google-id?userId=${await storage.read(key: 'userId') ?? ''}');
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+    logger.i(response.statusCode);
+    logger.i(url);
+    if (response.statusCode == 200) {
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> shouldShowApple() async {
     var storage = FlutterSecureStorage();
     var jwt = await storage.read(key: 'token');
     final url = Uri.parse(
@@ -77,7 +103,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
         content: const Center(child: CircularProgressIndicator()),
       );
     }
-    if (shouldShowAppleSignIn == false) {
+    if (shouldShowAppleSignIn == false && ShouldShowGoogleSignIn == false) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
         appBarTitle: "Propojené služby",
@@ -90,7 +116,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
             Icon(Icons.check_circle, color: Colors.green, size: 64),
             SizedBox(height: 16),
             Text(
-              'Váš účet je již propojen s Apple ID.',
+              'Váš účet je již propojen s Apple i Google.',
               style: TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
@@ -108,51 +134,186 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  var storage = FlutterSecureStorage();
-                  var jwt = await storage.read(key: 'token');
-                  if (kIsWeb) {
-                    logger.w("Apple Sign-In is not supported on the web.");
-                    return;
-                  }
-                  try {
-                    var resp = await AppleAuth.signInAndGetJwt(jwt);
-                    if (resp?['status'] != 200) {
-                      logger.w("Apple Sign-In was cancelled or failed.");
-                      return;
-                    }
-                    logger.i('Apple Sign-In successful.');
-                  } catch (e) {
-                    logger.e("Error during Apple Sign-In: $e");
-                  }
-                },
-                icon: Image.asset(
-                  'assets/images/apple.png',
-                  height: 24,
-                  width: 24,
-                ),
-                label: const Text(
-                  'Pokračovat přes Apple',
-                  style: TextStyle(fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+          if (shouldShowAppleSignIn == true)
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        var storage = FlutterSecureStorage();
+                        var jwt = await storage.read(key: 'token');
+                        if (kIsWeb) {
+                          logger
+                              .w("Apple Sign-In is not supported on the web.");
+                          return;
+                        }
+                        try {
+                          var resp = await AppleAuth.signInAndGetJwt(jwt);
+                          if (resp?['status'] != 200) {
+                            logger.w("Apple Sign-In was cancelled or failed.");
+                            return;
+                          }
+                          logger.i('Apple Sign-In successful.');
+                        } catch (e) {
+                          logger.e("Error during Apple Sign-In: $e");
+                        }
+                      },
+                      icon: Image.asset(
+                        'assets/images/apple.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      label: const Text(
+                        'Pokračovat přes Apple',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        var storage = FlutterSecureStorage();
+                        var jwt = await storage.read(key: 'token');
+                        if (kIsWeb) {
+                          logger
+                              .w("Google Sign-In is not supported on the web.");
+                          return;
+                        }
+                        try {
+                          var resp =
+                              await GoogleSignInService.signInWithGoogle();
+                          if (resp == null) {
+                            logger.w("Google Sign-In was cancelled or failed.");
+                            return;
+                          }
+                          logger.i('Google Sign-In successful.');
+                        } catch (e) {
+                          logger.e("Error during Google Sign-In: $e");
+                        }
+                      },
+                      icon: Image.asset(
+                        'assets/images/google.webp',
+                        height: 24,
+                        width: 24,
+                      ),
+                      label: const Text(
+                        'Už propojeno s Google',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
+          if (ShouldShowGoogleSignIn == true)
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        var storage = FlutterSecureStorage();
+                        var jwt = await storage.read(key: 'token');
+                        if (kIsWeb) {
+                          logger
+                              .w("Google Sign-In is not supported on the web.");
+                          return;
+                        }
+                        try {
+                          var resp =
+                              await GoogleSignInService.signInWithGoogle();
+                          if (resp == null) {
+                            logger.w("Google Sign-In was cancelled or failed.");
+                            return;
+                          }
+                          logger.i('Google Sign-In successful.');
+                        } catch (e) {
+                          logger.e("Error during Google Sign-In: $e");
+                        }
+                      },
+                      icon: Image.asset(
+                        'assets/images/google.webp',
+                        height: 24,
+                        width: 24,
+                      ),
+                      label: const Text(
+                        'Pokračovat přes Google',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        logger.i('Schwartz Negger');
+                      },
+                      icon: Image.asset(
+                        'assets/images/apple.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      label: const Text(
+                        'Již propojeno s Apple',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
         ],
       )),
     );
