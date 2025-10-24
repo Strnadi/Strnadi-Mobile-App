@@ -296,10 +296,10 @@ class _RegMailState extends State<RegMail> {
                           children: [
                             TextSpan(
                               text:
-                                  t('signup.consent.con1'),
+                                  t('signup.mail.consent.con1'),
                             ),
                             TextSpan(
-                              text: t('signup.consent.con2'),
+                              text: t('signup.mail.consent.con2'),
                               style: TextStyle(
                                 color: Colors.blue,
                                 decoration: TextDecoration.underline,
@@ -419,6 +419,68 @@ class _RegMailState extends State<RegMail> {
                       return;
                     }
                     _withLoader(() async {
+                      logger.i('Google button clicked');
+                      Map<String, dynamic>? data = await gle.GoogleSignInService.googleAuth();
+                      if (data == null) {
+                        logger.w('Google sign in returned null data');
+                        return;
+                      }
+                      if (data['status'] == 200) {
+                        logger.i(
+                            'Google sign in successful, returned data: ${data.toString()}');
+                        if (data['exists'] == false) {
+                          // New user, proceed with registration
+                          logger.i(
+                              'Google sign in: new user, proceeding to registration');
+                          Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => RegName(
+                                    name: data['firstName'] as String? ?? '',
+                                    surname:
+                                    data['lastName'] as String? ?? '',
+                                    email: data['email'] as String? ?? '',
+                                    jwt: data['jwt'] as String,
+                                    consent: true,
+                                  )));
+                          return;
+                        } else if (data['exists'] == true) {
+                          // User exists, proceed with login
+                        }
+                        String? jwt = data['jwt'] as String?;
+                        final secureStorage = const FlutterSecureStorage();
+                        // Persist the token locally
+                        await secureStorage.write(key: 'token', value: jwt);
+                        await secureStorage.write(key: 'verified', value: true.toString());
+                        logger.i('Google sign‑in successful, token stored');
+
+                        // Retrieve user‑id from backend
+                        final idResponse = await http.get(
+                            Uri.parse('https://${Config.host}/users/get-id'),
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': 'Bearer $jwt',
+                            });
+                        if (idResponse.statusCode != 200) {
+                          logger.e('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                          _showMessage(t('login.errors.idGetError'));
+                          return;
+                        }
+                        await secureStorage.write(key: 'userId', value: idResponse.body);
+                        await cacheUserData(int.parse(idResponse.body));
+                        await fb.refreshToken();
+                        // Go to recorder screen
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => LiveRec()),
+                        );
+                      } else {
+                        logger.w(
+                            'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                        _showMessage(t('login.errors.loginFailed'));
+                        return;
+                      }
+                      /*
                       await gle.GoogleSignInService.signUpWithGoogle().then((user) {
                         if (user != null && user['status'] != 409) {
                           Navigator.push(
@@ -443,6 +505,7 @@ class _RegMailState extends State<RegMail> {
                         logger.e(error);
                         Sentry.captureException(error);
                       });
+                      */
                     });
                   } : null,
                   icon: Image.asset(
@@ -575,7 +638,7 @@ class _RegMailState extends State<RegMail> {
                     width: 24,
                   ),
                   label: Text(
-                    t('login.buttons.con_apple'),
+                    t('signup.mail.buttons.con_apple'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(

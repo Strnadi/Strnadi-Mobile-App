@@ -428,6 +428,75 @@ class _LoginState extends State<Login> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    logger.i('Google button clicked');
+                    _showLoader();
+                    Map<String, dynamic>? data = await google.GoogleSignInService.googleAuth();
+                    if (data == null) {
+                      logger.w('Google sign in returned null data');
+                      _hideLoader();
+                      return;
+                    }
+                    if (data['status'] == 200) {
+                      logger.i(
+                          'Google sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
+                        // New user, proceed with registration
+                        _hideLoader();
+                        logger.i(
+                            'Google sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                  name: data['firstName'] as String? ?? '',
+                                  surname:
+                                  data['lastName'] as String? ?? '',
+                                  email: data['email'] as String? ?? '',
+                                  jwt: data['jwt'] as String,
+                                  consent: true,
+                                )));
+                        return;
+                      } else if (data['exists'] == true) {
+                        // User exists, proceed with login
+                      }
+                      String? jwt = data['jwt'] as String?;
+                      final secureStorage = const FlutterSecureStorage();
+                      // Persist the token locally
+                      await secureStorage.write(key: 'token', value: jwt);
+                      await secureStorage.write(key: 'verified', value: true.toString());
+                      logger.i('Google sign‑in successful, token stored');
+
+                      // Retrieve user‑id from backend
+                      final idResponse = await http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        });
+                      if (idResponse.statusCode != 200) {
+                        logger.e('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                        _hideLoader();
+                        _showMessage(t('login.errors.idGetError'));
+                        return;
+                      }
+                      await secureStorage.write(key: 'userId', value: idResponse.body);
+                      await cacheUserData(int.parse(idResponse.body));
+                      await fb.refreshToken();
+                      _hideLoader();
+                      // Go to recorder screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => LiveRec()),
+                      );
+                    } else {
+                      logger.w(
+                          'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _hideLoader();
+                      _showMessage(t('login.errors.loginFailed'));
+                      return;
+                    }
+
+                    /*
                     logger.i('Button clicked');
                     //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
                     late int userId;
@@ -457,6 +526,7 @@ class _LoginState extends State<Login> {
                     MaterialPageRoute(
                     builder: (_) => LiveRec()));
                   }
+                    */
                   },
                   icon: Image.asset(
                     'assets/images/google.webp',
