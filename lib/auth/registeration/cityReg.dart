@@ -14,6 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -24,7 +27,9 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 
+import '../../config/config.dart';
 import 'emailSent.dart';
+import 'overview.dart';
 
 Logger logger = Logger();
 
@@ -36,8 +41,9 @@ class RegLocation extends StatefulWidget {
   final String name;
   final String surname;
   final String nickname;
+  final String? appleId;
 
-  const RegLocation({super.key, required this.email, required this.consent, this.password, required this.jwt, required this.name, required this.surname, required this.nickname});
+  const RegLocation({super.key, required this.email, required this.consent, this.password, required this.jwt, required this.name, required this.surname, required this.nickname, this.appleId});
 
   @override
   State<RegLocation> createState() => _RegLocationState();
@@ -57,12 +63,12 @@ class _RegLocationState extends State<RegLocation> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Chyba'),
+        title: Text(t('map.dialogs.error.title')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
@@ -74,7 +80,7 @@ class _RegLocationState extends State<RegLocation> {
 
     final url = Uri(
       scheme: 'https',
-      host: 'api.strnadi.cz',
+      host: Config.host,
       path: '/auth/sign-up',
     );
 
@@ -118,16 +124,16 @@ class _RegLocationState extends State<RegLocation> {
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
         logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
-        _showMessage('Uživatel již existuje');
+        _showMessage(t('signup.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
-        _showMessage('Nastala chyba :( Zkuste to znovu');
+        _showMessage(t('signup.errors.error_ocured'));
         logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
       }
     } catch (error) {
       GoogleSignInService.signOut();
       logger.e("An error occurred: $error");
-      _showMessage('Nastala chyba :( Zkuste to znovu');
+      _showMessage(t('signup.errors.error_ocured'));
     }
   }
 
@@ -135,7 +141,14 @@ class _RegLocationState extends State<RegLocation> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (!didPop) {
+          Navigator.pop(context);
+        }
+      },
+    child:  Scaffold(
       // White background, same as in your example
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -148,7 +161,7 @@ class _RegLocationState extends State<RegLocation> {
             height: 30,
           ),
           onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
           },
         ),
       ),
@@ -161,8 +174,7 @@ class _RegLocationState extends State<RegLocation> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Title
-                const Text(
-                  'Kde se nacházíte?',
+                Text(t('signup.city.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -171,9 +183,7 @@ class _RegLocationState extends State<RegLocation> {
                 ),
                 const SizedBox(height: 8),
                 // Subtitle / Description
-                const Text(
-                  'Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, '
-                      'budeme potřebovat vaše PSČ a obec. Tento krok je nepovinný.',
+                Text(t('signup.city.subtitle'),
                   style: TextStyle(
                     fontSize: 14,
                     color: textColor,
@@ -182,8 +192,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 32),
 
                 // PSČ label
-                const Text(
-                  'PSČ',
+                Text(t('signup.city.post_code'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -217,8 +226,7 @@ class _RegLocationState extends State<RegLocation> {
                 const SizedBox(height: 16),
 
                 // Obec label
-                const Text(
-                  'Obec',
+                Text(t('signup.city.city'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -257,7 +265,8 @@ class _RegLocationState extends State<RegLocation> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState?.validate() ?? false) {
-                        register();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegOverview(name: widget.name, surname: widget.surname, nickname: widget.nickname, email: widget.email, postCode: _pscController.text, city: _obecController.text, password: widget.password, consent: widget.consent, jwt: widget.jwt, appleId: widget.appleId,)));
+                        //register();
                         // Navigate to the next screen or handle logic
                         // e.g.: Navigator.push(context, MaterialPageRoute(builder: (_) => NextPage()));
                       }
@@ -268,7 +277,7 @@ class _RegLocationState extends State<RegLocation> {
                       backgroundColor: _isFormValid ? yellow : Colors.grey,
                       foregroundColor: _isFormValid ? textColor : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle: const TextStyle(
+                      textStyle: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -276,7 +285,7 @@ class _RegLocationState extends State<RegLocation> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: const Text('Pokračovat'),
+                    child: Text(t('signup.mail.buttons.continue')),
                   ),
                 ),
               ],
@@ -286,7 +295,7 @@ class _RegLocationState extends State<RegLocation> {
       ),
       // Bottom segmented progress bar
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
           children: List.generate(5, (index) {
             // You can customize which segment(s) are considered "completed"
@@ -305,6 +314,7 @@ class _RegLocationState extends State<RegLocation> {
           }),
         ),
       ),
+    )
     );
   }
 }

@@ -13,74 +13,73 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/auth/forgottenPassword.dart';
+import 'package:logger/logger.dart';
+import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:strnadi/archived/login.dart';
+
+import '../../auth/google_sign_in_service.dart';
+import '../../config/config.dart';
+import '../../firebase/firebase.dart' as strnadiFirebase;
+
+Logger logger = Logger();
 
 class User {
-  final int id;
   final String nickname;
   final String email;
-  final String? password;
   final String firstName;
   final String lastName;
-  final int postCode;
-  final String city;
-  final DateTime creationDate;
-  final bool isEmailVerified;
-  final bool consent;
-  final String role;
+  final int? postCode;
+  final String? city;
 
   User({
-    required this.id,
     required this.nickname,
     required this.email,
-    this.password,
     required this.firstName,
     required this.lastName,
     required this.postCode,
     required this.city,
-    required this.creationDate,
-    required this.isEmailVerified,
-    required this.consent,
-    required this.role,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      nickname: json['nickname'],
+      nickname: json['nickname'] ?? "",
       email: json['email'],
-      password: json['password'],
       firstName: json['firstName'],
       lastName: json['lastName'],
       postCode: json['postCode'],
       city: json['city'],
-      creationDate: DateTime.parse(json['creationDate']),
-      isEmailVerified: json['isEmailVerified'],
-      consent: json['consent'],
-      role: json['role'],
     );
   }
-
 }
 
 class ProfileEditPage extends StatefulWidget {
-  const ProfileEditPage({Key? key}) : super(key: key);
+  Function() refreshUserCallback;
+
+  ProfileEditPage({Key? key, required this.refreshUserCallback}) : super(key: key);
 
   @override
   _ProfileEditPageState createState() => _ProfileEditPageState();
 }
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
-
   User? user;
 
-  Future<void> fetchUser(String email, String jwt) async {
-    final url = Uri.parse('https://api.strnadi.cz/users/$email');
+  final TextEditingController _nicknameController = TextEditingController();
+  final TextEditingController _firstnameController = TextEditingController();
+  final TextEditingController _lastnameController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _postCodeController = TextEditingController();
+
+  Future<void> fetchUser(int userId, String jwt) async {
+    final url = Uri.parse('https://${Config.host}/users/$userId');
     final response = await http.get(
       url,
       headers: {
@@ -90,97 +89,248 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
 
     if (response.statusCode == 200) {
+      logger.i('Fetched user: ${response.body}');
+
       setState(() {
         user = User.fromJson(jsonDecode(response.body));
+        _nicknameController.text = user!.nickname;
+        _firstnameController.text = user!.firstName;
+        _lastnameController.text = user!.lastName;
+        _cityController.text = user!.city ?? '';
+        _postCodeController.text = user!.postCode?.toString() ?? '';
+        _emailController.text = user!.email;
       });
     } else {
       logger.i('Failed to load user: ${response.statusCode} ${response.body}');
-      _showMessage("Nepodařilo se načíst uživatele");
+      _showMessage(t("user.profile.dialogs.error.load"));
+    }
+  }
+
+  Future<void> refreshUser(int userId) async{
+    final secureStorage = FlutterSecureStorage();
+
+    final http.Response response = await http.get(
+      Uri.parse('https://${Config.host}/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${secureStorage.read(key: 'token')}',
+      });
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      await secureStorage.write(key: 'user', value: data['firstName']);
+      await secureStorage.write(key: 'lastname', value: data['lastName']);
+      await secureStorage.write(key: 'nick', value: data['nickname']);
+      await secureStorage.write(key: 'role', value: data['role']);
+      await widget.refreshUserCallback();
+      setState(() {
+        user = User.fromJson(jsonDecode(response.body));
+      });
+
+    }
+  }
+
+  Future<void> updateUser(
+      String email, Map<String, dynamic> updatedData, String jwt) async {
+    final secureStorage = FlutterSecureStorage();
+
+    final id = await secureStorage.read(key: "userId");
+    final url = Uri.parse('https://${Config.host}/users/$id');
+
+    logger.i(jsonEncode(updatedData));
+
+    final response = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      },
+      body: jsonEncode(updatedData),
+    );
+
+    if (response.statusCode == 200) {
+      await refreshUser(int.parse(id!));
+      _showMessage(t("user.profile.dialogs.success.update"));
+    } else {
+      logger
+          .i('Failed to update user: ${response.statusCode} ${response.body}');
+      _showMessage(t("user.profile.dialogs.error.update"));
+    }
+  }
+
+  Future<void> updateUserData() async {
+    final secureStorage = FlutterSecureStorage();
+    String? jwt = await secureStorage.read(key: 'token');
+
+    if (user != null && jwt != null) {
+      Map<String, dynamic> updatedData = {
+        'nickname': _nicknameController.text.isEmpty ? null : _nicknameController.text,
+        'firstName': _firstnameController.text.isEmpty ? null : _firstnameController.text,
+        'lastName': _lastnameController.text.isEmpty ? null : _lastnameController.text,
+        'postCode': _postCodeController.text.trim().isEmpty ? null : int.parse(_postCodeController.text.trim()),
+        'city': _cityController.text.isEmpty ? null : _cityController.text,
+      };
+
+      updateUser(user!.email, updatedData, jwt);
+    } else {
+      _showMessage(t('user.profile.dialogs.error.load'));
     }
   }
 
   Future<void> extractEmailFromJwt() async {
-
     final secureStorage = FlutterSecureStorage();
     String? jwt = await secureStorage.read(key: 'token');
 
     try {
-      final parts = jwt!.split('.');
-      if (parts.length != 3) {
-        throw Exception('Invalid token');
+      if (jwt == null) {
+        throw Exception('Jwt token invalid');
       }
 
-      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
-      final Map<String, dynamic> jsonPayload = jsonDecode(payload);
+      final int userId = int.parse((await secureStorage.read(key: 'userId'))!);
 
-      fetchUser(jsonPayload['sub'], jwt); // Assuming the email is in "sub
-    } catch (e) {
-      logger.i("Error decoding JWT: $e");
+      fetchUser(userId, jwt);
+    } catch (e, stackTrace) {
+      logger.i("Error fetching user data: $e",
+          error: e, stackTrace: stackTrace);
     }
   }
 
   void UpdateUser() {
     // Update user
-    _showMessage('Nic se nezměnilo');
+    _showMessage(t('user.profile.dialogs.success.noChanges'));
   }
 
+  Future<void> confirmAndDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('user.profile.dialogs.deleteAccount.title')),
+        content: Text(t('user.profile.dialogs.deleteAccount.message')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t('recListItem.dialogs.confirmDelete.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t('recListItem.dialogs.confirmDelete.delete'),
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final secureStorage = FlutterSecureStorage();
+      String? jwt = await secureStorage.read(key: 'token');
+      String? userId = await secureStorage.read(key: 'userId');
+
+      if (jwt == null || userId == null) {
+        _showMessage(t('user.profile.dialogs.error.auth'));
+        return;
+      }
+
+      final url = Uri.parse('https://${Config.host}/users/$userId');
+
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        _showMessage(t('user.profile.dialogs.deleteAccount.success'));
+        logout(context);
+      } else {
+        _showMessage(t('user.profile.dialogs.deleteAccount.error'));
+        logger.i('Delete failed: ${response.statusCode} | ${response.body}');
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     extractEmailFromJwt();
   }
-   
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Osobní údaje'),
+        title: Text(t('user.profile.title')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              UpdateUser();
-            }, // Save action
-            child: const Text('Uložit', style: TextStyle(color: Colors.grey)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.amber,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              ),
+              onPressed: () {
+                updateUserData();
+              }, // Save action
+              child: Text(t('postRecordingForm.recordingForm.buttons.save'),
+                  style: TextStyle(color: Colors.white)),
+            ),
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildTextField('Jméno', user?.firstName ?? 'Null'),
-            _buildTextField('Příjmení',  user?.lastName ?? 'Null'),
-            _buildTextField('Přezdívka', user?.nickname ?? 'Null'),
-            _buildTextField('E-mail', user?.email ?? 'Null'),
-            _buildTextField('PSČ', user?.postCode.toString() ?? 'Null'),
-            ListTile(
-              title: const Text('Kraj'),
-              subtitle: Text(user?.city ?? 'Null'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {}, // Open region selection
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Text(t("user.profile.title"),
+                    style:
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                SizedBox(height: 20),
+                _buildTextField(t('user.profile.fields.firstName'), _firstnameController),
+                _buildTextField(t('user.profile.fields.lastName'), _lastnameController),
+                _buildTextField(t('user.profile.fields.nickname'), _nicknameController),
+                _buildTextField(t('user.profile.fields.email'), _emailController, readOnly: true),
+                _buildTextField(t('user.profile.fields.city'), _cityController),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      labelText: t('user.profile.fields.postCode'),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                    controller: _postCodeController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                ),
+              ],
             ),
             const Divider(),
             ListTile(
-              title: const Text('Změna hesla'),
+              title: Text(t('user.profile.buttons.changePassword')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ForgottenPassword()),
+                  MaterialPageRoute(
+                      builder: (context) => const ForgottenPassword()),
                 );
               }, // Open password change
             ),
             ListTile(
-              title: const Text('Chci si smazat účet', style: TextStyle(color: Colors.red)),
+              title: Text(t('user.profile.buttons.deleteAccount'),
+                  style: TextStyle(color: Colors.red)),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {}, // Open delete account confirmation
+              onTap: () {
+                confirmAndDeleteAccount();
+              }, // Open delete account confirmation
             ),
           ],
         ),
@@ -188,7 +338,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
-  Widget _buildTextField(String label, String value) {
+  Widget _buildTextField(String label, TextEditingController txt,
+      {bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextField(
@@ -196,7 +347,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
-        controller: TextEditingController(text: value),
+        controller: txt,
+        readOnly: readOnly,
       ),
     );
   }
@@ -206,8 +358,23 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       context: context,
       builder: (context) => AlertDialog(
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(t('auth.buttons.ok')))
+        ],
       ),
     );
+  }
+
+  Future<void> logout(BuildContext context) async {
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+
+    await GoogleSignInService.signOut();
+    await secureStorage.deleteAll();
+    await strnadiFirebase.deleteToken();
+
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil('/authorizator', (route) => false);
   }
 }

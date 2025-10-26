@@ -13,42 +13,57 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:strnadi/auth/registeration/mail.dart';
-import 'package:strnadi/recording/streamRec.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/firebase/firebase.dart' as firebase;
+//import 'package:strnadi/auth/login.dart';
+import 'package:strnadi/auth/registeration/mail.dart';
+import 'package:strnadi/auth/unverifiedEmail.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:strnadi/auth/login.dart';
-import 'package:flutter/gestures.dart'; // Needed for TapGestureRecognizer
+import 'package:strnadi/firebase/firebase.dart' as firebase;
+import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/md_renderer.dart';
+import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/widgets/FlagDropdown.dart';
+import 'package:strnadi/widgets/loader.dart';
+
+// Removed: import 'package:connectivity_plus/connectivity_plus.dart';
+
+import '../config/config.dart';
+import 'launch_warning.dart';
+import 'login.dart' show Login;
+
+Logger logger = Logger();
 
 enum AuthType { login, register }
 
 class Authorizator extends StatefulWidget {
-  final Widget login;
-  final Widget register;
-
   const Authorizator({
     Key? key,
-    required this.login,
-    required this.register,
   }) : super(key: key);
 
   @override
   State<Authorizator> createState() => _AuthState();
 }
 
-Future<bool> isLoggedIn() async {
+enum AuthStatus { loggedIn, loggedOut, notVerified }
+
+Future<AuthStatus> _onlineIsLoggedIn() async {
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
-    final Uri url = Uri.parse('https://api.strnadi.cz/auth/verify-jwt')
-        .replace(queryParameters: {'jwt': token});
+    final Uri url = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/auth/verify-jwt',
+        queryParameters: {'jwt': token});
+
     try {
       final response = await http.get(
         url,
@@ -57,24 +72,136 @@ Future<bool> isLoggedIn() async {
           'Authorization': 'Bearer $token',
         },
       );
+
+      logger.i('Response: ${response.statusCode} | ${response.body}');
+
       if (response.statusCode == 200) {
-        return true;
+        await secureStorage.write(key: 'verified', value: 'true');
+        DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+        if (expirationDate
+            .isAfter(DateTime.now().add(const Duration(days: 7)))) {
+          return AuthStatus.loggedIn;
+        }
+        // If the token is valid but about to expire, refresh it
+        try {
+          final refreshResponse = await http.get(
+            Uri(scheme: 'https', host: Config.host, path: '/auth/renew-jwt'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+          if (refreshResponse.statusCode == 200) {
+            String newToken = refreshResponse.body;
+            await secureStorage.write(key: 'token', value: newToken);
+          }
+        } catch (e, stackTrace) {
+          Sentry.captureException(e, stackTrace: stackTrace);
+          logger.e('Error refreshing token: $e',
+              error: e, stackTrace: stackTrace);
+        }
+        return AuthStatus.loggedIn;
+      } else if (response.statusCode == 403) {
+        await secureStorage.write(key: 'verified', value: 'false');
+        return AuthStatus.notVerified;
       } else {
-        return false;
+        return AuthStatus.loggedOut;
       }
     } catch (error) {
       Sentry.captureException(error);
-      return false;
+      return AuthStatus.loggedOut;
     }
   }
-  return false;
+  return AuthStatus.loggedOut;
+}
+
+Future<AuthStatus> _offlineIsLoggedIn() async {
+  FlutterSecureStorage secureStorage = FlutterSecureStorage();
+  String? token = await secureStorage.read(key: 'token');
+  if (token != null) {
+    DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+    if (expirationDate.isAfter(DateTime.now())) {
+      String? verified = await secureStorage.read(key: 'verified');
+      if (verified == 'true') {
+        return AuthStatus.loggedIn;
+      } else {
+        return AuthStatus.notVerified;
+      }
+    } else {
+      return AuthStatus.loggedOut;
+    }
+  } else {
+    return AuthStatus.loggedOut;
+  }
+}
+
+Future<AuthStatus> isLoggedIn() async {
+  // Treat either no connectivity or backend unreachable as offline
+  if (!await Config.hasBasicInternet) {
+    return await _offlineIsLoggedIn();
+  }
+  if (!await Config.isBackendAvailable) {
+    return await _offlineIsLoggedIn();
+  }
+  return await _onlineIsLoggedIn();
 }
 
 class _AuthState extends State<Authorizator> {
+  bool _isOnline = true;
+  bool _isLoading = false;
+
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // ignore repeated presses while loading
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
+
+  final List<Language> languages = [
+    Language(name: 'Czech', code: 'cs', flag: '🇨🇿'),
+    Language(name: 'English', code: 'en', flag: '🇬🇧'),
+    Language(name: 'German', code: 'de', flag: '🇩🇪'),
+  ];
+
+  Language? selectedLanguage;
+
   @override
   void initState() {
     super.initState();
-    checkLoggedIn(); // token check if needed
+    setState(() {
+      selectedLanguage = languages[0];
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showWIPwarning();
+    });
+    Config.hasBasicInternet.then((online) {
+      setState(() {
+        _isOnline = online;
+      });
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        logger.i('Checking logged-in status on app start');
+        checkLoggedIn();
+    });
+  }
+
+  void _showWIPwarning() {
+    showDialog(
+      context: context,
+      builder: (context) => WIP_warning(),
+    );
   }
 
   @override
@@ -82,206 +209,380 @@ class _AuthState extends State<Authorizator> {
     // Example color definitions
     const Color textColor = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
+    return Loader(
+        isLoading: _isLoading,
+        child:
+        Scaffold(
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  Center(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32.0, vertical: 20.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Spacing from the top
+                            //const SizedBox(height: 0),
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          // Ensures scroll if the screen is too short on small devices
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              children: [
-                // Spacing from the top
-                const SizedBox(height: 40),
+                            // Bird image
+                            Image.asset(
+                              'assets/images/ncs_logo_tall_large.png',
+                              // Update path if needed
+                              width: 200,
+                              height: 200,
+                            ),
 
-                // Bird image
-                Image.asset(
-                  'assets/images/ncs_logo_tall_large.png', // Update path if needed
-                  width: 200,
-                  height: 200,
-                ),
+                            const SizedBox(height: 32),
 
-                const SizedBox(height: 32),
+                            // Main title
+                            Text(
+                              t('auth.title'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
 
-                // Main title
-                const Text(
-                  'Nářečí českých strnadů',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
+                            const SizedBox(height: 8),
 
-                const SizedBox(height: 8),
+                            // Subtitle
+                            Text(
+                              t('auth.subtitle'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: textColor,
+                              ),
+                            ),
 
-                // Subtitle
-                const Text(
-                  'Nahrávejte, mapujte, dobývejte',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                  ),
-                ),
+                            const SizedBox(height: 40),
 
-                const SizedBox(height: 40),
+                            // "Založit účet" button (yellow background, no elevation)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () =>
+                                    _navigateIfAllowed(const RegMail()),
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 0,
+                                  // No elevation
+                                  shadowColor: Colors.transparent,
+                                  // Remove shadow
+                                  backgroundColor: yellow,
+                                  foregroundColor: textColor,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  textStyle: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: Text(
+                                  t('auth.buttons.register'),
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                            ),
 
-                // "Založit účet" button (yellow background, no elevation)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegMail()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0, // No elevation
-                      shadowColor: Colors.transparent, // Remove shadow
-                      backgroundColor: yellow,
-                      foregroundColor: textColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                            const SizedBox(height: 16),
+
+                            // "Přihlásit se" button (outlined)
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: () => _navigateIfAllowed(const Login()),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: textColor,
+                                  side: BorderSide(
+                                      color: Colors.grey[200]!, width: 2),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  textStyle: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: Text(t('auth.buttons.login'),
+                                    style: TextStyle(color: textColor)),
+                              ),
+                            ),
+
+                            // Text to continue as guest
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const LiveRec()),
+                                );
+                              },
+                              child: Text(
+                                t('auth.buttons.continue_as_guest'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+
+                            // Add the terms here
+                            const SizedBox(height: 180),
+
+                            // Add disclaimer and space at the bottom
+                          ],
+                        ),
                       ),
                     ),
-                    child: const Text('Založit účet', style: TextStyle(color: textColor),),
                   ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // "Přihlásit se" button (outlined)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const Login()));
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: Colors.grey[200]!, width: 2),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                  Positioned(
+                    bottom: 10, // 5 pixels from bottom
+                    left: 0,
+                    right: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          t('auth.disclaimer.consent_prefix'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Colors.black),
+                        ),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => _launchURL(),
+                          child: Text(
+                            t('auth.disclaimer.privacy_policy'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Text('Přihlásit se', style: TextStyle(color: textColor)),
                   ),
-                ),
-
-                // Add some space to ensure the bottom disclaimer isn't too close
-                const SizedBox(height: 60),
-              ],
-            ),
-          ),
-        ),
-      ),
-      // Disclaimer pinned at bottom
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'pokračováním souhlasíte se zásadami',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.black),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: CompactLanguageDropdown(
+                      languages: languages,
+                      selectedLanguage: selectedLanguage ?? languages.first,
+                      onChanged: (Language? newValue) async {
+                        if (newValue == null) return;
+                        await Localization.load(
+                            'assets/lang/${newValue.code}.json');
+                        if (!mounted) return;
+                        setState(() => selectedLanguage = newValue);
+                        Config.setLanguagePreference(
+                            Config.LangFromString(newValue.code));
+                        logger.i('Language changed to ${newValue.code}');
+                      },
+                    ),
+                  )
+                ],
               ),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: () => _launchURL(),
-                child: const Text(
-                  'ochrany osobních údajů.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            )
+        )
     );
   }
 
   Future<void> checkLoggedIn() async {
-    final secureStorage = FlutterSecureStorage();
-    if (await isLoggedIn()) {
-      String? token = await secureStorage.read(key: 'token');
-      if (token == null) return;
+    _withLoader(() async {
+      bool online = await Config.hasBasicInternet;
+      bool serverAvailable = await Config.isBackendAvailable;
+      final secureStorage = FlutterSecureStorage();
+      if (!online && !serverAvailable) {
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) {
+          logger.i("No internet and no token stored.");
+          _showAlert("Offline",
+              "Nemáte připojení k internetu a žádný token není uložen.");
+          return;
+        } else {
+          DateTime expirationDate = JwtDecoder.getExpirationDate(token);
+          if (expirationDate.isBefore(DateTime.now())) {
+            logger.i('JWT expired and no internet.');
+            _showAlert("Offline",
+                "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+            return;
+          } else {
+            DateTime expirationDate = JwtDecoder.getExpirationDate(token);
+            if (expirationDate.isBefore(DateTime.now())) {
+              logger.i('JWT expired and no internet.');
+              _showAlert("Offline",
+                  "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+              return;
+            }
+            String? verified = await secureStorage.read(key: 'verified');
+            if (verified != 'true') {
+              logger.i('Account not verified and no internet.');
+              _showAlert("Offline",
+                  "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+              return;
+            }
+          }
+          String? verified = await secureStorage.read(key: 'verified');
+          if (verified != 'true') {
+            logger.i('Account not verified and no internet.');
+            _showAlert("Offline",
+                "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+            return;
+          }
+        }
+      }
+      //final secureStorage = FlutterSecureStorage();
+      final AuthStatus status = await isLoggedIn();
 
-      String email = JwtDecoder.decode(token)['sub'];
-      final Uri url = Uri.parse('https://api.strnadi.cz/users/$email').replace(queryParameters: {'jwt': token});
+      if (status == AuthStatus.loggedIn) {
+        logger.i('User is logged in, fetching user data');
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) return;
+        String? userIdS = await secureStorage.read(key: 'userId');
+        int? userId;
 
-      final response = await http.get(
-        url,
-        headers: {
+        if (userIdS == null) {
+          Uri url =
+          Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
+          var idResponse = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          });
+          int userId = int.parse(idResponse.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
+        } else {
+          userId = int.parse(userIdS);
+        }
+        final Uri url = Uri.parse('https://${Config.host}/users/$userId')
+            .replace(queryParameters: {'jwt': token});
+
+        final response = await http.get(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        await secureStorage.write(key: 'user', value: data['firstName']);
+        await secureStorage.write(key: 'lastname', value: data['lastName']);
+        await secureStorage.write(key: 'nick', value: data['nickname']);
+        await secureStorage.write(key: 'role', value: data['role']);
+
+        logger.i('Syncing recordings on login');
+        await DatabaseNew.syncRecordings();
+        logger.i('Syncing recordings on login done');
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+            settings: const RouteSettings(name: '/Recorder'),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      } else if (status == AuthStatus.notVerified) {
+        logger.i('User email not verified, navigating to verification page');
+        String? token = await secureStorage.read(key: 'token');
+        if (token == null) return;
+        Uri url = Uri(
+            scheme: 'https', host: Config.host, path: '/users/get-id');
+        var idResponse = await http.get(url, headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      secureStorage.write(key: 'user', value: data['firstName']);
-      secureStorage.write(key: 'lastname', value: data['lastName']);
-
-      DatabaseNew.syncRecordings();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => LiveRec()),
-      );
-    } else {
-      // If there is a token but user is not logged in (invalid token),
-      // remove it and show message.
-      if (await secureStorage.read(key: 'token') != null) {
-        _showMessage("Byli jste odhlášeni");
-        secureStorage.delete(key: 'token');
-        secureStorage.delete(key: 'user');
-        secureStorage.delete(key: 'lastname');
-        firebase.deleteToken();
+        });
+        int userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (_) =>
+                  EmailNotVerified(
+                    userEmail: JwtDecoder.decode(token)['sub'],
+                    userId: userId,
+                  )),
+        );
+      } else {
+        logger.i('User is not logged in');
+        // If there is a token but user is not logged in (invalid token),
+        // remove it and show message.
+        if (await secureStorage.read(key: 'token') != null) {
+          _showMessage(t('auth.alerts.logged_out'));
+          await secureStorage.delete(key: 'token');
+          await secureStorage.delete(key: 'user');
+          await secureStorage.delete(key: 'lastname');
+          await secureStorage.delete(key: 'role');
+          await secureStorage.delete(key: 'userId');
+          await firebase.deleteToken();
+        }
       }
-    }
+    });
   }
 
   void _showMessage(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Login'),
+        title: Text(t('Login')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t('auth.buttons.ok')),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _launchURL() async {
-    final Uri url = Uri.parse('https://new.strnadi.cz/podminky-pouzivani');
-    if (!await launchUrl(url)) {
-      throw Exception('Could not launch $url');
+  void _showAlert(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(t('auth.buttons.ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Navigate respecting internet connectivity
+  Future<void> _navigateIfAllowed(Widget page) async {
+    if (!await Config.hasBasicInternet) {
+      _showAlert("Offline", "Tato akce není dostupná offline.");
+      return;
     }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
+  Future<void> _launchURL() async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => MDRender(
+            mdPath: 'assets/docs/terms-of-services.md',
+            title: 'Podmínky používání',
+          )),
+    );
   }
 }

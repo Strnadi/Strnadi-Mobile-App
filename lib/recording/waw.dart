@@ -73,33 +73,53 @@ Uint8List createWavHeader(int dataSize, int sampleRate, int bitRate) {
   return header;
 }
 
-/// Concatenates WAV files by automatically determining where the audio data begins.
 Future<void> concatWavFiles(
-    List<String> filePaths, String outputPath, int sampleRate, int bitRate) async {
+  List<String> filePaths,
+  String outputPath, {
+  int sampleRateHint = 0,
+  int bitsPerSampleHint = 0,
+}) async {
+  logger.i('Concatinating waw files');
+
   if (filePaths.isEmpty) return;
+  // Ensure output directory exists
+  await File(outputPath).parent.create(recursive: true);
 
-  // Process the first file.
-  Uint8List firstFileBytes = await File(filePaths[0]).readAsBytes();
-  int dataOffset = findDataOffset(firstFileBytes);
-  // Keep the header from the first file (everything before the data chunk).
-  Uint8List firstHeader = firstFileBytes.sublist(0, dataOffset);
-  // Get the raw audio data from the first file.
-  List<int> concatenatedData = firstFileBytes.sublist(dataOffset).toList(growable: true);
-
-  // Process remaining files.
-  for (int i = 1; i < filePaths.length; i++) {
-    Uint8List bytes = await File(filePaths[i]).readAsBytes();
-    int offset = findDataOffset(bytes);
-    concatenatedData.addAll(bytes.sublist(offset));
+  // Gather raw audio data and header info from each part
+  final List<Uint8List> datas = [];
+  int sampleRate = sampleRateHint;
+  int bitDepth = bitsPerSampleHint;
+  for (final path in filePaths) {
+    final bytes = await File(path).readAsBytes();
+    final offset = findDataOffset(bytes);
+    datas.add(bytes.sublist(offset));
+    if (sampleRate == 0) {
+      // read from original WAV header
+      sampleRate = ByteData.sublistView(bytes).getUint32(24, Endian.little);
+    }
+    if (bitDepth == 0) {
+      final bitsPerSample = ByteData.sublistView(bytes).getUint16(34, Endian.little);
+      bitDepth = bitsPerSample;
+    }
   }
 
-  // Option 1: Use a custom header creation function.
-  Uint8List newHeader = createWavHeader(concatenatedData.length, sampleRate, bitRate);
-  // Option 2: Or, if you want to preserve some fields from the first header,
-  // you could merge them programmatically.
+  logger.i('Read all parts');
 
-  // Write the new header and the concatenated audio data to the output file.
-  final outputFile = File(outputPath);
-  await outputFile.writeAsBytes(newHeader + concatenatedData);
-  logger.i('WAV files concatenated successfully. to $outputPath');
+  // Default to first-part format if still zero
+  if (sampleRate == 0 || bitDepth == 0) {
+    throw Exception('Cannot determine sampleRate or bitDepth for concatenation');
+  }
+
+  // Compute total data size
+  final totalData = datas.fold<int>(0, (sum, d) => sum + d.length);
+  // Create header
+  final header = createWavHeader(totalData, sampleRate, sampleRate * 1 * bitDepth);
+  // Write output WAV
+  final outFile = await File(outputPath).create();
+  // Write bytes to disk, creating file if needed and flushing immediately
+  await outFile.writeAsBytes(
+    header + datas.expand((d) => d).toList(),
+    flush: true,
+  );
+  logger.i('WAV file written to: $outputPath');
 }

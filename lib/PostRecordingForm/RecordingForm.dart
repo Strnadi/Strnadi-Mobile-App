@@ -17,8 +17,9 @@
  * RecordingForm.dart
  */
 
-import 'dart:ffi';
 import 'dart:io';
+import 'package:flutter/cupertino.dart' as Dialogs;
+import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:geolocator/geolocator.dart';
@@ -31,21 +32,17 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:sqflite/sqlite_api.dart';
 import 'package:strnadi/PostRecordingForm/imageUpload.dart';
-import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
-import 'package:strnadi/archived/recordingsDb.dart';
+import '../auth/authorizator.dart';
 import '../config/config.dart';
-import '../archived/soundDatabase.dart';
 import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/exceptions.dart';
-import 'package:strnadi/auth/authorizator.dart' as auth;
 import 'addDialect.dart';
 import 'dart:math' as math;
+import 'package:strnadi/dialects/ModelHandler.dart';
 
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 final logger = Logger();
@@ -81,7 +78,7 @@ class _RecordingFormState extends State<RecordingForm> {
   Widget? spectogram;
   List<DialectModel> dialectSegments = [];
   final _audioPlayer = AudioPlayer();
-  Duration currentPosition = Duration.zero;
+  Duration currentPositionDuration = Duration.zero;
   Duration totalDuration = Duration.zero;
   bool isPlaying = false;
   late Recording recording;
@@ -91,29 +88,58 @@ class _RecordingFormState extends State<RecordingForm> {
   late loc.LocationService locationService;
   LatLng? currentLocation;
   LatLng? markerPosition;
-  DateTime? _lastRouteUpdate;
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
+
+  final MapController _mapController = MapController();
+
+  late String placeTitle = " ";
+
+  bool _isLoading = false;
+
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  /// Runs [action] with the loader on, prevents duplicate presses.
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // ignore re-press
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    // Initialize spectrogram widget.
+
     setState(() {
-      spectogram = LiveSpectogram.SpectogramLive(
-        key: spectogramKey,
-        data: [],
-        filepath: widget.filepath,
-        getCurrentPosition: (pos) {
-          setState(() {
-            currentPos = pos;
-          });
-        },
-      );
+      placeTitle = " ";
     });
+
+    // Initialize spectrogram widget.
+    // setState(() {
+    //   spectogram = LiveSpectogram.SpectogramLive(
+    //     key: spectogramKey,
+    //     data: [],
+    //     filepath: widget.filepath,
+    //     getCurrentPosition: (pos) {
+    //       setState(() {
+    //         currentPos = pos;
+    //       });
+    //     },
+    //   );
+    // });
     _audioPlayer.positionStream.listen((position) {
       setState(() {
-        currentPosition = position;
+        currentPositionDuration = position;
       });
     });
     _audioPlayer.durationStream.listen((duration) {
@@ -133,16 +159,18 @@ class _RecordingFormState extends State<RecordingForm> {
       }
     });
     _audioPlayer.setFilePath(widget.filepath);
+
     locationService = loc.LocationService();
     _positionStream = locationService.positionStream;
     markerPosition = null;
     _positionStream.listen((Position position) {
       _onNewPosition(position);
     });
+
     final safeStorage = FlutterSecureStorage();
     // IMPORTANT: assign widget.filepath so that the recording path is not null.
     recording = Recording(
-      createdAt: DateTime.now(),
+      createdAt: widget.recordingParts[0].startTime!,
       mail: "",
       estimatedBirdsCount: _strnadiCountController.toInt(),
       device: "",
@@ -150,25 +178,29 @@ class _RecordingFormState extends State<RecordingForm> {
       note: _commentController.text,
       path: widget.filepath,
     );
+
     safeStorage.read(key: 'token').then((token) async {
       if (token == null) {
         _showMessage('You are not logged in');
       }
-      while (recording.mail.isEmpty) {
+      while (recording.mail!.isEmpty) {
         await Future.delayed(const Duration(seconds: 1));
       }
       recording.mail = JwtDecoder.decode(token!)['sub'];
       logger.i('Mail set to ${recording.mail}');
     });
-    getDeviceModel().then((model) async {
-      while (recording.device?.isEmpty ?? true) {
-        await Future.delayed(const Duration(seconds: 1));
-      }
-      recording.device = model;
+
+    getDeviceModel().then((model) {
+      setState(() {
+        recording.device = model;
+      });
       logger.i('Device set to ${recording.device}');
     });
+
     // Log how many parts we received from streamRec.
-    logger.i("RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
+    logger.i(
+        "RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
+
     // Convert the passed parts.
     for (RecordingPartUnready part in widget.recordingParts) {
       try {
@@ -178,37 +210,197 @@ class _RecordingFormState extends State<RecordingForm> {
         logger.e("Error converting part: $e", error: e, stackTrace: stackTrace);
       }
     }
-    _route.addAll(widget.route);
-  }
 
-  void SendDialects() async {
-    for (DialectModel dialect in dialectSegments) {
-      var token = FlutterSecureStorage();
-      var jwt = await token.read(key: 'token');
-      try {
-        final url = Uri.parse('https://api.strnadi.cz/recordings/filtered/upload');
-        final response = await http.post(
-          url,
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer ${jwt!}',
-          },
-          body: jsonEncode(<String, dynamic>{
-            'recordingId': _recordingId,
-            'startTime': dialect.startTime,
-            'endTime': dialect.endTime,
-            'dialect': dialect.label,
-          }),
-        );
-      } catch (e, stackTrace) {
-        logger.e("Error inserting dialect: $e", error: e, stackTrace: stackTrace);
-      }
+    // Assign the duration (in seconds) to each RecordingPart
+    for (int i = 0;
+        i < recordingParts.length && i < widget.recordingPartsTimeList.length;
+        i++) {
+      recordingParts[i].length = widget.recordingPartsTimeList[i];
+    }
+
+    _route.addAll(widget.route);
+
+    if (recordingParts.isNotEmpty &&
+        recordingParts[0].gpsLatitudeStart != null &&
+        recordingParts[0].gpsLongitudeStart != null) {
+      reverseGeocode(
+        recordingParts[0].gpsLatitudeStart!,
+        recordingParts[0].gpsLongitudeStart!,
+      );
     }
   }
 
+  // Helper method to display a simple message dialog.
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(t('dialogs.message')),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(t('auth.buttons.ok')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool?> _confirmDiscard() {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+          content: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDiscardDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+          content: Text(
+              t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+            ),
+            TextButton(
+              onPressed: () {
+                spectogramKey = GlobalKey();
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LiveRec()),
+                );
+              },
+              child: Text(
+                  t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Helper method to seek the audio player relative to current position.
+  void seekRelative(int seconds) {
+    final currentPos = _audioPlayer.position;
+    _audioPlayer.seek(currentPos + Duration(seconds: seconds));
+  }
+
+  Future<void> SendDialects() async {
+    var id = _recordingId;
+
+    if (id == null) {
+      logger.e("Recording BEID is null");
+      return;
+    }
+    if (dialectSegments.isNotEmpty) {
+      var dialect = dialectSegments.first;
+      var body = Dialect(
+        id: null, // will be auto‑generated locally
+        BEID: null, // not yet uploaded to BE
+        recordingId: id, // local recording FK
+        recordingBEID: null, // BE ID unknown until sync
+        userGuessDialect: dialect.type, // user‑selected code
+        adminDialect: null,
+        startDate: recording.createdAt
+            .add(Duration(milliseconds: dialect.startTime.toInt())),
+        endDate: recording.createdAt
+            .add(Duration(milliseconds: dialect.endTime.toInt())),
+      );
+
+      DatabaseNew.insertDialect(body);
+      logger.i("Dialect inserted into database");
+    }
+    // for (DialectModel dialect in dialectSegments) {
+    //   var token = FlutterSecureStorage();
+    //   var jwt = await token.read(key: 'token');
+    //   logger.i("jwt is $jwt");
+    //   logger.i("token is $jwt");
+    //   var body = jsonEncode(<String, dynamic>{
+    //     'recordingId': id,
+    //     'StartDate': recording.createdAt
+    //         .add(
+    //         Duration(milliseconds: dialect.startTime.toInt()))
+    //         .toIso8601String(),
+    //     'endDate': recording.createdAt.add(
+    //         Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
+    //     'dialectCode': dialect.label,
+    //   });
+    //   try {
+    //     final url = Uri(scheme: 'https',
+    //         host: Config.host,
+    //         path: '/recordings/filtered/upload');
+    //     await http.post(
+    //       url,
+    //       headers: <String, String>{
+    //         'Content-Type': 'application/json',
+    //         'Authorization': 'Bearer $jwt',
+    //       },
+    //       body: jsonEncode(<String, dynamic>{
+    //         'recordingId': id,
+    //         'StartDate': recording.createdAt
+    //             .add(
+    //             Duration(milliseconds: dialect.startTime.toInt()))
+    //             .toIso8601String(),
+    //         'endDate': recording.createdAt
+    //             .add(
+    //             Duration(milliseconds: dialect.endTime.toInt()))
+    //             .toIso8601String(),
+    //         'dialectCode': dialect.label,
+    //       }),
+    //     ).then((value) {
+    //       if (value.statusCode == 200) {
+    //         logger.i("Dialect sent successfully");
+    //       } else {
+    //         logger.e("Dialect sending failed with status code ${value
+    //             .statusCode} and body $body");
+    //       }
+    //     });
+    //   } catch (e, stackTrace) {
+    //     logger.e(
+    //         "Error inserting dialect: $e", error: e, stackTrace: stackTrace);
+    //   }
+    // }
+  }
+
   void _showDialectSelectionDialog() {
-    var position = spectogramKey.currentState!.currentPositionPx;
+    var position = spectogramKey.currentState?.currentPositionPx ?? null;
     var spect = spectogram;
+    ;
     setState(() {
       spectogram = null;
     });
@@ -217,11 +409,15 @@ class _RecordingFormState extends State<RecordingForm> {
       barrierDismissible: false,
       context: context,
       builder: (context) => DialectSelectionDialog(
-        spectogram: spect!,
+        spectogram: spectogram ?? null,
         currentPosition: position,
         duration: totalDuration.inSeconds.toDouble(),
         onDialectAdded: (dialect) {
           setState(() {
+            if (dialect == null) {
+              spectogram = spect;
+              return;
+            }
             dialectSegments.add(dialect);
             spectogram = spect;
           });
@@ -250,7 +446,7 @@ class _RecordingFormState extends State<RecordingForm> {
         children: [
           Expanded(
             child: Text(
-              "${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}",
+              '${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
@@ -266,7 +462,9 @@ class _RecordingFormState extends State<RecordingForm> {
               dialect.label,
               style: TextStyle(
                 fontSize: 14,
-                color: dialect.color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                color: dialect.color.computeLuminance() > 0.5
+                    ? Colors.black
+                    : Colors.white,
               ),
             ),
           ),
@@ -277,21 +475,56 @@ class _RecordingFormState extends State<RecordingForm> {
                 dialectSegments.remove(dialect);
               });
             },
-            child: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
+            child: Icon(Icons.delete_outline,
+                color: Colors.red.shade300, size: 20),
           ),
         ],
       ),
     );
   }
 
+  Future<void> reverseGeocode(double lat, double lon) async {
+    final url = Uri.parse(
+        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+
+    logger.i("reverse geocode url: $url");
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Config.mapsApiKey}',
+      };
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final results = data['items'];
+        if (results.isNotEmpty) {
+          logger.i("Reverse geocode result: $results");
+          setState(() {
+            placeTitle = results[0]['name'];
+          });
+        }
+      } else {
+        logger.e(
+            "Reverse geocode failed with status code ${response.statusCode}");
+      }
+    } catch (e, stackTrace) {
+      logger.e('Reverse geocode error: $e', stackTrace: stackTrace, error: e);
+    }
+  }
+
   Future<void> insertRecordingWhenReady() async {
-    while (recording.mail.isEmpty || (recording.device?.isEmpty ?? true)) {
+    while (recording.mail!.isEmpty || (recording.device?.isEmpty ?? true)) {
       await Future.delayed(const Duration(seconds: 1));
       logger.i('Waiting for recording to be ready');
     }
     logger.i('Started inserting recording');
     recording.downloaded = true;
     recording.id = await DatabaseNew.insertRecording(recording);
+
+    // Update the recording in the database with the final file path and downloaded flag
+    await DatabaseNew.updateRecording(recording);
+
     setState(() {
       _recordingId = recording.id;
     });
@@ -304,18 +537,20 @@ class _RecordingFormState extends State<RecordingForm> {
     });
   }
 
-  Future<bool> hasInternetAccess() async {
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    }
-  }
-
   Future<String> getDeviceModel() async {
-    // Implement your device info logic here.
-    return "DeviceModel";
+    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    try {
+      if (Platform.isAndroid) {
+        final android = await deviceInfo.androidInfo;
+        return '${android.manufacturer} ${android.model}';
+      } else if (Platform.isIOS) {
+        final ios = await deviceInfo.iosInfo;
+        return ios.utsname.machine ?? 'iOS';
+      }
+    } catch (_) {
+      // Ignore and fall through to default
+    }
+    return Platform.operatingSystem;
   }
 
   void togglePlay() async {
@@ -334,34 +569,95 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> upload() async {
-    logger.i("Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
-    recording.note = _commentController.text.isEmpty ? null : _commentController.text;
-    recording.name = _recordingNameController.text.isEmpty ? null : _recordingNameController.text;
+    logger.i(
+        "Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
+    recording.note =
+        _commentController.text.isEmpty ? null : _commentController.text;
+    recording.name = _recordingNameController.text.isEmpty
+        ? null
+        : _recordingNameController.text;
     recording.downloaded = true;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
+
     // Log the recording path before insertion
+    logger.i("Played recording path: ${widget.filepath}");
     logger.i("Recording before insertion: path=${recording.path}");
+    logger.i(recording.toJson());
     _recordingId = await DatabaseNew.insertRecording(recording);
-    logger.i("Recording inserted with ID: $_recordingId, file path: ${recording.path}");
-    if (!await hasInternetAccess()) {
-      logger.w("No internet connection");
-      _showMessage("No internet connection");
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-      return;
-    }
+    recording.id = _recordingId;
+    logger.i(
+        "Recording inserted with ID: $_recordingId, file path: ${recording.path}");
+
     // Log number of parts to insert
     logger.i("Uploading ${recordingParts.length} recording parts.");
     for (RecordingPart part in recordingParts) {
       part.recordingId = _recordingId;
       int partId = await DatabaseNew.insertRecordingPart(part);
       logger.i("Inserted part with id: $partId for recording $_recordingId");
+      logger.i(part.toJson());
+    }
+    logger.i("saving dialects");
+    await SendDialects();
+    // Check connectivity and user preference before upload
+    if (!await Config.hasBasicInternet) {
+      logger.w("No internet connection, saved offline");
+      _showMessage(t(
+          "postRecordingForm.recordingForm.dialogs.error.noInternet.message"));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
+    if (!await Config.canUpload) {
+      logger.w("Upload only allowed on Wi-Fi, saved offline");
+      _showMessage(
+          t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => LiveRec()));
+      return;
+    }
+
+    var storage = FlutterSecureStorage();
+
+    if (await storage.read(key: 'userId') == null) {
+      logger.w("User is in guest mode");
+      Dialogs.showCupertinoDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialogs.CupertinoAlertDialog(
+            title: Text(t('bottomBar.errors.guest_user')),
+            content: Text(t('bottomBar.errors.guest_user_desc_rec')),
+            actions: [
+              Dialogs.CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: () {
+                  //navigate to login
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          Authorizator(),
+                      settings: const RouteSettings(name: '/'),
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
+                    ),
+                  );
+                },
+                child: Text(t('bottomBar.errors.navigate_to_login')),
+              ),
+            ],
+          );
+        },
+      );
+      return;
     }
     try {
-      await DatabaseNew.sendRecordingBackground(recording.id!);
+      await DatabaseNew.sendRecordingBackground(_recordingId!);
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
+    logger.i("Recording uploaded");
     spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
   }
@@ -370,13 +666,7 @@ class _RecordingFormState extends State<RecordingForm> {
     final newPoint = LatLng(position.latitude, position.longitude);
     setState(() {
       markerPosition = newPoint;
-      // Removed currentLocation update to avoid unnecessary rerendering
     });
-  }
-
-  void seekRelative(int seconds) {
-    final newPosition = currentPosition + Duration(seconds: seconds);
-    _audioPlayer.seek(newPosition);
   }
 
   @override
@@ -392,204 +682,387 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryRed = const Color(0xFFFF3B3B);
+    final Color secondaryRed = const Color(0xFFFFEDED);
+    final Color yellowishBlack = const Color(0xFF2D2B18);
+    final Color yellow = const Color(0xFFFFD641);
+
+    // Update marker pos from last known (if any)
     markerPosition = locationService.lastKnownPosition != null
-        ? LatLng(locationService.lastKnownPosition!.latitude, locationService.lastKnownPosition!.longitude)
+        ? LatLng(
+            locationService.lastKnownPosition!.latitude,
+            locationService.lastKnownPosition!.longitude,
+          )
         : null;
-    final halfScreen = MediaQuery.of(context).size.width * 0.45;
+
     return PopScope(
       canPop: false,
-      //onPopInvokedWithResult: Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LiveRec())),
-      child: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                height: 300,
-                width: double.infinity,
-                child: spectogram,
-              ),
-              Text(_formatDuration(totalDuration), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
-                  IconButton(
-                    icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
-                    iconSize: 72,
-                    onPressed: togglePlay,
-                  ),
-                  IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Přidat dialekt'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFF7C0),
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  onPressed: _showDialectSelectionDialog,
-                ),
-              ),
-              if (dialectSegments.isNotEmpty)
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (_isLoading) return; // block back while loading
+        if (didPop) return;
+        final bool shouldPop = await _confirmDiscard() ?? false;
+        if (shouldPop) {
+          spectogramKey = GlobalKey();
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+              settings: const RouteSettings(name: '/Recorder'),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
+        }
+      },
+      child: Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              centerTitle: true,
+              title: Text(placeTitle),
+              actions: [
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: dialectSegments.map((dialect) => _buildDialectSegment(dialect)).toList(),
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: ElevatedButton(
+                    onPressed: !_isLoading
+                        ? () async {
+                            final shouldSave = await showDialog<bool>(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                  content: Text(t('postRecordingForm.recordingForm.dialogs.confirmation.message')),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(false),
+                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(true),
+                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+
+                            if (shouldSave == true) {
+                              await _withLoader(() async {
+                                await upload();
+                              });
+                            }
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: yellow,
+                      foregroundColor: yellowishBlack,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    child: Text(t('postRecordingForm.recordingForm.buttons.save')),
                   ),
                 ),
-              const SizedBox(height: 50),
-              SizedBox(
-                height: 200,
-                child: Stack(
+              ],
+              leading: IconButton(
+                icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+                onPressed: !_isLoading
+                    ? () async {
+                        final bool shouldPop = await _confirmDiscard() ?? false;
+                        if (shouldPop) {
+                          spectogramKey = GlobalKey();
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                        }
+                      }
+                    : null,
+              ),
+            ),
+            body: SingleChildScrollView(
+              child: Center(
+                child: Column(
                   children: [
-                    FlutterMap(
-                      options: MapOptions(
-                        initialCenter: _computedCenter,
-                        initialZoom: _computedZoom,
-                        interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-                      ),
+                    // Duration / playback controls
+                    Text(
+                      _formatDuration(totalDuration),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                          'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                          userAgentPackageName: 'cz.delta.strnadi',
+                        IconButton(
+                          icon: const Icon(Icons.replay_10, size: 32),
+                          onPressed: !_isLoading ? () => seekRelative(-10) : null,
                         ),
-                        if (_route.isNotEmpty)
-                          PolylineLayer(
-                            polylines: [
-                              Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
-                            ],
-                          ),
-                        // MarkerLayer(
-                        //   markers: [
-                        //     if (markerPosition != null)
-                        //       Marker(
-                        //         width: 20.0,
-                        //         height: 20.0,
-                        //         point: markerPosition!,
-                        //         child: const Icon(
-                        //           Icons.my_location,
-                        //           color: Colors.blue,
-                        //           size: 30.0,
-                        //         ),
-                        //       ),
-                        //     ...recordingParts.map(
-                        //           (part) => Marker(
-                        //         width: 20.0,
-                        //         height: 20.0,
-                        //         point: LatLng(part.gpsLatitudeEnd, part.gpsLongitudeEnd),
-                        //         child: const Icon(
-                        //           Icons.location_on,
-                        //           color: Colors.red,
-                        //           size: 30.0,
-                        //         ),
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
+                        IconButton(
+                          icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                          iconSize: 72,
+                          onPressed: !_isLoading ? togglePlay : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.forward_10, size: 32),
+                          onPressed: !_isLoading ? () => seekRelative(10) : null,
+                        ),
                       ],
+                    ),
+
+                    // Add dialect button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: Text(t('postRecordingForm.recordingForm.buttons.addDialect')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFF7C0),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onPressed: !_isLoading ? _showDialectSelectionDialog : null,
+                      ),
+                    ),
+
+                    // Dialect list (if any)
+                    if (dialectSegments.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: dialectSegments.map((d) => _buildDialectSegment(d)).toList(),
+                        ),
+                      ),
+
+                    const SizedBox(height: 50),
+
+                    // Form
+                    Form(
+                      child: Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Recording name
+                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TextFormField(
+                                controller: _recordingNameController,
+                                textAlign: TextAlign.start,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                                ),
+                                keyboardType: TextInputType.text,
+                                maxLength: 49,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return t('postRecordingForm.recordingForm.fields.recordingName.error.empty');
+                                  } else if (value.length > 49) {
+                                    return t('postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // Bird count
+                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Text(
+                              _strnadiCountController.toInt() == 3
+                                  ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
+                                  : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 5),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: yellow,
+                                inactiveTrackColor: Colors.yellow.shade200,
+                                thumbColor: yellow,
+                                overlayColor: Colors.yellow.withOpacity(0.3),
+                              ),
+                              child: Slider(
+                                value: _strnadiCountController,
+                                min: 1,
+                                max: 3,
+                                divisions: 2,
+                                onChanged: (value) => setState(() => _strnadiCountController = value),
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // Comment
+                            Text(t('postRecordingForm.recordingForm.fields.comment.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TextFormField(
+                                controller: _commentController,
+                                textAlign: TextAlign.start,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                                ),
+                                keyboardType: TextInputType.multiline,
+                                maxLines: null,
+                                validator: (value) => (value == null || value.isEmpty)
+                                    ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
+                                    : null,
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // Map label
+                            Text(t('recListItem.placeTitle'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(placeTitle),
+                            Text("${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
+                            const SizedBox(height: 5),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: SizedBox(
+                                  height: 200,
+                                  child: FutureBuilder<bool>(
+                                    future: Config.hasBasicInternet,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator());
+                                      } else if (!snapshot.hasData || snapshot.data == false) {
+                                        return Container(
+                                          color: Colors.grey.shade300,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            t('postRecordingForm.recordingForm.placeholders.noInternet'),
+                                            style: const TextStyle(fontSize: 14, color: Colors.black54),
+                                          ),
+                                        );
+                                      } else if (_computedCenter.latitude != 0.0 && _computedCenter.longitude != 0.0) {
+                                        return FlutterMap(
+                                          options: MapOptions(
+                                            initialCenter: _computedCenter,
+                                            initialZoom: _computedZoom,
+                                            interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                          ),
+                                          mapController: _mapController,
+                                          children: [
+                                            TileLayer(
+                                              urlTemplate: 'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                              userAgentPackageName: 'cz.delta.strnadi',
+                                            ),
+                                            if (_route.isNotEmpty)
+                                              PolylineLayer(
+                                                polylines: [
+                                                  Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                                                ],
+                                              ),
+                                            MarkerLayer(
+                                              markers: widget.recordingParts.map((part) {
+                                                return Marker(
+                                                  point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
+                                                  child: const Icon(Icons.place, color: Colors.red, size: 30),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ],
+                                        );
+                                      } else {
+                                        return Container(
+                                          color: Colors.grey.shade300,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
+                                            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Discard button
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: !_isLoading
+                                      ? () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                                content: Text(t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () { Navigator.of(context).pop(); },
+                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      spectogramKey = GlobalKey();
+                                                      Navigator.of(context).pop();
+                                                      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                                    },
+                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: secondaryRed,
+                                    foregroundColor: primaryRed,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  child: Text(t('postRecordingForm.recordingForm.buttons.discard')),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Form(
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      TextFormField(
-                        controller: _recordingNameController,
-                        textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          labelText: 'Nazev Nahravky',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.text,
-                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        textAlign: TextAlign.center,
-                        controller: _commentController,
-                        decoration: const InputDecoration(
-                          labelText: 'Komentar',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.text,
-                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter some text' : null,
-                      ),
-                      const SizedBox(height: 20),
-                      Slider(
-                        value: _strnadiCountController,
-                        min: 1,
-                        max: 3,
-                        divisions: 2,
-                        label: "Pocet Strnadi",
-                        onChanged: (value) => setState(() => _strnadiCountController = value),
-                      ),
-                      // MultiPhotoUploadWidget(onImagesSelected: _onImagesSelected),w
+            ),
+          ),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: SizedBox(
-                              width: halfScreen,
-                              child: ElevatedButton(
-                                style: ButtonStyle(
-                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                  ),
-                                ),
-                                onPressed: upload,
-                                child: const Text('Submit'),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: SizedBox(
-                              width: halfScreen,
-                              child: ElevatedButton(
-                                style: ButtonStyle(
-                                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  spectogramKey = GlobalKey();
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-                                },
-                                child: const Text('Discard'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+          // Global loader overlay
+          if (_isLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
               ),
-            ],
-          ),
-        ),
-      )
+            ),
+        ],
+      ),
     );
-  }
-
-  void _showMessage(String s) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
   }
 
   // Computed getters inserted inside _RecordingFormState:
@@ -619,9 +1092,7 @@ class _RecordingFormState extends State<RecordingForm> {
     double latDiff = maxLat - minLat;
     double lonDiff = maxLon - minLon;
     double maxDiff = latDiff > lonDiff ? latDiff : lonDiff;
-    // Compute zoom level based on full world (360°) divided by the extent
     double idealZoom = math.log(360 / maxDiff) / math.ln2;
-    // Clamp zoom between 10 and 16 for example
     if (idealZoom < 10) idealZoom = 10;
     if (idealZoom > 16) idealZoom = 16;
     return idealZoom;

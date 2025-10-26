@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Marian Pecqueur && Jan Drobílek
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,68 +14,73 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:logger/logger.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
+import 'package:permission_handler/permission_handler.dart' as perm;
+
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
+import 'package:strnadi/auth/passReset/newPassword.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
+import 'package:strnadi/auth/unverifiedEmail.dart';
 import 'package:strnadi/updateChecker.dart';
+import 'auth/emailVerificationResult/notSuccessVerify.dart';
+import 'auth/emailVerificationResult/successVerify.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
-import 'config/config.dart';
+import 'package:strnadi/maintanance.dart';
+import 'package:strnadi/config/config.dart'; // ensure Config and ServerHealth are in scope
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/callback_dispatcher.dart';
 import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+
+import 'package:firebase_core/firebase_core.dart';
+
+import 'privacy/tracking_consent.dart';
 import 'package:strnadi/recording/ios/recordingLiveActivity.dart' as recLA;
 
 // Create a global logger instance.
 final logger = Logger();
-
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Login'),
+      title: Text(t('Login')),
       content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          child: Text(t('auth.buttons.ok')),
         ),
       ],
     ),
   );
 }
 
-Future<bool> hasInternetAccess() async {
-  try {
-    final result = await InternetAddress.lookup('google.com');
-    return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-  } on SocketException catch (_) {
-    return false;
-  }
-}
-
 Future<void> _checkGooglePlayServices(BuildContext context) async {
   // Check only on Android devices.
   if (Platform.isAndroid) {
-    final availability =
-    await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+    final availability = await GoogleApiAvailability.instance
+        .checkGooglePlayServicesAvailability();
     if (availability != GooglePlayServicesAvailability.success) {
       // Attempt to prompt the user to update/install Google Play Services.
       await GoogleApiAvailability.instance.makeGooglePlayServicesAvailable();
       // Re-check availability after attempting resolution.
-      final newAvailability =
-      await GoogleApiAvailability.instance.checkGooglePlayServicesAvailability();
+      final newAvailability = await GoogleApiAvailability.instance
+          .checkGooglePlayServicesAvailability();
       if (newAvailability != GooglePlayServicesAvailability.success) {
         _showMessage(
           context,
@@ -86,79 +91,227 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
   }
 }
 
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+    // 1) Firebase initialization
+    await Firebase.initializeApp();
+    await Config.loadConfig();
+    await Config.loadFirebaseConfig();
 
-  await Config.loadConfig();
+    // 2) Workmanager initialization
+    Workmanager().initialize(
+      callbackDispatcher, // The top-level function
+      isInDebugMode: false,
+    );
 
-  await Config.loadFirebaseConfig();
+  // Load localized strings from JSON.
+  await Localization.load(null);
 
-  initFirebase();
-  recLA.init();
+    await Config.loadConfig();
+    await Config.loadFirebaseConfig();
+    // 3) Foreground‑task setup
+    FlutterForegroundTask.initCommunicationPort();
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'strnadi_hlavni_sluzba',
+        channelName: 'Strnadi – služba na pozadí',
+        channelDescription:
+            'Trvalá notifikace služby Strnadi, která zajišťuje chod aplikace i při běhu na pozadí.',
+        channelImportance: NotificationChannelImportance.DEFAULT,
+        priority: NotificationPriority.DEFAULT,
+        onlyAlertOnce: true,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(
+        showNotification: true,
+        playSound: false,
+      ),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.repeat(600000),
+        autoRunOnBoot: true,
+        allowWakeLock: true,
+      ),
+    );
 
-  // Initialize workmanager with our callback.
-  Workmanager().initialize(
-    callbackDispatcher, // The top-level function
-    isInDebugMode: false, // Set this to false for production
-  );
+    // 4) Handle tracking consent before finishing app bootstrap
+    final trackingAuthorized =
+        await TrackingConsentManager.ensureTrackingConsent();
 
-  await SentryFlutter.init(
-        (options) {
-      options.dsn =
-      'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696';
-      options.addIntegration(LoggingIntegration());
-      options.profilesSampleRate = 1.0;
-      options.tracesSampleRate = 1.0;
-      options.experimental.replay.sessionSampleRate = 1.0;
-      options.experimental.replay.onErrorSampleRate = 1.0;
-      options.environment = kDebugMode? 'development' : 'production';
-    },
-    appRunner: () async{
-      // Initialize your database and other services.
-      logger.i('Loading database');
-      await DatabaseNew.database;
-      logger.i('Loaded Database');
-      // Initialize Firebase Messaging.
-      initFirebaseMessaging();
-      // Initialize Firebase Local Messaging
-      initLocalNotifications();
-      // Initialize deep link handling.
-      DeepLinkHandler().initialize();
-      // Run the app.
-      runApp(const MyApp());
-    },
-  );
+    // 5) Continue with app bootstrap directly
+    await _continueBootstrap(trackingAuthorized: trackingAuthorized);
+    }, (error, stack) {
+      if (TrackingConsentManager.isAuthorized) {
+        Sentry.captureException(error, stackTrace: stack);
+      }
+  });
 }
 
-Future<void> checkInternetConnection(BuildContext context) async {
-  if (await hasInternetAccess()) {
-    logger.i("Has Internet access");
-  } else {
-    logger.e("Does not have internet access");
-    _showMessage(
-        context, "Nemáte připojení k internetu aplikace nebude fungovat");
+// PermissionGate widget – controls runtime permissions and continues app bootstrap
+class PermissionGate extends StatefulWidget {
+  const PermissionGate({super.key});
+
+  @override
+  State<PermissionGate> createState() => _PermissionGateState();
+}
+
+class _PermissionGateState extends State<PermissionGate> {
+  bool _granted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _request();
+  }
+
+  Future<void> _request() async {
+    final mic = await perm.Permission.microphone.request();
+    final notif = await perm.Permission.notification.request();
+    _granted = mic.isGranted && notif.isGranted;
+    if (_granted) {
+      final trackingAuthorized =
+          await TrackingConsentManager.ensureTrackingConsent();
+      await _continueBootstrap(trackingAuthorized: trackingAuthorized);
+    }
+    setState(() {}); // rebuild UI based on _granted
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _granted
+        ? const SizedBox
+            .shrink() // bude ihned nahrazeno runApp(MyApp) ve _continueBootstrap
+        : const PermissionScreen();
   }
 }
 
-class MyApp extends StatelessWidget {
+Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
+  // 4) Ostatní inicializace
+  await Config.loadConfig();
+  await Config.loadFirebaseConfig();
+  initFirebase();
+
+  DeepLinkHandler().setNavigatorKey(navigatorKey);
+
+  Future<void> runAppBootstrap() async {
+    // Check server health before app initialization
+    final health = await Config.checkServerHealth();
+    if (health == ServerHealth.maintenance) {
+      runApp(MaterialApp(home: const MaintenancePage()));
+      return;
+    }
+
+    // Initialize your database and other services.
+    logger.i('Loading database');
+    try {
+      await DatabaseNew.database.timeout(const Duration(seconds: 10));
+    } catch (e, stack) {
+      logger.e('Error initializing database: $e',
+          error: e, stackTrace: stack);
+    }
+    logger.i('Loaded Database');
+
+    // Init Firebase messaging + lokální notifikace
+    initFirebaseMessaging();
+    initLocalNotifications();
+
+    runApp(MyApp(key: myAppKey));
+
+    // Initialize deep links after the first frame so the Navigator exists.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkHandler().initialize();
+    });
+  }
+
+  if (trackingAuthorized) {
+    await SentryFlutter.init(
+      (options) {
+        options
+          ..dsn =
+              'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
+          ..addIntegration(LoggingIntegration())
+          ..profilesSampleRate = 1.0
+          ..tracesSampleRate = 1.0
+          ..experimental.replay.sessionSampleRate = 1.0
+          ..experimental.replay.onErrorSampleRate = 1.0
+          ..environment = kDebugMode ? 'development' : 'production';
+      },
+      appRunner: () async {
+        await runAppBootstrap();
+      },
+    );
+  } else {
+    logger.i('Tracking consent denied – starting without Sentry telemetry.');
+    await runAppBootstrap();
+  }
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
+
+  void refreshBadge(){
+    setState(() => debugBadge = Config.hostEnvironment == HostEnvironment.dev);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: (debugBadge),
+      title: 'Strnadi',
+      navigatorKey: navigatorKey,
       theme: ThemeData(
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: Colors.blue,
+          secondary: const Color(0xFF2D2B18),
         ),
+        fontFamily: 'Bricolage Grotesque',
       ),
-      home: const HomeScreen(),
+      home: Authorizator(),
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        switch (name) {
+          case '/ucet/email-neoveren':
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/email-not-verified'),
+              builder: (_) => EmailVerificationFailed(),
+            );
+          case '/ucet/email-overen':
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/email-verified'),
+              builder: (_) => EmailVerified(),
+            );
+          case '/ucet/obnova-hesla':
+            final args = settings.arguments as Map<String, dynamic>?;
+            final token = args?['token'] as String? ?? '';
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/reset-password'),
+              builder: (_) => ChangePassword(jwt: token),
+            );
+          default:
+            return null; // fall through to routes/onUnknownRoute
+        }
+      },
+      onUnknownRoute: (settings) =>
+          MaterialPageRoute(builder: (_) => Authorizator()),
       routes: {
-        'authorizator': (context) => Authorizator(
-          login: const Login(),
-          register: const RegMail(),
-        ),
+        '/authorizator': (context) => Authorizator(),
+        '/reset-password': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments
+              as Map<String, dynamic>?;
+          final token = args?['token'] ?? '';
+          return ChangePassword(jwt: token);
+        },
+        '/email-not-verified': (context) => EmailVerificationFailed(),
+        '/email-verified': (context) => EmailVerified(),
       },
     );
   }
@@ -168,7 +321,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -176,19 +329,41 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     // Defer the check until after the first frame is rendered.
-    WidgetsBinding.instance.addPostFrameCallback((_) async{
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       await checkForUpdate(context);
       await _checkGooglePlayServices(context);
-      await checkInternetConnection(context);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      // Directly include Authorizator which now returns a complete screen.
-      body: Authorizator(login: const Login(), register: const RegMail()),
+      appBar: null,
+      body: Navigator(
+        onGenerateRoute: (settings) {
+          return MaterialPageRoute(
+            settings: const RouteSettings(name: '/authorizator'),
+            builder: (context) => Authorizator(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class PermissionScreen extends StatelessWidget {
+  const PermissionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text(
+          t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
+              'Prosím povolte je v nastavení a spusťte Strnadi znovu.'),
+          textAlign: TextAlign.center,
+        ),
+      ),
     );
   }
 }

@@ -18,28 +18,96 @@
  */
 
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/widgets/GuestUserWarning.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/localization/localization.dart';
+import 'dart:isolate';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/archived/recorderWithSpectogram.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:strnadi/widgets/GuestUserWarning.dart';
 import '../bottomBar.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'ios/recordingLiveActivity.dart' as liveActivities;
 
 final logger = Logger();
+
+class RecordingTaskHandler extends TaskHandler {
+  int counter = 0;
+
+  late AudioRecorder _audioRecorder;
+  String? _filepath;
+  int sampleRate = 48000;
+  int bitDepth = 16;
+  int get bitRate => sampleRate * bitDepth;
+
+  @override
+  Future<void> onStart(DateTime timestamp, TaskStarter taskStarter) async {
+    counter = 0;
+    logger.i("Foreground task started at \$timestamp");
+    _audioRecorder = AudioRecorder();
+    if (!await _audioRecorder.hasPermission()) {
+      await _audioRecorder.hasPermission();
+    }
+    final dir = await getApplicationDocumentsDirectory();
+    _filepath =
+        p.join(dir.path, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+    await _audioRecorder.start(
+      RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        numChannels: 1,
+        sampleRate: sampleRate,
+        bitRate: bitRate,
+      ),
+      path: _filepath!,
+    );
+  }
+
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    counter++;
+    // Update the notification to reflect the elapsed recording time
+    FlutterForegroundTask.updateService(
+      notificationTitle: 'Recording in progress',
+      notificationText: 'Recording for ' + counter.toString() + ' seconds',
+    );
+  }
+
+  @override
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
+    await _audioRecorder.stop();
+    logger
+        .i("Foreground task destroyed at \$timestamp (isTimeout: \$isTimeout)");
+  }
+
+  @override
+  void onRepeatEvent(DateTime timestamp) {
+    logger.i("Repeat event at \$timestamp");
+  }
+}
+
+void startRecordingCallback() {
+  FlutterForegroundTask.setTaskHandler(RecordingTaskHandler());
+}
 
 class ElapsedTimer {
   final Stopwatch _stopwatch = Stopwatch();
@@ -96,12 +164,13 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Info'),
+      title: Text(t('streamRec.dialogs.info.title')),
       content: Text(message),
       actions: [
         TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK')),
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(t('streamRec.dialogs.info.ok')),
+        ),
       ],
     ),
   );
@@ -111,12 +180,13 @@ void exitApp(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Info'),
+      title: Text(t('streamRec.dialogs.info.title')),
       content: Text(message),
       actions: [
         TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('OK')),
+          onPressed: () => SystemNavigator.pop(),
+          child: Text(t('streamRec.dialogs.info.ok')),
+        ),
       ],
     ),
   );
@@ -127,11 +197,13 @@ Future<void> getLocationPermission(BuildContext context) async {
   logger.i("Location permission: $permission");
   while (permission != LocationPermission.whileInUse &&
       permission != LocationPermission.always) {
-    _showMessage(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+    _showMessage(
+        context, "Pro správné fungování aplikace je potřeba povolit lokaci");
     permission = await Geolocator.requestPermission();
     logger.i("Location permission: $permission");
     if (permission == LocationPermission.deniedForever) {
-      exitApp(context, "Pro správné fungování aplikace je potřeba povolit lokaci");
+      exitApp(
+          context, "Pro správné fungování aplikace je potřeba povolit lokaci");
     }
   }
 }
@@ -145,8 +217,8 @@ class _LiveRecState extends State<LiveRec> {
   StreamSubscription<RecordState>? _recordSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
-  int sampleRate = 44100;
-  int bitRate = calcBitRate(44100, 16);
+  int sampleRate = 0;
+  int bitRate = 0;
   final recordingPartsTimeList = <int>[];
   List<RecordingPartUnready> recordingPartsList = [];
   RecordingPartUnready? recordedPart;
@@ -155,84 +227,182 @@ class _LiveRecState extends State<LiveRec> {
   String? recordedFilePath;
   LatLng? currentPosition;
   final List<LatLng> _liveRoute = [];
+  DateTime? _lastRouteUpdateTime;
   final List<String> segmentPaths = [];
   StreamSubscription? _locationSub;
   late LocationService _locService;
   bool recording = false;
+  bool _hasMicPermission = false;
+
+  bool _isProcessingRecording = false;
+
+  late bool _isGuestUser = false;
 
   @override
   void initState() {
     super.initState();
-    getLocationPermission(context);
+    _loadGuestStatus();
+    DatabaseNew.updateRecordingsMail();
+    logger.i('updateRecordingsMail called');
+    _initAudioSettings();
     _audioRecorder = AudioRecorder();
+    _audioRecorder.hasPermission().then((allowed) {
+      setState(() {
+        _hasMicPermission = allowed;
+      });
+    });
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
-    });
-    _amplitudeSub = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 300))
-        .listen((amp) {
-      // Optionally update spectrogram data.
-    });
-    _locService = LocationService();
-    _locationSub = _locService.positionStream.listen((position) {
-      setState(() {
-        currentPosition = LatLng(position.latitude, position.longitude);
-        _liveRoute.add(LatLng(position.latitude, position.longitude));
-      });
     });
     _elapsedTimer = ElapsedTimer(onTick: (elapsed) {
       setState(() {
         _recordDuration = elapsed;
       });
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool shown = prefs.getBool('popupShown') ?? false;
+      bool isGuest = await FlutterSecureStorage().read(key: 'userId') == null;
+      if (!shown && isGuest) {
+        showDialog(
+          context: context,
+          builder: (context) => GuestUserRules(),
+        );
+        await prefs.setBool('popupShown', true);
+      }
+    });
   }
 
-  void _toggleRecording() {
-    if (_recordState == RecordState.record) {
-      _pause();
-    } else if (_recordState == RecordState.pause) {
-      _resume();
-    } else {
-      _start();
+  static const MethodChannel _platform =
+      MethodChannel('com.delta.strnadi/audio');
+
+  Future<void> _initAudioSettings() async {
+    try {
+      final Map<dynamic, dynamic>? settings =
+          await _platform.invokeMethod('getBestAudioSettings');
+      if (settings != null) {
+        setState(() {
+          sampleRate = settings['sampleRate'] ?? 48000;
+          int depth = 16; // assuming 16-bit depth
+          bitRate = calcBitRate(sampleRate, depth);
+        });
+        logger.i('Audio settings: sampleRate=$sampleRate, bitRate=$bitRate');
+      }
+    } catch (e, stackTrace) {
+      logger.e('Failed to get audio settings, using defaults: $e',
+          error: e, stackTrace: stackTrace);
+      setState(() {
+        sampleRate = 48000;
+        bitRate = calcBitRate(48000, 16);
+      });
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isProcessingRecording) return; // Prevent reentry
+
+    setState(() {
+      _isProcessingRecording = true;
+    });
+    try {
+      if (!_hasMicPermission) {
+        // Request microphone permission
+        var status = await Permission.microphone.request();
+        if (status.isGranted) {
+          setState(() {
+            _hasMicPermission = true;
+          });
+        } else {
+          _showMessage(context,
+              'Pro správné fungování aplikace je potřeba povolit mikrofon');
+          return;
+        }
+      }
+      // Check and request location permission before recording
+      LocationPermission locationPerm = await Geolocator.checkPermission();
+      if (locationPerm != LocationPermission.whileInUse &&
+          locationPerm != LocationPermission.always) {
+        locationPerm = await Geolocator.requestPermission();
+      }
+      if (locationPerm != LocationPermission.whileInUse &&
+          locationPerm != LocationPermission.always) {
+        _showMessage(
+            context, 'Pro zahájení nahrávání musíte povolit přístup k poloze');
+        return;
+      }
+      if (_recordState == RecordState.record) {
+        await _pause();
+      } else if (_recordState == RecordState.pause) {
+        await _resume();
+      } else {
+        await _start();
+      }
+    } catch (e, stackTrace) {
+      logger.e("Error toggling recording: $e",
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    } finally {
+      setState(() {
+        _isProcessingRecording = false;
+      });
     }
   }
 
   Future<void> _stop() async {
+    // Ensure we have a valid file path; if empty, pick the most recent WAV in documents
+    if (filepath.isEmpty) {
+      final dir = await getApplicationDocumentsDirectory();
+      final files = await dir
+          .list()
+          .where((entity) => entity is File && entity.path.endsWith('.wav'))
+          .cast<File>()
+          .toList();
+      if (files.isEmpty) {
+        _showMessage(context, 'Nenalezena žádná nahrávka k uložení');
+        return;
+      }
+      files.sort(
+          (a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      filepath = files.first.path;
+    }
     if (_recordState == RecordState.record) {
       try {
         await _audioRecorder.stop();
-        WakelockPlus.disable(); // or WakelockPlus.toggle(on: false);
+        WakelockPlus.disable();
         _elapsedTimer.pause();
-        setState(() {
-          recording = false;
-        });
       } catch (e, stackTrace) {
-        logger.e("Error stopping recorder: $e", error: e, stackTrace: stackTrace);
+        logger.e("Error stopping recorder: $e",
+            error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         return;
       }
       int segmentDuration = _recordDuration.inSeconds;
-      _totalRecordedTime += _recordDuration;
+      setState(() {
+        _totalRecordedTime += _recordDuration;
+        _recordDuration = Duration.zero;
+        recording = false;
+      });
       recordingPartsTimeList.add(segmentDuration);
-
-      // Set end time for current segment.
       recordedPart!.endTime = DateTime.now();
       logger.i('Segment end time: ${recordedPart!.endTime}');
-
-      // Process the recorded file.
-      Uint8List data = await File(filepath).readAsBytes();
-      final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
-      if (recordedPart != null) {
-        recordedPart!.dataBase64 = base64Encode(dataWithHeader);
+      // Always fetch the latest location for segment end
+      try {
+        final loc = await _locService.getCurrentLocation();
+        recordedPart!.gpsLatitudeEnd = loc.latitude;
+        recordedPart!.gpsLongitudeEnd = loc.longitude;
+      } catch (e, stackTrace) {
+        logger.e('Error fetching location on stop: $e',
+            error: e, stackTrace: stackTrace);
       }
+      Uint8List data = await File(filepath).readAsBytes();
+      final dataWithHeader =
+          createWavHeader(data.length, sampleRate, bitRate) + data;
+
       await File(filepath).delete();
       File newFile = await File(filepath).create();
       await newFile.writeAsBytes(dataWithHeader);
-      if (_locService.lastKnownPosition == null) {
-        await _locService.getCurrentLocation();
-      }
       if (recordedPart != null) {
-        recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
-        recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
+        recordedPart!.path = filepath;
       }
       recordingPartsList.add(recordedPart!);
     } else if (_recordState == RecordState.pause) {
@@ -243,20 +413,21 @@ class _LiveRecState extends State<LiveRec> {
     List<String> paths = segmentPaths;
     final String outputPath = await _getPath();
     try {
-      await concatWavFiles(paths, outputPath, sampleRate, bitRate);
+      await concatWavFiles(paths, outputPath);
       recordedFilePath = outputPath;
       logger.i('Final recording saved to: $outputPath');
     } catch (e, stackTrace) {
-      logger.e("Error concatenating files: $e", error: e, stackTrace: stackTrace);
+      logger.e("Error concatenating files: $e",
+          error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       return;
     }
+    await FlutterForegroundTask.stopService();
     if (overallStartTime == null) return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text("Recording Form"), automaticallyImplyLeading: false,),
           body: RecordingForm(
             filepath: recordedFilePath!,
             startTime: overallStartTime!,
@@ -272,77 +443,346 @@ class _LiveRecState extends State<LiveRec> {
 
   Future<String> _getPath() async {
     final dir = await getApplicationDocumentsDirectory();
-    String path = p.join(dir.path, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+    String path = p.join(
+      dir.path,
+      'audio_${DateTime.now().millisecondsSinceEpoch}.wav',
+    );
     logger.i('Generated file path: $path');
     return path;
   }
 
+  Future<void> _loadGuestStatus() async {
+    final storage = const FlutterSecureStorage();
+    final userId = await storage.read(key: 'userId');
+    if (!mounted) return;
+    setState(() {
+      _isGuestUser = userId == null || userId.isEmpty;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final halfScreen = MediaQuery.of(context).size.width * 0.15;
-    final totalTime = _totalRecordedTime + _recordDuration;
-    return ScaffoldWithBottomBar(
-      appBarTitle: "Nahrávání",
-      content: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 80),
-          Expanded(
-            child: Container(
-              color: Colors.grey,
-              width: double.infinity,
-            ),
-          ),
-          const SizedBox(height: 40),
-          Text(
-            _formatTime(totalTime),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          GestureDetector(
-            onTap: _toggleRecording,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black),
-              child: Icon(
-                _recordState == RecordState.record ? Icons.pause : Icons.mic,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text("Stisknutím zahájíte nebo pozastavíte nahrávání", style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
-          if (recording)
-            Padding(
-              padding: EdgeInsets.only(left: halfScreen),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton(
-                    onPressed: _stop,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.black, width: 2),
-                      backgroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    final totalTime = _recordDuration;
+
+    // Define custom colors to match your design.
+    final Color primaryRed = const Color(0xFFFF3B3B);
+    final Color secondaryRed = const Color(0xFFFFEDED);
+
+    // Determine button colors, border, and shadow based on recording state.
+    IconData iconData = Icons.mic;
+    Color fillColor = primaryRed;
+    Color iconColor = Colors.white;
+    Border? border;
+    List<BoxShadow> boxShadows = [];
+
+    if (_recordState == RecordState.stop) {
+      // Stop state: filled red circle with white mic icon.
+      iconData = Icons.mic;
+      fillColor = primaryRed;
+      iconColor = Colors.white;
+      border = null;
+      boxShadows = [];
+    } else if (_recordState == RecordState.record) {
+      // Recording (pause button visible): white circle, thicker red border, red icon + glow.
+      iconData = Icons.pause;
+      fillColor = secondaryRed;
+      iconColor = primaryRed;
+      border = Border.all(color: primaryRed, width: 5);
+      boxShadows = [
+        BoxShadow(
+          color: primaryRed.withOpacity(0.4),
+          blurRadius: 15,
+          spreadRadius: 3,
+        ),
+      ];
+    } else if (_recordState == RecordState.pause) {
+      // Paused (play button visible): white circle, thicker red border, red icon + glow.
+      iconData = Icons.play_arrow;
+      fillColor = secondaryRed;
+      iconColor = primaryRed;
+      border = Border.all(color: primaryRed, width: 5);
+      boxShadows = [
+        BoxShadow(
+          color: primaryRed.withOpacity(0.4),
+          blurRadius: 15,
+          spreadRadius: 3,
+        ),
+      ];
+    }
+
+    // Create the scaffold widget.
+    final scaffoldWidget = Scaffold(
+      appBar: AppBar(automaticallyImplyLeading: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(top: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Image banner at top
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final screenHeight = MediaQuery.of(context).size.height;
+                final imageHeight = screenHeight * 0.25;
+                return SizedBox(
+                  height: imageHeight,
+                  width: double.infinity,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20.0),
+                      child: Image.asset(
+                        'assets/images/bird_example.jpg',
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                    child: const Text("Ukončit nahrávání", style: TextStyle(color: Colors.black)),
                   ),
-                  const SizedBox(width: 10),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.black),
-                    onPressed: _discardRecording,
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            // Recording button with vertical padding.
+            Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Opacity(
+                opacity: _hasMicPermission ? 1.0 : 0.5,
+                child: AbsorbPointer(
+                  absorbing: _isProcessingRecording,
+                  child: Semantics(
+                    label: _recordState == RecordState.stop
+                        ? "Start recording"
+                        : _recordState == RecordState.record
+                            ? "Pause recording"
+                            : "Resume recording",
+                    button: true,
+                    child: GestureDetector(
+                      onTap: _toggleRecording,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: fillColor,
+                          border: border,
+                          boxShadow: boxShadows,
+                        ),
+                        child: _recordState == RecordState.pause
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.play_arrow,
+                                    size: 40,
+                                    color: iconColor,
+                                  ),
+                                  Icon(
+                                    Icons.mic,
+                                    size: 20,
+                                    color: iconColor,
+                                  ),
+                                ],
+                              )
+                            : Icon(
+                                iconData,
+                                color: iconColor,
+                                size: 40,
+                              ),
+                      ),
+                    ),
                   ),
-                ],
+                ),
               ),
             ),
-          const SizedBox(height: 40),
-        ],
+            const SizedBox(height: 20),
+            // Timer display
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _recordState == RecordState.record
+                      ? primaryRed
+                      : Colors.grey,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+              child: Text(
+                _formatTime(totalTime),
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Status text
+            if (_recordState == RecordState.stop) ...[
+              Text(
+                t('streamRec.status.stopped'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ] else if (_recordState == RecordState.record) ...[
+              Text(
+                t('streamRec.status.recording'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ] else if (_recordState == RecordState.pause) ...[
+              Text(
+                t('streamRec.status.paused'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                  fontFamily: 'Bricolage Grotesque',
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            // Finish button
+            if (_recordState == RecordState.record ||
+                _recordState == RecordState.pause)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _stop,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: secondaryRed,
+                      foregroundColor: primaryRed,
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Bricolage Grotesque',
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.stop, color: primaryRed),
+                        const SizedBox(width: 8),
+                        Text(
+                          t('streamRec.buttons.finishRecording'),
+                          style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            // Discard button
+            if (_recordState == RecordState.record ||
+                _recordState == RecordState.pause)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 3),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _discardRecording,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Bricolage Grotesque',
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.delete, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Text(
+                          t('streamRec.buttons.discardRecording'),
+                          style: TextStyle(fontFamily: 'Bricolage Grotesque'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+      bottomNavigationBar: ReusableBottomAppBar(
+        currentPage: BottomBarItem.recorder,
+        changeConfirmation: changeConfirmation,
+        isGuestUser: _isGuestUser,
       ),
     );
+    // Return the PopScope widget with an onPopInvokedWithResult callback that completes without returning any widget.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        _discardRecording();
+      },
+      child: scaffoldWidget,
+    );
+  }
+
+  Future<bool> changeConfirmation() async {
+    if (_recordState == RecordState.record ||
+        _recordState == RecordState.pause) {
+      bool discard = false;
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(t('streamRec.dialogs.confirmExit.title')),
+            content: Text(t('streamRec.dialogs.confirmExit.message')),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t('streamRec.dialogs.confirmExit.cancel')),
+              ),
+              TextButton(
+                onPressed: () {
+                  clear();
+                  discard = true;
+                  Navigator.of(context).pop();
+                },
+                child: Text(t('streamRec.dialogs.confirmExit.confirm')),
+              ),
+            ],
+          );
+        },
+      );
+      return discard;
+    }
+    return true;
   }
 
   void clear() {
@@ -360,70 +800,97 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  void _discardRecording() {
+  void _discardRecording() async {
     _pause();
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Discard'),
-          content: const Text('Are you sure you want to discard the current recording?'),
-          actions: <Widget>[
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-            TextButton(
-              onPressed: () {
-                // todo not discording
-                clear();
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LiveRec()));
-              },
-              child: const Text('Discard'),
-            ),
-          ],
-        );
-      },
-    );
+    bool discard = await changeConfirmation();
+    if (discard) {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+          settings: const RouteSettings(name: '/Recorder'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
+    }
   }
 
   Future<void> _start() async {
-    WakelockPlus.enable(); // or WakelockPlus.toggle(on: false);
-    try {
-      logger.i('Started recording');
-      if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.pcm16bits;
-        if (!await _isEncoderSupported(encoder)) return;
-        final config = RecordConfig(
-          encoder: encoder,
-          numChannels: 1,
-          sampleRate: sampleRate,
-          bitRate: bitRate,
-        );
-        filepath = await _getPath();
-        logger.i('Recording file path: $filepath');
-        if (_locService.lastKnownPosition == null) {
-          await _locService.getCurrentLocation();
-        }
-        overallStartTime = DateTime.now();
-        logger.i('Overall start time: $overallStartTime');
-        // Create a new segment with a fresh start time.
-        recordedPart = RecordingPartUnready(
-          gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
-          gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
-          startTime: overallStartTime,
-        );
-        logger.i('Recorded part start time: ${recordedPart!.startTime}');
-        _elapsedTimer.reset();
-        _elapsedTimer.start();
-
-        segmentPaths.add(filepath);
-        recordStream(_audioRecorder, config, filepath);
+    // Request location permission for recording
+    await getLocationPermission(context);
+    // Initialize location service and start listening for location updates
+    _locService = LocationService();
+    _locService.init();
+    _locService.getCurrentLocation().then((loc) {
+      setState(() {
+        currentPosition = loc;
+        _liveRoute.add(loc);
+      });
+    }).catchError((e, stackTrace) {
+      logger.e('Error fetching initial location: $e',
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    });
+    _locationSub = _locService.positionStream.listen((position) {
+      final now = DateTime.now();
+      if (_lastRouteUpdateTime == null ||
+          now.difference(_lastRouteUpdateTime!) >= Duration(seconds: 5)) {
         setState(() {
-          recording = true;
+          currentPosition = LatLng(position.latitude, position.longitude);
+          _liveRoute.add(LatLng(position.latitude, position.longitude));
+          _lastRouteUpdateTime = now;
         });
       }
-      else {
-        exitApp(context, 'Pro správné fungování aplikace je potřeba povolit mikrofon');
+    });
+    final running = await FlutterForegroundTask.isRunningService;
+    if (!running) {
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'Strnadi',
+        notificationText: t('streamRec.notifications.recordingInProgress'),
+        callback: startRecordingCallback,
+        serviceTypes: [ForegroundServiceTypes.microphone],
+      );
+    } else {
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'Strnadi',
+        notificationText: t('streamRec.notifications.recordingInProgress'),
+      );
+    }
+    try {
+      logger.i('Started recording');
+      // Prepare new file path and start local AudioRecorder
+      filepath = await _getPath();
+      segmentPaths.add(filepath);
+      await WakelockPlus.enable();
+
+      final config = RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        numChannels: 1,
+        sampleRate: sampleRate,
+        bitRate: bitRate,
+      );
+      await _audioRecorder.start(config, path: filepath);
+
+      if (_locService.lastKnownPosition == null) {
+        await _locService.getCurrentLocation();
       }
+      overallStartTime = DateTime.now();
+      logger.i('Overall start time: $overallStartTime');
+      // Create a new segment metadata object
+      recordedPart = RecordingPartUnready(
+        path: null,
+        gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
+        gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
+        startTime: DateTime.now(),
+      );
+      logger.i('Recorded part start time: ${recordedPart!.startTime}');
+      _elapsedTimer.reset();
+      _elapsedTimer.start();
+      setState(() {
+        recording = true;
+        _recordState = RecordState.record;
+      });
     } catch (e, stackTrace) {
       logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -433,16 +900,18 @@ class _LiveRecState extends State<LiveRec> {
   String _formatTime(Duration duration) {
     final minutes = duration.inMinutes.toString().padLeft(2, '0');
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-    final hundredths = ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
+    final hundredths =
+        ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
     return '$minutes:$seconds,$hundredths';
   }
 
-  Future<String> recordStream(AudioRecorder recorder, RecordConfig config, String filepath) async {
+  Future<String> recordStream(
+      AudioRecorder recorder, RecordConfig config, String filepath) async {
     final file = File(filepath);
     final stream = await recorder.startStream(config);
     final completer = Completer<String>();
     stream.listen(
-          (data) {
+      (data) {
         file.writeAsBytes(data, mode: FileMode.append);
       },
       onDone: () {
@@ -459,26 +928,34 @@ class _LiveRecState extends State<LiveRec> {
   Future<void> _pause() async {
     await _audioRecorder.stop();
     _elapsedTimer.pause();
+    await FlutterForegroundTask.updateService(
+      notificationTitle: 'Strnadi',
+      notificationText: t('streamRec.notifications.recordingPaused'),
+    );
     int segmentDuration = _recordDuration.inSeconds;
     _totalRecordedTime += _recordDuration;
     recordingPartsTimeList.add(segmentDuration);
-    // Set the end time for this segment.
     recordedPart!.endTime = DateTime.now();
     logger.i('Recorded part end time: ${recordedPart!.endTime}');
-    if (_locService.lastKnownPosition == null) {
-      await _locService.getCurrentLocation();
+    // Always fetch the latest location for segment end
+    try {
+      final loc = await _locService.getCurrentLocation();
+      recordedPart!.gpsLongitudeEnd = loc.longitude;
+      recordedPart!.gpsLatitudeEnd = loc.latitude;
+    } catch (e, stackTrace) {
+      logger.e('Error fetching location on pause: $e',
+          error: e, stackTrace: stackTrace);
     }
-    recordedPart!.gpsLongitudeEnd = _locService.lastKnownPosition?.longitude;
-    recordedPart!.gpsLatitudeEnd = _locService.lastKnownPosition?.latitude;
     Uint8List data = await File(filepath).readAsBytes();
-    final dataWithHeader = createWavHeader(data.length, sampleRate, bitRate) + data;
-    recordedPart!.dataBase64 = base64Encode(dataWithHeader);
+    final dataWithHeader =
+        createWavHeader(data.length, sampleRate, bitRate) + data;
     await File(filepath).delete();
     File newFile = await File(filepath).create();
     await newFile.writeAsBytes(dataWithHeader);
+    recordedPart!.path = filepath;
     recordingPartsList.add(recordedPart!);
     setState(() {
-      _recordDuration = Duration.zero;
+      _recordState = RecordState.pause; // show resume button
     });
   }
 
@@ -486,30 +963,35 @@ class _LiveRecState extends State<LiveRec> {
     var path = await _getPath();
     setState(() {
       filepath = path;
+      _recordState = RecordState.record; // back to recording
     });
-    _elapsedTimer.reset();
-    _elapsedTimer.start();
+    _elapsedTimer.resume();
+    await FlutterForegroundTask.updateService(
+      notificationTitle: 'Strnadi',
+      notificationText: t('streamRec.notifications.recordingInProgress'),
+    );
     segmentPaths.add(path);
-    const encoder = AudioEncoder.pcm16bits;
-    if (!await _isEncoderSupported(encoder)) return;
+    await WakelockPlus.enable();
     final config = RecordConfig(
-      encoder: encoder,
+      encoder: AudioEncoder.pcm16bits,
       numChannels: 1,
       sampleRate: sampleRate,
       bitRate: bitRate,
     );
-    recordStream(_audioRecorder, config, filepath);
-    // Start a new segment with a fresh start time.
+    await _audioRecorder.start(config, path: filepath);
+    // Start a new segment.
     recordedPart = RecordingPartUnready(
-      dataBase64: null,
+      path: null,
       gpsLongitudeStart: _locService.lastKnownPosition?.longitude,
       gpsLatitudeStart: _locService.lastKnownPosition?.latitude,
       startTime: DateTime.now(),
     );
     logger.i('New segment start time: ${recordedPart!.startTime}');
-    if (recordedPart!.gpsLongitudeStart == null || recordedPart!.gpsLatitudeStart == null) {
+    if (recordedPart!.gpsLongitudeStart == null ||
+        recordedPart!.gpsLatitudeStart == null) {
       await _locService.getCurrentLocation();
-      recordedPart!.gpsLongitudeStart = _locService.lastKnownPosition?.longitude;
+      recordedPart!.gpsLongitudeStart =
+          _locService.lastKnownPosition?.longitude;
       recordedPart!.gpsLatitudeStart = _locService.lastKnownPosition?.latitude;
     }
   }

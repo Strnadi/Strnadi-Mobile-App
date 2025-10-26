@@ -4,6 +4,17 @@
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:dev.strnadi.cz</string>
+		<string>applinks:strnadi.cz</string>
+	</array>
+	<key>com.apple.developer.game-center</key>
+	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.delta.strnadi</string>

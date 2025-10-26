@@ -15,10 +15,15 @@
  */
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
+
+import '../../database/databaseNew.dart';
 
 class Part {
   final int id;
+  final int? length;
   final int recordingId;
   final DateTime start;
   final DateTime end;
@@ -32,6 +37,7 @@ class Part {
 
   Part({
     required this.id,
+    required this.length,
     required this.recordingId,
     required this.start,
     required this.end,
@@ -47,6 +53,7 @@ class Part {
   factory Part.fromJson(Map<String, dynamic> json) {
     return Part(
       id: json['id'] ?? -1,
+      length: json['length'] ?? null,
       recordingId: json['recordingId'] ?? -1,
       start: DateTime.parse(json['startDate']),
       end: DateTime.parse(json['endDate']),
@@ -62,7 +69,7 @@ class Part {
 }
 
 
-class Recording {
+class RecordingSec {
   final int id;
   final int userId;
   final DateTime createdAt;
@@ -73,7 +80,7 @@ class Recording {
   final String? notePost;
   final List<Part> parts;
 
-  Recording({
+  RecordingSec({
     required this.id,
     required this.userId,
     required this.createdAt,
@@ -85,8 +92,8 @@ class Recording {
     required this.parts,
   });
 
-  factory Recording.fromJson(Map<String, dynamic> json) {
-    return Recording(
+  factory RecordingSec.fromJson(Map<String, dynamic> json) {
+    return RecordingSec(
       id: json['id'] ?? -1,
       userId: json['userId'] ?? -1,
       createdAt: DateTime.parse(json['createdAt']),
@@ -106,7 +113,7 @@ class Recording {
 
 List<Part> getParts(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
-  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+  final recordings = decoded.map((r) => RecordingSec.fromJson(r)).toList();
 
   final List<Part> parts = [];
 
@@ -119,7 +126,7 @@ List<Part> getParts(String jsonString) {
 
 LatLng? getFirstPartLatLng(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
-  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+  final recordings = decoded.map((r) => RecordingSec.fromJson(r)).toList();
 
   if (recordings.isNotEmpty && recordings.first.parts.isNotEmpty) {
     final firstPart = recordings.first.parts.first;
@@ -128,9 +135,15 @@ LatLng? getFirstPartLatLng(String jsonString) {
   return null; // no data
 }
 
+Future<List<Recording>> GetRecordings(String jsonString) async {
+  final List<dynamic> decoded = jsonDecode(jsonString);
+  // passing null to read the mail from the json
+  return decoded.map((r) => Recording.fromBEJson(r, null)).toList();
+}
+
 List<LatLng> getAllLatLngs(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
-  final recordings = decoded.map((r) => Recording.fromJson(r)).toList();
+  final recordings = decoded.map((r) => RecordingSec.fromJson(r)).toList();
 
   final List<LatLng> latLngList = [];
 

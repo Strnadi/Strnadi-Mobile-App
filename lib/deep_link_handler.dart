@@ -15,6 +15,8 @@
  */
 import 'dart:async';
 import 'package:app_links/app_links.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
 Logger logger = Logger();
@@ -24,18 +26,76 @@ class DeepLinkHandler {
   factory DeepLinkHandler() => _instance;
   DeepLinkHandler._internal();
 
+  late GlobalKey<NavigatorState> navigatorKey;
+
+  Future<void> _ensureNavigatorReady() async {
+    // Wait until a NavigatorState is available. This covers cold-start deep links.
+    while (navigatorKey.currentState == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
+  void _handleUri(Uri uri) {
+    logger.i('Received deep link: $uri');
+    switch (uri.path) {
+      case '/ucet/obnova-hesla':
+        logger.i('Navigating to Reset Password page');
+        final token = uri.queryParameters['token'];
+        if (token != null) {
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/reset-password',
+            (route) => false,
+            arguments: {'token': token},
+          );
+        } else {
+          logger.w('Missing token in reset-password link');
+        }
+        break;
+      case '/ucet/email-overen':
+        logger.i('Navigating to Email Verified page');
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/email-verified',
+          (route) => false,
+        );
+        break;
+      case '/ucet/email-neoveren':
+        logger.i('Navigating to Email Not Verified page');
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/email-not-verified',
+          (route) => false,
+        );
+        break;
+      default:
+        logger.w('Unhandled deep link path: ${uri.path}');
+    }
+  }
+
+  void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    navigatorKey = key;
+  }
+
   StreamSubscription? _sub;
   final AppLinks _appLinks = AppLinks();
 
   void initialize() {
     // Listen for incoming deep link changes using app_links package.
-    _sub = _appLinks.uriLinkStream.listen((Uri? uri) {
+    // Handle the initial deep link if the app was launched via a Universal Link.
+    _appLinks.getInitialLink().then((Uri? initialUri) async {
+      if (initialUri != null) {
+        await _ensureNavigatorReady();
+        _handleUri(initialUri);
+      }
+    }).catchError((error) {
+      logger.e('Initial deep link error: $error');
+    });
+
+    _sub = _appLinks.uriLinkStream.listen((Uri? uri) async {
       if (uri != null) {
-        logger.i('Received deep link: $uri');
-        // TODO: Handle deep link navigation or processing here.
+        await _ensureNavigatorReady();
+        _handleUri(uri);
       }
     }, onError: (error) {
-      logger.i('Deep link error: $error');
+      logger.e('Deep link error: $error');
     });
   }
 

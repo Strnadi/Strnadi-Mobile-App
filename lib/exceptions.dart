@@ -14,6 +14,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// Thrown when a recording has unsent parts that need to be resent.
+class UnsentPartsException implements Exception {
+  final String message;
+  UnsentPartsException([this.message = 'Recording has unsent parts to resend.']);
+  @override
+  String toString() => 'UnsentPartsException: $message';
+}
 
 class FetchException implements Exception {
   final String message;

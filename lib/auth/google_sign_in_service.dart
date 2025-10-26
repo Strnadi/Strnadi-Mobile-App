@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
@@ -8,6 +24,8 @@ import 'dart:io';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../config/config.dart';
+
 Logger logger = Logger();
 
 class GoogleSignInService {
@@ -15,6 +33,66 @@ class GoogleSignInService {
     scopes: ['email', 'profile'],
     serverClientId: '287278255232-2rfu5vd3j233uhn4ktacpfs7rep0s44d.apps.googleusercontent.com'
   );
+
+  static Future<Map<String, dynamic>?> googleAuth({String? jwt}) async {
+    logger.i('Starting google auth process');
+    try{
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the sign in.
+        logger.w('google sign in canceled');
+        return null;
+        //throw Exception('Google sign in canceled');
+      }
+
+      // Obtain the auth details from the request.
+      final GoogleSignInAuthentication googleAuth = await googleUser
+          .authentication;
+
+      late String idToken;
+      if(googleAuth.idToken != null) {
+        idToken = googleAuth.idToken!;
+      }
+      else {
+        logger.e('Google sign in failed: idToken is null');
+        signOut();
+        return null;
+      }
+      logger.i('got auth');
+
+      logger.i('google idToken: $idToken');
+
+      FlutterSecureStorage secureStorage = FlutterSecureStorage();
+
+      Map<String, String> headers = {'Content-Type': 'application/json'};
+      if (jwt != null && jwt.isNotEmpty){
+        headers.addAll({'Authentication': 'Bearer ${jwt}'});
+      }
+
+      //Send to BE
+
+      http.Response response = await http.post(
+        Uri(scheme: 'https', host: Config.host, path: '/auth/google'),
+            headers: headers,
+            body: jsonEncode({"idToken": idToken})
+      );
+
+      Map<String, dynamic> product = {"status": response.statusCode};
+
+      if (response.statusCode != 200){
+        logger.w('Google sign in failed: ${response.statusCode} | ${response.body}');
+        return product;
+      }
+      product.addAll(jsonDecode(response.body));
+      logger.i('Google sign in successful');
+      return product;
+
+    } catch (e, stackTrace){
+      logger.e('Error processing Google Auth: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      return null;
+    }
+  }
 
   static Future<String?> signInWithGoogle() async {
     // Trigger the authentication flow.
@@ -32,7 +110,7 @@ class GoogleSignInService {
       final GoogleSignInAuthentication googleAuth = await googleUser
           .authentication;
 
-      String idToken = '';
+      late String idToken;
       if(googleAuth.idToken != null) {
         idToken = googleAuth.idToken!;
       }
@@ -47,7 +125,7 @@ class GoogleSignInService {
       logger.i('google idToken: $idToken');
 
       //Send to BE
-      Uri url = Uri.parse('https://api.strnadi.cz/auth/login-google');
+      Uri url = Uri.parse('https://${Config.host}/auth/login-google');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
@@ -86,7 +164,7 @@ class GoogleSignInService {
 
     // Call your backend sign-up endpoint.
     // Replace the URL with your actual backend endpoint.
-    final url = 'https://api.strnadi.cz/auth/sign-up-google';
+    final url = 'https://${Config.host}/auth/sign-up-google';
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
@@ -95,13 +173,18 @@ class GoogleSignInService {
       })
     );
 
-    if (response.statusCode != 200) {
+    if(response.statusCode == 409){
+      GoogleSignInService.signOut();
+      logger.w('User already exists');
+      return {'status': 409};
+    } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
       logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
-      return null;
+      return {'status': response.statusCode};
     }
 
     Map<String,dynamic> user = jsonDecode(response.body);
+    user.addEntries({'status': response.statusCode}.entries);
     return user;
   }
 

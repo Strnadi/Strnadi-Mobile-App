@@ -14,6 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/gestures.dart';
+import 'package:strnadi/localization/localization.dart';
+import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,12 +24,18 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/launch_warning.dart';
+import 'package:strnadi/config/config.dart';
+import 'package:strnadi/database/databaseNew.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../recording/streamRec.dart';
-import 'forgottenPassword.dart';
+import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
+import 'unverifiedEmail.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
+import 'package:strnadi/auth/appleAuth.dart' as apple;
+import 'package:strnadi/auth/registeration/nameReg.dart';
 
 final logger = Logger();
 
@@ -42,16 +51,42 @@ class _LoginState extends State<Login> {
   final TextEditingController _passwordController = TextEditingController();
   late TapGestureRecognizer _registerTapRecognizer;
 
+  bool _isLoading = false;
+  void _showLoader() {
+    setState(() {
+      _isLoading = true;
+    });
+  }
+
+  void _hideLoader() {
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
     _registerTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const RegMail()),
-        );
+        if (_isLoading) return;
+        _withLoader(() async {
+          await Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const RegMail()),
+          );
+        });
       };
+  }
+  /// Helper function to show loader, run [fn], and then hide loader.
+  Future<void> _withLoader(Future<void> Function() fn) async {
+    _showLoader();
+    try {
+      await fn();
+    } finally {
+      _hideLoader();
+    }
   }
 
   @override
@@ -62,13 +97,49 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
-  void login() async {
-    final url = Uri.https('api.strnadi.cz', '/auth/login');
+  Future<void> cacheUserData(int userID) async {
+    Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
 
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty){
-      _showMessage("Nebud Negr Ty deges");
+    http.Response response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    try {
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        String firstName = jsonResponse['firstName'];
+        String lastName = jsonResponse['lastName'];
+        String nick = jsonResponse['nickname'];
+        String role = jsonResponse['role'];
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
+        await secureStorage.write(key: 'firstName', value: firstName);
+        await secureStorage.write(key: 'lastName', value: lastName);
+        await secureStorage.write(key: 'nick', value: nick);
+        await secureStorage.write(key: 'role', value: role);
+
+        logger.i("Fetched user name: $firstName $lastName");
+      } else {
+        logger.w(
+            'Failed to fetch user name. Status code: ${response.statusCode}');
+      }
+    } catch (error, stackTrace){
+      logger.e('Error fetching user name: $error',
+          error: error, stackTrace: stackTrace);
+      await Sentry.captureException(error, stackTrace: stackTrace);
+    }
+  }
+
+  void login() async {
+    final url = Uri.https(Config.host, '/auth/login');
+
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showMessage(t('login.errors.emptyFieldsError'));
       return;
     }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(_emailController.text)) {
+      _showMessage(t('login.errors.invalidEmailError'));
+      return;
+    }
+
 
     try {
       final response = await http.post(
@@ -80,24 +151,108 @@ class _LoginState extends State<Login> {
         }),
       );
 
-      logger.i(response.body);
+      logger.i('Login response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 202) {
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
-        await const FlutterSecureStorage()
-            .write(key: 'token', value: response.body);
+        if (await secureStorage.read(key: 'token') != null) {
+          secureStorage.delete(key: 'token');
+        }
+        await secureStorage.write(
+            key: 'token', value: response.body.toString());
+
+        final verifyUrl = Uri.https(Config.host, '/auth/verify-jwt');
+
+        final verifyResponse = await http.get(
+          verifyUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${response.body.toString()}',
+          },
+        );
+
+        if (verifyResponse.statusCode == 403) {
+          // If the JWT check returns 403, the account is not verified.
+          Uri url =
+              Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
+          var response = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
+          });
+          int userId = int.parse(response.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
+          await cacheUserData(userId);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailNotVerified(
+                userEmail: _emailController.text,
+                userId: userId,
+              ),
+            ),
+          );
+          return;
+        } else {
+          await secureStorage.write(
+              key: 'token', value: response.body.toString());
+          Uri url =
+              Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
+          var idResponse = await http.get(url, headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${response.body.toString()}',
+          });
+          int userId = int.parse(idResponse.body);
+          await secureStorage.write(key: 'userId', value: userId.toString());
+          await cacheUserData(userId);
+        }
+        await secureStorage.write(key: 'verified', value: 'true');
+        logger.i(response.body);
         await fb.refreshToken();
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()));
+        DatabaseNew.syncRecordings();
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+            settings: const RouteSettings(name: '/Recorder'),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      } else if (response.statusCode == 403) {
+        FlutterSecureStorage secureStorage = FlutterSecureStorage();
+        await secureStorage.write(
+            key: 'token', value: response.body.toString());
+        Uri url =
+            Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
+        var idResponse = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
+        });
+        int userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'userId', value: userId.toString());
+        await cacheUserData(userId);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailNotVerified(
+              userEmail: _emailController.text,
+              userId: userId,
+            ),
+          ),
+        );
       } else if (response.statusCode == 401) {
-        _showMessage('Špatné jméno nebo heslo');
+        _showMessage(t('login.errors.invalidCredentials'));
       } else {
-        logger.w('Login failed: Code: ${response.statusCode} message: ${response.body}');
-        _showMessage('Přihlášení selhalo, zkuste to znovu');
+        logger.w(
+            'Login failed: Code: ${response.statusCode} message: ${response.body}');
+        _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
-      logger.e('An error has occured when logging in $error', error: error, stackTrace: stackTrace);
+      logger.e('An error has occured when logging in $error',
+          error: error, stackTrace: stackTrace);
       Sentry.captureException(error, stackTrace: stackTrace);
-      _showMessage('Chyba připojení');
+      _showMessage(t('login.errors.connection'));
     }
   }
 
@@ -109,7 +264,7 @@ class _LoginState extends State<Login> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('OK'))
+              child: Text(t('auth.buttons.ok')))
         ],
       ),
     );
@@ -122,120 +277,126 @@ class _LoginState extends State<Login> {
     const Color yellowishBlack = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      // AppBar with a back button at the top
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    Widget mainContent = SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               // Spacing from the top (additional to AppBar)
               const SizedBox(height: 20),
 
               // Title: "Přihlášení"
-              const Text(
-                'Přihlášení',
+              Text(
+                t('login.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 40),
+            const SizedBox(height: 40),
 
-              // --- E-mail label and TextField ---
-              Text(
-                'E-mail',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  fillColor: Colors.grey[200],
-                  filled: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  // More rounded border
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // --- Heslo (Password) label and TextField ---
-              Text(
-                'Heslo',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  fillColor: Colors.grey[200],
-                  filled: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                  suffixIcon: IconButton(
-                    icon: _obscurePassword
-                        ? Image.asset(
-                      'assets/icons/visOn.png',
-                      width: 30,
-                      height: 30,
-                    )
-                        : Image.asset(
-                      'assets/icons/visOff.png',
-                      width: 30,
-                      height: 30,
+            AutofillGroup(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- E-mail label and TextField ---
+                  Text(
+                    t('login.inputs.emailLabel'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      // More rounded border
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // --- Heslo (Password) label and TextField ---
+                  Text(
+                    t('login.inputs.passwordLabel'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: _obscurePassword
+                            ? Image.asset(
+                                'assets/icons/visOn.png',
+                                width: 30,
+                                height: 30,
+                              )
+                            : Image.asset(
+                                'assets/icons/visOff.png',
+                                width: 30,
+                                height: 30,
+                              ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
 
               // "Zapomenuté heslo?" aligned to the right
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    // Handle "Forgot password" here
-                  },
-                  child: const Text('Zapomenuté heslo?'),
+                  onPressed: !_isLoading ? () {
+                    _withLoader(() async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgottenPassword(),
+                        ),
+                      );
+                    });
+                  } : null,
+                  child: Text(t('login.buttons.forgotPassword')),
                 ),
               ),
 
@@ -250,9 +411,9 @@ class _LoginState extends State<Login> {
                       thickness: 1,
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('Nebo'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(t('login.or')),
                   ),
                   Expanded(
                     child: Divider(
@@ -266,25 +427,114 @@ class _LoginState extends State<Login> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    logger.i('Google button clicked');
+                    _showLoader();
+                    Map<String, dynamic>? data = await google.GoogleSignInService.googleAuth();
+                    if (data == null) {
+                      logger.w('Google sign in returned null data');
+                      _hideLoader();
+                      return;
+                    }
+                    if (data['status'] == 200) {
+                      logger.i(
+                          'Google sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
+                        // New user, proceed with registration
+                        _hideLoader();
+                        logger.i(
+                            'Google sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                  name: data['firstName'] as String? ?? '',
+                                  surname:
+                                  data['lastName'] as String? ?? '',
+                                  email: data['email'] as String? ?? '',
+                                  jwt: data['jwt'] as String,
+                                  consent: true,
+                                )));
+                        return;
+                      } else if (data['exists'] == true) {
+                        // User exists, proceed with login
+                      }
+                      String? jwt = data['jwt'] as String?;
+                      final secureStorage = const FlutterSecureStorage();
+                      // Persist the token locally
+                      await secureStorage.write(key: 'token', value: jwt);
+                      await secureStorage.write(key: 'verified', value: true.toString());
+                      logger.i('Google sign‑in successful, token stored');
+
+                      // Retrieve user‑id from backend
+                      final idResponse = await http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        });
+                      if (idResponse.statusCode != 200) {
+                        logger.e('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                        _hideLoader();
+                        _showMessage(t('login.errors.idGetError'));
+                        return;
+                      }
+                      await secureStorage.write(key: 'userId', value: idResponse.body);
+                      await cacheUserData(int.parse(idResponse.body));
+                      await fb.refreshToken();
+                      _hideLoader();
+                      // Go to recorder screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => LiveRec()),
+                      );
+                    } else {
+                      logger.w(
+                          'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _hideLoader();
+                      _showMessage(t('login.errors.loginFailed'));
+                      return;
+                    }
+
+                    /*
                     logger.i('Button clicked');
                     //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
-                    google.GoogleSignInService.signInWithGoogle().then((jwt) => {
-                      if(jwt!=null){
-                      FlutterSecureStorage().write(key: 'token', value: jwt),
-                      fb.refreshToken(),
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LiveRec()))
-                      }
-                    });
+                    late int userId;
+                    String? jwt = await google.GoogleSignInService.signInWithGoogle();
                     // Handle 'Continue with Google' logic here
+                    if (jwt != null)
+                    {
+                      FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+                      secureStorage.write(key: 'token', value: jwt);
+                      http.Response response = await http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        });
+                      if (response.statusCode == 200) {
+                        await secureStorage.write(key: 'verified', value: true.toString());
+                        await secureStorage.write(
+                            key: 'userId',
+                            value: response.body.toString());
+                        await cacheUserData(int.parse(response.body.toString()));
+                    }
+
+                    await fb.refreshToken();
+                    Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                    builder: (_) => LiveRec()));
+                  }
+                    */
                   },
                   icon: Image.asset(
                     'assets/images/google.webp',
                     height: 24,
                     width: 24,
                   ),
-                  label: const Text(
-                    'Pokračovat přes Google',
+                  label: Text(
+                    t('login.buttons.googleSignIn'),
                     style: TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -300,34 +550,211 @@ class _LoginState extends State<Login> {
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-      // Login button moved to bottomNavigationBar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              login();
-            },
-            style: ElevatedButton.styleFrom(
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              backgroundColor: yellow,
-              foregroundColor: yellowishBlack,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
+              const SizedBox(height: 16),
+              SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  _showLoader();
+                  logger.i('Apple button clicked');
+
+                  // Start Apple sign‑in flow
+                  try {
+                    final data = await apple.AppleAuth.signInAndGetJwt(null);
+                    if (data == null) {
+                      logger.w('Apple sign in return data null');
+                      _hideLoader();
+                      // User cancelled or sign‑in failed
+                      return;
+                    } else if (data['status'] == 200) {
+                      logger.i(
+                          'Apple sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
+                        // New user, proceed with registration
+                        _hideLoader();
+                        logger.i(
+                            'Apple sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                  name: data['firstName'] as String? ?? '',
+                                  surname:
+                                  data['lastName'] as String? ?? '',
+                                  email: data['email'] as String? ?? '',
+                                  jwt: data['jwt'] as String,
+                                  appleId:
+                                  data['userIdentifier'] as String? ??
+                                      '',
+                                  consent: true,
+                                )));
+                        return;
+                      } else if (data['exists'] == true) {
+                        // User exists, proceed with login
+                      }
+                    } else if (data['status'] == 400) {
+                      _hideLoader();
+                      logger.w('Apple sign in failed: no email returned');
+                      _showMessage(t('auth.apple.error.no_email'));
+                      return;
+                    } else {
+                      logger.w(
+                          'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _hideLoader();
+                      _showMessage(t('auth.apple.error.login_failed'));
+                      return;
+                    }
+
+                    // Check if we already have the user's full name
+                    final String? firstName = data['firstName'] as String?;
+                    final String? lastName = data['lastName'] as String?;
+                    final String? email = data['email'] as String?;
+
+                    if ((firstName != null &&
+                        lastName != null &&
+                        email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
+                      // Missing profile data → go to the registration screen
+                      _hideLoader();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegName(
+                            name: firstName,
+                            surname: lastName,
+                            email: email,
+                            jwt: data['jwt'] as String,
+                            consent: true,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final String jwt = data['jwt'] as String;
+                    final secureStorage = const FlutterSecureStorage();
+
+                    // Persist the token locally
+                    await secureStorage.write(key: 'token', value: jwt);
+                    await secureStorage.write(key: 'verified', value: true.toString());
+                    logger.i('Apple sign‑in successful, token stored');
+
+                    // Retrieve user‑id from backend
+                    final idResponse = await http.get(
+                      Uri.parse('https://${Config.host}/users/get-id'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer $jwt',
+                      },
+                    );
+                    if (idResponse.statusCode != 200) {
+                      _hideLoader();
+                      logger.w(
+                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                      _showMessage('login.errors.idGetError');
+                      return;
+                    }
+                    logger.i('User ID retrieved: ${idResponse.body}');
+
+                    await secureStorage.write(
+                        key: 'userId', value: idResponse.body);
+                    await fb.refreshToken();
+
+                    // Get users data
+
+                    await cacheUserData(int.parse(idResponse.body));
+                    _hideLoader();
+
+                    // Go to recorder screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => LiveRec()),
+                    );
+                  }
+                  catch (e, stackTrace) {
+                    logger.e('Apple sign-in error: $e',
+                        error: e, stackTrace: stackTrace);
+                    await Sentry.captureException(e, stackTrace: stackTrace);
+                    _hideLoader();
+                    _showMessage(t('auth.apple.error.login_failed'));
+                    return;
+                  }
+                },
+                icon: Image.asset(
+                  'assets/images/apple.png',
+                  height: 24,
+                  width: 24,
+                ),
+                label: Text(
+                  t('login.buttons.appleSignIn'),
+                  style: TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
             ),
-            child: const Text('Přihlásit se'),
-          ),
+          ],
         ),
       ),
+    );
+
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: mainContent,
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  login();
+                },
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  backgroundColor: yellow,
+                  foregroundColor: yellowishBlack,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                ),
+                child: Text(t('auth.buttons.login')),
+              ),
+            ),
+          ),
+        ),
+        if (_isLoading)
+          Positioned.fill(
+            child: AbsorbPointer(
+              absorbing: true,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

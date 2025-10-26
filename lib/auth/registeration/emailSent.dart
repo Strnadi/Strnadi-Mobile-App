@@ -14,6 +14,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
+
+import 'package:strnadi/localization/localization.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,6 +23,8 @@ import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
+
+import '../../config/config.dart';
 
 Logger logger = Logger();
 
@@ -72,12 +76,27 @@ class _VerifyEmailState extends State<VerifyEmail> {
 
   void alreadyVerified(){
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
+    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
   }
 
   Future<void> resendEmail() async {
-    final String? jwt = await FlutterSecureStorage().read(key: 'token');
-    final Uri url = Uri.https('api.strnadi.cz', '/auth/${widget.userEmail}/resend-verify-email');
+    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+    final String? jwt = await secureStorage.read(key: 'token');
+    int? userId = int.parse((await secureStorage.read(key: 'userid'))?? '-1');
+    if(userId==-1) {
+      Uri IdUrl = Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: '/users/get-id'
+      );
+      var idResponse = await http.get(IdUrl, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      });
+      userId = int.parse(idResponse.body);
+    }
+    await secureStorage.write(key: 'userId', value: userId.toString());
+    final Uri url = Uri.https(Config.host, '/auth/${userId}/resend-verify-email');
     try {
       final response = await http.get(
           url,
@@ -92,12 +111,12 @@ class _VerifyEmailState extends State<VerifyEmail> {
       else if(response.statusCode == 208){
         logger.i('Email already verified');
         showDialog(context: context, builder: (_) => AlertDialog(
-          title: const Text('Email již ověřen'),
-          content: const Text('Tento e-mail již byl ověřen.'),
+          title: Text(t('signup.emailVerify.alreadyVerified.title')),
+          content: Text(t('signup.emailVerify.alreadyVerified.message')),
           actions: [
             TextButton(
               onPressed: alreadyVerified,
-              child: const Text('OK'),
+              child: Text(t('auth.buttons.ok')),
             ),
           ],
         ));
@@ -112,194 +131,186 @@ class _VerifyEmailState extends State<VerifyEmail> {
     }
   }
 
-  /// Resend email verification link. (Implement your actual logic here.)
-  // void _resendEmail() {
-  //   showDialog(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text('Feature not implemented'),
-  //       content: const Text('This feature has not been implemented yet.'),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => alreadyVerified(context),
-  //           child: const Text('OK'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
   /// Open the user’s email app. (Implement or use a package like url_launcher.)
-  void _openEmailApp() async {
+  Future<void> _openEmailApp() async {
+    // Add a brief delay to ensure any navigation transitions are complete
+    await Future.delayed(const Duration(milliseconds: 500));
+
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
       path: widget.userEmail,
     );
     if (await canLaunchUrl(emailLaunchUri)) {
-      await launchUrl(emailLaunchUri);
+      await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the email app')),
+        SnackBar(content: Text(t('Could not open the email app'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // White background
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+        return;
+      },
+      child: Scaffold(
+        // White background
         backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(''),
-        leading: IconButton(
-          icon: Image.asset(
-            'assets/icons/backButton.png',
-            width: 30,
-            height: 30,
-          ),
-          onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
-          },
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              const Text(
-                'Ověřte svůj e-mail',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Na „${widget.userEmail}” jsme vám poslali odkaz na ověření '
-                    'e-mailové adresy. Kliknutím na odkaz potvrdíte svoji '
-                    'emailovou adresu.',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Spacer(),
-
-              // Resend button (disabled while countdown is running)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _counter > 0 ? null : resendEmail,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: yellow,
-                    foregroundColor: textColor,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: Text(
-                    _counter > 0
-                        ? 'Poslat znovu ($_counter s)'
-                        : 'Poslat znovu',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Open email app button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _openEmailApp,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: Colors.white,
-                    foregroundColor: textColor,
-                    side: const BorderSide(
-                      color: yellow,
-                      width: 2,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: const Text('Otevřít e-mail'),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Pokračovat button that returns the user to the Authorizator page
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, 'authorizator', (Route<dynamic> route) => false);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: yellow,
-                    foregroundColor: textColor,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: const Text('Pokračovat'),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(t('')),
+          leading: IconButton(
+            icon: Image.asset(
+              'assets/icons/backButton.png',
+              width: 30,
+              height: 30,
+            ),
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+            },
           ),
         ),
-      ),
-      // Bottom segmented progress bar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: 32,
-        ),
-        child: Row(
-          children: List.generate(5, (index) {
-            // Example: first segment is completed
-            bool completed = index < 5;
-            return Expanded(
-              child: Container(
-                height: 5,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: completed ? yellow : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                Text(t('Ověřte svůj e-mail'),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
                 ),
-              ),
-            );
-          }),
+                const SizedBox(height: 8),
+                Text(
+                  t('signup.emailVerify.info')
+                      .replaceFirst('{email}', widget.userEmail),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Spacer(),
+
+                // Resend button (disabled while countdown is running)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _counter > 0 ? null : resendEmail,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: yellow,
+                      foregroundColor: textColor,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: Text(
+                      _counter > 0
+                          ? '${t('signup.emailVerify.resend')} ($_counter s)'
+                          : t('signup.emailVerify.resend'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Open email app button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _openEmailApp,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.white,
+                      foregroundColor: textColor,
+                      side: const BorderSide(
+                        color: yellow,
+                        width: 2,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: Text(t('signup.emailVerify.openEmailApp')),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Pokračovat button that returns the user to the Authorizator page
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: yellow,
+                      foregroundColor: textColor,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: Text(t('signup.mail.buttons.continue')),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+        // Bottom segmented progress bar
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 32,
+          ),
+          child: Row(
+            children: List.generate(5, (index) {
+              // Example: first segment is completed
+              bool completed = index < 5;
+              return Expanded(
+                child: Container(
+                  height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: completed ? yellow : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );
