@@ -65,7 +65,7 @@ class AppleAuth {
       ],
       webAuthenticationOptions: WebAuthenticationOptions(
         clientId:
-            'web.delta.strnadi', // TODO: replace with your real Services ID
+            'web.delta.strnadi',
         redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
       ),
     );
@@ -93,7 +93,7 @@ class AppleAuth {
     if (result == null) return null;
     Map<String, dynamic> body = {
       'authorizationCode': result.authorizationCode,
-      'idToken': result.idToken,
+      'IdToken': result.idToken,
       'userIdentifier': result.userIdentifier,
       'email': result.email,
       'givenName': result.givenName,
@@ -116,7 +116,7 @@ class AppleAuth {
 
     logger.t(response.body);
 
-    late Map<String, dynamic> resp;
+    Map<String, dynamic> resp = {};
     if (response.statusCode == 200) {
       resp = jsonDecode(response.body) as Map<String, dynamic>;
       logger.i('Apple Sign-In successful');

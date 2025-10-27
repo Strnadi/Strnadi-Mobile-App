@@ -51,17 +51,42 @@ class _LoginState extends State<Login> {
   final TextEditingController _passwordController = TextEditingController();
   late TapGestureRecognizer _registerTapRecognizer;
 
+  bool _isLoading = false;
+  void _showLoader() {
+    setState(() {
+      _isLoading = true;
+    });
+  }
+
+  void _hideLoader() {
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
     _registerTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RegMail()),
-        );
+        if (_isLoading) return;
+        _withLoader(() async {
+          await Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const RegMail()),
+          );
+        });
       };
+  }
+  /// Helper function to show loader, run [fn], and then hide loader.
+  Future<void> _withLoader(Future<void> Function() fn) async {
+    _showLoader();
+    try {
+      await fn();
+    } finally {
+      _hideLoader();
+    }
   }
 
   @override
@@ -72,31 +97,33 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
-  void CacheUserData(int userID) {
+  Future<void> cacheUserData(int userID) async {
     Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
 
-    http.get(url, headers: {'Content-Type': 'application/json'}).then(
-        (http.Response response) {
+    http.Response response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    try {
       if (response.statusCode == 200) {
         var jsonResponse = jsonDecode(response.body);
         String firstName = jsonResponse['firstName'];
         String lastName = jsonResponse['lastName'];
         String nick = jsonResponse['nickname'];
+        String role = jsonResponse['role'];
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
-        secureStorage.write(key: 'firstName', value: firstName);
-        secureStorage.write(key: 'lastName', value: lastName);
-        secureStorage.write(key: 'nick', value: nick);
+        await secureStorage.write(key: 'firstName', value: firstName);
+        await secureStorage.write(key: 'lastName', value: lastName);
+        await secureStorage.write(key: 'nick', value: nick);
+        await secureStorage.write(key: 'role', value: role);
 
         logger.i("Fetched user name: $firstName $lastName");
       } else {
         logger.w(
             'Failed to fetch user name. Status code: ${response.statusCode}');
       }
-    }).catchError((error, stackTrace) {
+    } catch (error, stackTrace){
       logger.e('Error fetching user name: $error',
           error: error, stackTrace: stackTrace);
-      Sentry.captureException(error, stackTrace: stackTrace);
-    });
+      await Sentry.captureException(error, stackTrace: stackTrace);
+    }
   }
 
   void login() async {
@@ -155,7 +182,7 @@ class _LoginState extends State<Login> {
           });
           int userId = int.parse(response.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
-          CacheUserData(userId);
+          await cacheUserData(userId);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -177,14 +204,12 @@ class _LoginState extends State<Login> {
           });
           int userId = int.parse(idResponse.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
-          CacheUserData(userId);
+          await cacheUserData(userId);
         }
         await secureStorage.write(key: 'verified', value: 'true');
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
-        DatabaseNew.updateRecordingsMail();
-        logger.i(DatabaseNew.getAllRecordings());
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
@@ -206,7 +231,7 @@ class _LoginState extends State<Login> {
         });
         int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
-        CacheUserData(userId);
+        await cacheUserData(userId);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -252,24 +277,12 @@ class _LoginState extends State<Login> {
     const Color yellowishBlack = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      // AppBar with a back button at the top
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon:
-              Image.asset('assets/icons/backButton.png', width: 30, height: 30),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    Widget mainContent = SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               // Spacing from the top (additional to AppBar)
               const SizedBox(height: 20),
 
@@ -282,106 +295,107 @@ class _LoginState extends State<Login> {
                 ),
               ),
 
-              const SizedBox(height: 40),
+            const SizedBox(height: 40),
 
-              AutofillGroup(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- E-mail label and TextField ---
-                    Text(
-                      t('login.inputs.emailLabel'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+            AutofillGroup(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- E-mail label and TextField ---
+                  Text(
+                    t('login.inputs.emailLabel'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      // More rounded border
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      autocorrect: false,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: InputDecoration(
-                        fillColor: Colors.grey[200],
-                        filled: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        // More rounded border
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.circular(16.0),
-                        ),
-                      ),
-                    ),
+                  ),
 
-                    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                    // --- Heslo (Password) label and TextField ---
-                    Text(
-                      t('login.inputs.passwordLabel'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                  // --- Heslo (Password) label and TextField ---
+                  Text(
+                    t('login.inputs.passwordLabel'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: _obscurePassword
+                            ? Image.asset(
+                                'assets/icons/visOn.png',
+                                width: 30,
+                                height: 30,
+                              )
+                            : Image.asset(
+                                'assets/icons/visOff.png',
+                                width: 30,
+                                height: 30,
+                              ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      autofillHints: const [AutofillHints.password],
-                      decoration: InputDecoration(
-                        fillColor: Colors.grey[200],
-                        filled: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.circular(16.0),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: _obscurePassword
-                              ? Image.asset(
-                                  'assets/icons/visOn.png',
-                                  width: 30,
-                                  height: 30,
-                                )
-                              : Image.asset(
-                                  'assets/icons/visOff.png',
-                                  width: 30,
-                                  height: 30,
-                                ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
 
               // "Zapomenuté heslo?" aligned to the right
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ForgottenPassword(),
-                      ),
-                    );
-                    // Handle "Forgot password" here
-                  },
+                  onPressed: !_isLoading ? () {
+                    _withLoader(() async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgottenPassword(),
+                        ),
+                      );
+                    });
+                  } : null,
                   child: Text(t('login.buttons.forgotPassword')),
                 ),
               ),
@@ -413,35 +427,106 @@ class _LoginState extends State<Login> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    logger.i('Google button clicked');
+                    _showLoader();
+                    Map<String, dynamic>? data = await google.GoogleSignInService.googleAuth();
+                    if (data == null) {
+                      logger.w('Google sign in returned null data');
+                      _hideLoader();
+                      return;
+                    }
+                    if (data['status'] == 200) {
+                      logger.i(
+                          'Google sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
+                        // New user, proceed with registration
+                        _hideLoader();
+                        logger.i(
+                            'Google sign in: new user, proceeding to registration');
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                  name: data['firstName'] as String? ?? '',
+                                  surname:
+                                  data['lastName'] as String? ?? '',
+                                  email: data['email'] as String? ?? '',
+                                  jwt: data['jwt'] as String,
+                                  consent: true,
+                                )));
+                        return;
+                      } else if (data['exists'] == true) {
+                        // User exists, proceed with login
+                      }
+                      String? jwt = data['jwt'] as String?;
+                      final secureStorage = const FlutterSecureStorage();
+                      // Persist the token locally
+                      await secureStorage.write(key: 'token', value: jwt);
+                      await secureStorage.write(key: 'verified', value: true.toString());
+                      logger.i('Google sign‑in successful, token stored');
+
+                      // Retrieve user‑id from backend
+                      final idResponse = await http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        });
+                      if (idResponse.statusCode != 200) {
+                        logger.e('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                        _hideLoader();
+                        _showMessage(t('login.errors.idGetError'));
+                        return;
+                      }
+                      await secureStorage.write(key: 'userId', value: idResponse.body);
+                      await cacheUserData(int.parse(idResponse.body));
+                      await fb.refreshToken();
+                      _hideLoader();
+                      // Go to recorder screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => LiveRec()),
+                      );
+                    } else {
+                      logger.w(
+                          'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _hideLoader();
+                      _showMessage(t('login.errors.loginFailed'));
+                      return;
+                    }
+
+                    /*
                     logger.i('Button clicked');
                     //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
-                    google.GoogleSignInService.signInWithGoogle()
-                        .then((jwt) => {
-                              if (jwt != null)
-                                {
-                                  FlutterSecureStorage()
-                                      .write(key: 'token', value: jwt),
-                                  http.get(
-                                      Uri.parse(
-                                          'https://${Config.host}/users/get-id'),
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': 'Bearer $jwt',
-                                      }).then((http.Response response) => {
-                                        FlutterSecureStorage().write(
-                                            key: 'userId',
-                                            value: response.body.toString()),
-                                      }),
-                                  fb.refreshToken(),
-                                  DatabaseNew.updateRecordingsMail(),
-                                  Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => LiveRec()))
-                                }
-                            });
+                    late int userId;
+                    String? jwt = await google.GoogleSignInService.signInWithGoogle();
                     // Handle 'Continue with Google' logic here
+                    if (jwt != null)
+                    {
+                      FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+                      secureStorage.write(key: 'token', value: jwt);
+                      http.Response response = await http.get(
+                        Uri.parse('https://${Config.host}/users/get-id'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $jwt',
+                        });
+                      if (response.statusCode == 200) {
+                        await secureStorage.write(key: 'verified', value: true.toString());
+                        await secureStorage.write(
+                            key: 'userId',
+                            value: response.body.toString());
+                        await cacheUserData(int.parse(response.body.toString()));
+                    }
+
+                    await fb.refreshToken();
+                    Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                    builder: (_) => LiveRec()));
+                  }
+                    */
                   },
                   icon: Image.asset(
                     'assets/images/google.webp',
@@ -467,176 +552,209 @@ class _LoginState extends State<Login> {
               ),
               const SizedBox(height: 16),
               SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    logger.i('Apple button clicked');
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  _showLoader();
+                  logger.i('Apple button clicked');
 
-                    // Start Apple sign‑in flow
-                    try {
-                      final data = await apple.AppleAuth.signInAndGetJwt(null);
-                      if (data == null) {
-                        logger.w('Apple sign in return data null');
-                        // User cancelled or sign‑in failed
-                        return;
-                      } else if (data['status'] == 200) {
+                  // Start Apple sign‑in flow
+                  try {
+                    final data = await apple.AppleAuth.signInAndGetJwt(null);
+                    if (data == null) {
+                      logger.w('Apple sign in return data null');
+                      _hideLoader();
+                      // User cancelled or sign‑in failed
+                      return;
+                    } else if (data['status'] == 200) {
+                      logger.i(
+                          'Apple sign in successful, returned data: ${data.toString()}');
+                      if (data['exists'] == false) {
+                        // New user, proceed with registration
+                        _hideLoader();
                         logger.i(
-                            'Apple sign in successful, returned data: ${data.toString()}');
-                        if (data['exists'] == false) {
-                          // New user, proceed with registration
-                          logger.i(
-                              'Apple sign in: new user, proceeding to registration');
-                          Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => RegName(
-                                        name:
-                                            data['firstName'] as String? ?? '',
-                                        surname:
-                                            data['lastName'] as String? ?? '',
-                                        email: data['email'] as String? ?? '',
-                                        jwt: data['jwt'] as String,
-                                        appleId:
-                                            data['userIdentifier'] as String? ??
-                                                '',
-                                        consent: true,
-                                      )));
-                          return;
-                        } else if (data['exists'] == true) {
-                          // User exists, proceed with login
-                        }
-                      } else if (data['status'] == 400) {
-                        logger.w('Apple sign in failed: no email returned');
-                        _showMessage(t('auth.apple.error.no_email'));
-                        return;
-                      } else {
-                        logger.w(
-                            'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
-                        _showMessage(t('auth.apple.error.login_failed'));
-                        return;
-                      }
-
-                      // Check if we already have the user's full name
-                      final String? firstName = data['firstName'] as String?;
-                      final String? lastName = data['lastName'] as String?;
-                      final String? email = data['email'] as String?;
-
-                      if ((firstName != null &&
-                          lastName != null &&
-                          email != null &&
-                          firstName.isEmpty &&
-                          lastName.isEmpty &&
-                          email.isEmpty)) {
-                        // Missing profile data → go to the registration screen
+                            'Apple sign in: new user, proceeding to registration');
                         Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegName(
-                              name: firstName,
-                              surname: lastName,
-                              email: email,
-                              jwt: data['jwt'] as String,
-                              consent: true,
-                            ),
-                          ),
-                        );
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegName(
+                                  name: data['firstName'] as String? ?? '',
+                                  surname:
+                                  data['lastName'] as String? ?? '',
+                                  email: data['email'] as String? ?? '',
+                                  jwt: data['jwt'] as String,
+                                  appleId:
+                                  data['userIdentifier'] as String? ??
+                                      '',
+                                  consent: true,
+                                )));
                         return;
+                      } else if (data['exists'] == true) {
+                        // User exists, proceed with login
                       }
-
-                      final String jwt = data['jwt'] as String;
-                      final secureStorage = const FlutterSecureStorage();
-
-                      // Persist the token locally
-                      await secureStorage.write(key: 'token', value: jwt);
-                      logger.i('Apple sign‑in successful, token stored');
-
-                      DatabaseNew.updateRecordingsMail();
-                      // Retrieve user‑id from backend
-                      final idResponse = await http.get(
-                        Uri.parse('https://${Config.host}/users/get-id'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': 'Bearer $jwt',
-                        },
-                      );
-                      if (idResponse.statusCode != 200) {
-                        logger.w(
-                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
-                        _showMessage('login.errors.idGetError');
-                        return;
-                      }
-                      logger.i('User ID retrieved: ${idResponse.body}');
-
-                      await secureStorage.write(
-                          key: 'userId', value: idResponse.body);
-                      await fb.refreshToken();
-
-                      // Get users data
-
-                      CacheUserData(int.parse(idResponse.body));
-
-                      // Go to recorder screen
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => LiveRec()),
-                      );
-                    } catch (e, stackTrace) {
-                      logger.e('Apple sign-in error: $e',
-                          error: e, stackTrace: stackTrace);
-                      Sentry.captureException(e, stackTrace: stackTrace);
+                    } else if (data['status'] == 400) {
+                      _hideLoader();
+                      logger.w('Apple sign in failed: no email returned');
+                      _showMessage(t('auth.apple.error.no_email'));
+                      return;
+                    } else {
+                      logger.w(
+                          'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                      _hideLoader();
                       _showMessage(t('auth.apple.error.login_failed'));
                       return;
                     }
-                  },
-                  icon: Image.asset(
-                    'assets/images/apple.png',
-                    height: 24,
-                    width: 24,
+
+                    // Check if we already have the user's full name
+                    final String? firstName = data['firstName'] as String?;
+                    final String? lastName = data['lastName'] as String?;
+                    final String? email = data['email'] as String?;
+
+                    if ((firstName != null &&
+                        lastName != null &&
+                        email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
+                      // Missing profile data → go to the registration screen
+                      _hideLoader();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegName(
+                            name: firstName,
+                            surname: lastName,
+                            email: email,
+                            jwt: data['jwt'] as String,
+                            consent: true,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final String jwt = data['jwt'] as String;
+                    final secureStorage = const FlutterSecureStorage();
+
+                    // Persist the token locally
+                    await secureStorage.write(key: 'token', value: jwt);
+                    await secureStorage.write(key: 'verified', value: true.toString());
+                    logger.i('Apple sign‑in successful, token stored');
+
+                    // Retrieve user‑id from backend
+                    final idResponse = await http.get(
+                      Uri.parse('https://${Config.host}/users/get-id'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer $jwt',
+                      },
+                    );
+                    if (idResponse.statusCode != 200) {
+                      _hideLoader();
+                      logger.w(
+                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                      _showMessage('login.errors.idGetError');
+                      return;
+                    }
+                    logger.i('User ID retrieved: ${idResponse.body}');
+
+                    await secureStorage.write(
+                        key: 'userId', value: idResponse.body);
+                    await fb.refreshToken();
+
+                    // Get users data
+
+                    await cacheUserData(int.parse(idResponse.body));
+                    _hideLoader();
+
+                    // Go to recorder screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => LiveRec()),
+                    );
+                  }
+                  catch (e, stackTrace) {
+                    logger.e('Apple sign-in error: $e',
+                        error: e, stackTrace: stackTrace);
+                    await Sentry.captureException(e, stackTrace: stackTrace);
+                    _hideLoader();
+                    _showMessage(t('auth.apple.error.login_failed'));
+                    return;
+                  }
+                },
+                icon: Image.asset(
+                  'assets/images/apple.png',
+                  height: 24,
+                  width: 24,
+                ),
+                label: Text(
+                  t('login.buttons.appleSignIn'),
+                  style: TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  label: Text(
-                    t('login.buttons.appleSignIn'),
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      // Login button moved to bottomNavigationBar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              login();
-            },
-            style: ElevatedButton.styleFrom(
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              backgroundColor: yellow,
-              foregroundColor: yellowishBlack,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
+    );
+
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: mainContent,
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  login();
+                },
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  backgroundColor: yellow,
+                  foregroundColor: yellowishBlack,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                ),
+                child: Text(t('auth.buttons.login')),
               ),
             ),
-            child: Text(t('auth.buttons.login')),
           ),
         ),
-      ),
+        if (_isLoading)
+          Positioned.fill(
+            child: AbsorbPointer(
+              absorbing: true,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

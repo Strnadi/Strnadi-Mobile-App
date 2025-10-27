@@ -144,42 +144,41 @@ Future<void> addDevice() async{
   try {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     FirebaseMessaging messaging = FirebaseMessaging.instance;
-    messaging.getToken().then((token) async {
-      logger.i("Firebase token: $token");
+    String? token = await messaging.getToken();
+    logger.i("Firebase token: $token");
 
-      Uri url = Uri.https(Config.host, '/devices/add');
-      DeviceInfo deviceInfo = await getDeviceInfo();
-      String? jwt = await secureStorage.read(key: 'token');
-      logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
-      String? userIdS = await secureStorage.read(key: 'userId');
-      while(userIdS ==  null){
-        await Future.delayed(Duration(seconds: 1));
-        userIdS = await secureStorage.read(key: 'userId');
-      }
-      int userId = int.parse(userIdS);
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-        body: jsonEncode({
-          'fcmToken': token,
-          'devicePlatform': deviceInfo.platform,
-          'deviceModel': deviceInfo.deviceModel,
-          'userId': userId
-        }),
-      );
-      if (response.statusCode == 200) {
-        logger.i('Device added');
-        FlutterSecureStorage().write(key: 'fcmToken', value: token);
-        adding = false;
-      }
-      else {
-        adding = false;
-        logger.e('Failed to add device ${response.statusCode} | ${response.body}');
-      }
-    });
+    Uri url = Uri.https(Config.host, '/devices/add');
+    DeviceInfo deviceInfo = await getDeviceInfo();
+    String? jwt = await secureStorage.read(key: 'token');
+    logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+    String? userIdS = await secureStorage.read(key: 'userId');
+    while(userIdS ==  null){
+      await Future.delayed(Duration(seconds: 1));
+      userIdS = await secureStorage.read(key: 'userId');
+    }
+    int userId = int.parse(userIdS);
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt',
+      },
+      body: jsonEncode({
+        'fcmToken': token,
+        'devicePlatform': deviceInfo.platform,
+        'deviceModel': deviceInfo.deviceModel,
+        'userId': userId
+      }),
+    );
+    if (response.statusCode == 200) {
+      logger.i('Device added');
+      FlutterSecureStorage().write(key: 'fcmToken', value: token);
+      adding = false;
+    }
+    else {
+      adding = false;
+      logger.e('Failed to add device ${response.statusCode} | ${response.body}');
+    }
   } catch(e, stackTrace){
     adding = false;
     logger.e(e, stackTrace: stackTrace);

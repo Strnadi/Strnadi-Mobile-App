@@ -160,7 +160,7 @@
       "title": "Kde se nacházíte?",
       "subtitle": "Abychom vás mohli informovat ohledně zajímavostí z vaší lokality, budeme potřebovat vaše PSČ (použito pro cílení notifikací) a obec (město, které se zobrazí ostatním uživatelům). Tento krok je nepovinný.",
       "post_code": "PSČ",
-      "city": "Obec",
+      "city": "Město",
       "continue": "Pokračovat",
       "errors": {
         "user_exists": "Uživatel již existuje",
@@ -185,7 +185,7 @@
         "last_name": "Příjmení",
         "nickname": "Přezdívka",
         "post_code": "PSČ",
-        "city": "Obec"
+        "city": "Město"
       }
     },
     "emailVerify": {
@@ -265,12 +265,13 @@
     },
     "buttons": {
       "ok": "OK",
-      "sortAndFilter": "Třídění a filtry",
-      "sortByName": "Třídit podle názvu",
-      "sortByDate": "Třídit podle data",
+      "sortAndFilter": "Řazení a filtry",
+      "sortByName": "Řadit podle názvu",
+      "sortByDate": "Řadit podle data",
       "sortByBirdCount": "Počet ptáků",
       "filterDownloaded": "Stažené",
-      "clearFilter": "Zrušit filtr"
+      "clearFilter": "Zrušit filtr",
+      "sendAllUnsent": "Odeslat všechny neodeslané nahrávky"
     },
     "emptyListMessage": "Zatím nemáte žádné záznamy",
     "status": {
@@ -370,6 +371,11 @@
       "resetFilters": "Resetovat"
     },
     "filters": {
+      "clustering": {
+        "title": "Seskupování nahrávek",
+        "on": "Zapnuto",
+        "off": "Vypnuto"
+      },
       "mapView": {
         "classic": "Klasické",
         "satellite": "Letecké"
@@ -565,7 +571,7 @@
         "nickname": "Přezdívka",
         "email": "E-mail",
         "postCode": "PSČ",
-        "city": "Obec"
+        "city": "Město"
       },
       "buttons": {
         "save": "Uložit",

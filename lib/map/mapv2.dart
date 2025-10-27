@@ -46,6 +46,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/map/RecordingPage.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
 import 'package:strnadi/user/userPage.dart';
@@ -56,7 +57,7 @@ import 'package:http/http.dart' as http;
 
 import '../database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
-
+import 'package:strnadi/dialects/dynamicIcon.dart';
 
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
@@ -73,6 +74,83 @@ class MapScreenV2 extends StatefulWidget {
 }
 
 class _MapScreenV2State extends State<MapScreenV2> {
+  late bool _clusterPoints = true;
+
+  Map<String, List<Marker>> _dialectSeparatedMarkers = {};
+
+  List<String> keys = ['rest'];
+
+  List<Widget> markersWidgets = [];
+
+  /// Loads filtered recording parts from the public BE endpoint instead of the local DB cache.
+  /// When [verified] is true, the BE returns only FRPs with workflow states indicating verification (1 or 2).
+  /// When false, the BE can return also unverified FRPs.
+  Future<({List<FilteredRecordingPart> frps, List<DetectedDialect> dds})>
+      _fetchFilteredPartsFromApi({
+    int? recordingId,
+    required bool verified,
+  }) async {
+    try {
+      final uri = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/recordings/filtered',
+        queryParameters: {
+          if (recordingId != null) 'recordingId': recordingId.toString(),
+          'verified': verified.toString(),
+        },
+      );
+      logger.i('[MapV2] GET ' + uri.toString());
+      final resp = await http.get(uri, headers: {
+        'Content-Type': 'application/json',
+      });
+
+      if (resp.statusCode == 204) {
+        logger.i('[MapV2] /recordings/filtered returned 204 No Content');
+        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
+      }
+      if (resp.statusCode != 200) {
+        logger.e('[MapV2] /recordings/filtered failed: ' +
+            resp.statusCode.toString() +
+            ' body=' +
+            resp.body);
+        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
+      }
+
+      final List<dynamic> jsonArr = jsonDecode(resp.body) as List<dynamic>;
+      final frps = <FilteredRecordingPart>[];
+      final dds = <DetectedDialect>[];
+
+      for (final item in jsonArr) {
+        if (item is! Map<String, dynamic>) continue;
+        final frp = FilteredRecordingPart.fromBEJson(item);
+        frps.add(frp);
+
+        final List<dynamic>? dialects =
+            item['detectedDialects'] as List<dynamic>?;
+        if (dialects != null) {
+          for (final d in dialects) {
+            if (d is! Map<String, dynamic>) continue;
+            final row = DetectedDialect.fromBEJson(d,
+                parentFilteredPartBEID: frp.BEId ?? -1);
+            dds.add(row);
+          }
+        }
+      }
+
+      logger.i('[MapV2] /recordings/filtered parsed: FRPs=' +
+          frps.length.toString() +
+          ', DDs=' +
+          dds.length.toString());
+      return (frps: frps, dds: dds);
+    } catch (e, st) {
+      logger.e('[MapV2] /recordings/filtered exception: ' + e.toString(),
+          error: e, stackTrace: st);
+      Sentry.captureException(e, stackTrace: st);
+      return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
+    }
+  }
+
   final MapController _mapController = MapController();
   bool _isSatelliteView = false;
   String _recordingAuthorFilter = 'all';
@@ -80,8 +158,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   bool _showConqueredSectors = true;
   bool _showUnconfirmedDialects = showUnconfirmedDialects;
   List<Polyline> _gridLines = [];
-  Map<int, String> _dialectMap = {};
-
+  Map<int, List<String>> _dialectsByRecording = {};
 
   final secureStorage = const FlutterSecureStorage();
 
@@ -98,8 +175,19 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Size? _mapSize;
 
+  late bool _isGuestUser = false;
+
   // Subscribe to location updates via the centralized service.
   StreamSubscription? _positionStreamSubscription;
+
+  Future<void> _loadGuestStatus() async {
+    final storage = const FlutterSecureStorage();
+    final userId = await storage.read(key: 'userId');
+    if (!mounted) return;
+    setState(() {
+      _isGuestUser = userId == null || userId.isEmpty;
+    });
+  }
 
   void _showMessage(String message) {
     showDialog(
@@ -155,24 +243,28 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
       _mapController.move(_currentPosition, _currentZoom);
-    } catch (e) {
-      logger.e(e);
-      print("Error retrieving location: $e");
+    } catch (e, stackTrace) {
+      logger.e("Error retrieving location: $e",
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _currentPosition = LatLng(LocationService().lastKnownPosition?.latitude ?? 0.0, LocationService().lastKnownPosition?.longitude ?? 0.0);
+    _loadGuestStatus();
+    _currentPosition = LatLng(
+        LocationService().lastKnownPosition?.latitude ?? 0.0,
+        LocationService().lastKnownPosition?.longitude ?? 0.0);
 
     _getCurrentLocation();
 
-    getRecordings();
-    _fetchDialects();
+    getRecordings().then((_) => {_fetchDialects(), fetchClusters()});
 
     // Subscribe to the centralized location stream.
-    _positionStreamSubscription = LocationService().positionStream.listen((Position position) {
+    _positionStreamSubscription =
+        LocationService().positionStream.listen((Position position) {
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
@@ -189,8 +281,27 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
-  void getRecordings() async {
+  void fetchClusters() {
+    var markers = getDialectSeparatedRecordings();
+    logger.i(
+        '[MapV2] initState(): dialectSeparatedMarkers building clusters $markers');
+    for (var d in markers.keys) {
+      createClusterOfDialect(markers[d]!, d).then((widget) {
+        setState(() {
+          markersWidgets.add(widget);
+        });
+      });
+    }
 
+    logger.i('[MapV2] initState(): dialectSeparatedMarkers count=' +
+        markers.length.toString());
+    setState(() {
+      _dialectSeparatedMarkers = markers;
+      keys = markers.keys.toList();
+    });
+  }
+
+  Future<void> getRecordings() async {
     try {
       int? userId;
       //String? email;
@@ -207,7 +318,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           queryParameters: {
             'parts': 'true',
             'sound': 'false',
-            if (userId != null) 'userId': userId,
+            if (userId != null) 'userId': userId.toString(),
           },
         ),
         headers: {
@@ -225,66 +336,253 @@ class _MapScreenV2State extends State<MapScreenV2> {
         setState(() {
           _recordings = parts;
         });
+        logger.i(
+            '[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
         List<Recording> recordings = await GetRecordings(response.body);
         setState(() {
           _fullRecordings = recordings;
         });
-      }
-      else {
+        logger
+            .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
+        await _fetchDialects();
+      } else {
         logger.e('Failed to fetch recordings ${response.statusCode}');
       }
-    }
-    catch (error) {
-      logger.e(error);
+    } catch (error, stackTrace) {
+      logger.e("Error generariong map ${error}",
+          error: error, stackTrace: stackTrace);
     }
   }
 
   Future<void> _fetchDialects() async {
-    List<Dialect> dialects = await fetchRecordingDialects(null);
-    Map<int, String> dialectMap = {};
-    for (Dialect dialect in dialects) {
-      final int? recordingId = dialect.recordingBEID;
-      if (recordingId == null) continue;
-      late String dialectName;
-      if(!_showUnconfirmedDialects) {
-        dialectName = dialect.adminDialect  ?? 'Nevyhodnoceno';
-      } else {
-        dialectName = dialect.adminDialect ?? dialect.userGuessDialect ?? 'Nevyhodnoceno';
-      }
-      dialectMap[recordingId] = dialectName;
-    }
-    setState(() {
-      _dialectMap = dialectMap;
-    });
-    /*
-    logger.i('Fetching dialects for all parts');
     try {
-      final jwt = await secureStorage.read(key: 'token');
-      final url = Uri.https(Config.host, '/recordings/filtered');
-      final response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      });
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final Map<int, String> dialects = {};
-        for (final item in data.cast<Map<String, dynamic>>()) {
-          final dialectObj = Dialect.fromBEJson(item);
-          final dynamic idValue = item['recordingId'];
-          final int id = idValue is int ? idValue : int.tryParse(idValue.toString()) ?? 0;
-          dialects[id] = dialectObj.dialect;
+      // Snapshot sizes for quick diagnosis
+      logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
+          _fullRecordings.length.toString() +
+          ', showUnconfirmed=' +
+          _showUnconfirmedDialects.toString());
+
+      // Pull filtered parts from BE (global), not from local DB cache
+      final bool verifiedOnly =
+          !_showUnconfirmedDialects; // hide unconfirmed => ask BE for verified only
+      final api = await _fetchFilteredPartsFromApi(
+        // We call once globally to avoid N calls per recording. If needed, we can later scope by recordingId.
+        verified: verifiedOnly,
+      );
+      final frps = api.frps; // List<FilteredRecordingPart>
+      final dds = api.dds; // List<DetectedDialect>
+
+      logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
+          frps.length.toString() +
+          ', DDs=' +
+          dds.length.toString());
+
+      final Map<int, List<String>> byRecording = {};
+      int recsWithNoCodes = 0;
+
+      for (final rec in _fullRecordings) {
+        final int? beId = rec.BEId;
+        if (beId == null) {
+          logger.w('[MapV2] rec has null BEId, skipping');
+          continue;
         }
-        logger.i('Fetched all dialects');
-        setState(() {
-          _dialectMap = dialects;
-        });
-      } else {
-        logger.w('Dialect fetch failed: ${response.statusCode}');
+
+        // Only representative filtered parts for this recording (by BE id)
+        final reps = frps
+            .where((f) => f.recordingBEID == beId && f.isRepresentant)
+            .toList();
+        logger.d('[MapV2] recBE=' +
+            beId.toString() +
+            ': representative FRPs=' +
+            reps.length.toString());
+
+        final codes = <String>{};
+        for (final frp in reps) {
+          final frpDesc = 'FRP be=' +
+              (frp.BEId?.toString() ?? 'null') +
+              ' state=' +
+              frp.state.toString();
+
+          // Join detected dialects by BE link
+          final rows = dds
+              .where(
+                  (d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId))
+              .toList();
+          logger.d('[MapV2]   ' +
+              frpDesc +
+              ' -> dialectRows=' +
+              rows.length.toString());
+
+          for (final d in rows) {
+            final String? confirmed = d.confirmedDialect;
+            final String? guessed = d.userGuessDialect;
+            final String? chosen =
+                _showUnconfirmedDialects ? (confirmed ?? guessed) : confirmed;
+            logger.v('[MapV2]     dialectRow be=' +
+                (d.BEId?.toString() ?? 'null') +
+                ' confirmed=' +
+                (confirmed ?? '-') +
+                ' guessed=' +
+                (guessed ?? '-') +
+                ' chosen=' +
+                (chosen ?? '-'));
+            if (chosen != null && chosen.trim().isNotEmpty) {
+              codes.add(chosen.trim());
+            }
+          }
+        }
+
+        // Fallback when no codes collected
+        List<String> out;
+        if (codes.isEmpty) {
+          recsWithNoCodes++;
+          logger.w('[MapV2] recBE=' +
+              beId.toString() +
+              ': no dialect codes collected; fallback=Neurceno (repFRPs=' +
+              reps.length.toString() +
+              ')');
+          out = <String>['Neurceno'];
+        } else {
+          out = codes
+              .map((c) =>
+                  (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
+              .where((c) => c.trim().isNotEmpty)
+              .toSet()
+              .toList();
+          logger.i('[MapV2] recBE=' +
+              beId.toString() +
+              ': codes=[' +
+              out.join(',') +
+              ']');
+        }
+
+        byRecording[beId] = out.isEmpty ? <String>['Neznámý'] : out;
       }
+
+      setState(() {
+        _dialectsByRecording = byRecording;
+      });
+      logger.i('[MapV2] _fetchDialects(): done; records=' +
+          byRecording.length.toString() +
+          ', emptyOrUnknown=' +
+          recsWithNoCodes.toString());
     } catch (e, stackTrace) {
-      logger.e('Failed to fetch dialects for all parts: $e', error: e, stackTrace: stackTrace);
+      logger.e('Failed to fetch representative dialects: ' + e.toString(),
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
-   */
+  }
+
+  List<String> _dialectsForRecordingId(int recordingBEId) {
+    final list = _dialectsByRecording[recordingBEId];
+    if (list == null || list.isEmpty) return const ['Neznámý'];
+    return list
+        .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
+        .toSet()
+        .toList();
+  }
+
+  List<Marker> _buildRecordingMarkers() {
+    logger.i('[MapV2] _buildRecordingMarkers(): parts=${_recordings.length}');
+    // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
+    final Map<int, Part> lastPartByRecording = {};
+    for (final p in _recordings) {
+      lastPartByRecording[p.recordingId] = p; // last wins
+    }
+    logger.i(
+        '[MapV2] unique recordings for markers=${lastPartByRecording.length}');
+
+    final markers = <Marker>[];
+    lastPartByRecording.forEach((recId, part) {
+      final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
+      final dList = _dialectsForRecordingId(recId);
+      logger.i(
+          '[MapV2] marker recId=$recId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
+      final dialects = dList;
+      markers.add(
+        Marker(
+          width: 30.0,
+          height: 30.0,
+          point: point,
+          child: GestureDetector(
+            onTap: () {
+              getRecordingFromPartId(recId);
+            },
+            child: SizedBox(
+              width: 30.0,
+              height: 30.0,
+              child: Center(
+                child: DynamicIcon(
+                  key: ValueKey('rec_${recId}_${dialects.join('+')}'),
+                  icon: Icons.circle,
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  backgroundColor: Colors.transparent,
+                  dialects:
+                      dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+
+    return markers;
+  }
+
+  Map<String, List<Marker>> getDialectSeparatedRecordings() {
+    Map<String, List<Marker>> dialectMarkers = {};
+
+    for (var rec in _recordings) {
+      logger.i(
+          '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
+      var dialects = _dialectsForRecordingId(rec.recordingId);
+      final point = LatLng(rec.gpsLatitudeStart, rec.gpsLongitudeStart);
+
+      var recId = rec.recordingId;
+
+      var marker = Marker(
+        width: 30.0,
+        height: 30.0,
+        point: point,
+        child: GestureDetector(
+          onTap: () {
+            getRecordingFromPartId(recId);
+          },
+          child: SizedBox(
+            width: 30.0,
+            height: 30.0,
+            child: Center(
+              child: DynamicIcon(
+                key: ValueKey('rec_${recId}_${dialects.join('+')}'),
+                icon: Icons.circle,
+                iconSize: 20,
+                padding: EdgeInsets.zero,
+                backgroundColor: Colors.transparent,
+                dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+              ),
+            ),
+          ),
+        ),
+      );
+
+      if (dialects.length == 1) {
+        var dialect = dialects[0];
+        if (dialectMarkers.containsKey(dialect)) {
+          dialectMarkers[dialect]!.add(marker);
+        } else {
+          dialectMarkers[dialect] = [marker];
+        }
+      } else {
+        if (dialectMarkers.containsKey('rest')) {
+          dialectMarkers['rest']!.add(marker);
+        } else {
+          dialectMarkers['rest'] = [marker];
+        }
+      }
+    }
+    return dialectMarkers;
   }
 
   Future<(String?, String?)?> getProfilePic(int? userId_) async {
@@ -293,26 +591,25 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final jwt = await secureStorage.read(key: 'token');
 
     userId = userId_;
-    final url = Uri.parse(
-        'https://${Config.host}/users/${userId}/get-profile-photo');
+    final url =
+        Uri.parse('https://${Config.host}/users/${userId}/get-profile-photo');
     logger.i(url);
 
     try {
-      http.get(url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt'
-          }).then((value) {
+      http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwt'
+      }).then((value) {
         if (value.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(value.body);
           return (data['photoBase64'], data['format']);
-        }else{
-          logger.e("Profile picture download failed with status code ${value.statusCode} $url");
+        } else {
+          logger.e(
+              "Profile picture download failed with status code ${value.statusCode} $url");
           return null;
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       return null;
     }
     return null;
@@ -320,9 +617,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Future<UserData?> getUser(Recording rec) async {
     for (int i = 0; i < _fullRecordings.length; i++) {
-
-      logger.i("rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name}");
-
+      logger.i(
+          "rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name} ${_fullRecordings[i].id}");
     }
     var mail = rec.userId;
 
@@ -332,7 +628,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     logger.i("mail: $mail url: $url");
 
-    try{
+    try {
       final resp = await http.get(url, headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt'
@@ -349,39 +645,74 @@ class _MapScreenV2State extends State<MapScreenV2> {
       //   resp.format = profilePicData.$2;
       //   return resp;
       // }
-    }
-    catch(e){
+    } catch (e) {
       Sentry.captureException(e, stackTrace: StackTrace.current);
       return null;
     }
   }
 
   void getRecordingFromPartId(int id) async {
-      for (int rec = 0; rec < _fullRecordings.length; rec++) {
-          if (_fullRecordings[rec].BEId == id) {
-            UserData? user = await getUser(_fullRecordings[rec]);
-            logger.i("user is $user");
-            List<RecordingPart?> parts = List.empty(growable: true);
-            parts.add(await DatabaseNew.getRecordingPartByBEID(_fullRecordings[rec].BEId!));
+    for (int rec = 0; rec < _fullRecordings.length; rec++) {
+      if (_fullRecordings[rec].BEId == id) {
+        UserData? user = await getUser(_fullRecordings[rec]);
+        logger.i("user is $user");
+        List<RecordingPart?> parts = List.empty(growable: true);
+        parts.add(await DatabaseNew.getRecordingPartByBEID(
+            _fullRecordings[rec].BEId!));
 
-            logger.i(parts[0]);
+        logger.i(parts[0]);
 
-            showCupertinoSheet
-              (context: context, pageBuilder: (context) => RecordingFromMap(recording: _fullRecordings[rec], user: user,));
-            return;
-          }
+        showCupertinoSheet(
+            context: context,
+            pageBuilder: (context) => RecordingFromMap(
+                  recording: _fullRecordings[rec],
+                  user: user,
+                ));
+        return;
       }
+    }
 
-      showDialog(context: context, builder: (context) => AlertDialog(
-        title: Text(t('map.dialogs.error.title')),
-        content: Text('${t('Nahrávka nenalezena')} $id'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(t('map.dialogs.error.close')),
-          ),
-        ],
-      ));
+    showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: Text(t('map.dialogs.error.title')),
+              content: Text('${t('Nahrávka nenalezena')} $id'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(t('map.dialogs.error.close')),
+                ),
+              ],
+            ));
+  }
+
+  Future<Widget> createClusterOfDialect(
+      List<Marker> markers, String dialect) async {
+    var colors = await DialectColorCache.getColors(List.from([dialect]));
+    var color = colors[0];
+
+    return MarkerClusterLayerWidget(
+      options: MarkerClusterLayerOptions(
+        maxClusterRadius: 45,
+        size: const Size(40, 40),
+        alignment: Alignment.center,
+        markers: markers,
+        builder: (context, clusteredMarkers) {
+          return Container(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                clusteredMarkers.length.toString(),
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -395,6 +726,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.map,
       appBarTitle: null,
+      isGuestUser: _isGuestUser,
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -408,11 +740,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
             children: [
               FlutterMap(
                 mapController: _mapController,
-
                 options: MapOptions(
                   initialCenter: _currentPosition,
                   initialZoom: 13,
-                  interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                  interactionOptions: InteractionOptions(
+                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   minZoom: 1,
                   maxZoom: 19,
                   initialRotation: 0,
@@ -420,13 +752,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 children: [
                   TileLayer(
                     urlTemplate:
-                    'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                        'https://api.mapy.cz/v1/maptiles/${_isSatelliteView ? 'aerial' : 'outdoor'}/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                     userAgentPackageName: 'cz.delta.strnadi',
                   ),
                   if (_isSatelliteView)
                     TileLayer(
                       urlTemplate:
-                      'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                          'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                       userAgentPackageName: 'cz.delta.strnadi',
                     ),
                   PolylineLayer(
@@ -446,28 +778,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                     ],
                   ),
-                  MarkerLayer(
-                    markers: _recordings
-                        .map((part) => Marker(
-                          width: 30.0,
-                          height: 30.0,
-                          point: LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart),
-                          child: GestureDetector(
-                            onTap: () {
-                              getRecordingFromPartId(part.recordingId);
-                            },
-                            child: Image.asset(
-                              'assets/dialects/${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}.png',
-                              key: ValueKey('${part.recordingId}_${_dialectMap[part.recordingId] ?? 'Nevyhodnoceno'}'),
-                              gaplessPlayback: true,
-                              width: 30.0,
-                              height: 30.0,
-                            ),
-                          ),
-                        ))
-                        .toList(),
-                  )
-
+                  if (_clusterPoints == true)
+                    for (var widget in markersWidgets) widget,
+                  if (_clusterPoints == false)
+                    MarkerLayer(
+                      markers: _buildRecordingMarkers(),
+                    ),
                 ],
               ),
               Positioned(
@@ -489,9 +805,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             backgroundColor: Colors.white,
-                              onPressed: _showLegendDialog,
-                            child: Image.asset('assets/icons/info.png', width: 30, height: 30),
+                            onPressed: _showLegendDialog,
                             tooltip: 'Info',
+                            child: Image.asset('assets/icons/info.png',
+                                width: 30, height: 30),
                           ),
                         );
                       },
@@ -522,10 +839,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Image.asset('assets/icons/sort.png', width: 24, height: 24),
                         backgroundColor: Colors.white,
                         onPressed: _openMapFilter,
                         tooltip: 'Map Settings',
+                        child: Image.asset('assets/icons/sort.png',
+                            width: 24, height: 24),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -544,8 +862,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           _mapController.move(_currentPosition, _currentZoom);
                           _updateGrid();
                         },
-                        child: Image.asset('assets/icons/location.png', width: 24, height: 24),
                         backgroundColor: Colors.white,
+                        child: Image.asset('assets/icons/location.png',
+                            width: 24, height: 24),
                       ),
                     ),
                   ],
@@ -555,10 +874,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 bottom: 10,
                 left: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 2, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
                   color: Colors.white70,
-                  child: Text(t('map.legend.mapyCz'),
+                  child: Text(
+                    t('map.legend.mapyCz'),
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -657,7 +977,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
-
   void _openMapFilter() {
     showModalBottomSheet(
       context: context,
@@ -696,7 +1015,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                       const SizedBox(height: 8),
                       Center(
-                        child: Text(t('Nastavení mapy'),
+                        child: Text(
+                          t('Nastavení mapy'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -720,12 +1040,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: !_isSatelliteView ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: !_isSatelliteView
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                   child: Text(t('map.filters.mapView.classic')),
                                 ),
@@ -739,14 +1062,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: _isSatelliteView ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _isSatelliteView
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  child: Text(t('map.filters.mapView.satellite')),
+                                  child:
+                                      Text(t('map.filters.mapView.satellite')),
                                 ),
                               ),
                             ],
@@ -775,14 +1102,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     getRecordings();
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: _recordingAuthorFilter == 'all' ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _recordingAuthorFilter == 'all'
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  child: Text(t('map.filters.recordingAuthor.all')),
+                                  child: Text(
+                                      t('map.filters.recordingAuthor.all')),
                                 ),
                               ),
                               Padding(
@@ -799,14 +1130,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     getRecordings();
                                   },
                                   style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(color: _recordingAuthorFilter == 'me' ? Colors.black : Colors.grey.shade200),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _recordingAuthorFilter == 'me'
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  child: Text(t('map.filters.recordingAuthor.me')),
+                                  child:
+                                      Text(t('map.filters.recordingAuthor.me')),
                                 ),
                               ),
                             ],
@@ -862,6 +1197,63 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     ),
                                   ),
                                   child: Text(t('Zobrazit')),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t('map.filters.clustering.title')),
+                          const SizedBox(height: 8),
+                          // TODO: add clustering on/off buttons
+                          Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _clusterPoints = true;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _clusterPoints == true
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(t('map.filters.clustering.on')),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _clusterPoints = false;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                        color: _clusterPoints == false
+                                            ? Colors.black
+                                            : Colors.grey.shade200),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(t('map.filters.clustering.off')),
                                 ),
                               ),
                             ],
@@ -981,7 +1373,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                               ),
                               onPressed: () {
                                 setModalState(() {
@@ -1001,8 +1394,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 shadowColor: Colors.transparent,
                                 backgroundColor: const Color(0xFFFFD641),
                                 foregroundColor: const Color(0xFF2D2B18),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                textStyle: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16.0),
                                 ),
@@ -1010,9 +1405,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               onPressed: () {
                                 setState(() {
                                   // Apply filters if needed.
-                                  showUnconfirmedDialects = _showUnconfirmedDialects;
+                                  showUnconfirmedDialects =
+                                      _showUnconfirmedDialects;
                                 });
-                                _fetchDialects();        // refetch dialect data after the setting changes
+                                _fetchDialects(); // refetch dialect data after the setting changes
                                 Navigator.pop(context);
                               },
                               child: Text(t('map.buttons.set')),
@@ -1076,33 +1472,27 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     borderRadius: BorderRadius.circular(2.5),
                   ),
                 ),
-                Text(t('map.legend.title'),
+                Text(
+                  t('map.legend.title'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                 ),
                 const SizedBox(height: 16),
-
                 Center(
                   child: Wrap(
                     spacing: 16,
                     runSpacing: 12,
                     alignment: WrapAlignment.center,
                     children: [
-                      _buildDialectLegendItem('BC'),
-                      _buildDialectLegendItem('BE'),
-                      _buildDialectLegendItem('BlBh'),
-                      _buildDialectLegendItem('BhBl'),
-                      _buildDialectLegendItem('XB'),
-                      _buildDialectLegendItem('Vzácné'),
-                      _buildDialectLegendItem('Přechodný'),
-                      _buildSymbolLegendItem('Mix', 'Mix'),
-                      _buildSymbolLegendItem('Atypický', 'Atypický'),
-                      _buildSymbolLegendItem('Nedokončený', 'Nedokončený'),
-                      _buildSymbolLegendItem('Nevyhodnoceno', 'Nevyhodnoceno'),
-                      _buildCircleLegendItem(Colors.black, 'Nepoužitelný'),
+                      _buildAutoDialectLegend(), // <-- auto dialects
+                      // _buildSymbolLegendItem('Vzácné', 'Vzácné'),
+                      // _buildSymbolLegendItem('Přechodný', 'Přechodný'),
+                      // _buildSymbolLegendItem('Mix', 'Mix'),
+                      // _buildSymbolLegendItem('Atypický', 'Atypický'),
+                      // _buildSymbolLegendItem('Nedokončený', 'Nedokončený'),
+                      // _buildCircleLegendItem(Colors.black, 'Nepoužitelný'),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1116,7 +1506,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         backgroundColor: const Color(0xFFFFD641),
                         foregroundColor: const Color(0xFF2D2B18),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        textStyle: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16.0),
                         ),
@@ -1180,17 +1571,49 @@ class _MapScreenV2State extends State<MapScreenV2> {
     );
   }
 
+  Widget _buildAutoDialectLegend() {
+    return FutureBuilder<Map<String, Color>>(
+      future: DynamicIcon.getLegendDialectColors(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done ||
+            !snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        final entries =
+            snapshot.data!; // key -> Color (DynamicIcon resolves colors itself)
+        final items = <Widget>[];
+
+        for (final key in entries.keys) {
+          // Show label "Nevyhodnoceno" but color as "Neznámý"
+          final display = key == 'Neznámý' ? 'Nevyhodnoceno' : key;
+          items.add(_buildDialectLegendItem(display));
+        }
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          alignment: WrapAlignment.center,
+          children: items,
+        );
+      },
+    );
+  }
+
   Widget _buildDialectLegendItem(String dialectName) {
+    // Map BE label used in backend to color key used by DynamicIcon
+    final String key =
+        (dialectName == 'Nevyhodnoceno') ? 'Neznámý' : dialectName;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset(
-            "assets/dialects/${dialectName}.png",
-            width: 24,
-            height: 24,
-            fit: BoxFit.contain,
+          DynamicIcon(
+            icon: Icons.circle,
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            backgroundColor: Colors.transparent,
+            dialects: [key],
           ),
           const SizedBox(width: 6),
           Text(dialectName),

@@ -15,6 +15,7 @@
  */
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:strnadi/localization/localization.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -53,20 +54,51 @@ class _UserPageState extends State<UserPage> {
 
   final logger = Logger();
 
+  bool _isLoading = false;
+
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // prevent duplicate presses
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
+
+  Future<void> setName() async {
+    final f = await secureStorage.read(key: 'firstName') ?? 'username';
+    final l = await secureStorage.read(key: 'lastName') ?? 'LastName';
+    final n = await secureStorage.read(key: 'nick') ?? 'nickName';
+    logger.i("Loaded name from local storage: $f $l ($n)");
+    if (!mounted) return;
+    setState(() {
+      userName = f;
+      lastName = l;
+      nickName = n;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    setName();
-    checkConnectivity();
-    getUserData();
-    getProfilePic(null);
-  }
-
-  void setName() async {
-    setState(() async {
-      userName = await secureStorage.read(key: 'firstName') ?? 'username';
-      lastName = await secureStorage.read(key: 'lastName') ?? 'LastName';
-      nickName = await secureStorage.read(key: 'nick') ?? 'nickName';
+    setName(); // local storage fetch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _withLoader(() async {
+        await checkConnectivity();
+        await Future.wait([
+          getUserData(),
+          getProfilePic(null),
+        ]);
+      });
     });
   }
 
@@ -91,48 +123,73 @@ class _UserPageState extends State<UserPage> {
     return file;
   }
 
+  Future<void> refreshUserData() async {
+    await _withLoader(() async {
+      await getUserData();
+      await getProfilePic(null);
+      await setName(); // also refresh nickname (and first/last) from secure storage
+    });
+  }
+
   Future<void> getProfilePic(String? mail) async {
     var email;
     final jwt = await secureStorage.read(key: 'token');
-
     final id = await secureStorage.read(key: "userId");
 
     if (mail == null) {
-      final jwt = await secureStorage.read(key: 'token');
-      email = JwtDecoder.decode(jwt!)['sub'];
+      final token = await secureStorage.read(key: 'token');
+      email = JwtDecoder.decode(token!)['sub'];
     } else {
       email = mail;
     }
-    final url =
-        Uri.parse('https://${Config.host}/users/${id}/get-profile-photo');
+
+    final cacheKey = 'profilePic_$id';
+    final cacheManager = DefaultCacheManager();
+
+    // Try to load from cache first
+    final cachedFile = await cacheManager.getFileFromCache(cacheKey);
+    if (cachedFile != null && await cachedFile.file.exists()) {
+      setState(() => profileImagePath = cachedFile.file.path);
+      logger.i("Loaded profile picture from cache: ${cachedFile.file.path}");
+      return;
+    }
+
+    final url = Uri.parse('https://${Config.host}/users/$id/get-profile-photo');
     logger.i(url);
 
     try {
-      http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt'
-      }).then((value) {
-        if (value.statusCode == 200) {
-          final Map<String, dynamic> data = jsonDecode(value.body);
-          convertBase64ToImage(
-                  data['photoBase64'], 'profilePic.${data['format']}')
-              .then((value) {
-            logger.i("Profile picture downloaded");
-            setState(() {
-              profileImagePath = value.path;
-            });
-          });
-        } else {
-          logger.e(
-              "Profile picture download failed with status code ${value.statusCode} ${value.body}");
-        }
-      });
-    } catch (e) {
-      throw UnimplementedError();
+      final value = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+      );
+      if (value.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(value.body);
+        final file = await convertBase64ToImage(
+          data['photoBase64'],
+          'profilePic.${data['format']}',
+        );
+
+        await cacheManager.putFile(cacheKey, await file.readAsBytes());
+
+        if (!mounted) return;
+        setState(() {
+          profileImagePath = file.path;
+        });
+        logger.i("Profile picture downloaded $profileImagePath");
+      } else {
+        logger.e(
+            "Profile picture download failed with status code ${value.statusCode} ${value.body}");
+      }
+    } catch (e, st) {
+      logger.e('Profile picture download error', error: e, stackTrace: st);
+      Sentry.captureException(e, stackTrace: st);
     }
   }
 
-  void getUserData() async {
+  Future<void> getUserData() async {
     final usernameExists = await secureStorage.containsKey(key: 'user');
     final id = await secureStorage.read(key: "userId");
 
@@ -175,127 +232,166 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> pickProfileImage() async {
+    if (_isLoading) return;
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         profileImagePath = pickedFile.path;
       });
-      UploadProfilePic();
-
       await secureStorage.write(key: 'profileImage', value: pickedFile.path);
+      var userId = await secureStorage.read(key: 'userId');
+      final cacheKey = 'profilePic_$userId';
+      await DefaultCacheManager().removeFile('profilePic_$userId');
+      await DefaultCacheManager()
+          .putFile(cacheKey, await File(profileImagePath!).readAsBytes());
+
+      await _withLoader(() async {
+        await UploadProfilePic();
+      });
     }
   }
 
   Future<void> UploadProfilePic() async {
     final jwt = await secureStorage.read(key: 'token');
-    final String email = JwtDecoder.decode(jwt!)['sub'];
     final id = await secureStorage.read(key: "userId");
 
     final url =
         Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
     final body = jsonEncode({
       'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
-      'format': profileImagePath!.split('.').last
+      'format': profileImagePath!.split('.').last,
     });
     try {
-      http
-          .post(
+      final value = await http.post(
         url,
         headers: {
           'Authorization': 'Bearer $jwt',
           'Accept': '*/*',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: body,
-      )
-          .then((value) {
-        if (value.statusCode == 200) {
-          _showMessage(t('Profile picture uploaded'), context);
-          logger.i("Profile picture uploaded");
-        } else {
-          _showMessage(t('Profile picture upload failed'), context);
-          logger.e(
-              "Profile picture upload failed with status code ${value.statusCode}");
-        }
-      });
-    } catch (e) {
-      throw UnimplementedError();
+      );
+      if (value.statusCode == 200) {
+        _showMessage(t('Profile picture uploaded'), context);
+        logger.i("Profile picture uploaded");
+      } else {
+        _showMessage(t('Profile picture upload failed'), context);
+        logger.e(
+            "Profile picture upload failed with status code ${value.statusCode}");
+      }
+    } catch (e, st) {
+      logger.e('Profile picture upload error', error: e, stackTrace: st);
+      Sentry.captureException(e, stackTrace: st);
     }
   }
 
-  Future<void> logout(BuildContext context) async {
-    showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(t('logout.title')),
-            content: Text(t('logout.message')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(t('logout.cancel')),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await GoogleSignInService.signOut();
-                  await secureStorage.deleteAll();
-                  await strnadiFirebase.deleteToken();
-
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/authorizator', (route) => false);
-                },
-                child: Text(t('logout.logout')),
-              ),
-            ],
-          );
-        });
+  Future<void> logout(BuildContext context, {bool popUp = true}) async {
+    if(popUp) {
+      showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text(t('logout.title')),
+              content: Text(t('logout.message')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(t('logout.cancel')),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (_isLoading) return;
+                    Navigator.of(context).pop(); // close dialog first
+                    await _withLoader(() async {
+                      await GoogleSignInService.signOut();
+                      await secureStorage.deleteAll();
+                      await strnadiFirebase.deleteToken();
+                      if (!mounted) return;
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                          '/authorizator', (route) => false);
+                    });
+                  },
+                  child: Text(t('logout.logout')),
+                ),
+              ],
+            );
+          });
+    }
+    else {
+      await _withLoader(() async {
+        await GoogleSignInService.signOut();
+        await secureStorage.deleteAll();
+        await strnadiFirebase.deleteToken();
+        if (!mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+            '/authorizator', (route) => false);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldWithBottomBar(
-      selectedPage: BottomBarItem.user,
-      appBarTitle: '',
-      logout: () => logout(context),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            SizedBox(
-              height: 200,
+    return WillPopScope(
+      onWillPop: () async => !_isLoading,
+      child: Stack(
+        children: [
+          ScaffoldWithBottomBar(
+            selectedPage: BottomBarItem.user,
+            appBarTitle: '',
+            logout: () => !_isLoading ? logout(context) : null,
+            content: SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  GestureDetector(
-                    onTap: pickProfileImage,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: profileImagePath != null
-                          ? FileImage(File(profileImagePath!))
-                          : const AssetImage('./assets/images/default.jpg')
-                              as ImageProvider,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  SizedBox(
+                    height: 200,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        GestureDetector(
+                          onTap: !_isLoading ? pickProfileImage : null,
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundImage: profileImagePath != null
+                                ? FileImage(File(profileImagePath!))
+                                : const AssetImage(
+                                        './assets/images/default.jpg')
+                                    as ImageProvider,
+                          ),
+                        ),
+                        Text(
+                          "$userName $lastName",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (nickName.isNotEmpty && nickName != 'null')
+                          Text("($nickName)"),
+                      ],
                     ),
                   ),
-                  Text(
-                    "$userName $lastName",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text("($nickName)"),
+                  _isConnected
+                      ? MenuScreen(refreshUserCallback: refreshUserData,logout: logout,)
+                      : Text(t('user.menu.error.noInternet')),
                 ],
               ),
             ),
-            _isConnected
-                ? MenuScreen()
-                : Text(t(
-                    'user.menu.error.noInternet')),
-          ],
-        ),
+          ),
+          if (_isLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
