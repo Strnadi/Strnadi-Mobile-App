@@ -92,7 +92,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
-      allawArrowBack: true,
+      allowArrowBack: true,
       appBarTitle: t('user.settings.title'),
       content: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
