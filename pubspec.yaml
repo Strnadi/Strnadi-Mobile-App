@@ -99,6 +99,7 @@ dependencies:
   flutter_foreground_task: ^9.1.0
   posthog_flutter: ^4.10.8
   sign_in_with_apple: ^7.0.1
+  google_maps_flutter: any
 
 
 
