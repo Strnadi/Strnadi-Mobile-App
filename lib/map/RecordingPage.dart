@@ -110,7 +110,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   // this is in init but init can't be async so i did this piece of thing
   Future<void> doSomeShit() async {
     // Check if any parts exist for this recording
-    List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
+    List<RecordingPart> parts = await DatabaseNew.getPartsByRecordingId(widget.recording.BEId!);
     if (parts.isNotEmpty) {
       logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
       DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {

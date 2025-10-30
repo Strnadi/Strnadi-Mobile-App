@@ -177,6 +177,8 @@ class _RecordingFormState extends State<RecordingForm> {
       byApp: true,
       note: _commentController.text,
       path: widget.filepath,
+      partCount: widget.recordingParts.length,
+      env: Config.hostEnvironment.name.toString()
     );
 
     safeStorage.read(key: 'token').then((token) async {

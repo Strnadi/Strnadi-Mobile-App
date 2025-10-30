@@ -21,8 +21,6 @@ import 'dart:convert';
 
 import 'package:strnadi/localization/localization.dart';
 
-import 'package:strnadi/localization/localization.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
@@ -39,6 +37,7 @@ import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../dialects/ModelHandler.dart';
 import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
+import 'package:strnadi/widgets/loader.dart';
 
 final logger = Logger();
 
@@ -61,10 +60,13 @@ class _RecordingItemState extends State<RecordingItem> {
   bool isPlaying = false;
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
+  bool _isLoading = false;
 
   Dialect? dialect;
 
   final MapController _mapController = MapController();
+  bool _mapReady = false;
+  LatLng? _pendingCenter;
 
   String placeTitle = t('recListItem.placeTitle');
   Widget? _cachedSpectrogram;
@@ -112,7 +114,7 @@ class _RecordingItemState extends State<RecordingItem> {
       });
     } else {
       List<RecordingPart> parts =
-          await DatabaseNew.getPartsById(widget.recording.BEId!);
+      await DatabaseNew.getPartsByRecordingId(widget.recording.BEId!);
       if (parts.isNotEmpty) {
         logger.i(
             "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
@@ -120,7 +122,7 @@ class _RecordingItemState extends State<RecordingItem> {
         logger.i(
             "[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
         Recording? updatedRecording =
-            await DatabaseNew.getRecordingFromDbById(widget.recording.BEId!);
+        await DatabaseNew.getRecordingFromDbById(widget.recording.BEId!);
         logger
             .i("[RecordingItem] Fetched updated recording: $updatedRecording");
         logger.i(
@@ -143,7 +145,7 @@ class _RecordingItemState extends State<RecordingItem> {
   Future<void> GetDialect() async {
     final int recordingId = widget.recording.id!;
     final List<Dialect> dialects =
-        await DatabaseNew.getDialectsByRecordingId(recordingId);
+    await DatabaseNew.getDialectsByRecordingId(recordingId);
 
     if (dialects.isEmpty) {
       setState(() => dialect = null);
@@ -170,24 +172,23 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Future<void> getParts() async {
     logger.i('Recording ID: ${widget.recording.id}');
-    var parts = await DatabaseNew.getPartsById(widget.recording.id!);
+    var parts = await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
     setState(() {
       this.parts = parts;
+      if (parts.isNotEmpty) {
+        _pendingCenter = LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart);
+      }
     });
-    await reverseGeocode(
-        this.parts[0].gpsLatitudeStart, this.parts[0].gpsLongitudeStart);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _mapController.move(
-          LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart), 13.0);
-    });
+    if (parts.isNotEmpty) {
+      await reverseGeocode(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart);
+    }
+    if (_mapReady && _pendingCenter != null) {
+      _mapController.move(_pendingCenter!, 13.0);
+    }
   }
 
   Future<void> _fetchRecordings() async {
-    // TODO: Add your fetch logic here if needed
-    // For now, simply refresh parts and location
-    setState(() {
-      getParts();
-    });
+    await getParts();
   }
 
   void togglePlay() async {
@@ -216,6 +217,25 @@ class _RecordingItemState extends State<RecordingItem> {
     return '$minutes:$seconds';
   }
 
+  void _showLoader() {
+    if (mounted) setState(() => _isLoading = true);
+  }
+
+  void _hideLoader() {
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<T?> _withLoader<T>(Future<T> Function() action) async {
+    if (_isLoading) return null; // ignore repeated presses while loading
+    _showLoader();
+    try {
+      return await action();
+    } finally {
+      _hideLoader();
+    }
+  }
+
+
   @override
   void dispose() {
     player.dispose();
@@ -240,36 +260,35 @@ class _RecordingItemState extends State<RecordingItem> {
       return;
     }
 
-    // Show loader while downloading
-    setState(() {
-      loaded = false;
+    await _withLoader(() async {
+      try {
+        logger.i("Initiating download for recording id: ${widget.recording.id}");
+        await DatabaseNew.downloadRecording(widget.recording.id!);
+        Recording? updatedRecording =
+            await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
+        setState(() {
+          widget.recording = updatedRecording ?? widget.recording;
+        });
+        // Re‑initialise spectrogram and audio player with the newly downloaded file
+        _cachedSpectrogram = LiveSpectogram.SpectogramLive(
+          data: [],
+          filepath: widget.recording.path,
+        );
+        await getData(); // load the file into the player
+        setState(() {
+          loaded = true; // ensure main UI is shown
+        });
+        logger.i("Downloaded recording updated: ${widget.recording.path}");
+      } catch (e, stackTrace) {
+        logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
+          );
+        }
+      }
     });
-    try {
-      logger.i("Initiating download for recording id: ${widget.recording.id}");
-      await DatabaseNew.downloadRecording(widget.recording.id!);
-      Recording? updatedRecording =
-          await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
-      setState(() {
-        widget.recording = updatedRecording ?? widget.recording;
-      });
-      // Re‑initialise spectrogram and audio player with the newly downloaded file
-      _cachedSpectrogram = LiveSpectogram.SpectogramLive(
-        data: [],
-        filepath: widget.recording.path,
-      );
-      await getData(); // load the file into the player
-      setState(() {
-        loaded = true; // dismiss the loader and show the UI
-      });
-      logger.i("Downloaded recording updated: ${widget.recording.path}");
-    } catch (e, stackTrace) {
-      logger.e("Error downloading recording: $e",
-          error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
-      );
-    }
   }
 
   /// Permanently deletes the current recording both on the server (if already sent)
@@ -335,12 +354,13 @@ class _RecordingItemState extends State<RecordingItem> {
         content: const Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
+    return Loader(isLoading: _isLoading, child:
+    Scaffold(
       appBar: AppBar(
         title: Text(widget.recording.name ?? ''),
         leading: IconButton(
           icon:
-              Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          Image.asset('assets/icons/backButton.png', width: 30, height: 30),
           onPressed: () async {
             Navigator.pop(context);
           },
@@ -373,36 +393,36 @@ class _RecordingItemState extends State<RecordingItem> {
             children: [
               widget.recording.path != null && widget.recording.path!.isNotEmpty
                   ? SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                      child: RepaintBoundary(
-                        child: _cachedSpectrogram ??
-                            LiveSpectogram.SpectogramLive(
-                              data: [],
-                              filepath: widget.recording.path,
-                            ),
+                height: 200,
+                width: double.infinity,
+                child: RepaintBoundary(
+                  child: _cachedSpectrogram ??
+                      LiveSpectogram.SpectogramLive(
+                        data: [],
+                        filepath: widget.recording.path,
                       ),
-                    )
+                ),
+              )
                   : SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(t('recListItem.noRecording')),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: _downloadRecording,
-                              child: Text(t('recListItem.buttons.download')),
-                            ),
-                          ],
-                        ),
+                height: 200,
+                width: double.infinity,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(t('recListItem.noRecording')),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _downloadRecording,
+                        child: Text(t('recListItem.buttons.download')),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
                     Text(_formatDuration(totalDuration),
@@ -495,47 +515,22 @@ class _RecordingItemState extends State<RecordingItem> {
                           icon: const Icon(Icons.send),
                           label: Text(t('recListItem.buttons.send')),
                           onPressed: () async {
-                            try {
-                              // ensure all parts have been sent
-                              // TODO: show loading indicator
-                              setState(() {
-                                widget.recording.sending = true;
-                              });
-                              DatabaseNew.sendRecordingBackground(
-                                  widget.recording.id!);
-                              logger.i(
-                                  "Sending recording: ${widget.recording.id}");
-                              await DatabaseNew.checkRecordingPartsSent(
-                                  widget.recording.id!);
-                            } on UnsentPartsException {
-                              // prompt to resend unsent parts
-                              final shouldResend = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: Text(t('recList.status.unsentParts')),
-                                  content: Text(t(
-                                      'recListItem.dialogs.unsentParts.message')),
-                                  actions: [
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(false),
-                                        child: Text(t(
-                                            'recListItem.dialogs.confirmDelete.cancel'))),
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(true),
-                                        child: Text(t(
-                                            'recListItem.buttons.resendUnsentParts'))),
-                                  ],
-                                ),
-                              );
-                              if (shouldResend == true) {
-                                await DatabaseNew.resendUnsentParts();
+                            await _withLoader(() async {
+                              try {
+                                setState(() {
+                                  widget.recording.sending = true;
+                                });
+                                await DatabaseNew.sendRecordingBackground(
+                                    widget.recording.id!);
+                                logger.i(
+                                    "Sending recording: ${widget.recording.id}");
                               }
-                            } catch (e, stackTrace) {
-                              logger.e('Error during send check/resend: $e',
-                                  error: e, stackTrace: stackTrace);
-                            }
+                               catch (e, stackTrace) {
+                                logger.e('Error during send check/resend: $e',
+                                    error: e, stackTrace: stackTrace);
+                                Sentry.captureException(e, stackTrace: stackTrace);
+                              }
+                            });
                           },
                         ),
                       ),
@@ -543,12 +538,15 @@ class _RecordingItemState extends State<RecordingItem> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: ElevatedButton(
-                        onPressed: () {
-                          // Delete recording from cache
-                          DatabaseNew.deleteRecordingFromCache(
-                              widget.recording.id!);
-                          setState(() {
-                            // Optionally refresh UI or provide feedback
+                        onPressed: () async {
+                          await _withLoader(() async {
+                            await DatabaseNew.deleteRecordingFromCache(
+                                widget.recording.id!);
+                            if (mounted) {
+                              setState(() {
+                                // Optionally refresh UI or provide feedback
+                              });
+                            }
                           });
                         },
                         child: Text(t('recListItem.buttons.deleteCache')),
@@ -590,7 +588,9 @@ class _RecordingItemState extends State<RecordingItem> {
                             ),
                           );
                           if (confirm == true) {
-                            _deleteRecording();
+                            await _withLoader(() async {
+                              await _deleteRecording();
+                            });
                           }
                         },
                       ),
@@ -615,17 +615,22 @@ class _RecordingItemState extends State<RecordingItem> {
                           mapController: _mapController,
                           options: MapOptions(
                             interactionOptions:
-                                InteractionOptions(flags: InteractiveFlag.none),
-                            initialCenter: parts.isNotEmpty
-                                ? LatLng(parts[0].gpsLatitudeStart,
-                                    parts[0].gpsLongitudeStart)
-                                : LatLng(0.0, 0.0),
+                            InteractionOptions(flags: InteractiveFlag.none),
+                            initialCenter: _pendingCenter ?? (parts.isNotEmpty
+                                ? LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart)
+                                : LatLng(0.0, 0.0)),
                             initialZoom: 13.0,
+                            onMapReady: () {
+                              _mapReady = true;
+                              if (_pendingCenter != null) {
+                                _mapController.move(_pendingCenter!, 13.0);
+                              }
+                            },
                           ),
                           children: [
                             TileLayer(
                               urlTemplate:
-                                  'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
+                              'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
                               userAgentPackageName: 'cz.delta.strnadi',
                             ),
                             MarkerLayer(
@@ -633,10 +638,9 @@ class _RecordingItemState extends State<RecordingItem> {
                                 Marker(
                                   width: 20.0,
                                   height: 20.0,
-                                  point: parts.isNotEmpty
-                                      ? LatLng(parts[0].gpsLatitudeStart,
-                                          parts[0].gpsLongitudeStart)
-                                      : LatLng(0.0, 0.0),
+                                  point: _pendingCenter ?? (parts.isNotEmpty
+                                      ? LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart)
+                                      : LatLng(0.0, 0.0)),
                                   child: const Icon(
                                     Icons.my_location,
                                     color: Colors.blue,
@@ -656,6 +660,7 @@ class _RecordingItemState extends State<RecordingItem> {
           ),
         ),
       ),
+    )
     );
   }
 

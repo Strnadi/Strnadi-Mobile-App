@@ -36,6 +36,8 @@ import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
 import 'package:strnadi/recording/waw.dart';
 import 'package:strnadi/dialects/ModelHandler.dart';
+import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
 import '../notificationPage/notifications.dart';
 
@@ -221,6 +223,8 @@ class Recording {
   bool downloaded;
   bool sent;
   bool sending;
+  int? partCount;
+  String env;
 
   Recording({
     this.id,
@@ -237,6 +241,8 @@ class Recording {
     this.downloaded = true,
     this.sent = false,
     this.sending = false,
+    required this.partCount,
+    required this.env,
   });
 
   factory Recording.fromJson(Map<String, Object?> json) {
@@ -255,10 +261,12 @@ class Recording {
       sent: (json['sent'] as int) == 1,
       downloaded: (json['downloaded'] as int) == 1,
       sending: (json['sending'] as int) == 1,
+      partCount: json['partCount'] as int? ?? 0,
+      env: json['env'] as String? ?? 'prod',
     );
   }
 
-  factory Recording.fromUnready(RecordingUnready unready) {
+  factory Recording.fromUnready(RecordingUnready unready, int partCount) {
     if (unready.id == null ||
         unready.mail == null ||
         unready.createdAt == null ||
@@ -281,6 +289,8 @@ class Recording {
       sent: false,
       downloaded: true,
       sending: false,
+      partCount: partCount,
+      env: Config.hostEnvironment.name.toString()
     );
   }
 
@@ -298,6 +308,8 @@ class Recording {
       downloaded: false,
       path: null,
       sending: false,
+      partCount: int.tryParse(json['expectedPartsCount'].toString()),
+      env: Config.hostEnvironment.name.toString()
     );
   }
 
@@ -316,11 +328,15 @@ class Recording {
       'sent': sent ? 1 : 0,
       'downloaded': downloaded ? 1 : 0,
       'sending': sending ? 1 : 0,
+      'partCount': partCount,
+      'env': env,
     };
   }
 
-  Map<String, Object?> toBEJson() {
-    return {
+  Future<Map<String, Object?>> toBEJson() async {
+    final String? deviceId = await FlutterSecureStorage().read(key: 'fcmToken');
+    logger.i('Fetched deviceId for BE JSON: $deviceId');
+    final Map<String, Object?> body = {
       'id': BEId,
       'createdAt': createdAt.toIso8601String(),
       'estimatedBirdsCount': estimatedBirdsCount,
@@ -328,7 +344,11 @@ class Recording {
       'byApp': byApp,
       'note': note,
       'name': name,
+      'expectedPartsCount' : partCount,
+      'deviceId' : deviceId,
     };
+    logger.i('Generated BE JSON for Recording: $body');
+    return body;
   }
 
   @override
@@ -491,6 +511,19 @@ class RecordingPart {
       'gpsLongitudeStart': gpsLongitudeStart,
       'gpsLongitudeEnd': gpsLongitudeEnd,
       'dataBase64': dataBase64,
+    };
+  }
+
+  Map<String, Object?> toBEJsonWithoutData() {
+    return {
+      'id': BEId,
+      'recordingId': backendRecordingId,
+      'startDate': startTime.toIso8601String(),
+      'endDate': endTime.toIso8601String(),
+      'gpsLatitudeStart': gpsLatitudeStart,
+      'gpsLatitudeEnd': gpsLatitudeEnd,
+      'gpsLongitudeStart': gpsLongitudeStart,
+      'gpsLongitudeEnd': gpsLongitudeEnd,
     };
   }
 
@@ -666,6 +699,8 @@ class DetectedDialect {
   }
 }
 
+typedef UploadProgress = void Function(int sent, int total);
+
 /// Database helper class
 class DatabaseNew {
   static Database? _database;
@@ -688,16 +723,70 @@ class DatabaseNew {
 
   /// Enforces the user-defined maximum number of local recordings by deleting the oldest ones.
   static Future<void> enforceMaxRecordings() async {
-    final max = await SettingsService().getLocalRecordingsMax();
+    logger.i('Enforcing maximum number of local recordings.');
+    final int max = await SettingsService().getLocalRecordingsMax();
+    logger.i('Maximum allowed recordings: $max');
     if (max <= 0) return; // no limit or invalid
-    final allRecs = await getRecordings();
-    if (allRecs.length <= max) return; // under limit
-    // Sort by creation date ascending (oldest first)
-    allRecs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    final toDelete = allRecs.take(allRecs.length - max);
-    for (var rec in toDelete) {
-      if (rec.id != null) {
-        await deleteRecordingFromCache(rec.id!);
+
+    // Need user scoping (mail + env) to avoid touching other users/environments
+    final Database db = await database;
+    final String? jwt = await FlutterSecureStorage().read(key: 'token');
+    if (jwt == null || jwt.isEmpty) return;
+    final String email = JwtDecoder.decode(jwt)['sub'];
+    final String env = Config.hostEnvironment.name.toString();
+
+    // Count only eligible rows (all parts sent, none sending, downloaded)
+    final List<Map<String, Object?>> cntRows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM ('
+      '  SELECT r.id '
+      '  FROM recordings r '
+      '  LEFT JOIN recordingParts p ON p.recordingId = r.id '
+      '  WHERE r.mail = ? AND r.env = ? AND r.sent = 1 AND COALESCE(r.sending, 0) = 0 AND COALESCE(r.downloaded, 0) = 1 '
+      '  GROUP BY r.id '
+      '  HAVING COALESCE(SUM(CASE WHEN COALESCE(p.sent, 0) = 0 OR COALESCE(p.sending, 0) = 1 THEN 1 ELSE 0 END), 0) = 0'
+      ') t',
+      [email, env],
+    );
+
+    int totalEligible;
+    final dynamic cVal = cntRows.first['c'];
+    if (cVal is int) {
+      totalEligible = cVal;
+    } else if (cVal is num) {
+      totalEligible = cVal.toInt();
+    } else if (cVal is String) {
+      totalEligible = int.tryParse(cVal) ?? 0;
+    } else {
+      totalEligible = 0;
+    }
+
+    if (totalEligible <= max) return; // under limit
+    final int toDelete = totalEligible - max;
+
+    // Fetch the oldest eligible recording ids (and paths) using SQLite ordering/limit with all parts sent, none sending, downloaded
+    final List<Map<String, Object?>> rows = await db.rawQuery(
+      'SELECT r.id, r.path '
+      'FROM recordings r '
+      'LEFT JOIN recordingParts p ON p.recordingId = r.id '
+      'WHERE r.mail = ? AND r.env = ? AND r.sent = 1 AND COALESCE(r.sending, 0) = 0 AND COALESCE(r.downloaded, 0) = 1 '
+      'GROUP BY r.id '
+      'HAVING COALESCE(SUM(CASE WHEN COALESCE(p.sent, 0) = 0 OR COALESCE(p.sending, 0) = 1 THEN 1 ELSE 0 END), 0) = 0 '
+      'ORDER BY datetime(r.createdAt) ASC LIMIT ?',
+      [email, env, toDelete],
+    );
+
+    // Delete the chosen ids using our existing helper (ensures parts + files are cleaned up)
+    for (final Map<String, Object?> row in rows) {
+      final dynamic idVal = row['id'];
+      final int id = idVal is int ? idVal : (idVal is num ? idVal.toInt() : int
+          .parse(idVal.toString()));
+      try {
+        await deleteRecordingFromCache(id);
+        logger.i('Auto-pruned recording id $id due to max limit=$max');
+      } catch (e, st) {
+        logger.e(
+            'Failed to auto-prune recording id $id', error: e, stackTrace: st);
+        Sentry.captureException(e, stackTrace: st);
       }
     }
   }
@@ -895,7 +984,7 @@ class DatabaseNew {
     final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
     final String email = JwtDecoder.decode(jwt)['sub'];
     final List<Map<String, dynamic>> recs =
-        await db.query("recordings", where: "mail = ?", whereArgs: [email]);
+        await db.query("recordings", where: "mail = ? AND env = ?", whereArgs: [email, Config.hostEnvironment.name.toString()]);
     return List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
   }
 
@@ -910,7 +999,7 @@ class DatabaseNew {
       // Try to obtain the in‑memory instance of the recording
       Recording? recording;
       try {
-        recording = recordings.firstWhere((r) => r.id == id);
+        recording = await getRecordingFromDbById(id);
       } catch (_) {
         recording = null;
       }
@@ -1023,7 +1112,7 @@ class DatabaseNew {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
       },
-      body: jsonEncode(recording.toBEJson()),
+      body: jsonEncode(await recording.toBEJson()),
     );
     if (response.statusCode == 200) {
       logger.i(
@@ -1046,6 +1135,113 @@ class DatabaseNew {
       throw UploadException(
           'Failed to send recording to backend', response.statusCode);
     }
+  }
+
+  static Future<void> sendRecordingNew(Recording recording, List<RecordingPart> recordingParts) async {
+    if(!await Config.canUpload){
+      logger.i('Uploads are disabled by configuration.');
+      recording.sending = false;
+      await updateRecording(recording);
+      throw Exception('Uploads are disabled by configuration.');
+    }
+    logger.i('Sending recording id: ${recording.id}');
+    String? jwt = await FlutterSecureStorage().read(key: 'token');
+    if (jwt == null) {
+      recording.sending = false;
+      await updateRecording(recording);
+      throw FetchException('Failed to send recording to backend', 401);
+    }
+    try{
+      final Map<String, Object?> body = await recording.toBEJson();
+      logger.i('Sending recording with body: $body');
+      final http.Response response = await http.post(
+        Uri.https(Config.host, '/recordings'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+        body: jsonEncode(body),
+      );
+      if (response.statusCode == 200) {
+        logger.i(
+            'Recording sent successfully. Sending parts. Response: ${response.body}');
+        recording.BEId = jsonDecode(response.body);
+        await updateRecording(recording);
+
+        for (RecordingPart part in recordingParts) {
+          try {
+            part.recordingId = recording.id;
+            part.backendRecordingId = recording.BEId;
+            await sendRecordingPartNew(part);
+          }
+          catch (e, stackTrace){
+            if (e is PathNotFoundException){
+              logger.e('Path not found for recording part id: ${part.id}', error: e, stackTrace: stackTrace);
+              Sentry.captureException(e, stackTrace: stackTrace);
+              if (await handleDeletedPath(part)){
+                continue;
+              }
+              else {
+                deleteRecording(part.recordingId!);
+                http.delete(Uri(scheme: 'https', host: Config.host, path: '/recordings/${recording.BEId}'),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $jwt',
+                  }
+                );
+              }
+            }
+            rethrow;
+          }
+        }
+        recording.sent = true;
+        recording.sending = false;
+        await updateRecording(recording);
+        logger.i('Recording id ${recording.id} sent successfully.');
+      } else {
+        recording.sending = false;
+        await updateRecording(recording);
+        throw UploadException(
+            'Failed to send recording to backend', response.statusCode);
+      }
+    } catch(e, stackTrace) {
+      logger.e('Error sending recording: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      recording.sending = false;
+      await updateRecording(recording);
+      rethrow;
+    }
+  }
+
+  static Future<bool> handleDeletedPath (RecordingPart recordingPart) async{
+    if (recordingPart.BEId!=null){
+      final http.Response response = await http.get(Uri(scheme: 'https', host: Config.host, path: '/recordings/part/${recordingPart.backendRecordingId}/${recordingPart.BEId}'),
+        headers: {
+          'Authorization': 'Bearer ${await FlutterSecureStorage().read(key: 'token')}'}
+      );
+      if (response.statusCode == 200){
+        logger.i('Recording part id: ${recordingPart.id} found on backend, marking as sent.');
+        Directory tempDir = await getApplicationDocumentsDirectory();
+        final String partFilePath =
+            '${tempDir.path}/recording_${recordingPart.backendRecordingId}_${recordingPart.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
+        File file = await File(partFilePath).create();
+        await file.writeAsBytes(response.bodyBytes);
+        recordingPart.sent = true;
+        recordingPart.sending = false;
+        await updateRecordingPart(recordingPart);
+      }
+    }
+    else {
+      return false;
+      // deleteRecording(recordingPart.recordingId!);
+      // http.delete(Uri(scheme: 'https', host: Config.host, path: '/recordings/${recordingPart.backendRecordingId}'),
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       'Authorization': 'Bearer ${await FlutterSecureStorage().read(key: 'token')}'}
+      // );
+      // return false;
+    }
+    return true;
   }
 
   static Future<int?> getRecordingBEIDbyID(int id) async {
@@ -1126,7 +1322,7 @@ class DatabaseNew {
       try {
         final Map<String, Object?> jsonBody = recordingPart.toBEJson();
         final http.Response response = await http.post(
-          Uri(scheme: 'https', host: Config.host, path: '/recordings/part'),
+          Uri(scheme: 'https', host: Config.host, path: '/recordings/part-new'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $jwt',
@@ -1157,7 +1353,146 @@ class DatabaseNew {
         await updateRecordingPart(recordingPart);
         rethrow;
       }
+    }
+    catch (e, stackTrace) {
+      if (e is PathNotFoundException){
+        logger.e('Path not found for recording part id: ${recordingPart.id}', error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+        recordingPart.sending = false;
+        await updateRecordingPart(recordingPart);
+        rethrow;
+      }
+      // reset sending flag on exception
+      logger.e('Error uploading part: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+      recordingPart.sending = false;
+      await updateRecordingPart(recordingPart);
+      rethrow;
+    }
+  }
+
+  static Future<void> sendRecordingPartNew(RecordingPart recordingPart, {UploadProgress? onProgress}) async {
+    if (await getRecordingPartById(recordingPart.id).sending) {
+      logger.i('Recording part id: ${recordingPart.id} is already being sent.');
+      return;
+    }
+    // mark as sending
+    recordingPart.sending = true;
+    await updateRecordingPart(recordingPart);
+    try {
+      String? jwt = await FlutterSecureStorage().read(key: 'token');
+      if (recordingPart.path == null) {
+        throw UploadException('Recording part data is null', 410);
+      }
+      if (jwt == null) {
+        throw UploadException('Failed to send recording part to backend', 401);
+      }
+      logger.i(
+          'Uploading recording part (backendRecordingId: ${recordingPart.backendRecordingId}) with data length: ${recordingPart.dataBase64?.length}');
+      final dio = Dio();
+
+      // Do not let Dio auto-follow 30x on multipart posts, because it will
+      // try to reuse the same finalized FormData stream.
+      dio.options.followRedirects = false;
+      dio.options.maxRedirects = 0;
+
+      dio.options.contentType = null; // let FormData set multipart with boundary
+      dio.options.headers['Authorization'] = 'Bearer $jwt';
+      dio.options.headers['accept-encoding'] = 'identity';
+
+      dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          logger.i('Dio request Content-Type: \'${options.headers['content-type'] ?? options.contentType}\'');
+          logger.i('Dio request headers (subset): ${options.headers.map((k, v) => MapEntry(k, k.toLowerCase() == 'authorization' ? '***' : v))}');
+          handler.next(options);
+        },
+      ));
+
+      // Build a fresh FormData every time we send or retry.
+      FormData _buildFormData() => FormData.fromMap({
+        'file': MultipartFile.fromFileSync(recordingPart.path!),
+        'RecordingId': recordingPart.backendRecordingId,
+        'StartDate': recordingPart.startTime.toIso8601String(),
+        'EndDate': recordingPart.endTime.toIso8601String(),
+        'GpsLatitudeStart': recordingPart.gpsLatitudeStart,
+        'GpsLatitudeEnd': recordingPart.gpsLatitudeEnd,
+        'GpsLongitudeStart': recordingPart.gpsLongitudeStart,
+        'GpsLongitudeEnd': recordingPart.gpsLongitudeEnd,
+      });
+
+      final String initialUrl = Uri(
+        scheme: 'https',
+        host: Config.host,
+        path: '/recordings/part-new',
+      ).toString();
+
+      Response response = await dio.post(
+        initialUrl,
+        data: _buildFormData(),
+        options: Options(
+          validateStatus: (code) => code != null && code < 400 || (code != null && code >= 300 && code < 400),
+        ),
+        onSendProgress: (sent, total) {
+          if (total > 0) {
+            logger.i('Upload progress: $sent / $total (${(sent / total * 100).toStringAsFixed(1)}%)');
+          } else {
+            logger.i('Upload progress: $sent bytes');
+          }
+          if (onProgress != null) onProgress(sent, total);
+        },
+      );
+
+      // Handle a single manual redirect by rebuilding FormData.
+      if (response.statusCode != null && response.statusCode! >= 300 && response.statusCode! < 400) {
+        final loc = response.headers.value('location');
+        if (loc != null && loc.isNotEmpty) {
+          final redirectedUrl = Uri.parse(loc).isAbsolute ? loc : Uri.parse(initialUrl).resolve(loc).toString();
+          logger.w('Multipart POST received ${response.statusCode} redirect → $redirectedUrl. Retrying with fresh FormData.');
+
+          response = await dio.post(
+            redirectedUrl,
+            data: _buildFormData(),
+            options: Options(validateStatus: (code) => code != null && code < 500),
+            onSendProgress: (sent, total) {
+              if (total > 0) {
+                logger.i('Upload progress (redirect): $sent / $total (${(sent / total * 100).toStringAsFixed(1)}%)');
+              } else {
+                logger.i('Upload progress (redirect): $sent bytes');
+              }
+              if (onProgress != null) onProgress(sent, total);
+            },
+          );
+        }
+      }
+
+      if (response.statusCode == 200) {
+        logger.i(response.data);
+        int returnedId = response.data is int
+            ? response.data
+            : (response.data is String
+                ? int.parse(response.data)
+                : 0);
+        recordingPart.BEId = returnedId;
+        recordingPart.sent = true;
+        recordingPart.sending = false;
+        await updateRecordingPart(recordingPart);
+        logger.i(
+            'Recording part id: ${recordingPart.id} uploaded successfully.');
+      } else {
+        // reset sending flag on failure
+        recordingPart.sending = false;
+        await updateRecordingPart(recordingPart);
+        throw UploadException('Failed to upload part id: ${recordingPart.id}',
+            response.statusCode!);
+      }
     } catch (e, stackTrace) {
+      if (e is PathNotFoundException){
+        logger.e('Path not found for recording part id: ${recordingPart.id}', error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+        recordingPart.sending = false;
+        await updateRecordingPart(recordingPart);
+        rethrow;
+      }
       // reset sending flag on exception
       logger.e('Error uploading part: $e', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -1435,7 +1770,7 @@ class DatabaseNew {
     return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
   }
 
-  static Future<List<RecordingPart>> getPartsById(int id) async {
+  static Future<List<RecordingPart>> getPartsByRecordingId(int id) async {
     final db = await database;
     final List<Map<String, dynamic>> parts = await db
         .query("recordingParts", where: "recordingId = ?", whereArgs: [id]);
@@ -1539,7 +1874,7 @@ class DatabaseNew {
   }
 
   static Future<void> concatRecordingParts(int recordingId) async {
-    List<RecordingPart> parts = await getPartsById(recordingId);
+    List<RecordingPart> parts = await getPartsByRecordingId(recordingId);
     if (parts.isEmpty) {
       logger.i('No parts found for recording id: $recordingId');
       return;
@@ -1591,7 +1926,7 @@ class DatabaseNew {
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 8,
+    return openDatabase('soundNew.db', version: 10,
         onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
@@ -1607,7 +1942,9 @@ class DatabaseNew {
         path TEXT,
         sent INTEGER,
         downloaded INTEGER,
-        sending INTEGER
+        sending INTEGER,
+        partCount INTEGER,
+        env STRING DEFAULT \'prod\'
       )
       ''');
       await db.execute('''
@@ -1716,7 +2053,6 @@ class DatabaseNew {
             (i) => DetectedDialect.fromDb(ddRows[i]),
       );
       loadedRecordings = true;
-      enforceMaxRecordings(); // ← this blocks the open
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
       if (oldVersion <= 1) {
         // Add the new backendRecordingId column to recordingParts table
@@ -1870,7 +2206,23 @@ class DatabaseNew {
   ''');
         await db.setVersion(newVersion);
       }
-    });
+      if (oldVersion <= 8) {
+        await db.execute(
+            'ALTER TABLE recordings ADD COLUMN partCount INTEGER;');
+        await db.execute('''UPDATE recordings AS r
+            SET partCount = COALESCE((
+            SELECT COUNT(*)
+        FROM recordingParts AS p
+        WHERE p.recordingId = r.id
+          ), 0);''');
+        await db.setVersion(newVersion);
+      }
+      if (oldVersion <= 9) {
+        await db.execute('ALTER TABLE recordings ADD COLUMN env STRING DEFAULT \'prod\';');
+        await db.setVersion(newVersion);
+      }
+    }
+    );
   }
 
   static Future<bool> hasInternetAccess() async {
@@ -1931,8 +2283,9 @@ class DatabaseNew {
 
   static Future<Recording?> getRecordingFromDbById(int recordingId) async {
     final db = await database;
+    final String? email = JwtDecoder.decode((await FlutterSecureStorage().read(key: 'token'))!)['sub'];
     final List<Map<String, dynamic>> results =
-        await db.query("recordings", where: "id = ?", whereArgs: [recordingId]);
+        await db.query("recordings", where: "id = ? AND mail = ? AND env = ?", whereArgs: [recordingId, email, Config.hostEnvironment.name.toString()]);
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
     }
@@ -1966,7 +2319,7 @@ class DatabaseNew {
         RecordingPart part = RecordingPart.fromJson(partMap);
         part.sending = true;
         await updateRecordingPart(part);
-        await sendRecordingPart(part);
+        await sendRecordingPartNew(part);
       } catch (e, stackTrace) {
         logger.e('Failed to resend recording part id: ${partMap['id']}',
             error: e, stackTrace: stackTrace);
@@ -2090,5 +2443,9 @@ class DatabaseNew {
         .toList();
 
     return codes.isEmpty ? <String>['Neurceno'] : codes;
+  }
+
+  static getRecordingPartById(recordingId) {
+    return recordingParts.firstWhere((part) => part.id == recordingId);
   }
 }

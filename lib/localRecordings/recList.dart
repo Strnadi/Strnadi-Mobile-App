@@ -467,7 +467,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                                     future: () async {
                                                       var parts =
                                                           await DatabaseNew
-                                                              .getPartsById(
+                                                              .getPartsByRecordingId(
                                                                   rec.id!);
                                                       if (parts.isEmpty) {
                                                         return rec.id
@@ -548,7 +548,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                           children: [
                                             FutureBuilder<List<RecordingPart>>(
                                               future: Future.value(
-                                                  DatabaseNew.getPartsById(
+                                                  DatabaseNew.getPartsByRecordingId(
                                                       rec.id!)),
                                               builder: (context, snapshot) {
                                                 String status;

@@ -203,7 +203,8 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
     // Initialize your database and other services.
     logger.i('Loading database');
     try {
-      await DatabaseNew.database.timeout(const Duration(seconds: 10));
+      await DatabaseNew.initDb();
+      await DatabaseNew.enforceMaxRecordings();
     } catch (e, stack) {
       logger.e('Error initializing database: $e',
           error: e, stackTrace: stack);
