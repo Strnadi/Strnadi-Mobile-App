@@ -208,7 +208,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     logger.i('${length.toInt()}:$mililen');
     logger.i('Total Time => ${widget.recording.totalSeconds}');
-    double td = widget.recording.totalSeconds;
+    double td = widget.recording.totalSeconds ?? 0.0;
 
     int seconds = td.toInt();
     int milliseconds = ((td - seconds) * 1000).toInt();

@@ -40,6 +40,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 
 import '../notificationPage/notifications.dart';
+import 'fileSize.dart';
 
 final logger = Logger();
 
@@ -223,7 +224,7 @@ class Recording {
   bool downloaded;
   bool sent;
   bool sending;
-  double totalSeconds;
+  double? totalSeconds;
   int? partCount;
   String env;
 
@@ -244,7 +245,7 @@ class Recording {
     this.sending = false,
     required this.partCount,
     required this.env,
-    required this.totalSeconds,
+    this.totalSeconds,
   });
 
   factory Recording.fromJson(Map<String, Object?> json) {
@@ -260,7 +261,7 @@ class Recording {
       note: json['note'] as String?,
       name: json['name'] as String?,
       path: json['path'] as String?,
-      totalSeconds: json['totalSeconds'] as double,
+      totalSeconds: json['totalSeconds'] as double?,
       sent: (json['sent'] as int) == 1,
       downloaded: (json['downloaded'] as int) == 1,
       sending: (json['sending'] as int) == 1,
@@ -333,6 +334,7 @@ class Recording {
       'downloaded': downloaded ? 1 : 0,
       'sending': sending ? 1 : 0,
       'partCount': partCount,
+      'totalSeconds': totalSeconds,
       'env': env,
     };
   }
@@ -1965,7 +1967,7 @@ class DatabaseNew {
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 10,
+    return openDatabase('soundNew.db', version: 11,
         onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
@@ -1982,6 +1984,7 @@ class DatabaseNew {
         sent INTEGER,
         downloaded INTEGER,
         sending INTEGER,
+        totalSeconds REAL,
         partCount INTEGER,
         env STRING DEFAULT \'prod\'
       )
@@ -2261,6 +2264,14 @@ class DatabaseNew {
       if (oldVersion <= 9) {
         await db.execute(
             'ALTER TABLE recordings ADD COLUMN env STRING DEFAULT \'prod\';');
+        await db.setVersion(newVersion);
+      }
+      if (oldVersion <= 10) {
+        await db
+            .execute('ALTER TABLE recordings ADD COLUMN totalSeconds REAL;');
+
+        await fetchAndUpdateDurationsFromBackend(DatabaseNew());
+        await updateAllRecordingsDurations(DatabaseNew());
         await db.setVersion(newVersion);
       }
     });

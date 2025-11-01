@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import '../database/fileSize.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
@@ -465,10 +466,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                                   )
                                                 : FutureBuilder<String?>(
                                                     future: () async {
-                                                      var parts =
-                                                          await DatabaseNew
-                                                              .getPartsByRecordingId(
-                                                                  rec.id!);
+                                                      var parts = await DatabaseNew
+                                                          .getPartsByRecordingId(
+                                                              rec.id!);
                                                       if (parts.isEmpty) {
                                                         return rec.id
                                                             ?.toString();
@@ -547,8 +547,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                               CrossAxisAlignment.end,
                                           children: [
                                             FutureBuilder<List<RecordingPart>>(
-                                              future: Future.value(
-                                                  DatabaseNew.getPartsByRecordingId(
+                                              future: Future.value(DatabaseNew
+                                                  .getPartsByRecordingId(
                                                       rec.id!)),
                                               builder: (context, snapshot) {
                                                 String status;
