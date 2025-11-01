@@ -178,7 +178,8 @@ class _RecordingFormState extends State<RecordingForm> {
       note: _commentController.text,
       path: widget.filepath,
       partCount: widget.recordingParts.length,
-      env: Config.hostEnvironment.name.toString()
+      env: Config.hostEnvironment.name.toString(),
+      totalSeconds: 0,
     );
 
     safeStorage.read(key: 'token').then((token) async {
@@ -708,7 +709,8 @@ class _RecordingFormState extends State<RecordingForm> {
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  LiveRec(),
               settings: const RouteSettings(name: '/Recorder'),
               transitionDuration: Duration.zero,
               reverseTransitionDuration: Duration.zero,
@@ -732,16 +734,22 @@ class _RecordingFormState extends State<RecordingForm> {
                               context: context,
                               builder: (BuildContext context) {
                                 return AlertDialog(
-                                  title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
-                                  content: Text(t('postRecordingForm.recordingForm.dialogs.confirmation.message')),
+                                  title: Text(t(
+                                      'postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                  content: Text(t(
+                                      'postRecordingForm.recordingForm.dialogs.confirmation.message')),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Navigator.of(context).pop(false),
-                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(false),
+                                      child: Text(t(
+                                          'postRecordingForm.addDialect.dialogs.confirmation.no')),
                                     ),
                                     TextButton(
-                                      onPressed: () => Navigator.of(context).pop(true),
-                                      child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(true),
+                                      child: Text(t(
+                                          'postRecordingForm.addDialect.dialogs.confirmation.yes')),
                                     ),
                                   ],
                                 );
@@ -762,20 +770,26 @@ class _RecordingFormState extends State<RecordingForm> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                     ),
-                    child: Text(t('postRecordingForm.recordingForm.buttons.save')),
+                    child:
+                        Text(t('postRecordingForm.recordingForm.buttons.save')),
                   ),
                 ),
               ],
               leading: IconButton(
-                icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+                icon: Image.asset('assets/icons/backButton.png',
+                    width: 30, height: 30),
                 onPressed: !_isLoading
                     ? () async {
                         final bool shouldPop = await _confirmDiscard() ?? false;
                         if (shouldPop) {
                           spectogramKey = GlobalKey();
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => LiveRec()));
                         }
                       }
                     : null,
@@ -788,23 +802,28 @@ class _RecordingFormState extends State<RecordingForm> {
                     // Duration / playback controls
                     Text(
                       _formatDuration(totalDuration),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
                           icon: const Icon(Icons.replay_10, size: 32),
-                          onPressed: !_isLoading ? () => seekRelative(-10) : null,
+                          onPressed:
+                              !_isLoading ? () => seekRelative(-10) : null,
                         ),
                         IconButton(
-                          icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                          icon: Icon(isPlaying
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_filled),
                           iconSize: 72,
                           onPressed: !_isLoading ? togglePlay : null,
                         ),
                         IconButton(
                           icon: const Icon(Icons.forward_10, size: 32),
-                          onPressed: !_isLoading ? () => seekRelative(10) : null,
+                          onPressed:
+                              !_isLoading ? () => seekRelative(10) : null,
                         ),
                       ],
                     ),
@@ -814,14 +833,18 @@ class _RecordingFormState extends State<RecordingForm> {
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.add),
-                        label: Text(t('postRecordingForm.recordingForm.buttons.addDialect')),
+                        label: Text(t(
+                            'postRecordingForm.recordingForm.buttons.addDialect')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFF7C0),
                           foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                         ),
-                        onPressed: !_isLoading ? _showDialectSelectionDialog : null,
+                        onPressed:
+                            !_isLoading ? _showDialectSelectionDialog : null,
                       ),
                     ),
 
@@ -831,7 +854,9 @@ class _RecordingFormState extends State<RecordingForm> {
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: dialectSegments.map((d) => _buildDialectSegment(d)).toList(),
+                          children: dialectSegments
+                              .map((d) => _buildDialectSegment(d))
+                              .toList(),
                         ),
                       ),
 
@@ -845,7 +870,9 @@ class _RecordingFormState extends State<RecordingForm> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Recording name
-                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Container(
                               decoration: BoxDecoration(
@@ -857,15 +884,18 @@ class _RecordingFormState extends State<RecordingForm> {
                                 textAlign: TextAlign.start,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 15, vertical: 12),
                                 ),
                                 keyboardType: TextInputType.text,
                                 maxLength: 49,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return t('postRecordingForm.recordingForm.fields.recordingName.error.empty');
+                                    return t(
+                                        'postRecordingForm.recordingForm.fields.recordingName.error.empty');
                                   } else if (value.length > 49) {
-                                    return t('postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
+                                    return t(
+                                        'postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
                                   }
                                   return null;
                                 },
@@ -875,7 +905,9 @@ class _RecordingFormState extends State<RecordingForm> {
                             const SizedBox(height: 20),
 
                             // Bird count
-                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Text(
                               _strnadiCountController.toInt() == 3
@@ -896,14 +928,17 @@ class _RecordingFormState extends State<RecordingForm> {
                                 min: 1,
                                 max: 3,
                                 divisions: 2,
-                                onChanged: (value) => setState(() => _strnadiCountController = value),
+                                onChanged: (value) => setState(
+                                    () => _strnadiCountController = value),
                               ),
                             ),
 
                             const SizedBox(height: 20),
 
                             // Comment
-                            Text(t('postRecordingForm.recordingForm.fields.comment.name'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(t('postRecordingForm.recordingForm.fields.comment.name'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Container(
                               decoration: BoxDecoration(
@@ -915,11 +950,13 @@ class _RecordingFormState extends State<RecordingForm> {
                                 textAlign: TextAlign.start,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 15, vertical: 12),
                                 ),
                                 keyboardType: TextInputType.multiline,
                                 maxLines: null,
-                                validator: (value) => (value == null || value.isEmpty)
+                                validator: (value) => (value == null ||
+                                        value.isEmpty)
                                     ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
                                     : null,
                               ),
@@ -928,12 +965,16 @@ class _RecordingFormState extends State<RecordingForm> {
                             const SizedBox(height: 20),
 
                             // Map label
-                            Text(t('recListItem.placeTitle'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(t('recListItem.placeTitle'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             Text(placeTitle),
-                            Text("${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
+                            Text(
+                                "${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
                             const SizedBox(height: 5),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 15, vertical: 12),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(15),
                                 child: SizedBox(
@@ -941,41 +982,61 @@ class _RecordingFormState extends State<RecordingForm> {
                                   child: FutureBuilder<bool>(
                                     future: Config.hasBasicInternet,
                                     builder: (context, snapshot) {
-                                      if (snapshot.connectionState == ConnectionState.waiting) {
-                                        return const Center(child: CircularProgressIndicator());
-                                      } else if (!snapshot.hasData || snapshot.data == false) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                            child: CircularProgressIndicator());
+                                      } else if (!snapshot.hasData ||
+                                          snapshot.data == false) {
                                         return Container(
                                           color: Colors.grey.shade300,
                                           alignment: Alignment.center,
                                           child: Text(
                                             t('postRecordingForm.recordingForm.placeholders.noInternet'),
-                                            style: const TextStyle(fontSize: 14, color: Colors.black54),
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.black54),
                                           ),
                                         );
-                                      } else if (_computedCenter.latitude != 0.0 && _computedCenter.longitude != 0.0) {
+                                      } else if (_computedCenter.latitude !=
+                                              0.0 &&
+                                          _computedCenter.longitude != 0.0) {
                                         return FlutterMap(
                                           options: MapOptions(
                                             initialCenter: _computedCenter,
                                             initialZoom: _computedZoom,
-                                            interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                                            interactionOptions:
+                                                InteractionOptions(
+                                                    flags:
+                                                        InteractiveFlag.none),
                                           ),
                                           mapController: _mapController,
                                           children: [
                                             TileLayer(
-                                              urlTemplate: 'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
-                                              userAgentPackageName: 'cz.delta.strnadi',
+                                              urlTemplate:
+                                                  'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
+                                              userAgentPackageName:
+                                                  'cz.delta.strnadi',
                                             ),
                                             if (_route.isNotEmpty)
                                               PolylineLayer(
                                                 polylines: [
-                                                  Polyline(points: List.from(_route), strokeWidth: 4.0, color: Colors.blue),
+                                                  Polyline(
+                                                      points: List.from(_route),
+                                                      strokeWidth: 4.0,
+                                                      color: Colors.blue),
                                                 ],
                                               ),
                                             MarkerLayer(
-                                              markers: widget.recordingParts.map((part) {
+                                              markers: widget.recordingParts
+                                                  .map((part) {
                                                 return Marker(
-                                                  point: LatLng(part.gpsLatitudeStart!, part.gpsLongitudeStart!),
-                                                  child: const Icon(Icons.place, color: Colors.red, size: 30),
+                                                  point: LatLng(
+                                                      part.gpsLatitudeStart!,
+                                                      part.gpsLongitudeStart!),
+                                                  child: const Icon(Icons.place,
+                                                      color: Colors.red,
+                                                      size: 30),
                                                 );
                                               }).toList(),
                                             ),
@@ -987,7 +1048,10 @@ class _RecordingFormState extends State<RecordingForm> {
                                           alignment: Alignment.center,
                                           child: Text(
                                             t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
-                                            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.black54,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                         );
                                       }
@@ -1009,20 +1073,34 @@ class _RecordingFormState extends State<RecordingForm> {
                                             context: context,
                                             builder: (BuildContext context) {
                                               return AlertDialog(
-                                                title: Text(t('postRecordingForm.addDialect.dialogs.confirmation.title')),
-                                                content: Text(t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+                                                title: Text(t(
+                                                    'postRecordingForm.addDialect.dialogs.confirmation.title')),
+                                                content: Text(t(
+                                                    'postRecordingForm.addDialect.dialogs.confirmation.message')),
                                                 actions: [
                                                   TextButton(
-                                                    onPressed: () { Navigator.of(context).pop(); },
-                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                                    onPressed: () {
+                                                      Navigator.of(context)
+                                                          .pop();
+                                                    },
+                                                    child: Text(t(
+                                                        'postRecordingForm.addDialect.dialogs.confirmation.no')),
                                                   ),
                                                   TextButton(
                                                     onPressed: () {
-                                                      spectogramKey = GlobalKey();
-                                                      Navigator.of(context).pop();
-                                                      Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
+                                                      spectogramKey =
+                                                          GlobalKey();
+                                                      Navigator.of(context)
+                                                          .pop();
+                                                      Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                              builder:
+                                                                  (context) =>
+                                                                      LiveRec()));
                                                     },
-                                                    child: Text(t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                                    child: Text(t(
+                                                        'postRecordingForm.addDialect.dialogs.confirmation.yes')),
                                                   ),
                                                 ],
                                               );
@@ -1034,10 +1112,14 @@ class _RecordingFormState extends State<RecordingForm> {
                                     elevation: 0,
                                     backgroundColor: secondaryRed,
                                     foregroundColor: primaryRed,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
-                                  child: Text(t('postRecordingForm.recordingForm.buttons.discard')),
+                                  child: Text(t(
+                                      'postRecordingForm.recordingForm.buttons.discard')),
                                 ),
                               ),
                             ),

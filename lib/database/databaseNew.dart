@@ -223,6 +223,7 @@ class Recording {
   bool downloaded;
   bool sent;
   bool sending;
+  double totalSeconds;
   int? partCount;
   String env;
 
@@ -243,6 +244,7 @@ class Recording {
     this.sending = false,
     required this.partCount,
     required this.env,
+    required this.totalSeconds,
   });
 
   factory Recording.fromJson(Map<String, Object?> json) {
@@ -258,6 +260,7 @@ class Recording {
       note: json['note'] as String?,
       name: json['name'] as String?,
       path: json['path'] as String?,
+      totalSeconds: json['totalSeconds'] as double,
       sent: (json['sent'] as int) == 1,
       downloaded: (json['downloaded'] as int) == 1,
       sending: (json['sending'] as int) == 1,
@@ -277,21 +280,21 @@ class Recording {
       throw UnreadyException('Recording is not ready');
     }
     return Recording(
-      id: unready.id,
-      BEId: null,
-      mail: unready.mail ?? '',
-      createdAt: unready.createdAt!,
-      estimatedBirdsCount: unready.estimatedBirdsCount ?? 0,
-      device: unready.device,
-      byApp: unready.byApp ?? true,
-      note: unready.note,
-      path: unready.path,
-      sent: false,
-      downloaded: true,
-      sending: false,
-      partCount: partCount,
-      env: Config.hostEnvironment.name.toString()
-    );
+        id: unready.id,
+        BEId: null,
+        mail: unready.mail ?? '',
+        createdAt: unready.createdAt!,
+        estimatedBirdsCount: unready.estimatedBirdsCount ?? 0,
+        device: unready.device,
+        byApp: unready.byApp ?? true,
+        note: unready.note,
+        path: unready.path,
+        sent: false,
+        downloaded: true,
+        sending: false,
+        totalSeconds: -1.0,
+        partCount: partCount,
+        env: Config.hostEnvironment.name.toString());
   }
 
   factory Recording.fromBEJson(Map<String, Object?> json, int? userId) {
@@ -309,7 +312,8 @@ class Recording {
       path: null,
       sending: false,
       partCount: int.tryParse(json['expectedPartsCount'].toString()),
-      env: Config.hostEnvironment.name.toString()
+      env: Config.hostEnvironment.name.toString(),
+      totalSeconds: double.parse(json['totalSeconds'].toString()),
     );
   }
 
@@ -344,8 +348,8 @@ class Recording {
       'byApp': byApp,
       'note': note,
       'name': name,
-      'expectedPartsCount' : partCount,
-      'deviceId' : deviceId,
+      'expectedPartsCount': partCount,
+      'deviceId': deviceId,
     };
     logger.i('Generated BE JSON for Recording: $body');
     return body;
@@ -556,16 +560,16 @@ class RecordingPart {
 }
 
 class FilteredRecordingPart {
-  int? id;                 // local PK
-  int? BEId;               // backend filtered part id (unique if provided)
-  int? recordingLocalId;   // FK -> recordings.id
-  int? recordingBEID;      // parent backend recording id
+  int? id; // local PK
+  int? BEId; // backend filtered part id (unique if provided)
+  int? recordingLocalId; // FK -> recordings.id
+  int? recordingBEID; // parent backend recording id
   DateTime startDate;
   DateTime endDate;
-  int state;               // workflow state
+  int state; // workflow state
   bool isRepresentant;
-  int? parentBEID;         // optional parent filtered part id (backend)
-  int? parentLocalId;      // optional parent filtered part id (local)
+  int? parentBEID; // optional parent filtered part id (backend)
+  int? parentLocalId; // optional parent filtered part id (local)
 
   FilteredRecordingPart({
     this.id,
@@ -607,7 +611,9 @@ class FilteredRecordingPart {
 
   factory FilteredRecordingPart.fromBEJson(Map<String, Object?> json) {
     final beidDyn = json['id'];
-    final beid = (beidDyn is int) ? beidDyn : (beidDyn is String ? int.tryParse(beidDyn) : null);
+    final beid = (beidDyn is int)
+        ? beidDyn
+        : (beidDyn is String ? int.tryParse(beidDyn) : null);
     return FilteredRecordingPart(
       BEId: beid,
       recordingBEID: (json['recordingId'] as num?)?.toInt(),
@@ -636,10 +642,10 @@ class FilteredRecordingPart {
 }
 
 class DetectedDialect {
-  int? id;                      // local PK
-  int? BEId;                    // backend dialect id
-  int? filteredPartLocalId;     // FK -> FilteredRecordingParts.id
-  int? filteredPartBEID;        // parent FRP backend id
+  int? id; // local PK
+  int? BEId; // backend dialect id
+  int? filteredPartLocalId; // FK -> FilteredRecordingParts.id
+  int? filteredPartBEID; // parent FRP backend id
   int? userGuessDialectId;
   String? userGuessDialect;
   int? confirmedDialectId;
@@ -670,11 +676,13 @@ class DetectedDialect {
   }
 
   factory DetectedDialect.fromBEJson(
-      Map<String, Object?> json, {
-        required int parentFilteredPartBEID,
-      }) {
+    Map<String, Object?> json, {
+    required int parentFilteredPartBEID,
+  }) {
     final beidDyn = json['id'];
-    final beid = (beidDyn is int) ? beidDyn : (beidDyn is String ? int.tryParse(beidDyn) : null);
+    final beid = (beidDyn is int)
+        ? beidDyn
+        : (beidDyn is String ? int.tryParse(beidDyn) : null);
     return DetectedDialect(
       BEId: beid,
       filteredPartBEID: parentFilteredPartBEID,
@@ -708,9 +716,9 @@ class DatabaseNew {
   static List<RecordingPart> recordingParts =
       List<RecordingPart>.empty(growable: true);
   static List<FilteredRecordingPart> filteredRecordingParts =
-  List<FilteredRecordingPart>.empty(growable: true);
+      List<FilteredRecordingPart>.empty(growable: true);
   static List<DetectedDialect> detectedDialects =
-  List<DetectedDialect>.empty(growable: true);
+      List<DetectedDialect>.empty(growable: true);
 
   static List<FilteredRecordingPart>? fetchedFilteredRecordingParts;
   static List<DetectedDialect>? fetchedDetectedDialects;
@@ -778,14 +786,15 @@ class DatabaseNew {
     // Delete the chosen ids using our existing helper (ensures parts + files are cleaned up)
     for (final Map<String, Object?> row in rows) {
       final dynamic idVal = row['id'];
-      final int id = idVal is int ? idVal : (idVal is num ? idVal.toInt() : int
-          .parse(idVal.toString()));
+      final int id = idVal is int
+          ? idVal
+          : (idVal is num ? idVal.toInt() : int.parse(idVal.toString()));
       try {
         await deleteRecordingFromCache(id);
         logger.i('Auto-pruned recording id $id due to max limit=$max');
       } catch (e, st) {
-        logger.e(
-            'Failed to auto-prune recording id $id', error: e, stackTrace: st);
+        logger.e('Failed to auto-prune recording id $id',
+            error: e, stackTrace: st);
         Sentry.captureException(e, stackTrace: st);
       }
     }
@@ -983,8 +992,9 @@ class DatabaseNew {
     final db = await database;
     final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
     final String email = JwtDecoder.decode(jwt)['sub'];
-    final List<Map<String, dynamic>> recs =
-        await db.query("recordings", where: "mail = ? AND env = ?", whereArgs: [email, Config.hostEnvironment.name.toString()]);
+    final List<Map<String, dynamic>> recs = await db.query("recordings",
+        where: "mail = ? AND env = ?",
+        whereArgs: [email, Config.hostEnvironment.name.toString()]);
     return List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
   }
 
@@ -1137,8 +1147,9 @@ class DatabaseNew {
     }
   }
 
-  static Future<void> sendRecordingNew(Recording recording, List<RecordingPart> recordingParts) async {
-    if(!await Config.canUpload){
+  static Future<void> sendRecordingNew(
+      Recording recording, List<RecordingPart> recordingParts) async {
+    if (!await Config.canUpload) {
       logger.i('Uploads are disabled by configuration.');
       recording.sending = false;
       await updateRecording(recording);
@@ -1151,7 +1162,7 @@ class DatabaseNew {
       await updateRecording(recording);
       throw FetchException('Failed to send recording to backend', 401);
     }
-    try{
+    try {
       final Map<String, Object?> body = await recording.toBEJson();
       logger.i('Sending recording with body: $body');
       final http.Response response = await http.post(
@@ -1173,22 +1184,24 @@ class DatabaseNew {
             part.recordingId = recording.id;
             part.backendRecordingId = recording.BEId;
             await sendRecordingPartNew(part);
-          }
-          catch (e, stackTrace){
-            if (e is PathNotFoundException){
-              logger.e('Path not found for recording part id: ${part.id}', error: e, stackTrace: stackTrace);
+          } catch (e, stackTrace) {
+            if (e is PathNotFoundException) {
+              logger.e('Path not found for recording part id: ${part.id}',
+                  error: e, stackTrace: stackTrace);
               Sentry.captureException(e, stackTrace: stackTrace);
-              if (await handleDeletedPath(part)){
+              if (await handleDeletedPath(part)) {
                 continue;
-              }
-              else {
+              } else {
                 deleteRecording(part.recordingId!);
-                http.delete(Uri(scheme: 'https', host: Config.host, path: '/recordings/${recording.BEId}'),
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer $jwt',
-                  }
-                );
+                http.delete(
+                    Uri(
+                        scheme: 'https',
+                        host: Config.host,
+                        path: '/recordings/${recording.BEId}'),
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer $jwt',
+                    });
               }
             }
             rethrow;
@@ -1204,7 +1217,7 @@ class DatabaseNew {
         throw UploadException(
             'Failed to send recording to backend', response.statusCode);
       }
-    } catch(e, stackTrace) {
+    } catch (e, stackTrace) {
       logger.e('Error sending recording: $e', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       recording.sending = false;
@@ -1213,14 +1226,21 @@ class DatabaseNew {
     }
   }
 
-  static Future<bool> handleDeletedPath (RecordingPart recordingPart) async{
-    if (recordingPart.BEId!=null){
-      final http.Response response = await http.get(Uri(scheme: 'https', host: Config.host, path: '/recordings/part/${recordingPart.backendRecordingId}/${recordingPart.BEId}'),
-        headers: {
-          'Authorization': 'Bearer ${await FlutterSecureStorage().read(key: 'token')}'}
-      );
-      if (response.statusCode == 200){
-        logger.i('Recording part id: ${recordingPart.id} found on backend, marking as sent.');
+  static Future<bool> handleDeletedPath(RecordingPart recordingPart) async {
+    if (recordingPart.BEId != null) {
+      final http.Response response = await http.get(
+          Uri(
+              scheme: 'https',
+              host: Config.host,
+              path:
+                  '/recordings/part/${recordingPart.backendRecordingId}/${recordingPart.BEId}'),
+          headers: {
+            'Authorization':
+                'Bearer ${await FlutterSecureStorage().read(key: 'token')}'
+          });
+      if (response.statusCode == 200) {
+        logger.i(
+            'Recording part id: ${recordingPart.id} found on backend, marking as sent.');
         Directory tempDir = await getApplicationDocumentsDirectory();
         final String partFilePath =
             '${tempDir.path}/recording_${recordingPart.backendRecordingId}_${recordingPart.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
@@ -1230,8 +1250,7 @@ class DatabaseNew {
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
       }
-    }
-    else {
+    } else {
       return false;
       // deleteRecording(recordingPart.recordingId!);
       // http.delete(Uri(scheme: 'https', host: Config.host, path: '/recordings/${recordingPart.backendRecordingId}'),
@@ -1353,10 +1372,10 @@ class DatabaseNew {
         await updateRecordingPart(recordingPart);
         rethrow;
       }
-    }
-    catch (e, stackTrace) {
-      if (e is PathNotFoundException){
-        logger.e('Path not found for recording part id: ${recordingPart.id}', error: e, stackTrace: stackTrace);
+    } catch (e, stackTrace) {
+      if (e is PathNotFoundException) {
+        logger.e('Path not found for recording part id: ${recordingPart.id}',
+            error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
@@ -1371,7 +1390,8 @@ class DatabaseNew {
     }
   }
 
-  static Future<void> sendRecordingPartNew(RecordingPart recordingPart, {UploadProgress? onProgress}) async {
+  static Future<void> sendRecordingPartNew(RecordingPart recordingPart,
+      {UploadProgress? onProgress}) async {
     if (await getRecordingPartById(recordingPart.id).sending) {
       logger.i('Recording part id: ${recordingPart.id} is already being sent.');
       return;
@@ -1396,29 +1416,32 @@ class DatabaseNew {
       dio.options.followRedirects = false;
       dio.options.maxRedirects = 0;
 
-      dio.options.contentType = null; // let FormData set multipart with boundary
+      dio.options.contentType =
+          null; // let FormData set multipart with boundary
       dio.options.headers['Authorization'] = 'Bearer $jwt';
       dio.options.headers['accept-encoding'] = 'identity';
 
       dio.interceptors.add(InterceptorsWrapper(
         onRequest: (options, handler) {
-          logger.i('Dio request Content-Type: \'${options.headers['content-type'] ?? options.contentType}\'');
-          logger.i('Dio request headers (subset): ${options.headers.map((k, v) => MapEntry(k, k.toLowerCase() == 'authorization' ? '***' : v))}');
+          logger.i(
+              'Dio request Content-Type: \'${options.headers['content-type'] ?? options.contentType}\'');
+          logger.i(
+              'Dio request headers (subset): ${options.headers.map((k, v) => MapEntry(k, k.toLowerCase() == 'authorization' ? '***' : v))}');
           handler.next(options);
         },
       ));
 
       // Build a fresh FormData every time we send or retry.
       FormData _buildFormData() => FormData.fromMap({
-        'file': MultipartFile.fromFileSync(recordingPart.path!),
-        'RecordingId': recordingPart.backendRecordingId,
-        'StartDate': recordingPart.startTime.toIso8601String(),
-        'EndDate': recordingPart.endTime.toIso8601String(),
-        'GpsLatitudeStart': recordingPart.gpsLatitudeStart,
-        'GpsLatitudeEnd': recordingPart.gpsLatitudeEnd,
-        'GpsLongitudeStart': recordingPart.gpsLongitudeStart,
-        'GpsLongitudeEnd': recordingPart.gpsLongitudeEnd,
-      });
+            'file': MultipartFile.fromFileSync(recordingPart.path!),
+            'RecordingId': recordingPart.backendRecordingId,
+            'StartDate': recordingPart.startTime.toIso8601String(),
+            'EndDate': recordingPart.endTime.toIso8601String(),
+            'GpsLatitudeStart': recordingPart.gpsLatitudeStart,
+            'GpsLatitudeEnd': recordingPart.gpsLatitudeEnd,
+            'GpsLongitudeStart': recordingPart.gpsLongitudeStart,
+            'GpsLongitudeEnd': recordingPart.gpsLongitudeEnd,
+          });
 
       final String initialUrl = Uri(
         scheme: 'https',
@@ -1430,11 +1453,14 @@ class DatabaseNew {
         initialUrl,
         data: _buildFormData(),
         options: Options(
-          validateStatus: (code) => code != null && code < 400 || (code != null && code >= 300 && code < 400),
+          validateStatus: (code) =>
+              code != null && code < 400 ||
+              (code != null && code >= 300 && code < 400),
         ),
         onSendProgress: (sent, total) {
           if (total > 0) {
-            logger.i('Upload progress: $sent / $total (${(sent / total * 100).toStringAsFixed(1)}%)');
+            logger.i(
+                'Upload progress: $sent / $total (${(sent / total * 100).toStringAsFixed(1)}%)');
           } else {
             logger.i('Upload progress: $sent bytes');
           }
@@ -1443,19 +1469,26 @@ class DatabaseNew {
       );
 
       // Handle a single manual redirect by rebuilding FormData.
-      if (response.statusCode != null && response.statusCode! >= 300 && response.statusCode! < 400) {
+      if (response.statusCode != null &&
+          response.statusCode! >= 300 &&
+          response.statusCode! < 400) {
         final loc = response.headers.value('location');
         if (loc != null && loc.isNotEmpty) {
-          final redirectedUrl = Uri.parse(loc).isAbsolute ? loc : Uri.parse(initialUrl).resolve(loc).toString();
-          logger.w('Multipart POST received ${response.statusCode} redirect → $redirectedUrl. Retrying with fresh FormData.');
+          final redirectedUrl = Uri.parse(loc).isAbsolute
+              ? loc
+              : Uri.parse(initialUrl).resolve(loc).toString();
+          logger.w(
+              'Multipart POST received ${response.statusCode} redirect → $redirectedUrl. Retrying with fresh FormData.');
 
           response = await dio.post(
             redirectedUrl,
             data: _buildFormData(),
-            options: Options(validateStatus: (code) => code != null && code < 500),
+            options:
+                Options(validateStatus: (code) => code != null && code < 500),
             onSendProgress: (sent, total) {
               if (total > 0) {
-                logger.i('Upload progress (redirect): $sent / $total (${(sent / total * 100).toStringAsFixed(1)}%)');
+                logger.i(
+                    'Upload progress (redirect): $sent / $total (${(sent / total * 100).toStringAsFixed(1)}%)');
               } else {
                 logger.i('Upload progress (redirect): $sent bytes');
               }
@@ -1469,15 +1502,13 @@ class DatabaseNew {
         logger.i(response.data);
         int returnedId = response.data is int
             ? response.data
-            : (response.data is String
-                ? int.parse(response.data)
-                : 0);
+            : (response.data is String ? int.parse(response.data) : 0);
         recordingPart.BEId = returnedId;
         recordingPart.sent = true;
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
-        logger.i(
-            'Recording part id: ${recordingPart.id} uploaded successfully.');
+        logger
+            .i('Recording part id: ${recordingPart.id} uploaded successfully.');
       } else {
         // reset sending flag on failure
         recordingPart.sending = false;
@@ -1486,8 +1517,9 @@ class DatabaseNew {
             response.statusCode!);
       }
     } catch (e, stackTrace) {
-      if (e is PathNotFoundException){
-        logger.e('Path not found for recording part id: ${recordingPart.id}', error: e, stackTrace: stackTrace);
+      if (e is PathNotFoundException) {
+        logger.e('Path not found for recording part id: ${recordingPart.id}',
+            error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
@@ -1673,7 +1705,9 @@ class DatabaseNew {
     }
   }
 
-  static Future<void> fetchFilteredPartsForRecordingsFromBE(List<Recording> recs, {bool verified = false}) async {
+  static Future<void> fetchFilteredPartsForRecordingsFromBE(
+      List<Recording> recs,
+      {bool verified = false}) async {
     fetchedFilteredRecordingParts = <FilteredRecordingPart>[];
     fetchedDetectedDialects = <DetectedDialect>[];
 
@@ -1718,17 +1752,20 @@ class DatabaseNew {
         } else if (resp.statusCode == 204) {
           // none for this recording
         } else {
-          logger.w('Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}');
+          logger.w(
+              'Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}');
         }
       } catch (e, st) {
-        logger.e('Error fetching filtered parts for recording ${rec.BEId}: $e', error: e, stackTrace: st);
+        logger.e('Error fetching filtered parts for recording ${rec.BEId}: $e',
+            error: e, stackTrace: st);
         Sentry.captureException(e, stackTrace: st);
       }
     }
   }
 
   static Future<void> persistFetchedFilteredParts() async {
-    if (fetchedFilteredRecordingParts == null || fetchedFilteredRecordingParts!.isEmpty) return;
+    if (fetchedFilteredRecordingParts == null ||
+        fetchedFilteredRecordingParts!.isEmpty) return;
 
     // Build recording BEId -> local id map
     final localRecs = await getRecordings();
@@ -1753,9 +1790,11 @@ class DatabaseNew {
     }
 
     // Insert/update detected dialects, linked to local FRP ids
-    if (fetchedDetectedDialects != null && fetchedDetectedDialects!.isNotEmpty) {
+    if (fetchedDetectedDialects != null &&
+        fetchedDetectedDialects!.isNotEmpty) {
       for (final dd in fetchedDetectedDialects!) {
-        if (dd.filteredPartBEID != null && frpBeToLocal.containsKey(dd.filteredPartBEID)) {
+        if (dd.filteredPartBEID != null &&
+            frpBeToLocal.containsKey(dd.filteredPartBEID)) {
           dd.filteredPartLocalId = frpBeToLocal[dd.filteredPartBEID!];
         }
         await insertDetectedDialect(dd);
@@ -2041,16 +2080,18 @@ class DatabaseNew {
       final List<Map<String, dynamic>> parts = await db.query("recordingParts");
       recordingParts =
           List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
-      final List<Map<String, dynamic>> fparts = await db.query("FilteredRecordingParts");
+      final List<Map<String, dynamic>> fparts =
+          await db.query("FilteredRecordingParts");
       filteredRecordingParts = List.generate(
         fparts.length,
-            (i) => FilteredRecordingPart.fromDb(fparts[i]),
+        (i) => FilteredRecordingPart.fromDb(fparts[i]),
       );
 
-      final List<Map<String, dynamic>> ddRows = await db.query("DetectedDialects");
+      final List<Map<String, dynamic>> ddRows =
+          await db.query("DetectedDialects");
       detectedDialects = List.generate(
         ddRows.length,
-            (i) => DetectedDialect.fromDb(ddRows[i]),
+        (i) => DetectedDialect.fromDb(ddRows[i]),
       );
       loadedRecordings = true;
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
@@ -2207,8 +2248,8 @@ class DatabaseNew {
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 8) {
-        await db.execute(
-            'ALTER TABLE recordings ADD COLUMN partCount INTEGER;');
+        await db
+            .execute('ALTER TABLE recordings ADD COLUMN partCount INTEGER;');
         await db.execute('''UPDATE recordings AS r
             SET partCount = COALESCE((
             SELECT COUNT(*)
@@ -2218,11 +2259,11 @@ class DatabaseNew {
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 9) {
-        await db.execute('ALTER TABLE recordings ADD COLUMN env STRING DEFAULT \'prod\';');
+        await db.execute(
+            'ALTER TABLE recordings ADD COLUMN env STRING DEFAULT \'prod\';');
         await db.setVersion(newVersion);
       }
-    }
-    );
+    });
   }
 
   static Future<bool> hasInternetAccess() async {
@@ -2283,9 +2324,15 @@ class DatabaseNew {
 
   static Future<Recording?> getRecordingFromDbById(int recordingId) async {
     final db = await database;
-    final String? email = JwtDecoder.decode((await FlutterSecureStorage().read(key: 'token'))!)['sub'];
-    final List<Map<String, dynamic>> results =
-        await db.query("recordings", where: "id = ? AND mail = ? AND env = ?", whereArgs: [recordingId, email, Config.hostEnvironment.name.toString()]);
+    final String? email = JwtDecoder.decode(
+        (await FlutterSecureStorage().read(key: 'token'))!)['sub'];
+    final List<Map<String, dynamic>> results = await db.query("recordings",
+        where: "id = ? AND mail = ? AND env = ?",
+        whereArgs: [
+          recordingId,
+          email,
+          Config.hostEnvironment.name.toString()
+        ]);
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
     }
@@ -2372,15 +2419,21 @@ class DatabaseNew {
   }
 
   // === Filtered Recording Parts CRUD ===
-  static Future<int> insertFilteredRecordingPart(FilteredRecordingPart frp) async {
+  static Future<int> insertFilteredRecordingPart(
+      FilteredRecordingPart frp) async {
     final db = await database;
     if (frp.BEId != null) {
-      final existing = await db.query('FilteredRecordingParts', where: 'BEId = ?', whereArgs: [frp.BEId], limit: 1);
+      final existing = await db.query('FilteredRecordingParts',
+          where: 'BEId = ?', whereArgs: [frp.BEId], limit: 1);
       if (existing.isNotEmpty) {
         frp.id = existing.first['id'] as int?;
-        await db.update('FilteredRecordingParts', frp.toDbJson(), where: 'id = ?', whereArgs: [frp.id]);
+        await db.update('FilteredRecordingParts', frp.toDbJson(),
+            where: 'id = ?', whereArgs: [frp.id]);
         final idx = filteredRecordingParts.indexWhere((e) => e.id == frp.id);
-        if (idx != -1) filteredRecordingParts[idx] = frp; else filteredRecordingParts.add(frp);
+        if (idx != -1)
+          filteredRecordingParts[idx] = frp;
+        else
+          filteredRecordingParts.add(frp);
         return frp.id ?? -1;
       }
     }
@@ -2390,23 +2443,33 @@ class DatabaseNew {
     return id;
   }
 
-  static Future<void> updateFilteredRecordingPart(FilteredRecordingPart frp) async {
+  static Future<void> updateFilteredRecordingPart(
+      FilteredRecordingPart frp) async {
     final db = await database;
-    await db.update('FilteredRecordingParts', frp.toDbJson(), where: 'id = ?', whereArgs: [frp.id]);
+    await db.update('FilteredRecordingParts', frp.toDbJson(),
+        where: 'id = ?', whereArgs: [frp.id]);
     final idx = filteredRecordingParts.indexWhere((e) => e.id == frp.id);
-    if (idx != -1) filteredRecordingParts[idx] = frp; else filteredRecordingParts.add(frp);
+    if (idx != -1)
+      filteredRecordingParts[idx] = frp;
+    else
+      filteredRecordingParts.add(frp);
   }
 
 // === Detected Dialects CRUD ===
   static Future<int> insertDetectedDialect(DetectedDialect dd) async {
     final db = await database;
     if (dd.BEId != null) {
-      final existing = await db.query('DetectedDialects', where: 'BEId = ?', whereArgs: [dd.BEId], limit: 1);
+      final existing = await db.query('DetectedDialects',
+          where: 'BEId = ?', whereArgs: [dd.BEId], limit: 1);
       if (existing.isNotEmpty) {
         dd.id = existing.first['id'] as int?;
-        await db.update('DetectedDialects', dd.toDbJson(), where: 'id = ?', whereArgs: [dd.id]);
+        await db.update('DetectedDialects', dd.toDbJson(),
+            where: 'id = ?', whereArgs: [dd.id]);
         final idx = detectedDialects.indexWhere((e) => e.id == dd.id);
-        if (idx != -1) detectedDialects[idx] = dd; else detectedDialects.add(dd);
+        if (idx != -1)
+          detectedDialects[idx] = dd;
+        else
+          detectedDialects.add(dd);
         return dd.id ?? -1;
       }
     }
@@ -2418,13 +2481,18 @@ class DatabaseNew {
 
   static Future<void> updateDetectedDialect(DetectedDialect dd) async {
     final db = await database;
-    await db.update('DetectedDialects', dd.toDbJson(), where: 'id = ?', whereArgs: [dd.id]);
+    await db.update('DetectedDialects', dd.toDbJson(),
+        where: 'id = ?', whereArgs: [dd.id]);
     final idx = detectedDialects.indexWhere((e) => e.id == dd.id);
-    if (idx != -1) detectedDialects[idx] = dd; else detectedDialects.add(dd);
+    if (idx != -1)
+      detectedDialects[idx] = dd;
+    else
+      detectedDialects.add(dd);
   }
 
   /// Representative dialects for a local recording (prefers confirmed, else user guess)
-  static Future<List<String>> getRepresentativeDialectCodesForRecording(int recordingLocalId) async {
+  static Future<List<String>> getRepresentativeDialectCodesForRecording(
+      int recordingLocalId) async {
     final db = await database;
     final rows = await db.rawQuery('''
     SELECT DISTINCT COALESCE(dd.confirmedDialect, dd.userGuessDialect) AS code

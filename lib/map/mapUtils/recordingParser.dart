@@ -68,7 +68,6 @@ class Part {
   }
 }
 
-
 class RecordingSec {
   final int id;
   final int userId;
@@ -79,6 +78,7 @@ class RecordingSec {
   final String? note;
   final String? notePost;
   final List<Part> parts;
+  final double totalSeconds;
 
   RecordingSec({
     required this.id,
@@ -90,6 +90,7 @@ class RecordingSec {
     required this.note,
     this.notePost,
     required this.parts,
+    required this.totalSeconds,
   });
 
   factory RecordingSec.fromJson(Map<String, dynamic> json) {
@@ -102,14 +103,13 @@ class RecordingSec {
       byApp: json['byApp'] ?? false,
       note: json['note']?.toString(),
       notePost: json['notePost']?.toString(),
+      totalSeconds: double.parse(json['totalSeconds']!.toString()),
       parts: (json['parts'] as List<dynamic>? ?? [])
           .map((p) => Part.fromJson(p))
           .toList(),
     );
   }
-
 }
-
 
 List<Part> getParts(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
@@ -122,7 +122,7 @@ List<Part> getParts(String jsonString) {
   }
 
   return parts;
-  }
+}
 
 LatLng? getFirstPartLatLng(String jsonString) {
   final List<dynamic> decoded = jsonDecode(jsonString);
