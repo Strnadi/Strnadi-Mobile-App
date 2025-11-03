@@ -36,6 +36,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/database/Models/recording.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'package:strnadi/config/config.dart';

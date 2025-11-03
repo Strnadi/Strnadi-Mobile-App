@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
 import '../config/config.dart';
+import 'Models/recording.dart';
 import 'databaseNew.dart';
 
 final logger = Logger();

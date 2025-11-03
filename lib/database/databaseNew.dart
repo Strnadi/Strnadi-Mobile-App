@@ -17,6 +17,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,10 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 
 import '../notificationPage/notifications.dart';
+import 'Models/detectedDialect.dart';
+import 'Models/filteredRecordingPart.dart';
+import 'Models/recording.dart';
+import 'Models/recordingPart.dart';
 import 'fileSize.dart';
 
 final logger = Logger();
@@ -51,665 +56,78 @@ Future<String> getPath() async {
   return path;
 }
 
-class UserData {
-  String FirstName;
-  String LastName;
-  String? NickName;
-
-  String? ProfilePic;
-
-  String? format;
-
-  UserData(
-      {required this.FirstName,
-      required this.LastName,
-      this.NickName,
-      this.ProfilePic,
-      this.format});
-
-  factory UserData.fromJson(Map<String, Object?> json) {
-    return UserData(
-        FirstName: json['firstName'] as String,
-        LastName: json['lastName'] as String,
-        NickName: json['nickname'] as String?);
-  }
-}
-
-// class RecordingDialect{
-//   int RecordingId;
-//   String dialect;
-//   DateTime StartDate;
-//   DateTime EndDate;
-//
-//   RecordingDialect({
-//     required this.RecordingId,
-//     required this.dialect,
-//     required this.StartDate,
-//     required this.EndDate,
-//   });
-//
-//   factory RecordingDialect.fromJson(Map<String, Object?> json) {
-//     // Safely parse the ID, allowing for uppercase or lowercase keys
-//     final dynamic idValue = json['recordingId'] ?? json['RecordingId'];
-//     final int recordingId = idValue is int
-//       ? idValue
-//       : (idValue != null ? int.tryParse(idValue.toString()) ?? 0 : 0);
-//
-//     // Determine dialect: prefer first detectedDialects entry (string or map), else fallback to dialectCode
-//     final List<dynamic> detectedList = (json['detectedDialects'] as List<dynamic>?) ?? [];
-//     late final String dialectValue;
-//     if (detectedList.isNotEmpty) {
-//       final first = detectedList.first;
-//       if (first is String) {
-//         dialectValue = first;
-//       } else if (first is Map<String, dynamic>) {
-//         dialectValue = (first['dialect'] as String?)
-//             ?? (first['dialectCode'] as String?)
-//             ?? 'Nevyhodnoceno';
-//       } else {
-//         dialectValue = 'Nevyhodnoceno';
-//       }
-//     } else {
-//       dialectValue = (json['dialectCode'] as String?) ?? 'Nevyhodnoceno';
-//     }
-//
-//     // Helper to fetch raw date string from uppercase or lowercase key
-//     String _getRawDate(String upperKey, String lowerKey) {
-//       return json[upperKey] as String?
-//           ?? json[lowerKey] as String?
-//           ?? '';
-//     }
-//
-//     // Robust date parser: empty → epoch; digits → epoch-from-ms; ISO parse otherwise
-//     DateTime _parseDate(String raw) {
-//       if (raw.isEmpty) {
-//         return DateTime.fromMillisecondsSinceEpoch(0);
-//       }
-//       if (RegExp(r'^\d+$').hasMatch(raw)) {
-//         return DateTime.fromMillisecondsSinceEpoch(int.parse(raw));
-//       }
-//       try {
-//         return DateTime.parse(raw);
-//       } catch (_) {
-//         return DateTime.fromMillisecondsSinceEpoch(0);
-//       }
-//     }
-//
-//     final DateTime startDate = _parseDate(_getRawDate('StartDate', 'startDate'));
-//     final DateTime endDate   = _parseDate(_getRawDate('EndDate',   'endDate'));
-//
-//     return RecordingDialect(
-//       RecordingId: recordingId,
-//       dialect: dialectValue,
-//       StartDate: startDate,
-//       EndDate: endDate,
-//     );
-//   }
-//
-//
-//   Map<String, Object?> toJson() {
-//     return {
-//       'recordingId': RecordingId,
-//       'dialectCode': dialect,
-//       'StartDate': StartDate.toString(),
-//       'EndDate': EndDate.toString(),
-//     };
-//   }
-//
-//   List<RecordingDialect> fromJsonList(List<dynamic> jsonList) {
-//     return jsonList.map((json) => RecordingDialect.fromJson(json)).toList();
-//   }
-// }
-
-class RecordingUnready {
-  int? id;
-  String? mail;
-  DateTime? createdAt;
-  int? estimatedBirdsCount;
-  String? device;
-  bool? byApp;
-  String? note;
-  String? path;
-
-  RecordingUnready({
-    this.id,
-    this.mail,
-    this.createdAt,
-    this.estimatedBirdsCount,
-    this.device,
-    this.byApp,
-    this.note,
-    this.path,
-  });
-}
-
-class RecordingPartUnready {
-  int? id;
-  int? recordingId;
-  DateTime? startTime;
-  DateTime? endTime;
-  double? gpsLatitudeStart;
-  double? gpsLatitudeEnd;
-  double? gpsLongitudeStart;
-  double? gpsLongitudeEnd;
-  //String? dataBase64;
-  String? path;
-
-  RecordingPartUnready(
-      {this.id,
-      this.recordingId,
-      this.startTime,
-      this.endTime,
-      this.gpsLatitudeStart,
-      this.gpsLatitudeEnd,
-      this.gpsLongitudeStart,
-      this.gpsLongitudeEnd,
-      this.path
-      //this.dataBase64,
-      });
-}
-
-class Recording {
-  int? id;
-  int? userId;
-  int? BEId;
-  String? mail;
-  DateTime createdAt;
-  int estimatedBirdsCount;
-  String? device;
-  bool byApp;
-  String? note;
-  String? name;
-  String? path;
-  bool downloaded;
-  bool sent;
-  bool sending;
-  double? totalSeconds;
-  int? partCount;
-  String env;
-
-  Recording({
-    this.id,
-    this.userId,
-    this.BEId,
-    this.mail,
-    required this.createdAt,
-    required this.estimatedBirdsCount,
-    this.device,
-    required this.byApp,
-    this.note,
-    this.name,
-    this.path,
-    this.downloaded = true,
-    this.sent = false,
-    this.sending = false,
-    required this.partCount,
-    required this.env,
-    this.totalSeconds,
-  });
-
-  factory Recording.fromJson(Map<String, Object?> json) {
-    return Recording(
-      id: json['id'] as int?,
-      userId: json['userId'] as int?,
-      BEId: json['BEId'] as int?,
-      mail: json['mail'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      estimatedBirdsCount: json['estimatedBirdsCount'] as int,
-      device: json['device'] as String?,
-      byApp: (json['byApp'] as int) == 1,
-      note: json['note'] as String?,
-      name: json['name'] as String?,
-      path: json['path'] as String?,
-      totalSeconds: json['totalSeconds'] as double?,
-      sent: (json['sent'] as int) == 1,
-      downloaded: (json['downloaded'] as int) == 1,
-      sending: (json['sending'] as int) == 1,
-      partCount: json['partCount'] as int? ?? 0,
-      env: json['env'] as String? ?? 'prod',
-    );
-  }
-
-  factory Recording.fromUnready(RecordingUnready unready, int partCount) {
-    if (unready.id == null ||
-        unready.mail == null ||
-        unready.createdAt == null ||
-        unready.estimatedBirdsCount == null ||
-        unready.device == null ||
-        unready.byApp == null ||
-        unready.path == null) {
-      throw UnreadyException('Recording is not ready');
-    }
-    return Recording(
-        id: unready.id,
-        BEId: null,
-        mail: unready.mail ?? '',
-        createdAt: unready.createdAt!,
-        estimatedBirdsCount: unready.estimatedBirdsCount ?? 0,
-        device: unready.device,
-        byApp: unready.byApp ?? true,
-        note: unready.note,
-        path: unready.path,
-        sent: false,
-        downloaded: true,
-        sending: false,
-        totalSeconds: -1.0,
-        partCount: partCount,
-        env: Config.hostEnvironment.name.toString());
-  }
-
-  factory Recording.fromBEJson(Map<String, Object?> json, int? userId) {
-    return Recording(
-      BEId: json['id'] as int?,
-      userId: userId ?? json['userId'] as int?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      estimatedBirdsCount: json['estimatedBirdsCount'] as int,
-      device: json['device'] as String?,
-      byApp: json['byApp'] as bool,
-      note: json['note'] as String?,
-      name: json['name'] as String?,
-      sent: true,
-      downloaded: false,
-      path: null,
-      sending: false,
-      partCount: int.tryParse(json['expectedPartsCount'].toString()),
-      env: Config.hostEnvironment.name.toString(),
-      totalSeconds: double.parse(json['totalSeconds'].toString()),
-    );
-  }
-
-  Map<String, Object?> toJson() {
-    return {
-      'id': id,
-      'BEId': BEId,
-      'mail': mail,
-      'createdAt': createdAt.toString(),
-      'estimatedBirdsCount': estimatedBirdsCount,
-      'device': device,
-      'byApp': byApp ? 1 : 0,
-      'note': note,
-      'name': name,
-      'path': path,
-      'sent': sent ? 1 : 0,
-      'downloaded': downloaded ? 1 : 0,
-      'sending': sending ? 1 : 0,
-      'partCount': partCount,
-      'totalSeconds': totalSeconds,
-      'env': env,
-    };
-  }
-
-  Future<Map<String, Object?>> toBEJson() async {
-    final String? deviceId = await FlutterSecureStorage().read(key: 'fcmToken');
-    logger.i('Fetched deviceId for BE JSON: $deviceId');
-    final Map<String, Object?> body = {
-      'id': BEId,
-      'createdAt': createdAt.toIso8601String(),
-      'estimatedBirdsCount': estimatedBirdsCount,
-      'device': device,
-      'byApp': byApp,
-      'note': note,
-      'name': name,
-      'expectedPartsCount': partCount,
-      'deviceId': deviceId,
-    };
-    logger.i('Generated BE JSON for Recording: $body');
-    return body;
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! Recording) return false;
-    bool equal = true;
-    if (mail != null && other.mail != null) {
-      equal = equal && mail == other.mail;
-    }
-    if (createdAt != null && other.createdAt != null) {
-      equal = equal && createdAt == other.createdAt;
-    }
-    if (estimatedBirdsCount != null && other.estimatedBirdsCount != null) {
-      equal = equal && estimatedBirdsCount == other.estimatedBirdsCount;
-    }
-    if (device != null && other.device != null) {
-      equal = equal && device == other.device;
-    }
-    if (byApp != null && other.byApp != null) {
-      equal = equal && byApp == other.byApp;
-    }
-    if (note != null && other.note != null) {
-      equal = equal && note == other.note;
-    }
-    return equal;
-  }
-
-  @override
-  int get hashCode {
-    return Object.hash(
-      BEId ?? 0,
-      mail,
-      createdAt,
-      estimatedBirdsCount,
-      device ?? '',
-      byApp,
-      note ?? '',
-    );
-  }
-}
-
-class RecordingPart {
-  int? id;
-  int? BEId;
-  int? recordingId;
-  int? backendRecordingId;
-  DateTime startTime;
-  DateTime endTime;
-  double gpsLatitudeStart;
-  double gpsLatitudeEnd;
-  double gpsLongitudeStart;
-  double gpsLongitudeEnd;
-  String? square;
-  String? dataBase64Temp;
-  String? path;
-  int? length;
-  bool sent;
-  bool sending;
-
-  RecordingPart({
-    this.id,
-    this.BEId,
-    required this.recordingId,
-    required this.startTime,
-    required this.endTime,
-    required this.gpsLatitudeStart,
-    required this.gpsLatitudeEnd,
-    required this.gpsLongitudeStart,
-    required this.gpsLongitudeEnd,
-    this.square,
-    this.path,
-    this.length,
-    this.dataBase64Temp,
-    this.sent = false,
-    this.sending = false,
-  });
-
-  factory RecordingPart.fromJson(Map<String, Object?> json) {
-    return RecordingPart(
-        id: json['id'] as int?,
-        BEId: json['BEId'] as int?,
-        recordingId: json['recordingId'] as int?,
-        startTime: DateTime.parse(json['startTime'] as String),
-        endTime: DateTime.parse(json['endTime'] as String),
-        gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
-        gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
-        gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
-        gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
-        square: json['square'] as String?,
-        sent: (json['sent'] as int) == 1,
-        sending: (json['sending'] as int) == 1,
-        path: json['path'] as String?,
-        length: json['length'] as int?);
-  }
-
-  factory RecordingPart.fromBEJson(
-      Map<String, Object?> json, int backendRecordingId) {
-    return RecordingPart(
-        BEId: json['id'] as int?,
-        recordingId: null, // will be updated later
-        startTime: DateTime.parse(json['startDate'] as String),
-        endTime: DateTime.parse(json['endDate'] as String),
-        gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
-        gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
-        gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
-        gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
-        dataBase64Temp: json['dataBase64'] as String?,
-        square: json['square'] as String?,
-        sent: true,
-        length: json['length'] as int?)
-      ..backendRecordingId = backendRecordingId;
-  }
-
-  Future<void> save() async {
-    String newPath = (await getApplicationDocumentsDirectory()).path +
-        "/recording_${DateTime.now().millisecondsSinceEpoch}.wav";
-    File file = await File(newPath).create();
-    await file.writeAsBytes(base64Decode(dataBase64Temp!));
-    this.path = newPath;
-  }
-
-  factory RecordingPart.fromUnready(RecordingPartUnready unready) {
-    if (unready.startTime == null ||
-        unready.endTime == null ||
-        unready.gpsLatitudeStart == null ||
-        unready.gpsLatitudeEnd == null ||
-        unready.gpsLongitudeStart == null ||
-        unready.gpsLongitudeEnd == null ||
-        unready.path == null) {
-      logger.i(
-          'Recording part is not ready. Part id: ${unready.id}, recording id: ${unready.recordingId}, start time: ${unready.startTime}, end time: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, path: ${unready.path}');
-      throw UnreadyException('Recording part is not ready');
-    }
-    return RecordingPart(
-      id: unready.id,
-      BEId: null,
-      recordingId: unready.recordingId,
-      startTime: unready.startTime!,
-      endTime: unready.endTime!,
-      gpsLatitudeStart: unready.gpsLatitudeStart ?? 0.0,
-      gpsLatitudeEnd: unready.gpsLatitudeEnd ?? 0.0,
-      gpsLongitudeStart: unready.gpsLongitudeStart ?? 0.0,
-      gpsLongitudeEnd: unready.gpsLongitudeEnd ?? 0.0,
-      path: unready.path,
-      //dataBase64Temp: unready.dataBase64,
-      square: null,
-      sent: false,
-    );
-  }
-
-  Map<String, Object?> toBEJson() {
-    return {
-      'id': BEId,
-      'recordingId': backendRecordingId,
-      'startDate': startTime.toIso8601String(),
-      'endDate': endTime.toIso8601String(),
-      'gpsLatitudeStart': gpsLatitudeStart,
-      'gpsLatitudeEnd': gpsLatitudeEnd,
-      'gpsLongitudeStart': gpsLongitudeStart,
-      'gpsLongitudeEnd': gpsLongitudeEnd,
-      'dataBase64': dataBase64,
-    };
-  }
-
-  Map<String, Object?> toBEJsonWithoutData() {
-    return {
-      'id': BEId,
-      'recordingId': backendRecordingId,
-      'startDate': startTime.toIso8601String(),
-      'endDate': endTime.toIso8601String(),
-      'gpsLatitudeStart': gpsLatitudeStart,
-      'gpsLatitudeEnd': gpsLatitudeEnd,
-      'gpsLongitudeStart': gpsLongitudeStart,
-      'gpsLongitudeEnd': gpsLongitudeEnd,
-    };
-  }
-
-  Map<String, Object?> toJson() {
-    return {
-      'id': id,
-      'BEId': BEId,
-      'backendRecordingId': backendRecordingId, // new field
-      'recordingId': recordingId,
-      'startTime': startTime.toString(),
-      'endTime': endTime.toString(),
-      'gpsLatitudeStart': gpsLatitudeStart,
-      'gpsLatitudeEnd': gpsLatitudeEnd,
-      'gpsLongitudeStart': gpsLongitudeStart,
-      'gpsLongitudeEnd': gpsLongitudeEnd,
-      'path': path,
-      'square': square,
-      'sent': sent ? 1 : 0,
-      'sending': sending ? 1 : 0,
-      'length': length
-    };
-  }
-
-  String? get dataBase64 {
-    if (this.path == null) return null;
-    File file = File(this.path!);
-    String base64String = base64Encode(file.readAsBytesSync());
-    return base64String;
-  }
-}
-
-class FilteredRecordingPart {
-  int? id; // local PK
-  int? BEId; // backend filtered part id (unique if provided)
-  int? recordingLocalId; // FK -> recordings.id
-  int? recordingBEID; // parent backend recording id
-  DateTime startDate;
-  DateTime endDate;
-  int state; // workflow state
-  bool isRepresentant;
-  int? parentBEID; // optional parent filtered part id (backend)
-  int? parentLocalId; // optional parent filtered part id (local)
-
-  FilteredRecordingPart({
-    this.id,
-    this.BEId,
-    this.recordingLocalId,
-    this.recordingBEID,
-    required this.startDate,
-    required this.endDate,
-    required this.state,
-    required this.isRepresentant,
-    this.parentBEID,
-    this.parentLocalId,
-  });
-
-  factory FilteredRecordingPart.fromDb(Map<String, Object?> row) {
-    return FilteredRecordingPart(
-      id: row['id'] as int?,
-      BEId: row['BEId'] as int?,
-      recordingLocalId: row['recordingLocalId'] as int?,
-      recordingBEID: row['recordingBEID'] as int?,
-      startDate: DateTime.parse(row['startDate'] as String),
-      endDate: DateTime.parse(row['endDate'] as String),
-      state: (row['state'] as num).toInt(),
-      isRepresentant: ((row['representant'] as int?) ?? 0) == 1,
-      parentBEID: row['parentBEID'] as int?,
-      parentLocalId: row['parentLocalId'] as int?,
-    );
-  }
-
-  static bool _parseBool(dynamic v) {
-    if (v is bool) return v;
-    if (v is num) return v != 0;
-    if (v is String) {
-      final s = v.toLowerCase();
-      return s == '1' || s == 'true' || s == 'yes';
-    }
-    return false;
-  }
-
-  factory FilteredRecordingPart.fromBEJson(Map<String, Object?> json) {
-    final beidDyn = json['id'];
-    final beid = (beidDyn is int)
-        ? beidDyn
-        : (beidDyn is String ? int.tryParse(beidDyn) : null);
-    return FilteredRecordingPart(
-      BEId: beid,
-      recordingBEID: (json['recordingId'] as num?)?.toInt(),
-      startDate: DateTime.parse(json['startDate'] as String),
-      endDate: DateTime.parse(json['endDate'] as String),
-      state: (json['state'] as num).toInt(),
-      isRepresentant: _parseBool(json['representantFlag']),
-      parentBEID: (json['parentId'] as num?)?.toInt(),
-    );
-  }
-
-  Map<String, Object?> toDbJson() {
-    return {
-      'id': id,
-      'BEId': BEId,
-      'recordingLocalId': recordingLocalId,
-      'recordingBEID': recordingBEID,
-      'startDate': startDate.toIso8601String(),
-      'endDate': endDate.toIso8601String(),
-      'state': state,
-      'representant': isRepresentant ? 1 : 0,
-      'parentBEID': parentBEID,
-      'parentLocalId': parentLocalId,
-    };
-  }
-}
-
-class DetectedDialect {
-  int? id; // local PK
-  int? BEId; // backend dialect id
-  int? filteredPartLocalId; // FK -> FilteredRecordingParts.id
-  int? filteredPartBEID; // parent FRP backend id
-  int? userGuessDialectId;
-  String? userGuessDialect;
-  int? confirmedDialectId;
-  String? confirmedDialect;
-
-  DetectedDialect({
-    this.id,
-    this.BEId,
-    this.filteredPartLocalId,
-    this.filteredPartBEID,
-    this.userGuessDialectId,
-    this.userGuessDialect,
-    this.confirmedDialectId,
-    this.confirmedDialect,
-  });
-
-  factory DetectedDialect.fromDb(Map<String, Object?> row) {
-    return DetectedDialect(
-      id: row['id'] as int?,
-      BEId: row['BEId'] as int?,
-      filteredPartLocalId: row['filteredPartLocalId'] as int?,
-      filteredPartBEID: row['filteredPartBEID'] as int?,
-      userGuessDialectId: row['userGuessDialectId'] as int?,
-      userGuessDialect: row['userGuessDialect'] as String?,
-      confirmedDialectId: row['confirmedDialectId'] as int?,
-      confirmedDialect: row['confirmedDialect'] as String?,
-    );
-  }
-
-  factory DetectedDialect.fromBEJson(
-    Map<String, Object?> json, {
-    required int parentFilteredPartBEID,
-  }) {
-    final beidDyn = json['id'];
-    final beid = (beidDyn is int)
-        ? beidDyn
-        : (beidDyn is String ? int.tryParse(beidDyn) : null);
-    return DetectedDialect(
-      BEId: beid,
-      filteredPartBEID: parentFilteredPartBEID,
-      userGuessDialectId: (json['userGuessDialectId'] as num?)?.toInt(),
-      userGuessDialect: json['userGuessDialect'] as String?,
-      confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
-      confirmedDialect: json['confirmedDialect'] as String?,
-    );
-  }
-
-  Map<String, Object?> toDbJson() {
-    return {
-      'id': id,
-      'BEId': BEId,
-      'filteredPartLocalId': filteredPartLocalId,
-      'filteredPartBEID': filteredPartBEID,
-      'userGuessDialectId': userGuessDialectId,
-      'userGuessDialect': userGuessDialect,
-      'confirmedDialectId': confirmedDialectId,
-      'confirmedDialect': confirmedDialect,
-    };
-  }
-}
-
 typedef UploadProgress = void Function(int sent, int total);
+
+/// Broadcasts per-part upload progress to the UI.
+class UploadProgressBus {
+  static int _listeners = 0;
+  static int _emissionSeq = 0;
+  // How long to keep 100% items before clearing (set to Duration.zero to disable clearing)
+  static Duration _retainAfterDone = const Duration(seconds: 3);
+  static StreamController<Map<int, double>>? _controller;
+  static StreamController<Map<int, double>> _ensureController() {
+    if (_controller == null || _controller!.isClosed) {
+      _controller = StreamController<Map<int, double>>.broadcast(
+        onListen: () {
+          _listeners++;
+          logger.i('[UploadProgressBus] onListen: listeners=' + _listeners.toString() + '; current keys=' + _progress.keys.toList().toString());
+          // Immediately send the current snapshot to the new listener
+          final copy = Map<int, double>.unmodifiable(Map<int, double>.from(_progress));
+          _emissionSeq++;
+          logger.i('[UploadProgressBus] onListen → emit #' + _emissionSeq.toString() + ' (initial snapshot): size=' + copy.length.toString() + ', keys=' + copy.keys.toList().toString());
+          // Defer to next microtask to avoid re-entrancy
+          scheduleMicrotask(() => _controller!.add(copy));
+        },
+        onCancel: () {
+          _listeners = (_listeners > 0) ? _listeners - 1 : 0;
+          logger.i('[UploadProgressBus] onCancel: listeners=' + _listeners.toString());
+        },
+      );
+      logger.i('[UploadProgressBus] controller (re)created');
+    }
+    return _controller!;
+  }
+  static final Map<int, double> _progress = <int, double>{};
+
+  static void debugState([String label = '']) {
+    logger.i('[UploadProgressBus] debugState ' + (label.isEmpty ? '' : '(' + label + ')') + ': listeners=' + _listeners.toString() + ', emissions=' + _emissionSeq.toString() + ', size=' + _progress.length.toString() + ', keys=' + _progress.keys.toList().toString() + ', map=' + _progress.toString());
+  }
+
+  static Stream<Map<int, double>> get stream => _ensureController().stream.map((event) {
+    logger.i('[UploadProgressBus] stream emit: size=' + event.length.toString() + ', keys=' + event.keys.toList().toString());
+    return event;
+  });
+  static Map<int, double> get snapshot {
+    logger.d('[UploadProgressBus] snapshot requested: size=' + _progress.length.toString() + ', keys=' + _progress.keys.toList().toString() + ', map=' + _progress.toString());
+    return Map<int, double>.from(_progress);
+  }
+
+  /// Set how long to retain 100% progress before clearing. Pass null/zero to disable.
+  static void setRetainAfterDone(Duration? d) {
+    _retainAfterDone = d ?? Duration.zero;
+    logger.i('[UploadProgressBus] setRetainAfterDone → ' + _retainAfterDone.inMilliseconds.toString() + ' ms');
+  }
+
+  static void update(int partId, int sent, int total) {
+    final double progress = (total <= 0) ? 0.0 : (sent / total).clamp(0.0, 1.0);
+    final double safe = progress.isNaN ? 0.0 : progress;
+    _progress[partId] = safe;
+    logger.d('[UploadProgressBus] update(partId=$partId, sent=$sent, total=$total) → progress=$safe');
+    _ensureController().add(Map<int, double>.from(_progress));
+  }
+
+  static void markDone(int partId) {
+    _progress.remove(partId);
+    logger.d('[UploadProgressBus] markDone($partId) -> size=${_progress.length}');
+    _ensureController().add(Map<int, double>.from(_progress));
+  }
+
+  static void clear(int partId) {
+    _progress.remove(partId);
+    logger.d('[UploadProgressBus] clear($partId) -> size=${_progress.length}');
+    _ensureController().add(Map<int, double>.from(_progress));
+  }
+}
 
 /// Database helper class
 class DatabaseNew {
@@ -1357,6 +775,10 @@ class DatabaseNew {
           recordingPart.sent = true;
           recordingPart.sending = false;
           await updateRecordingPart(recordingPart);
+          final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+          if (port != null && recordingPart.id != null) {
+            port.send(['done', recordingPart.id!]);
+          }
           logger.i(
               'Recording part id: ${recordingPart.id} uploaded successfully.');
         } else {
@@ -1466,7 +888,16 @@ class DatabaseNew {
           } else {
             logger.i('Upload progress: $sent bytes');
           }
+          UploadProgressBus.update(recordingPart.id!, sent, total);
           if (onProgress != null) onProgress(sent, total);
+
+          final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+          if (port == null) {
+            logger.w('[UploadBridge] lookupPortByName(\"upload_progress_port\") returned NULL – likely a background isolate cannot see the UI port. partId=${recordingPart.id}, sent=$sent, total=$total');
+          } else {
+            logger.i('[UploadBridge] sending progress to UI port: partId=${recordingPart.id}, sent=$sent, total=$total');
+            port.send(['update', recordingPart.id!, sent, total]);
+          }
         },
       );
 
@@ -1494,7 +925,16 @@ class DatabaseNew {
               } else {
                 logger.i('Upload progress (redirect): $sent bytes');
               }
+              UploadProgressBus.update(recordingPart.id!, sent, total);
               if (onProgress != null) onProgress(sent, total);
+
+              final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+              if (port == null) {
+                logger.w('[UploadBridge] lookupPortByName(\"upload_progress_port\") returned NULL – likely a background isolate cannot see the UI port. partId=${recordingPart.id}, sent=$sent, total=$total');
+              } else {
+                logger.i('[UploadBridge] sending progress to UI port: partId=${recordingPart.id}, sent=$sent, total=$total');
+                port.send(['update', recordingPart.id!, sent, total]);
+              }
             },
           );
         }
@@ -1508,12 +948,21 @@ class DatabaseNew {
         recordingPart.BEId = returnedId;
         recordingPart.sent = true;
         recordingPart.sending = false;
+        UploadProgressBus.markDone(recordingPart.id!);
+        final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+        if (port == null) {
+          logger.w('[UploadBridge] done: UI port not found; cannot notify UI isolate. partId=${recordingPart.id}');
+        } else {
+          logger.i('[UploadBridge] done: notifying UI isolate for partId=${recordingPart.id}');
+          port.send(['done', recordingPart.id!]);
+        }
         await updateRecordingPart(recordingPart);
         logger
             .i('Recording part id: ${recordingPart.id} uploaded successfully.');
       } else {
         // reset sending flag on failure
         recordingPart.sending = false;
+        UploadProgressBus.clear(recordingPart.id ?? -1);
         await updateRecordingPart(recordingPart);
         throw UploadException('Failed to upload part id: ${recordingPart.id}',
             response.statusCode!);
@@ -1524,6 +973,7 @@ class DatabaseNew {
             error: e, stackTrace: stackTrace);
         Sentry.captureException(e, stackTrace: stackTrace);
         recordingPart.sending = false;
+        UploadProgressBus.clear(recordingPart.id ?? -1);
         await updateRecordingPart(recordingPart);
         rethrow;
       }
@@ -2292,7 +1742,7 @@ class DatabaseNew {
       'title': message.notification?.title,
       'type': int.parse(message.messageType!),
       'body': message.notification?.body,
-      'receivedAt': DateTime.now().toIso8601String(),
+      'receivedAt': message.sentTime,
     });
   }
 
@@ -2372,18 +1822,31 @@ class DatabaseNew {
       where: 'sent = ?',
       whereArgs: [0],
     );
+
+    if (unsent.isEmpty) return;
+
+    // Run all resends concurrently
+    final List<Future<void>> tasks = <Future<void>>[];
+
     for (final partMap in unsent) {
-      try {
-        RecordingPart part = RecordingPart.fromJson(partMap);
-        part.sending = true;
-        await updateRecordingPart(part);
-        await sendRecordingPartNew(part);
-      } catch (e, stackTrace) {
-        logger.e('Failed to resend recording part id: ${partMap['id']}',
-            error: e, stackTrace: stackTrace);
-        Sentry.captureException(e, stackTrace: stackTrace);
-      }
+      tasks.add(() async {
+        try {
+          final part = RecordingPart.fromJson(partMap);
+          // Skip if already marked as sending
+          if (part.sending == true) return;
+          part.sending = true;
+          await updateRecordingPart(part);
+          await sendRecordingPartNew(part);
+        } catch (e, stackTrace) {
+          logger.e('Failed to resend recording part id: ${partMap['id']}',
+              error: e, stackTrace: stackTrace);
+          Sentry.captureException(e, stackTrace: stackTrace);
+        }
+      }());
     }
+
+    // Wait for all uploads to complete; don't short‑circuit on first error
+    await Future.wait(tasks, eagerError: false);
   }
 
   // Dialects

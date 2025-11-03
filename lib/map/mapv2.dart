@@ -30,6 +30,9 @@
  */
 import 'dart:convert';
 
+import 'package:strnadi/database/Models/recording.dart';
+import 'package:strnadi/database/Models/recordingPart.dart';
+import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -55,6 +58,8 @@ import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
 import 'package:http/http.dart' as http;
 
+import '../database/Models/detectedDialect.dart';
+import '../database/Models/filteredRecordingPart.dart';
 import '../database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';

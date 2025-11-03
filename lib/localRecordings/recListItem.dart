@@ -19,6 +19,8 @@
 
 import 'dart:convert';
 
+import 'package:strnadi/database/Models/recording.dart';
+import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';

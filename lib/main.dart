@@ -15,6 +15,8 @@
  */
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -50,8 +52,50 @@ import 'privacy/tracking_consent.dart';
 
 // Create a global logger instance.
 final logger = Logger();
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
+
+class UploadProgressBridge {
+  static const String portName = 'upload_progress_port';
+  static final UploadProgressBridge instance = UploadProgressBridge._();
+  UploadProgressBridge._();
+
+  ReceivePort? _port;
+
+  void start() {
+    // Ensure we always own the mapping
+    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    _port = ReceivePort();
+    IsolateNameServer.registerPortWithName(_port!.sendPort, portName);
+
+    _port!.listen((msg) {
+      try {
+        if (msg is List && msg.isNotEmpty) {
+          final String kind = msg[0] as String;
+          if (kind == 'update' && msg.length >= 4) {
+            final int partId = msg[1] as int;
+            final int sent   = msg[2] as int;
+            final int total  = msg[3] as int;
+            UploadProgressBus.update(partId, sent, total);
+          } else if (kind == 'done' && msg.length >= 2) {
+            final int partId = msg[1] as int;
+            UploadProgressBus.markDone(partId);
+          }
+        }
+      } catch (e) {
+        logger.d('[UploadProgressBridge] error: $e');
+      }
+    });
+    logger.d('[UploadProgressBridge] started and listening on $portName');
+  }
+
+  void stop() {
+    try { _port?.close(); } catch (_) {}
+    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    logger.d('[UploadProgressBridge] stopped');
+  }
+}
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
@@ -93,6 +137,8 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    // Register global upload progress bridge so background isolates can report to UI
+    UploadProgressBridge.instance.start();
 
     // 1) Firebase initialization
     await Firebase.initializeApp();

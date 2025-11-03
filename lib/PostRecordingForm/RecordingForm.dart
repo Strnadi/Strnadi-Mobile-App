@@ -19,6 +19,8 @@
 
 import 'dart:io';
 import 'package:flutter/cupertino.dart' as Dialogs;
+import 'package:strnadi/database/Models/recording.dart';
+import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';

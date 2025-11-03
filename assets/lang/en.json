@@ -678,7 +678,11 @@
     }
   },
   "notifications": {
-    "title": "Notifications"
+    "title": "Notifications",
+    "uploads_in_progress": "Uploads are in progress in the background",
+    "no_notifications": "No notifications",
+    "no_uploads": "No active uploads in the background",
+    "unknown_recording": "Unknown recording"
   },
   "logout": {
     "title": "Logout",
