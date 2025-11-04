@@ -618,7 +618,8 @@
         "connectedAccounts": "Propojené účty",
         "guide": "Příručka",
         "aboutProject": "O projektu",
-        "aboutApp": "O aplikaci"
+        "aboutApp": "O aplikaci",
+        "achievements": "Úspěchy"
       },
       "dialogs": {
         "aboutApp": {

@@ -26,7 +26,6 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'emailSent.dart';
 
-
 class RegOverview extends StatefulWidget {
   final String email;
   final bool consent;
@@ -114,7 +113,8 @@ class _RegOverviewState extends State<RegOverview> {
       'LastName': widget.surname,
       'nickname': widget.nickname.isEmpty ? null : widget.nickname,
       'city': widget.city.isNotEmpty ? widget.city : null,
-      'postCode': widget.postCode.isNotEmpty ? int.tryParse(widget.postCode) : null,
+      'postCode':
+          widget.postCode.isNotEmpty ? int.tryParse(widget.postCode) : null,
       'appleId': widget.appleId,
       'consent': widget.consent && _marketingConsent,
     });
@@ -135,14 +135,12 @@ class _RegOverviewState extends State<RegOverview> {
 
       if ([200, 201, 202].contains(response.statusCode)) {
         // Store the token if returned
-        await secureStorage.write(key: 'token', value: response.body.toString());
+        await secureStorage.write(
+            key: 'token', value: response.body.toString());
         await fb.refreshToken();
 
-        Uri url = Uri(
-            scheme: 'https',
-            host: Config.host,
-            path: '/users/get-id'
-        );
+        Uri url =
+            Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
         var idResponse = await http.get(url, headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${response.body.toString()}',
@@ -150,7 +148,7 @@ class _RegOverviewState extends State<RegOverview> {
         int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
 
-        if(widget.jwt == null){
+        if (widget.jwt == null) {
           await secureStorage.write(key: 'verified', value: 'false');
           Navigator.pushReplacement(
             context,
@@ -158,9 +156,9 @@ class _RegOverviewState extends State<RegOverview> {
               builder: (context) => VerifyEmail(userEmail: widget.email),
             ),
           );
-        }
-        else{
-          Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+        } else {
+          Navigator.pushNamedAndRemoveUntil(
+              context, '/authorizator', (Route<dynamic> route) => false);
         }
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
@@ -184,7 +182,8 @@ class _RegOverviewState extends State<RegOverview> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label: ',
+          Text(
+            '$label: ',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -227,11 +226,13 @@ class _RegOverviewState extends State<RegOverview> {
             ),
             body: SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(t('signup.overview.title'),
+                    Text(
+                      t('signup.overview.title'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -239,19 +240,26 @@ class _RegOverviewState extends State<RegOverview> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(t('signup.overview.check_details'),
+                    Text(
+                      t('signup.overview.check_details'),
                       style: TextStyle(
                         fontSize: 14,
                         color: textColor,
                       ),
                     ),
                     const SizedBox(height: 32),
-                    _buildInfoItem(t('signup.overview.items.email'), widget.email),
-                    _buildInfoItem(t('signup.overview.items.name'), widget.name),
-                    _buildInfoItem(t('signup.overview.items.lastname'), widget.surname),
-                    _buildInfoItem(t('signup.overview.items.nickname'), widget.nickname.isNotEmpty ? widget.nickname : '-'),
-                    _buildInfoItem(t('signup.overview.items.post_code'), widget.postCode),
-                    _buildInfoItem(t('signup.overview.items.city'), widget.city),
+                    _buildInfoItem(
+                        t('signup.overview.items.email'), widget.email),
+                    _buildInfoItem(
+                        t('signup.overview.items.name'), widget.name),
+                    _buildInfoItem(
+                        t('signup.overview.items.last_name'), widget.surname),
+                    _buildInfoItem(t('signup.overview.items.nickname'),
+                        widget.nickname.isNotEmpty ? widget.nickname : '-'),
+                    _buildInfoItem(
+                        t('signup.overview.items.post_code'), widget.postCode),
+                    _buildInfoItem(
+                        t('signup.overview.items.city'), widget.city),
                     const SizedBox(height: 32),
                     Row(
                       children: [
@@ -264,7 +272,8 @@ class _RegOverviewState extends State<RegOverview> {
                           },
                         ),
                         Expanded(
-                          child: Text(t('signup.overview.marketing_consent'),
+                          child: Text(
+                            t('signup.overview.marketing_consent'),
                             style: TextStyle(
                               fontSize: 14,
                               color: _RegOverviewState.textColor,
@@ -277,11 +286,13 @@ class _RegOverviewState extends State<RegOverview> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: !_isLoading ? () {
-                          _withLoader(() async {
-                            await register();
-                          });
-                        } : null,
+                        onPressed: !_isLoading
+                            ? () {
+                                _withLoader(() async {
+                                  await register();
+                                });
+                              }
+                            : null,
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
                           shadowColor: Colors.transparent,
@@ -304,7 +315,8 @@ class _RegOverviewState extends State<RegOverview> {
               ),
             ),
             bottomNavigationBar: Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+              padding: const EdgeInsets.only(
+                  left: 16, right: 16, top: 16, bottom: 48),
               child: Row(
                 children: List.generate(5, (index) {
                   bool completed = index < 5;
