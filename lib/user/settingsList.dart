@@ -91,8 +91,17 @@ class MenuScreen extends StatelessWidget {
       case 4:
         i = 3;
     }
+    String lang;
+    switch (await Config.getLanguagePreference()){
+      case LanguagePreference.cs:
+        lang = "cs-CZ";
+      case LanguagePreference.en:
+        lang = "en-US";
+      case LanguagePreference.de:
+        lang = "de-DE";
+    }
 
-    final url = Uri.parse('https://${Config.host}/articles/$i/Text.md');
+    final url = Uri.parse('https://${Config.host}/articles/$i/$lang.md');
     final response = await http.get(url, headers: {
       'accept': 'application/json',
     });

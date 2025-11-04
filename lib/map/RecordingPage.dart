@@ -45,13 +45,12 @@ import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 final logger = Logger();
 
 class RecordingFromMap extends StatefulWidget {
-  final Recording recording;
+  Recording recording;
 
   final UserData? user;
 
-  const RecordingFromMap(
-      {Key? key, required this.recording, required this.user})
-      : super(key: key);
+  RecordingFromMap(
+      {super.key, required this.recording, required this.user});
 
   @override
   _RecordingFromMapState createState() => _RecordingFromMapState();
@@ -67,6 +66,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   bool isPlaying = false;
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
+  bool _isDownloading = false;
 
   final MapController _mapController = MapController();
 
@@ -113,8 +113,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   // this is in init but init can't be async so i did this piece of thing
   Future<void> doSomeShit() async {
     // Check if any parts exist for this recording
+    widget.recording.id = await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
     List<RecordingPart> parts =
-        await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
+    await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
     if (parts.isNotEmpty) {
       logger.i(
           "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
@@ -229,20 +230,42 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Future<void> _downloadRecording() async {
     try {
-      logger.i("Initiating download for recording id: ${widget.recording.id}");
-      await DatabaseNew.downloadRecording(widget.recording.id!);
-      Recording? updatedRecording =
-          await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
       setState(() {
-        widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+        _isDownloading = true;
+        // While we download, show the spinner screen even if a path exists
+        loaded = false;
       });
+      logger.i("Initiating download for recording id: ${widget.recording.BEId}");
+      int? id = await DatabaseNew.downloadRecording(widget.recording.BEId!);
+      if (id == null) throw Exception('Download returned null id');
+      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(id);
+      if (updatedRecording != null) {
+        setState(() {
+          widget.recording = updatedRecording;
+        });
+        // Initialize audio player with the newly downloaded file
+        await getData();
+      }
       logger.i("Downloaded recording updated: ${widget.recording.path}");
+      // Mark as fully loaded to exit the spinner state
+      if (mounted) {
+        setState(() {
+          loaded = true;
+          _isDownloading = false;
+        });
+      }
     } catch (e, stackTrace) {
-      logger.e("Error downloading recording: \$e",
-          error: e, stackTrace: stackTrace);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
-      );
+      logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
+      if (mounted) {
+        setState(() {
+          // Exit spinner and show the regular screen with the download button again
+          loaded = true;
+          _isDownloading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
+        );
+      }
     }
   }
 
@@ -279,7 +302,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   @override
   Widget build(BuildContext context) {
-    if (!loaded && widget.recording.path != null) {
+    if (_isDownloading || (!loaded && widget.recording.path != null)) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.list,
         appBarTitle: widget.recording.name ?? '',
@@ -291,7 +314,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         title: Text(widget.recording.name ?? ''),
         leading: IconButton(
           icon:
-              Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          Image.asset('assets/icons/backButton.png', width: 30, height: 30),
           onPressed: () async {
             Navigator.pop(context);
           },
@@ -306,29 +329,29 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
             children: [
               widget.recording.path != null && widget.recording.path!.isNotEmpty
                   ? SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                    )
+                height: 200,
+                width: double.infinity,
+              )
                   : SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(t('recListItem.noRecording')),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: _downloadRecording,
-                              child: Text(t('recListItem.buttons.download')),
-                            ),
-                          ],
-                        ),
+                height: 200,
+                width: double.infinity,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(t('recListItem.noRecording')),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _downloadRecording,
+                        child: Text(t('recListItem.buttons.download')),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
                     Text(_formatDuration(),
@@ -433,17 +456,17 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                           mapController: _mapController,
                           options: MapOptions(
                             interactionOptions:
-                                InteractionOptions(flags: InteractiveFlag.none),
+                            InteractionOptions(flags: InteractiveFlag.none),
                             initialCenter: parts.isNotEmpty
                                 ? LatLng(parts[0]!.gpsLatitudeStart,
-                                    parts[0]!.gpsLongitudeStart)
+                                parts[0]!.gpsLongitudeStart)
                                 : LatLng(0.0, 0.0),
                             initialZoom: 13.0,
                           ),
                           children: [
                             TileLayer(
                               urlTemplate:
-                                  'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
+                              'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
                               userAgentPackageName: 'cz.delta.strnadi',
                             ),
                             MarkerLayer(
@@ -453,7 +476,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                   height: 20.0,
                                   point: parts.isNotEmpty
                                       ? LatLng(parts[0]!.gpsLatitudeStart,
-                                          parts[0]!.gpsLongitudeStart)
+                                      parts[0]!.gpsLongitudeStart)
                                       : LatLng(0.0, 0.0),
                                   child: const Icon(
                                     Icons.my_location,

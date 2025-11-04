@@ -354,7 +354,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         logger.e('Failed to fetch recordings ${response.statusCode}');
       }
     } catch (error, stackTrace) {
-      logger.e("Error generariong map ${error}",
+      logger.e("Error generariong map $error",
           error: error, stackTrace: stackTrace);
     }
   }
@@ -597,7 +597,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     userId = userId_;
     final url =
-        Uri.parse('https://${Config.host}/users/${userId}/get-profile-photo');
+        Uri.parse('https://${Config.host}/users/$userId/get-profile-photo');
     logger.i(url);
 
     try {

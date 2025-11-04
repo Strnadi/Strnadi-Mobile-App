@@ -30,6 +30,7 @@
 
 import 'dart:convert';
 import 'dart:ui';
+import 'dart:isolate';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -44,6 +45,71 @@ import 'package:strnadi/database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
 
 final logger = Logger();
+
+// ---------- Lightweight health-check port server ----------
+String _healthPortName(int recordingId) => '/upload/rec/$recordingId';
+
+ReceivePort? _healthPort;
+
+/// Start a simple reply server bound to IsolateNameServer under a well-known name.
+/// While active, UI can `lookupPortByName` and send either a `SendPort` directly
+/// or a Map with `{'replyTo': SendPort, 'cmd': 'ping'}` to receive a status reply.
+void _startHealthServer(int recordingId) {
+  // Ensure previous is closed (shouldn't normally happen in BG isolate)
+  _stopHealthServer(recordingId);
+
+  _healthPort = ReceivePort();
+
+  // (Re)register name mapping; if name is taken, remove then register.
+  final name = _healthPortName(recordingId);
+  final ok = IsolateNameServer.registerPortWithName(_healthPort!.sendPort, name);
+  if (!ok) {
+    IsolateNameServer.removePortNameMapping(name);
+    IsolateNameServer.registerPortWithName(_healthPort!.sendPort, name);
+  }
+
+  _healthPort!.listen((message) {
+    try {
+      // Accept either a SendPort directly...
+      if (message is SendPort) {
+        message.send({
+          'status': 'uploading',
+          'recordingId': recordingId,
+        });
+        return;
+      }
+      // ...or a Map with a replyTo port
+      if (message is Map) {
+        final replyTo = message['replyTo'];
+        if (replyTo is SendPort) {
+          replyTo.send({
+            'status': 'uploading',
+            'recordingId': recordingId,
+            'cmd': message['cmd'],
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // Best-effort: ignore malformed messages
+    }
+  });
+
+  logger.i('Health-check server started on ${_healthPortName(recordingId)}');
+}
+
+/// Stop and unregister the health server.
+void _stopHealthServer(int recordingId) {
+  try {
+    IsolateNameServer.removePortNameMapping(_healthPortName(recordingId));
+  } catch (_) {}
+  try {
+    _healthPort?.close();
+  } catch (_) {}
+  _healthPort = null;
+  logger.i('Health-check server stopped on ${_healthPortName(recordingId)}');
+}
+// ----------------------------------------------------------
 
 Future<void> registerPlugins() async {
   await Config.loadConfig();
@@ -249,10 +315,12 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
   }
 
   // Prevent duplicate uploads
-  final allowed = await _markRecordingSending(recording);
-  if (!allowed) {
-    return false; // indicate worker can be retried if needed
-  }
+  // final allowed = await _markRecordingSending(recording);
+  // if (!allowed) {
+  //   return false; // indicate worker can be retried if needed
+  // }
+
+  _startHealthServer(recordingId); // expose health endpoint while active
 
   try {
     await _uploadRecording(recording);
@@ -276,5 +344,7 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
     Sentry.captureException(e, stackTrace: st);
     await _notify('Nahrávání nahrávky selhalo', 'Odesílání nahrávky $recordingId selhalo s chybou: $e');
     return true; // handled; avoid infinite retries unless WorkManager policy says otherwise
+  } finally {
+    _stopHealthServer(recordingId); // always tear down mapping
   }
 }

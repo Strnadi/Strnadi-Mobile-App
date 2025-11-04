@@ -251,6 +251,7 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
     try {
       await DatabaseNew.initDb();
       await DatabaseNew.enforceMaxRecordings();
+      await DatabaseNew.checkSendingRecordings();
     } catch (e, stack) {
       logger.e('Error initializing database: $e',
           error: e, stackTrace: stack);
@@ -299,7 +300,27 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // When the app returns to foreground, reconcile any stale sending flags
+      DatabaseNew.checkSendingRecordings();
+    }
+  }
 
   bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
 

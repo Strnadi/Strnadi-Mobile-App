@@ -129,7 +129,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     );
   }
 
-  void getRecordings() async {
+  Future<void> getRecordings() async {
     List<Recording> recordings = await DatabaseNew.getRecordings();
     setState(() {
       list = recordings;
@@ -396,7 +396,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         child: RefreshIndicator(
           onRefresh: () async {
             await DatabaseNew.syncRecordings();
-            getRecordings();
+            await DatabaseNew.checkSendingRecordings();
+            await getRecordings();
           },
           child: Column(
             children: [

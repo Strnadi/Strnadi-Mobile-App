@@ -129,6 +129,24 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if necessary.
   await Firebase.initializeApp();
   logger.i("Handling a background message: ${message.messageId}");
+  if (message.data['action'] == "custom"){
+    logger.i("Custom action received in background: ${message.data}");
+    final lowerData = Map.fromEntries(
+      message.data.entries.map(
+        (e) => MapEntry(e.key.toLowerCase(), e.value),
+      ),
+    );
+    final lang = await Config.getLanguagePreference();
+
+    final fakeMessage = RemoteMessage(
+      notification: RemoteNotification(
+        title: lowerData['title$lang'],
+        body: lowerData['body$lang'],
+      ),
+    );
+    await _showLocalNotification(fakeMessage);
+    return;
+  }
   // TODO save notification
   DatabaseNew.insertNotification(message);
 }
