@@ -163,7 +163,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
   bool _showConqueredSectors = true;
   bool _showUnconfirmedDialects = showUnconfirmedDialects;
   List<Polyline> _gridLines = [];
-  Map<int, List<String>> _dialectsByRecording = {};
+  // Now stores: Map<int, (List<String>, bool)>
+  Map<int, (List<String>, bool)> _dialectsByRecording = {};
+  // Map local recordingId -> BEId (server id) for consistent lookups
+  final Map<int, int> _recLocalToBE = {};
 
   final secureStorage = const FlutterSecureStorage();
 
@@ -347,6 +350,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
         setState(() {
           _fullRecordings = recordings;
         });
+        // Build local->BE id map for consistent lookups
+        _recLocalToBE.clear();
+        for (final r in _fullRecordings) {
+          if (r.id != null && r.BEId != null) {
+            _recLocalToBE[r.id!] = r.BEId!;
+          }
+        }
+        logger.i('[MapV2] getRecordings(): local->BE map size=' + _recLocalToBE.length.toString());
         logger
             .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
         await _fetchDialects();
@@ -376,13 +387,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
       );
       final frps = api.frps; // List<FilteredRecordingPart>
       final dds = api.dds; // List<DetectedDialect>
+      if (frps.isNotEmpty) {
+        logger.d('[MapV2] example FRP beId/state: ' + (frps.first.BEId?.toString() ?? 'null') + '/' + frps.first.state.toString());
+      }
 
       logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
           frps.length.toString() +
           ', DDs=' +
           dds.length.toString());
 
-      final Map<int, List<String>> byRecording = {};
+      final Map<int, (List<String>, bool)> byRecording = {};
       int recsWithNoCodes = 0;
 
       for (final rec in _fullRecordings) {
@@ -396,6 +410,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final reps = frps
             .where((f) => f.recordingBEID == beId && f.isRepresentant)
             .toList();
+        // Add the state==7 flag
+        bool hasState7 = reps.any((f) => f.state == 7);
         logger.d('[MapV2] recBE=' +
             beId.toString() +
             ': representative FRPs=' +
@@ -443,25 +459,53 @@ class _MapScreenV2State extends State<MapScreenV2> {
           recsWithNoCodes++;
           logger.w('[MapV2] recBE=' +
               beId.toString() +
-              ': no dialect codes collected; fallback=Neurceno (repFRPs=' +
+              ': no dialect codes collected; fallback=Neznámý (repFRPs=' +
               reps.length.toString() +
               ')');
-          out = <String>['Neurceno'];
+          out = <String>['Neznámý'];
         } else {
+          // Keep insertion order first
           out = codes
-              .map((c) =>
-                  (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
+              .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
               .where((c) => c.trim().isNotEmpty)
-              .toSet()
               .toList();
-          logger.i('[MapV2] recBE=' +
-              beId.toString() +
-              ': codes=[' +
-              out.join(',') +
-              ']');
+
+          // Stabilize order by first-seen across representative FRPs so TL->BR is deterministic
+          final seenOrder = <String>[];
+          for (final frp in reps) {
+            final rows = dds.where((d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId));
+            for (final d in rows) {
+              final String? confirmed = d.confirmedDialect;
+              final String? guessed = d.userGuessDialect;
+              final String? chosen = _showUnconfirmedDialects ? (confirmed ?? guessed) : confirmed;
+              if (chosen != null && chosen.trim().isNotEmpty) {
+                final v = (chosen == 'Neurceno' || chosen == 'Nevyhodnoceno') ? 'Neznámý' : chosen.trim();
+                if (!seenOrder.contains(v)) seenOrder.add(v);
+              }
+            }
+          }
+          if (seenOrder.isNotEmpty) {
+            out.sort((a, b) {
+              final ia = seenOrder.indexOf(a);
+              final ib = seenOrder.indexOf(b);
+              return (ia < 0 ? 1 << 20 : ia).compareTo(ib < 0 ? 1 << 20 : ib);
+            });
+          }
+
+          logger.i('[MapV2] recBE=' + beId.toString() + ': codes=[' + out.join(',') + '] (ordered=[' + seenOrder.join(',') + '])');
         }
 
-        byRecording[beId] = out.isEmpty ? <String>['Neznámý'] : out;
+        // Clamp to two dialects to enable diagonal split; more than two would fall back to mix otherwise
+        if (out.length > 2) {
+          logger.w('[MapV2] recBE=' + beId.toString() + ': >2 dialects detected; clamping to first two for split visual');
+          out = out.take(2).toList();
+        }
+
+        final normalized = (out.isEmpty ? <String>['Neznámý'] : out)
+            .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
+            .where((c) => c.trim().isNotEmpty)
+            .toList(); // keep order
+        byRecording[beId] = (normalized, hasState7);
       }
 
       setState(() {
@@ -479,13 +523,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   List<String> _dialectsForRecordingId(int recordingBEId) {
-    final list = _dialectsByRecording[recordingBEId];
-    if (list == null || list.isEmpty) return const ['Neznámý'];
-    return list
+    final entry = _dialectsByRecording[recordingBEId];
+    if (entry == null || entry.$1.isEmpty) return const ['Neznámý'];
+    return entry.$1
         .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
+        .where((c) => c.trim().isNotEmpty)
         .toSet()
         .toList();
   }
+
+  bool _hasState7ForRecording(int beId) => _dialectsByRecording[beId]?.$2 ?? false;
 
   List<Marker> _buildRecordingMarkers() {
     logger.i('[MapV2] _buildRecordingMarkers(): parts=${_recordings.length}');
@@ -500,31 +547,37 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final markers = <Marker>[];
     lastPartByRecording.forEach((recId, part) {
       final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
-      final dList = _dialectsForRecordingId(recId);
-      logger.i(
-          '[MapV2] marker recId=$recId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
+      final beId = _recLocalToBE[recId] ?? recId; // fall back if equal in some datasets
+      final dList = _dialectsForRecordingId(beId);
+      logger.i('[MapV2] marker localId=$recId beId=$beId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
+      logger.d('[MapV2] marker beId=$beId dialects(${dList.length})=${dList.join('+')}');
       final dialects = dList;
       markers.add(
         Marker(
           width: 30.0,
           height: 30.0,
           point: point,
-          child: GestureDetector(
-            onTap: () {
-              getRecordingFromPartId(recId);
-            },
-            child: SizedBox(
-              width: 30.0,
-              height: 30.0,
-              child: Center(
-                child: DynamicIcon(
-                  key: ValueKey('rec_${recId}_${dialects.join('+')}'),
-                  icon: Icons.circle,
-                  iconSize: 20,
-                  padding: EdgeInsets.zero,
-                  backgroundColor: Colors.transparent,
-                  dialects:
-                      dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+          child: KeyedSubtree(
+            key: ValueKey('marker_${beId}_${dialects.join('+')}'),
+            child: GestureDetector(
+              onTap: () {
+                getRecordingFromPartId(beId);
+              },
+              child: SizedBox(
+                width: 30.0,
+                height: 30.0,
+                child: Center(
+                  child: DynamicIcon(
+                    key: ValueKey('rec_${beId}_${dialects.join('+')}'),
+                    icon: Icons.circle,
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    backgroundColor: Colors.transparent,
+                    dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+                    cacheKey: 'be:' + beId.toString() + ';dialects:' + dialects.join('+'),
+                    showCenterDot: _hasState7ForRecording(beId),
+                    dotColor: Colors.black,
+                  ),
                 ),
               ),
             ),
@@ -542,30 +595,37 @@ class _MapScreenV2State extends State<MapScreenV2> {
     for (var rec in _recordings) {
       logger.i(
           '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
-      var dialects = _dialectsForRecordingId(rec.recordingId);
+      final localId = rec.recordingId;
+      final beId = _recLocalToBE[localId] ?? localId;
+      var dialects = _dialectsForRecordingId(beId);
+      logger.d('[MapV2] sep localId=$localId beId=$beId dialects(${dialects.length})=${dialects.join('+')}');
       final point = LatLng(rec.gpsLatitudeStart, rec.gpsLongitudeStart);
-
-      var recId = rec.recordingId;
 
       var marker = Marker(
         width: 30.0,
         height: 30.0,
         point: point,
-        child: GestureDetector(
-          onTap: () {
-            getRecordingFromPartId(recId);
-          },
-          child: SizedBox(
-            width: 30.0,
-            height: 30.0,
-            child: Center(
-              child: DynamicIcon(
-                key: ValueKey('rec_${recId}_${dialects.join('+')}'),
-                icon: Icons.circle,
-                iconSize: 20,
-                padding: EdgeInsets.zero,
-                backgroundColor: Colors.transparent,
-                dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+        child: KeyedSubtree(
+          key: ValueKey('marker_${beId}_${dialects.join('+')}'),
+          child: GestureDetector(
+            onTap: () {
+              getRecordingFromPartId(beId);
+            },
+            child: SizedBox(
+              width: 30.0,
+              height: 30.0,
+              child: Center(
+                child: DynamicIcon(
+                  key: ValueKey('rec_${beId}_${dialects.join('+')}'),
+                  icon: Icons.circle,
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  backgroundColor: Colors.transparent,
+                  dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
+                  cacheKey: 'be:' + beId.toString() + ';dialects:' + dialects.join('+'),
+                  showCenterDot: _hasState7ForRecording(beId),
+                  dotColor: Colors.black,
+                ),
               ),
             ),
           ),
