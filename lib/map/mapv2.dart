@@ -758,8 +758,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Future<Widget> createClusterOfDialect(
       List<Marker> markers, String dialect) async {
-    var colors = await DialectColorCache.getColors(List.from([dialect]));
-    var color = colors[0];
+    final colors = await DialectColorCache.getColors([dialect]);
+    Color color;
+
+    if (colors.isNotEmpty) {
+      color = colors.first;
+    } else {
+      // Fall back to a neutral color for synthetic buckets like "rest" or
+      // any dialect code that does not have a configured color yet.
+      final fallback = await DialectColorCache.getColors(['Neznámý']);
+      color = fallback.isNotEmpty ? fallback.first : Colors.grey;
+    }
 
     return MarkerClusterLayerWidget(
       options: MarkerClusterLayerOptions(
