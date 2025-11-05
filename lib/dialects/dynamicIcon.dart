@@ -84,6 +84,10 @@ class DynamicIcon extends StatelessWidget {
     this.iconGradient,
     this.border,
     this.shadow,
+    this.showCenterDot = false,
+    this.dotDiameter = 6,
+    this.dotColor,
+    this.cacheKey,
   });
 
   final IconData icon;
@@ -102,6 +106,12 @@ class DynamicIcon extends StatelessWidget {
 
   final BoxBorder? border;
   final List<BoxShadow>? shadow;
+
+  final bool showCenterDot;
+  final double dotDiameter;
+  final Color? dotColor;
+
+  final String? cacheKey; // unique rebuild key to avoid stale reuse across recordings
 
   static int getColorFromHex(String hexColor) {
     hexColor = hexColor.toUpperCase().replaceAll("#", "");
@@ -232,23 +242,44 @@ class DynamicIcon extends StatelessWidget {
             : null;
 
     return FutureBuilder<List<Color>>(
+      key: ValueKey(cacheKey ?? (dialects ?? const <String>[]).join('+')),
       future: colorsFuture,
       builder: (context, snapshot) {
         // Start from explicitly provided background color/gradient as defaults
         Gradient? effBgGradient = backgroundGradient;
         Color? effBgColor = backgroundColor;
 
-        // If dialect colors are available: 1 color -> solid fill; >1 -> gradient fill
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData &&
-            snapshot.data!.isNotEmpty) {
-          final colors = snapshot.data!;
+        bool useDiagonalSplit = false;
+        List<Color> splitColors = const [];
+
+        List<Color> _chooseColors() {
+          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData && snapshot.data!.isNotEmpty) {
+            return snapshot.data!;
+          }
+          // Fallback: derive colors synchronously from defaults while waiting
+          final ds = (dialects ?? const <String>[]);
+          final cols = <Color>[];
+          for (final d in ds) {
+            final hex = DialectColorCache._defaults[d];
+            if (hex == null) continue;
+            try {
+              cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
+            } catch (_) {}
+          }
+          return cols;
+        }
+
+        final colors = _chooseColors();
+        if (colors.isNotEmpty) {
           if (colors.length == 1) {
             effBgColor = colors.first;
             effBgGradient = null;
+          } else if (colors.length == 2) {
+            useDiagonalSplit = true;
+            splitColors = colors;
+            effBgColor = null;
+            effBgGradient = null;
           } else {
-            // Build a step (hard-stop) gradient: each segment keeps a solid color
-            // by using duplicated stops at the segment boundaries.
             final hardColors = <Color>[];
             final stops = <double>[];
             final n = colors.length;
@@ -260,7 +291,6 @@ class DynamicIcon extends StatelessWidget {
               hardColors.add(colors[i]);
               stops.add(end);
             }
-
             effBgGradient = LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -268,26 +298,92 @@ class DynamicIcon extends StatelessWidget {
               stops: stops,
               tileMode: TileMode.clamp,
             );
-            effBgColor = null; // gradient drives the background
+            effBgColor = null;
           }
         }
 
         // Square content area; we don't draw a glyph now (tile itself is the icon)
         Widget glyph = SizedBox.square(dimension: iconSize);
 
+        // Optionally overlay a centered dot (e.g., to mark a special state)
+        Widget content = glyph;
+        if (showCenterDot) {
+          content = Stack(
+            alignment: Alignment.center,
+            children: [
+              glyph,
+              Container(
+                width: dotDiameter,
+                height: dotDiameter,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor ?? Colors.black,
+                ),
+              ),
+            ],
+          );
+        }
+
+        // If exactly two dialects are present, paint a hard diagonal split (TL→BR)
+        Widget paintedContent = content;
+        if (useDiagonalSplit && splitColors.length == 2) {
+          paintedContent = ClipRRect(
+            borderRadius: BorderRadius.circular(cornerRadius),
+            child: CustomPaint(
+              painter: _DiagonalSplitPainter(splitColors[0], splitColors[1]),
+              child: content,
+            ),
+          );
+        }
+
         return Container(
           padding: padding,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: effBgGradient == null ? effBgColor : null,
-            gradient: effBgGradient,
+            color: useDiagonalSplit
+                ? Colors.transparent
+                : (effBgGradient == null ? effBgColor : null),
+            gradient: useDiagonalSplit ? null : effBgGradient,
             borderRadius: BorderRadius.circular(cornerRadius),
             border: border ?? Border.all(color: Colors.black, width: 1),
             boxShadow: shadow,
           ),
-          child: glyph,
+          child: paintedContent,
         );
       },
     );
+  }
+}
+
+class _DiagonalSplitPainter extends CustomPainter {
+  final Color c1;
+  final Color c2;
+  _DiagonalSplitPainter(this.c1, this.c2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p1 = Paint()..color = c1;
+    final p2 = Paint()..color = c2;
+
+    // Triangle 1: top-left → top-right → bottom-left
+    final path1 = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path1, p1);
+
+    // Triangle 2: bottom-right → bottom-left → top-right
+    final path2 = Path()
+      ..moveTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path2, p2);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DiagonalSplitPainter oldDelegate) {
+    return oldDelegate.c1 != c1 || oldDelegate.c2 != c2;
   }
 }
