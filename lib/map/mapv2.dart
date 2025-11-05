@@ -534,15 +534,19 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   bool _hasState7ForRecording(int beId) => _dialectsByRecording[beId]?.$2 ?? false;
 
-  List<Marker> _buildRecordingMarkers() {
-    logger.i('[MapV2] _buildRecordingMarkers(): parts=${_recordings.length}');
+  Map<int, Part> _latestPartPerRecording() {
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
     final Map<int, Part> lastPartByRecording = {};
     for (final p in _recordings) {
       lastPartByRecording[p.recordingId] = p; // last wins
     }
-    logger.i(
-        '[MapV2] unique recordings for markers=${lastPartByRecording.length}');
+    logger.i('[MapV2] unique recordings captured=${lastPartByRecording.length}');
+    return lastPartByRecording;
+  }
+
+  List<Marker> _buildRecordingMarkers() {
+    logger.i('[MapV2] _buildRecordingMarkers(): parts=${_recordings.length}');
+    final lastPartByRecording = _latestPartPerRecording();
 
     final markers = <Marker>[];
     lastPartByRecording.forEach((recId, part) {
@@ -592,10 +596,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
   Map<String, List<Marker>> getDialectSeparatedRecordings() {
     Map<String, List<Marker>> dialectMarkers = {};
 
-    for (var rec in _recordings) {
+    final lastPartByRecording = _latestPartPerRecording();
+
+    lastPartByRecording.forEach((localId, rec) {
       logger.i(
           '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
-      final localId = rec.recordingId;
       final beId = _recLocalToBE[localId] ?? localId;
       var dialects = _dialectsForRecordingId(beId);
       logger.d('[MapV2] sep localId=$localId beId=$beId dialects(${dialects.length})=${dialects.join('+')}');
@@ -646,7 +651,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           dialectMarkers['rest'] = [marker];
         }
       }
-    }
+    });
     return dialectMarkers;
   }
 
@@ -753,8 +758,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Future<Widget> createClusterOfDialect(
       List<Marker> markers, String dialect) async {
-    var colors = await DialectColorCache.getColors(List.from([dialect]));
-    var color = colors[0];
+    final colors = await DialectColorCache.getColors([dialect]);
+    Color color;
+
+    if (colors.isNotEmpty) {
+      color = colors.first;
+    } else {
+      // Fall back to a neutral color for synthetic buckets like "rest" or
+      // any dialect code that does not have a configured color yet.
+      final fallback = await DialectColorCache.getColors(['Neznámý']);
+      color = fallback.isNotEmpty ? fallback.first : Colors.grey;
+    }
 
     return MarkerClusterLayerWidget(
       options: MarkerClusterLayerOptions(
