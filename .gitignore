@@ -75,3 +75,5 @@ android/output.zip
 android/pepk.jar
 
 android/upload_cert.der
+
+delete.sh
