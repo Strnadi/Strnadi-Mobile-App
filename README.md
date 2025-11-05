@@ -164,6 +164,133 @@ lib/
 └── widgets/           # Reusable UI components
 ```
 
+## App Architecture Overview
+
+```mermaid
+flowchart TD
+    subgraph UserDevice["On the user's device"]
+        User["Citizen Scientist"]
+        Sensors["Device Capabilities<br/>(Microphone, GPS, Connectivity)"]
+        subgraph FlutterApp["Flutter Mobile App"]
+            UI["Flutter UI Screens<br/>(Recording, Map, Profile, Notifications)"]
+            Services["Domain Controllers & Managers<br/>(RecordingController, MapController, AuthManager, NotificationManager)"]
+            Storage["Local Persistence<br/>(SQLite database, secure storage, file cache)"]
+            Background["Background Workers<br/>(WorkManager, Foreground Service)"]
+        end
+    end
+
+    subgraph CloudServices["Cloud services"]
+        Backend["REST API Backend"]
+        Firebase["Firebase Auth & Cloud Messaging"]
+    end
+
+    User -->|Records audio, reviews map data| UI
+    UI -->|User actions & state updates| Services
+    Services -->|Requests device sensors| Sensors
+    Sensors -->|Audio samples, GPS fixes, network status| Services
+    Services -->|Persist recordings, auth tokens| Storage
+    Storage -->|Queued uploads, cached metadata| Services
+    Services -->|Schedule sync & upload jobs| Background
+    Background -->|Upload queued recordings| Backend
+    Services -->|Submit metadata, fetch dialect data| Backend
+    Backend -->|Dialect metadata, maintenance status| Services
+    Services -->|Trigger push setup, verify users| Firebase
+    Firebase -->|Authentication state, push notifications| Services
+    Services -->|Show messages & status| UI
+    Background -->|Report progress & errors| Services
+```
+
+## Technical Snapshot for Stakeholders
+
+This chart highlights the major moving parts a technical stakeholder should know about without diving into implementation specifics.
+
+```mermaid
+flowchart LR
+    subgraph Device["Flutter app on device"]
+        UI["UI layer<br/>(Flutter widgets)"]
+        Logic["Feature logic<br/>(controllers, managers)"]
+        Local["Local storage<br/>(SQLite, secure files)"]
+    end
+
+    subgraph Cloud["Managed services"]
+        API["REST API backend"]
+        Media["Object storage<br/>(recording archives)"]
+        Firebase["Firebase Auth & Messaging"]
+        Analytics["Monitoring & analytics"]
+    end
+
+    User["Citizen scientist"] --> UI
+    UI --> Logic
+    Logic --> Local
+    Local --> Logic
+    Logic --> API
+    API --> Logic
+    API --> Media
+    Logic --> Firebase
+    Firebase --> UI
+    Firebase --> Analytics
+    Logic --> Analytics
+```
+
+## User Journey Overview
+
+```mermaid
+flowchart TB
+    subgraph Entry["Getting ready"]
+        OpenApp["Open app"]
+        Splash["App shows splash screen<br/>checks maintenance & cached login"]
+        SignedIn{"Already signed in?"}
+        SignIn["Pick Google, Apple, or email sign-in"]
+        AuthProcess["App validates credentials<br/>refreshes tokens & pulls profile"]
+        Permissions["Allow microphone & location<br/>or revisit system prompts"]
+        ReadyState["App enables GPS listeners<br/>warms caches & prepares recorder"]
+    end
+
+    OpenApp --> Splash --> SignedIn
+    SignedIn -->|No| SignIn --> AuthProcess --> Permissions
+    SignedIn -->|Yes| Permissions
+    Permissions --> ReadyState --> BottomBar
+
+    subgraph BottomNav["Bottom navigation hub"]
+        BottomBar["Bottom bar tabs<br/>(Map • List • Recorder • Notifications • Profile)"]
+    end
+
+    subgraph MapTab["Map tab"]
+        MapAction["Explore nearby recordings<br/>pan, zoom, and tap markers"]
+        MapApp["App streams tiles & dialect overlays<br/>clusters markers, tracks live position<br/>fetches detail cards on demand"]
+    end
+
+    subgraph ListTab["List tab"]
+        ListAction["Review personal & community takes<br/>filter, sort, and open details"]
+        ListApp["App syncs newest uploads<br/>shows verification & upload status<br/>serves cached WAV previews"]
+    end
+
+    subgraph RecorderTab["Recorder tab"]
+        RecordAction["Arm recorder, capture session<br/>add spoken notes or labels"]
+        RecordApp["App runs foreground service<br/>monitors levels & GPS accuracy<br/>stores WAV locally and schedules upload"]
+    end
+
+    subgraph NotificationsTab["Notifications tab"]
+        NotifyAction["Check reminders & project news"]
+        NotifyApp["App fetches inbox from backend<br/>highlights pending uploads or reviews<br/>links back into relevant tabs"]
+    end
+
+    subgraph ProfileTab["Profile tab"]
+        ProfileAction["Inspect stats, badges, preferences"]
+        ProfileApp["App aggregates contribution metrics<br/>loads profile securely<br/>saves updated settings to cloud & device"]
+    end
+
+    BottomBar --> MapAction --> MapApp --> BottomBar
+    BottomBar --> ListAction --> ListApp --> BottomBar
+    BottomBar --> RecordAction --> RecordApp --> BottomBar
+    BottomBar --> NotifyAction --> NotifyApp --> BottomBar
+    BottomBar --> ProfileAction --> ProfileApp --> BottomBar
+
+    RecordApp --> ListAction
+    RecordApp --> NotifyApp
+    MapAction --> RecordAction
+```
+
 ## Contributing
 
 We welcome contributions from developers, ornithologists, and citizen scientists! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on:
