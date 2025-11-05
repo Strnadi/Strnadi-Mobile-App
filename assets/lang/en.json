@@ -620,7 +620,8 @@
         "connectedAccounts": "Connected accounts",
         "guide": "Guide",
         "aboutProject": "About the project",
-        "aboutApp": "About the app"
+        "aboutApp": "About the app",
+        "achievements": "Achievements"
       },
       "dialogs": {
         "aboutApp": {
@@ -678,7 +679,11 @@
     }
   },
   "notifications": {
-    "title": "Notifications"
+    "title": "Notifications",
+    "uploads_in_progress": "Uploads are in progress in the background",
+    "no_notifications": "No notifications",
+    "no_uploads": "No active uploads in the background",
+    "unknown_recording": "Unknown recording"
   },
   "logout": {
     "title": "Logout",

@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/user/settingsPages/achievementsPage.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
 import 'package:strnadi/user/settingsPages/connectedPlatforms.dart';
 import 'package:strnadi/user/settingsPages/userInfo.dart' hide logger;
@@ -33,13 +34,15 @@ class MenuScreen extends StatelessWidget {
   Function() refreshUserCallback;
   Function(BuildContext, {bool popUp}) logout;
 
-  MenuScreen({Key? key, required this.refreshUserCallback, required this.logout}) : super(key: key);
+  MenuScreen(
+      {Key? key, required this.refreshUserCallback, required this.logout})
+      : super(key: key);
 
   final List<String> menuItems = [
     t('user.menu.items.personalInfo'),
     t('user.menu.items.settings'),
     t('user.menu.items.connectedAccounts'),
-    //'Vaše úspěchy',
+    t('user.menu.items.achievements'),
     t('user.menu.items.guide'),
     t('user.menu.items.aboutProject'),
     t('user.menu.items.aboutApp'),
@@ -88,8 +91,17 @@ class MenuScreen extends StatelessWidget {
       case 4:
         i = 3;
     }
+    String lang;
+    switch (await Config.getLanguagePreference()){
+      case LanguagePreference.cs:
+        lang = "cs-CZ";
+      case LanguagePreference.en:
+        lang = "en-US";
+      case LanguagePreference.de:
+        lang = "de-DE";
+    }
 
-    final url = Uri.parse('https://${Config.host}/articles/$i/Text.md');
+    final url = Uri.parse('https://${Config.host}/articles/$i/$lang.md');
     final response = await http.get(url, headers: {
       'accept': 'application/json',
     });
@@ -105,14 +117,23 @@ class MenuScreen extends StatelessWidget {
   void Executor(int index, BuildContext context) async {
     if (index == 0) {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => ProfileEditPage(refreshUserCallback: refreshUserCallback,)));
+          context,
+          MaterialPageRoute(
+              builder: (context) => ProfileEditPage(
+                    refreshUserCallback: refreshUserCallback,
+                  )));
     } else if (index == 1) {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SettingsPage(logout: logout)));
+          context,
+          MaterialPageRoute(
+              builder: (context) => SettingsPage(logout: logout)));
     } else if (index == 2) {
       Navigator.push(context,
           MaterialPageRoute(builder: (context) => Connectedplatforms()));
     } else if (index == 3) {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => AchievementsPage()));
+    } else if (index == 4) {
       var text = await getMarkdown(index);
       logger.i('Markdown content loaded');
       Navigator.push(
@@ -122,7 +143,7 @@ class MenuScreen extends StatelessWidget {
                     mdContent: text,
                     title: 'Jak nahrávat',
                   )));
-    } else if (index == 4) {
+    } else if (index == 5) {
       var text = await getMarkdown(index);
       logger.i('Markdown content loaded');
       Navigator.push(
@@ -132,7 +153,7 @@ class MenuScreen extends StatelessWidget {
                     mdContent: text,
                     title: 'O projektu',
                   )));
-    } else if (index == 5) {
+    } else if (index == 6) {
       _showAboutDialog(context);
     } else {
       // TODO: implement other menu items

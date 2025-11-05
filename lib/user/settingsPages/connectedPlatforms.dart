@@ -99,7 +99,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
         appBarTitle: "Propojené služby",
-        allawArrowBack: true,
+        allowArrowBack: true,
         content: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -107,7 +107,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
         appBarTitle: "Propojené služby",
-        allawArrowBack: true,
+        allowArrowBack: true,
         content: Center(
             child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -128,7 +128,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
       appBarTitle: "Propojené služby",
-      allawArrowBack: true,
+      allowArrowBack: true,
       content: Center(
           child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

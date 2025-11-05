@@ -19,6 +19,7 @@
 
 import 'dart:convert';
 
+import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 
@@ -26,6 +27,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import 'package:strnadi/database/Models/recording.dart';
+import '../database/fileSize.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
@@ -126,7 +129,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     );
   }
 
-  void getRecordings() async {
+  Future<void> getRecordings() async {
     List<Recording> recordings = await DatabaseNew.getRecordings();
     setState(() {
       list = recordings;
@@ -393,7 +396,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         child: RefreshIndicator(
           onRefresh: () async {
             await DatabaseNew.syncRecordings();
-            getRecordings();
+            await DatabaseNew.checkSendingRecordings();
+            await getRecordings();
           },
           child: Column(
             children: [
@@ -465,10 +469,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                                   )
                                                 : FutureBuilder<String?>(
                                                     future: () async {
-                                                      var parts =
-                                                          await DatabaseNew
-                                                              .getPartsById(
-                                                                  rec.id!);
+                                                      var parts = await DatabaseNew
+                                                          .getPartsByRecordingId(
+                                                              rec.id!);
                                                       if (parts.isEmpty) {
                                                         return rec.id
                                                             ?.toString();
@@ -547,8 +550,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                               CrossAxisAlignment.end,
                                           children: [
                                             FutureBuilder<List<RecordingPart>>(
-                                              future: Future.value(
-                                                  DatabaseNew.getPartsById(
+                                              future: Future.value(DatabaseNew
+                                                  .getPartsByRecordingId(
                                                       rec.id!)),
                                               builder: (context, snapshot) {
                                                 String status;

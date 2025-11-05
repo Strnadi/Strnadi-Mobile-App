@@ -22,10 +22,12 @@ import '../localization/localization.dart';
 class DialectBadge extends StatelessWidget {
 
   final Dialect dialect;
+  final bool showDot;
 
   const DialectBadge({
     Key? key,
     required this.dialect,
+    this.showDot = false,
   }) : super(key: key);
 
   String _formatDuration(Duration d) {
@@ -37,49 +39,63 @@ class DialectBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            t('dialectsBadge.title'),
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 12,
-            ),
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(height: 8),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.lightBlue.shade100,
-                  border: Border.all(color: Colors.black),
-                  borderRadius: BorderRadius.circular(4),
+              Text(
+                t('dialectsBadge.title'),
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  dialect.dialect,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Colors.black,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.lightBlue.shade100,
+                      border: Border.all(color: Colors.black),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      dialect.dialect,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        if (showDot)
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Colors.black,
+              shape: BoxShape.circle,
+            ),
+          ),
+      ],
     );
   }
 }

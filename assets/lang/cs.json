@@ -618,7 +618,8 @@
         "connectedAccounts": "Propojené účty",
         "guide": "Příručka",
         "aboutProject": "O projektu",
-        "aboutApp": "O aplikaci"
+        "aboutApp": "O aplikaci",
+        "achievements": "Úspěchy"
       },
       "dialogs": {
         "aboutApp": {
@@ -676,7 +677,11 @@
     }
   },
   "notifications": {
-    "title": "Notifikace"
+    "title": "Notifikace",
+    "uploads_in_progress": "Nahrávání probíhá na pozadí",
+    "no_notifications": "Žádné notifikace",
+    "no_uploads": "Žádná aktivní nahrávání na pozadí",
+    "unknown_recording": "Neznámá nahrávka"
   },
   "logout": {
     "title": "Odhlásit se",
