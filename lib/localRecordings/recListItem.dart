@@ -218,17 +218,11 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   String _formatDuration() {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    logger.i('${length.toInt()}:$mililen');
-    logger.i('Total Time => ${widget.recording.totalSeconds}');
-    double td = widget.recording.totalSeconds ?? 0.0;
-
-    int seconds = td.toInt();
-    int milliseconds = ((td - seconds) * 1000).toInt();
-
-    logger.i('TimeInit => $seconds:$milliseconds');
-
-    return '$seconds:$milliseconds';
+    int totalSeconds = widget.recording.totalSeconds!.round();
+    int minutes = totalSeconds ~/ 60;
+    int remainingSeconds = totalSeconds % 60;
+    String secondsStr = remainingSeconds.toString().padLeft(2, '0');
+    return '$minutes:$secondsStr';
   }
 
   void _showLoader() {

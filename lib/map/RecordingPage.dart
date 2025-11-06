@@ -73,8 +73,7 @@ class RecordingFromMap extends StatefulWidget {
 
   final UserData? user;
 
-  RecordingFromMap(
-      {super.key, required this.recording, required this.user});
+  RecordingFromMap({super.key, required this.recording, required this.user});
 
   @override
   _RecordingFromMapState createState() => _RecordingFromMapState();
@@ -141,9 +140,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   // this is in init but init can't be async so i did this piece of thing
   Future<void> doSomeShit() async {
     // Check if any parts exist for this recording
-    widget.recording.id = await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
+    widget.recording.id =
+        await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
     List<RecordingPart> parts =
-    await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
+        await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
     if (parts.isNotEmpty) {
       logger.i(
           "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
@@ -234,17 +234,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   String _formatDuration() {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    logger.i('${length.toInt()}:$mililen');
-    logger.i('Total Time => ${widget.recording.totalSeconds}');
-    double td = widget.recording.totalSeconds ?? 0.0;
-
-    int seconds = td.toInt();
-    int milliseconds = ((td - seconds) * 1000).toInt();
-
-    logger.i('TimeInit => $seconds:$milliseconds');
-
-    return '$seconds:$milliseconds';
+    int totalSeconds = widget.recording.totalSeconds!.round();
+    int minutes = totalSeconds ~/ 60;
+    int remainingSeconds = totalSeconds % 60;
+    String secondsStr = remainingSeconds.toString().padLeft(2, '0');
+    return '$minutes:$secondsStr';
   }
 
   @override
@@ -260,10 +254,12 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         // While we download, show the spinner screen even if a path exists
         loaded = false;
       });
-      logger.i("Initiating download for recording id: ${widget.recording.BEId}");
+      logger
+          .i("Initiating download for recording id: ${widget.recording.BEId}");
       int? id = await DatabaseNew.downloadRecording(widget.recording.BEId!);
       if (id == null) throw Exception('Download returned null id');
-      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(id);
+      Recording? updatedRecording =
+          await DatabaseNew.getRecordingFromDbById(id);
       if (updatedRecording != null) {
         setState(() {
           widget.recording = updatedRecording;
@@ -280,7 +276,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         });
       }
     } catch (e, stackTrace) {
-      logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
+      logger.e("Error downloading recording: $e",
+          error: e, stackTrace: stackTrace);
       if (mounted) {
         setState(() {
           // Exit spinner and show the regular screen with the download button again
@@ -331,7 +328,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     });
   }
 
-  Future<List<_DialectDisplayEntry>> _fetchDialectsFromBackend(int recordingBeId) async {
+  Future<List<_DialectDisplayEntry>> _fetchDialectsFromBackend(
+      int recordingBeId) async {
     final uri = Uri(
       scheme: 'https',
       host: Config.host,
@@ -363,14 +361,15 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       return const [];
     }
 
-    final List<({
-      String code,
-      String label,
-      bool representant,
-      Duration start,
-      Duration end,
-      _DialectConfidence confidence,
-    })> drafts = [];
+    final List<
+        ({
+          String code,
+          String label,
+          bool representant,
+          Duration start,
+          Duration end,
+          _DialectConfidence confidence,
+        })> drafts = [];
     final Set<String> codes = <String>{};
 
     for (final item in decoded) {
@@ -393,7 +392,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
       final Duration startOffset = _offsetWithinRecording(startDate);
       final Duration endOffset = _offsetWithinRecording(endDate);
-      final Duration safeEnd = endOffset < startOffset ? startOffset : endOffset;
+      final Duration safeEnd =
+          endOffset < startOffset ? startOffset : endOffset;
 
       final dynamic rawDialects = map['detectedDialects'];
       if (rawDialects is List && rawDialects.isNotEmpty) {
@@ -636,9 +636,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Widget _buildDialectTile(_DialectDisplayEntry entry) {
     final Color baseColor = entry.color;
-    final Color borderColor = entry.isRepresentant
-        ? baseColor
-        : Colors.grey.shade400;
+    final Color borderColor =
+        entry.isRepresentant ? baseColor : Colors.grey.shade400;
     final Color background = baseColor.withOpacity(0.12);
 
     return Container(
@@ -646,7 +645,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: background,
-        border: Border.all(color: borderColor, width: entry.isRepresentant ? 1.5 : 1),
+        border: Border.all(
+            color: borderColor, width: entry.isRepresentant ? 1.5 : 1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -771,7 +771,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         title: Text(widget.recording.name ?? ''),
         leading: IconButton(
           icon:
-          Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+              Image.asset('assets/icons/backButton.png', width: 30, height: 30),
           onPressed: () async {
             Navigator.pop(context);
           },
@@ -786,29 +786,29 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
             children: [
               widget.recording.path != null && widget.recording.path!.isNotEmpty
                   ? SizedBox(
-                height: 200,
-                width: double.infinity,
-              )
+                      height: 200,
+                      width: double.infinity,
+                    )
                   : SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(t('recListItem.noRecording')),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _downloadRecording,
-                        child: Text(t('recListItem.buttons.download')),
+                      height: 200,
+                      width: double.infinity,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(t('recListItem.noRecording')),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: _downloadRecording,
+                              child: Text(t('recListItem.buttons.download')),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
               Padding(
                 padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
                     Text(_formatDuration(),
@@ -915,17 +915,17 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                           mapController: _mapController,
                           options: MapOptions(
                             interactionOptions:
-                            InteractionOptions(flags: InteractiveFlag.none),
+                                InteractionOptions(flags: InteractiveFlag.none),
                             initialCenter: parts.isNotEmpty
                                 ? LatLng(parts[0]!.gpsLatitudeStart,
-                                parts[0]!.gpsLongitudeStart)
+                                    parts[0]!.gpsLongitudeStart)
                                 : LatLng(0.0, 0.0),
                             initialZoom: 13.0,
                           ),
                           children: [
                             TileLayer(
                               urlTemplate:
-                              'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
+                                  'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
                               userAgentPackageName: 'cz.delta.strnadi',
                             ),
                             MarkerLayer(
@@ -935,7 +935,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                   height: 20.0,
                                   point: parts.isNotEmpty
                                       ? LatLng(parts[0]!.gpsLatitudeStart,
-                                      parts[0]!.gpsLongitudeStart)
+                                          parts[0]!.gpsLongitudeStart)
                                       : LatLng(0.0, 0.0),
                                   child: const Icon(
                                     Icons.my_location,

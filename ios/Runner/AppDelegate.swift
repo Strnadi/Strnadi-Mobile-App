@@ -1,6 +1,8 @@
 import UIKit
 import Flutter
+#if canImport(workmanager_apple)
 import workmanager_apple
+#endif
 import geolocator_apple
 import file_picker
 import firebase_core
@@ -58,11 +60,13 @@ func registerPlugins(registry: FlutterPluginRegistry) {
           return true // Returning true will stop the propagation to other packages
         }
 
+#if canImport(workmanager_apple)
         // Use the global function so no context is captured.
         WorkmanagerPlugin.setPluginRegistrantCallback(registerPlugins)
 
         // Register background tasks
         WorkmanagerPlugin.registerBGProcessingTask(withIdentifier: "com.delta.strnadi.sendRecording")
+#endif
 
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
@@ -76,3 +80,4 @@ func registerPlugins(registry: FlutterPluginRegistry) {
         return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 }
+
