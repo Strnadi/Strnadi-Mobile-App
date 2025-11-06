@@ -46,6 +46,25 @@ class _RegNameState extends State<RegName> {
   final TextEditingController _surnameController = TextEditingController();
   final TextEditingController _nickController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.name != null) {
+      _nameController.text = widget.name!.trim();
+    }
+    if (widget.surname != null) {
+      _surnameController.text = widget.surname!.trim();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _surnameController.dispose();
+    _nickController.dispose();
+    super.dispose();
+  }
+
   /// Form is valid if both required fields (Jméno, Příjmení) are non-empty.
   bool get _isFormValid =>
       _nameController.text.trim().isNotEmpty &&
@@ -56,13 +75,6 @@ class _RegNameState extends State<RegName> {
     // Colors and styling constants
     const Color textColor = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
-
-    if(widget.name!=null){
-      _nameController.text = widget.name!;
-    }
-    if(widget.surname!=null){
-      _surnameController.text = widget.surname!;
-    }
 
     return PopScope(
       canPop: false,

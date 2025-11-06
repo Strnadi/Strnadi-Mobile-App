@@ -239,11 +239,14 @@ class DatabaseNew {
           int id = existing.first["id"];
           recording.id = id;
           await updateRecording(recording);
-          int index = recordings.indexWhere((r) => r.id == id);
-          if (index != -1) {
-            recordings[index] = recording;
-          } else {
-            recordings.add(recording);
+          if(recording.userId.toString() == await FlutterSecureStorage().read(key: 'userId'))
+          {
+            int index = recordings.indexWhere((r) => r.id == id);
+            if (index != -1) {
+              recordings[index] = recording;
+            } else {
+              recordings.add(recording);
+            }
           }
           logger.i(
               'Recording with BEId ${recording.BEId} updated (id: $id), path: ${recording.path}');
