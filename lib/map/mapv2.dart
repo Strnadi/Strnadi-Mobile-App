@@ -471,7 +471,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
             .where((f) => f.recordingBEID == beId && f.isRepresentant)
             .toList();
         // Add the state==7 flag
-        bool hasState7 = reps.any((f) => f.state == 7);
+        bool hasState6 = reps.any((f) => f.state == 6);
         logger.d('[MapV2] recBE=' +
             beId.toString() +
             ': representative FRPs=' +
@@ -569,7 +569,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
         final normalized = _canonicalizeDialectList(
             out.isEmpty ? <String>['Unknown'] : out);
-        byRecording[beId] = (normalized, hasState7);
+        byRecording[beId] = (normalized, hasState6);
       }
 
       setState(() {
@@ -592,7 +592,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return _canonicalizeDialectList(entry.$1);
   }
 
-  bool _hasState7ForRecording(int beId) => _dialectsByRecording[beId]?.$2 ?? false;
+  bool _hasState6ForRecording(int beId) => _dialectsByRecording[beId]?.$2 ?? false;
 
   Map<int, Part> _latestPartPerRecording() {
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
@@ -639,7 +639,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     backgroundColor: Colors.transparent,
                     dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Unknown']
                     cacheKey: 'be:' + beId.toString() + ';dialects:' + dialects.join('+'),
-                    showCenterDot: _hasState7ForRecording(beId),
+                    showCenterDot: _hasState6ForRecording(beId),
                     dotColor: Colors.black,
                   ),
                 ),
@@ -688,7 +688,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   backgroundColor: Colors.transparent,
                   dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Unknown']
                   cacheKey: 'be:' + beId.toString() + ';dialects:' + dialects.join('+'),
-                  showCenterDot: _hasState7ForRecording(beId),
+                  showCenterDot: _hasState6ForRecording(beId),
                   dotColor: Colors.black,
                 ),
               ),
