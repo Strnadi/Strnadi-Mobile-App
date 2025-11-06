@@ -104,6 +104,56 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
   }
 }
 
+Future<void> _showLocalNotificationFromData(Map<String, dynamic> data) async {
+  try {
+    final String? langPref = (await Config.getLanguagePreference()).toString();
+    final String lang = (langPref == null || langPref.isEmpty) ? 'en' : langPref;
+    final Map<String, dynamic> lower = _toLowercaseKeys(data);
+
+
+    final String? title = lower['title$lang']?.toString();
+    final String? body = lower['body$lang']?.toString();
+    logger.i('Got notification with data: $lower');
+    if (title == null && body == null) {
+      logger.w("No title/body for lang $lang in data; skipping");
+      return;
+    }
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'com.delta.strnadi',
+      'Strnadi',
+      channelDescription: 'Aplikace Strnadi',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      platformChannelSpecifics,
+    );
+  } catch (e, st) {
+    logger.e("Failed to show local notification from data", error: e, stackTrace: st);
+  }
+}
+
+Map<String, dynamic> _toLowercaseKeys(Map<String, dynamic> data) {
+  final Map<String, dynamic> lowercased = {};
+  data.forEach((key, value) {
+    if (value is Map<String, dynamic>) {
+      lowercased[key.toLowerCase()] = _toLowercaseKeys(value);
+    } else {
+      lowercased[key.toLowerCase()] = value;
+    }
+  });
+  return lowercased;
+}
+
 Future<DeviceInfo> getDeviceInfo() async {
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
   String platform;
@@ -129,23 +179,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if necessary.
   await Firebase.initializeApp();
   logger.i("Handling a background message: ${message.messageId}");
-  if (message.data['action'] == "custom"){
-    logger.i("Custom action received in background: ${message.data}");
-    final lowerData = Map.fromEntries(
-      message.data.entries.map(
-        (e) => MapEntry(e.key.toLowerCase(), e.value),
-      ),
-    );
-    final lang = await Config.getLanguagePreference();
-
-    final fakeMessage = RemoteMessage(
-      notification: RemoteNotification(
-        title: lowerData['title$lang'],
-        body: lowerData['body$lang'],
-      ),
-    );
-    await _showLocalNotification(fakeMessage);
-    return;
+  if (message.data.isNotEmpty) {
+    final hasLocalizedKeys = message.data.containsKey('titleEn') ||
+        message.data.containsKey('bodyEn') ||
+        message.data.containsKey('titleDe') ||
+        message.data.containsKey('bodyDe') ||
+        message.data.containsKey('titleCs') ||
+        message.data.containsKey('bodyCs');
+    if (hasLocalizedKeys) {
+      await _showLocalNotificationFromData(message.data);
+      // TODO save notification if needed with your own model
+      return;
+    }
   }
   // TODO save notification
   DatabaseNew.insertNotification(message);
@@ -327,6 +372,9 @@ Future<void> initFirebaseMessaging() async{
     if (message.notification != null) {
       logger.i("Message contains notification: ${message.notification?.body ?? "Empty"}");
       _showLocalNotification(message);
+    } else if (message.data.isNotEmpty) {
+      // Data-only (silent) push: decode and show locally
+      _showLocalNotificationFromData(message.data);
     }
   });
 
