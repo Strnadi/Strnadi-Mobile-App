@@ -224,6 +224,22 @@
   "dialectBadge": {
     "title": "Dialect"
   },
+  "dialectKeywords": {
+    "unknown": "Unknown",
+    "unknownDialect": "Unknown dialect",
+    "undetermined": "Undetermined",
+    "noDialect": "No Dialect",
+    "withoutDialect": "Without dialect",
+    "other": "Other",
+    "iDontKnow": "I don't know",
+    "rare": "Rare",
+    "transitional": "Transitional",
+    "mix": "Mix",
+    "atypical": "Atypical",
+    "unfinished": "Unfinished",
+    "unassessed": "Unassessed",
+    "unusable": "Unusable"
+  },
   "editRecording": {
     "title": "Edit recording",
     "fields": {
@@ -620,7 +636,8 @@
         "connectedAccounts": "Connected accounts",
         "guide": "Guide",
         "aboutProject": "About the project",
-        "aboutApp": "About the app"
+        "aboutApp": "About the app",
+        "achievements": "Achievements"
       },
       "dialogs": {
         "aboutApp": {
@@ -678,7 +695,11 @@
     }
   },
   "notifications": {
-    "title": "Notifications"
+    "title": "Notifications",
+    "uploads_in_progress": "Uploads are in progress in the background",
+    "no_notifications": "No notifications",
+    "no_uploads": "No active uploads in the background",
+    "unknown_recording": "Unknown recording"
   },
   "logout": {
     "title": "Logout",

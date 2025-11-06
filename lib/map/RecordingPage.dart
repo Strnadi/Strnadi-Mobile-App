@@ -19,6 +19,9 @@
 
 import 'dart:convert';
 
+import 'package:strnadi/database/Models/recording.dart';
+import 'package:strnadi/database/Models/recordingPart.dart';
+import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:strnadi/localization/localization.dart';
@@ -36,25 +39,48 @@ import 'package:strnadi/localRecordings/userBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/user/settingsPages/userInfo.dart';
 import 'package:strnadi/widgets/spectogram_painter.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 import '../PostRecordingForm/RecordingForm.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 
 final logger = Logger();
 
+enum _DialectConfidence { confirmed, predicted, userGuess }
+
+class _DialectDisplayEntry {
+  const _DialectDisplayEntry({
+    required this.canonicalCode,
+    required this.displayLabel,
+    required this.isRepresentant,
+    required this.startOffset,
+    required this.endOffset,
+    required this.confidence,
+    required this.color,
+  });
+
+  final String canonicalCode;
+  final String displayLabel;
+  final bool isRepresentant;
+  final Duration startOffset;
+  final Duration endOffset;
+  final _DialectConfidence confidence;
+  final Color color;
+}
+
 class RecordingFromMap extends StatefulWidget {
-  final Recording recording;
+  Recording recording;
 
   final UserData? user;
 
-
-  const RecordingFromMap({Key? key, required this.recording, required this.user}) : super(key: key);
+  RecordingFromMap(
+      {super.key, required this.recording, required this.user});
 
   @override
   _RecordingFromMapState createState() => _RecordingFromMapState();
 }
 
 class _RecordingFromMapState extends State<RecordingFromMap> {
-
   bool loaded = false;
   late LatLng center;
   late List<RecordingPart?> parts = [];
@@ -64,19 +90,26 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   bool isPlaying = false;
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
+  bool _isDownloading = false;
+  bool _dialectsLoading = false;
+  String? _dialectsError;
+  List<_DialectDisplayEntry> _dialectEntries = const [];
 
   final MapController _mapController = MapController();
 
   String placeTitle = 'Mapa';
 
-  int length = 0;
+  double length = 0;
+  int mililen = 0;
 
   @override
   void initState() {
     super.initState();
     locationService = LocationService();
     getParts();
-    logger.i("[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
+    _loadDialects();
+    logger.i(
+        "[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
 
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
       player.positionStream.listen((position) {
@@ -95,14 +128,12 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         });
       });
 
-
       getData().then((_) {
         setState(() {
           loaded = true;
         });
       });
-    }
-    else {
+    } else {
       doSomeShit();
     }
   }
@@ -110,34 +141,44 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   // this is in init but init can't be async so i did this piece of thing
   Future<void> doSomeShit() async {
     // Check if any parts exist for this recording
-    List<RecordingPart> parts = await DatabaseNew.getPartsById(widget.recording.BEId!);
+    widget.recording.id = await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
+    List<RecordingPart> parts =
+    await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
     if (parts.isNotEmpty) {
-      logger.i("[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
+      logger.i(
+          "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
       DatabaseNew.concatRecordingParts(widget.recording.BEId!).then((_) {
-        logger.i("[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
-        DatabaseNew.getRecordingFromDbById(widget.recording.BEId!).then((updatedRecording) {
-          logger.i("[RecordingItem] Fetched updated recording: $updatedRecording");
-          logger.i("[RecordingItem] Original recording path: ${widget.recording.path}");
-          if (updatedRecording?.path != null && updatedRecording!.path!.isNotEmpty) {
-            logger.i("[RecordingItem] Updated recording path: ${updatedRecording.path}");
+        logger.i(
+            "[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+        DatabaseNew.getRecordingFromDbById(widget.recording.BEId!)
+            .then((updatedRecording) {
+          logger.i(
+              "[RecordingItem] Fetched updated recording: $updatedRecording");
+          logger.i(
+              "[RecordingItem] Original recording path: ${widget.recording.path}");
+          if (updatedRecording?.path != null &&
+              updatedRecording!.path!.isNotEmpty) {
+            logger.i(
+                "[RecordingItem] Updated recording path: ${updatedRecording.path}");
           } else {
-            logger.w("[RecordingItem] Updated recording path is null or empty.");
+            logger
+                .w("[RecordingItem] Updated recording path is null or empty.");
           }
           setState(() {
-            widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+            widget.recording.path =
+                updatedRecording?.path ?? widget.recording.path;
             loaded = true;
           });
         });
       });
     } else {
-      logger.w("[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
+      logger.w(
+          "[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
       setState(() {
         loaded = true;
       });
     }
   }
-
-
 
   Future<void> getData() async {
     if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
@@ -153,37 +194,25 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<void> getParts() async {
-
     List<RecordingPart?> varts = List.empty(growable: true);
     varts.add(await DatabaseNew.getRecordingPartByBEID(widget.recording.BEId!));
 
-    int lenght = 0;
-
-    for (var part in varts) {
-      if (part == null) {
-        continue;
-      }
-      lenght += part.length ?? 0;
-    }
-
     setState(() {
-      length = lenght;
       parts = varts;
     });
 
-
-    await reverseGeocode(this.parts[0]!.gpsLatitudeStart, this.parts[0]!.gpsLongitudeStart);
+    await reverseGeocode(
+        this.parts[0]!.gpsLatitudeStart, this.parts[0]!.gpsLongitudeStart);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _mapController.move(LatLng(parts[0]!.gpsLatitudeStart, parts[0]!.gpsLongitudeStart), 13.0);
+      _mapController.move(
+          LatLng(parts[0]!.gpsLatitudeStart, parts[0]!.gpsLongitudeStart),
+          13.0);
     });
   }
 
   Future<void> _fetchRecordings() async {
-    // TODO: Add your fetch logic here if needed
-    // For now, simply refresh parts and location
-    setState(() {
-      getParts();
-    });
+    await getParts();
+    await _loadDialects();
   }
 
   void togglePlay() async {
@@ -204,11 +233,18 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     player.seek(newPosition);
   }
 
-  String _formatDuration(Duration duration) {
+  String _formatDuration() {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
+    logger.i('${length.toInt()}:$mililen');
+    logger.i('Total Time => ${widget.recording.totalSeconds}');
+    double td = widget.recording.totalSeconds ?? 0.0;
+
+    int seconds = td.toInt();
+    int milliseconds = ((td - seconds) * 1000).toInt();
+
+    logger.i('TimeInit => $seconds:$milliseconds');
+
+    return '$seconds:$milliseconds';
   }
 
   @override
@@ -219,24 +255,480 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Future<void> _downloadRecording() async {
     try {
-      logger.i("Initiating download for recording id: ${widget.recording.id}");
-      await DatabaseNew.downloadRecording(widget.recording.id!);
-      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
       setState(() {
-        widget.recording.path = updatedRecording?.path ?? widget.recording.path;
+        _isDownloading = true;
+        // While we download, show the spinner screen even if a path exists
+        loaded = false;
       });
+      logger.i("Initiating download for recording id: ${widget.recording.BEId}");
+      int? id = await DatabaseNew.downloadRecording(widget.recording.BEId!);
+      if (id == null) throw Exception('Download returned null id');
+      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(id);
+      if (updatedRecording != null) {
+        setState(() {
+          widget.recording = updatedRecording;
+        });
+        // Initialize audio player with the newly downloaded file
+        await getData();
+      }
       logger.i("Downloaded recording updated: ${widget.recording.path}");
+      // Mark as fully loaded to exit the spinner state
+      if (mounted) {
+        setState(() {
+          loaded = true;
+          _isDownloading = false;
+        });
+      }
     } catch (e, stackTrace) {
-      logger.e("Error downloading recording: \$e", error: e, stackTrace: stackTrace);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
-      );
+      logger.e("Error downloading recording: $e", error: e, stackTrace: stackTrace);
+      if (mounted) {
+        setState(() {
+          // Exit spinner and show the regular screen with the download button again
+          loaded = true;
+          _isDownloading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
+        );
+      }
     }
   }
 
+  Future<void> _loadDialects() async {
+    final int? beId = widget.recording.BEId;
+    if (beId == null) {
+      if (!mounted) return;
+      setState(() {
+        _dialectsLoading = false;
+        _dialectEntries = const [];
+        _dialectsError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _dialectsLoading = true;
+      _dialectsError = null;
+    });
+
+    List<_DialectDisplayEntry> entries = const [];
+    String? error;
+
+    try {
+      entries = await _fetchDialectsFromBackend(beId);
+    } catch (e, stackTrace) {
+      logger.e('Failed to load dialects for recording $beId',
+          error: e, stackTrace: stackTrace);
+      error = e is Exception ? e.toString() : 'Failed to load dialects';
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _dialectsLoading = false;
+      _dialectEntries = entries;
+      _dialectsError = error;
+    });
+  }
+
+  Future<List<_DialectDisplayEntry>> _fetchDialectsFromBackend(int recordingBeId) async {
+    final uri = Uri(
+      scheme: 'https',
+      host: Config.host,
+      path: '/recordings/filtered',
+      queryParameters: {
+        'recordingId': recordingBeId.toString(),
+        'verified': 'false',
+      },
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 204) {
+      return const [];
+    }
+
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+
+    final body = utf8.decode(response.bodyBytes);
+    final decoded = jsonDecode(body);
+    if (decoded is! List) {
+      return const [];
+    }
+
+    final List<({
+      String code,
+      String label,
+      bool representant,
+      Duration start,
+      Duration end,
+      _DialectConfidence confidence,
+    })> drafts = [];
+    final Set<String> codes = <String>{};
+
+    for (final item in decoded) {
+      if (item is! Map<String, dynamic>) continue;
+      final map = item;
+      final bool isRepresentant = _parseBool(map['representantFlag']);
+
+      final String? startStr = map['startDate'] as String?;
+      final String? endStr = map['endDate'] as String?;
+      if (startStr == null || endStr == null) continue;
+
+      DateTime? startDate;
+      DateTime? endDate;
+      try {
+        startDate = DateTime.parse(startStr);
+        endDate = DateTime.parse(endStr);
+      } catch (_) {
+        continue;
+      }
+
+      final Duration startOffset = _offsetWithinRecording(startDate);
+      final Duration endOffset = _offsetWithinRecording(endDate);
+      final Duration safeEnd = endOffset < startOffset ? startOffset : endOffset;
+
+      final dynamic rawDialects = map['detectedDialects'];
+      if (rawDialects is List && rawDialects.isNotEmpty) {
+        for (final dd in rawDialects) {
+          if (dd is! Map<String, dynamic>) continue;
+          final selected = _selectDialect(dd);
+          final String? rawCode = selected.code;
+          if (rawCode == null) continue;
+          final String english =
+              DialectKeywordTranslator.toEnglish(rawCode) ?? rawCode.trim();
+          if (english.isEmpty) continue;
+          final String label = DialectKeywordTranslator.toLocalized(english);
+          drafts.add((
+            code: english,
+            label: label,
+            representant: isRepresentant,
+            start: startOffset,
+            end: safeEnd,
+            confidence: selected.confidence,
+          ));
+          codes.add(english);
+        }
+      } else {
+        final String? rawCode = map['dialectCode'] as String?;
+        if (rawCode == null) continue;
+        final String english =
+            DialectKeywordTranslator.toEnglish(rawCode) ?? rawCode.trim();
+        if (english.isEmpty) continue;
+        final String label = DialectKeywordTranslator.toLocalized(english);
+        drafts.add((
+          code: english,
+          label: label,
+          representant: isRepresentant,
+          start: startOffset,
+          end: safeEnd,
+          confidence: _DialectConfidence.predicted,
+        ));
+        codes.add(english);
+      }
+    }
+
+    if (drafts.isEmpty) {
+      return const [];
+    }
+
+    final List<String> uniqueCodes = codes.toList();
+    final List<Color> colors = await DialectColorCache.getColors(uniqueCodes);
+    final Map<String, Color> colorByCode = <String, Color>{};
+    for (var i = 0; i < uniqueCodes.length; i++) {
+      colorByCode[uniqueCodes[i]] =
+          i < colors.length ? colors[i] : Colors.grey.shade400;
+    }
+
+    final entries = drafts
+        .map(
+          (draft) => _DialectDisplayEntry(
+            canonicalCode: draft.code,
+            displayLabel: draft.label,
+            isRepresentant: draft.representant,
+            startOffset: draft.start,
+            endOffset: draft.end,
+            confidence: draft.confidence,
+            color: colorByCode[draft.code] ?? Colors.grey.shade400,
+          ),
+        )
+        .toList();
+
+    entries.sort((a, b) {
+      if (a.isRepresentant != b.isRepresentant) {
+        return a.isRepresentant ? -1 : 1;
+      }
+      final int startCompare = a.startOffset.compareTo(b.startOffset);
+      if (startCompare != 0) return startCompare;
+      final int endCompare = a.endOffset.compareTo(b.endOffset);
+      if (endCompare != 0) return endCompare;
+      return a.displayLabel.compareTo(b.displayLabel);
+    });
+
+    return entries;
+  }
+
+  ({String? code, _DialectConfidence confidence}) _selectDialect(
+      Map<String, dynamic> row) {
+    String? pick(String key) {
+      final value = row[key];
+      if (value == null) return null;
+      final trimmed = value.toString().trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+
+    final confirmed = pick('confirmedDialect');
+    if (confirmed != null) {
+      return (code: confirmed, confidence: _DialectConfidence.confirmed);
+    }
+
+    final predicted = pick('predictedDialect');
+    if (predicted != null) {
+      return (code: predicted, confidence: _DialectConfidence.predicted);
+    }
+
+    final guessed = pick('userGuessDialect');
+    if (guessed != null) {
+      return (code: guessed, confidence: _DialectConfidence.userGuess);
+    }
+
+    final fallback = pick('dialectCode');
+    if (fallback != null) {
+      return (code: fallback, confidence: _DialectConfidence.userGuess);
+    }
+
+    return (code: null, confidence: _DialectConfidence.userGuess);
+  }
+
+  bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
+  }
+
+  Duration _offsetWithinRecording(DateTime timestamp) {
+    final DateTime base = widget.recording.createdAt.toUtc();
+    final Duration raw = timestamp.toUtc().difference(base);
+    return _clampDuration(raw);
+  }
+
+  Duration _clampDuration(Duration value) {
+    if (value.isNegative) {
+      return Duration.zero;
+    }
+    final double? totalSeconds = widget.recording.totalSeconds;
+    if (totalSeconds == null || totalSeconds <= 0) {
+      return value;
+    }
+    final Duration maxDuration =
+        Duration(milliseconds: (totalSeconds * 1000).round());
+    if (value > maxDuration) {
+      return maxDuration;
+    }
+    return value;
+  }
+
+  Widget _buildDialectsSection() {
+    final decoration = BoxDecoration(
+      border: Border.all(color: Colors.grey),
+      borderRadius: BorderRadius.circular(10),
+    );
+    const titleStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 14,
+    );
+
+    if (_dialectsLoading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10.0),
+        decoration: decoration,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                t('dialectBadge.title'),
+                style: titleStyle,
+              ),
+            ),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_dialectsError != null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10.0),
+        decoration: decoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t('dialectBadge.title'),
+              style: titleStyle,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              t('map.dialogs.error.title'),
+              style: TextStyle(color: Colors.red.shade400, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_dialectEntries.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10.0),
+        decoration: decoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t('dialectBadge.title'),
+              style: titleStyle,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              t('dialectKeywords.unknown'),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10.0),
+      decoration: decoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t('dialectBadge.title'),
+            style: titleStyle,
+          ),
+          const SizedBox(height: 8),
+          for (final entry in _dialectEntries) _buildDialectTile(entry),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialectTile(_DialectDisplayEntry entry) {
+    final Color baseColor = entry.color;
+    final Color borderColor = entry.isRepresentant
+        ? baseColor
+        : Colors.grey.shade400;
+    final Color background = baseColor.withOpacity(0.12);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        border: Border.all(color: borderColor, width: entry.isRepresentant ? 1.5 : 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: baseColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.displayLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (entry.isRepresentant)
+                      Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: baseColor,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatTimeRange(entry.startOffset, entry.endOffset),
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeRange(Duration start, Duration end) {
+    final String startText = _formatDurationLabel(start);
+    final String endText = _formatDurationLabel(end);
+    if (startText == endText) {
+      return startText;
+    }
+    return '$startText - $endText';
+  }
+
+  String _formatDurationLabel(Duration value) {
+    if (value <= Duration.zero) {
+      return '0:00';
+    }
+    final int totalSeconds = value.inSeconds;
+    final int hours = totalSeconds ~/ 3600;
+    final int minutes = (totalSeconds ~/ 60) % 60;
+    final int seconds = totalSeconds % 60;
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '${hours}:${twoDigits(minutes)}:${twoDigits(seconds)}';
+    }
+    final int totalMinutes = totalSeconds ~/ 60;
+    return '${totalMinutes}:${twoDigits(seconds)}';
+  }
 
   Future<void> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse("https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+    final url = Uri.parse(
+        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
     logger.i("reverse geocode url: $url");
     try {
@@ -255,9 +747,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
             placeTitle = results[0]['name'];
           });
         }
-      }
-      else {
-        logger.e("Reverse geocode failed with status code ${response.statusCode}");
+      } else {
+        logger.e(
+            "Reverse geocode failed with status code ${response.statusCode}");
       }
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
@@ -265,10 +757,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    if (!loaded && widget.recording.path != null) {
+    if (_isDownloading || (!loaded && widget.recording.path != null)) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.list,
         appBarTitle: widget.recording.name ?? '',
@@ -279,7 +770,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       appBar: AppBar(
         title: Text(widget.recording.name ?? ''),
         leading: IconButton(
-          icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+          icon:
+          Image.asset('assets/icons/backButton.png', width: 30, height: 30),
           onPressed: () async {
             Navigator.pop(context);
           },
@@ -315,20 +807,29 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    Text(_formatDuration(Duration(seconds: length)), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(_formatDuration(),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        IconButton(icon: const Icon(Icons.replay_10, size: 32), onPressed: () => seekRelative(-10)),
                         IconButton(
-                          icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                            icon: const Icon(Icons.replay_10, size: 32),
+                            onPressed: () => seekRelative(-10)),
+                        IconButton(
+                          icon: Icon(isPlaying
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_filled),
                           iconSize: 72,
                           onPressed: togglePlay,
                         ),
-                        IconButton(icon: const Icon(Icons.forward_10, size: 32), onPressed: () => seekRelative(10)),
+                        IconButton(
+                            icon: const Icon(Icons.forward_10, size: 32),
+                            onPressed: () => seekRelative(10)),
                       ],
                     ),
                     if (widget.user != null) UserBadge(user: widget.user!),
@@ -341,7 +842,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(widget.recording.note ?? 'K tomuto zaznamu neni poznamka', style: TextStyle(fontSize: 16))]),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                                widget.recording.note ??
+                                    'K tomuto zaznamu neni poznamka',
+                                style: TextStyle(fontSize: 16))
+                          ]),
                     ),
                     const SizedBox(height: 10),
                     Container(
@@ -351,24 +859,27 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
-                        children: [Container(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [Text(t('recListItem.dateTime'))],
-                              ),
-                              Text(
-                                formatDateTime(widget.recording.createdAt),
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ],
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10.0),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [Text(t('recListItem.dateTime'))],
+                                ),
+                                Text(
+                                  formatDateTime(widget.recording.createdAt),
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    _buildDialectsSection(),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(10.0),
@@ -403,9 +914,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         child: FlutterMap(
                           mapController: _mapController,
                           options: MapOptions(
-                            interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+                            interactionOptions:
+                            InteractionOptions(flags: InteractiveFlag.none),
                             initialCenter: parts.isNotEmpty
-                                ? LatLng(parts[0]!.gpsLatitudeStart, parts[0]!.gpsLongitudeStart)
+                                ? LatLng(parts[0]!.gpsLatitudeStart,
+                                parts[0]!.gpsLongitudeStart)
                                 : LatLng(0.0, 0.0),
                             initialZoom: 13.0,
                           ),
@@ -421,7 +934,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                   width: 20.0,
                                   height: 20.0,
                                   point: parts.isNotEmpty
-                                      ? LatLng(parts[0]!.gpsLatitudeStart, parts[0]!.gpsLongitudeStart)
+                                      ? LatLng(parts[0]!.gpsLatitudeStart,
+                                      parts[0]!.gpsLongitudeStart)
                                       : LatLng(0.0, 0.0),
                                   child: const Icon(
                                     Icons.my_location,

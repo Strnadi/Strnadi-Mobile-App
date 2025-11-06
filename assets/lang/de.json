@@ -224,6 +224,22 @@
   "dialectBadge": {
     "title": "Dialekt"
   },
+  "dialectKeywords": {
+    "unknown": "Unbekannt",
+    "unknownDialect": "Unbekannter Dialekt",
+    "undetermined": "Unbestimmt",
+    "noDialect": "Kein Dialekt",
+    "withoutDialect": "Ohne Dialekt",
+    "other": "Andere",
+    "iDontKnow": "Ich weiß es nicht",
+    "rare": "Selten",
+    "transitional": "Übergang",
+    "mix": "Mischung",
+    "atypical": "Atypisch",
+    "unfinished": "Unvollständig",
+    "unassessed": "Nicht bewertet",
+    "unusable": "Unbrauchbar"
+  },
   "editRecording": {
     "title": "Aufnahme bearbeiten",
     "fields": {
@@ -676,7 +692,11 @@
     }
   },
   "notifications": {
-    "title": "Benachrichtigungen"
+    "title": "Benachrichtigungen",
+    "uploads_in_progress": "Uploads laufen im Hintergrund",
+    "no_notifications": "Keine Benachrichtigungen",
+    "no_uploads": "Keine aktiven Uploads im Hintergrund",
+    "unknown_recording": "Unbekannte Aufnahme"
   },
   "logout": {
     "title": "Abmelden",

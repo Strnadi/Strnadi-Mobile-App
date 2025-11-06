@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/config.dart';
+import 'dialect_keyword_translator.dart';
 
 class DialectColorCache {
   static const _prefsKey = 'dialect_colors_v1';
@@ -30,8 +31,8 @@ class DialectColorCache {
     'BhBl': '#8ED0FF',
     'BlBh': '#4E68F0',
     'XB': '#F04D4D',
-    'Neznámý': '#aaaaaa',
-    'Bez dialektu': '#000000',
+    'Unknown': '#aaaaaa',
+    'No Dialect': '#000000',
   };
 
   static Future<Map<String, String>> _readRaw() async {
@@ -40,7 +41,13 @@ class DialectColorCache {
     if (raw == null) return {};
     try {
       final Map<String, dynamic> parsed = jsonDecode(raw);
-      return parsed.map((k, v) => MapEntry(k, v as String));
+      final normalized = <String, String>{};
+      parsed.forEach((k, v) {
+        if (v is! String) return;
+        final canonical = DialectKeywordTranslator.toEnglish(k) ?? k;
+        normalized[canonical] = v;
+      });
+      return normalized;
     } catch (_) {
       return {};
     }
@@ -48,7 +55,12 @@ class DialectColorCache {
 
   static Future<void> _writeRaw(Map<String, String> map) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, jsonEncode(map));
+    final normalized = <String, String>{};
+    map.forEach((k, v) {
+      final canonical = DialectKeywordTranslator.toEnglish(k) ?? k;
+      normalized[canonical] = v;
+    });
+    await prefs.setString(_prefsKey, jsonEncode(normalized));
   }
 
   static Future<List<Color>> getColors(List<String> dialects) async {
@@ -57,15 +69,56 @@ class DialectColorCache {
 
     // If cache is empty (first start offline), use defaults wholesale.
     final Map<String, String> source = raw.isEmpty ? _defaults : raw;
+    logger.v('[DialectColorCache] getColors: source=' + (raw.isEmpty ? 'defaults' : 'cache') + ', requested=' + dialects.join(','));
 
-    for (final d in dialects) {
-      final hex =
-          source[d] ?? _defaults[d]; // fallback per-key if missing in cache
+    for (final dRaw in dialects) {
+      final canonical =
+          DialectKeywordTranslator.toEnglish(dRaw) ?? dRaw.trim();
+      if (canonical.isEmpty) continue;
+      String? hex = source[canonical];
+      String chosenFrom = raw.isEmpty ? 'defaults' : 'cache';
+      if (hex == null) {
+        hex = source[dRaw.trim()];
+        if (hex != null) chosenFrom = 'cache-legacy';
+      }
+      if (hex == null) {
+        hex = _defaults[canonical];
+        chosenFrom = 'defaults';
+      }
+      if (hex == null) {
+        hex = _defaults['Unknown'];
+        chosenFrom = 'fallback';
+      }
       if (hex == null) continue;
       try {
         colors.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-      } catch (_) {}
+        logger.v('[DialectColorCache]  • ' +
+            canonical +
+            ' -> ' +
+            hex +
+            ' (' +
+            chosenFrom +
+            ')');
+      } catch (e) {
+        logger.w('[DialectColorCache]  ! failed to parse color for ' +
+            canonical +
+            ': ' +
+            e.toString());
+      }
     }
+
+    if (colors.isEmpty) {
+      final hex = _defaults['Unknown'];
+      if (hex != null) {
+        try {
+          colors.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
+          logger.v('[DialectColorCache]  • (empty) -> ' + hex + ' (fallback)');
+        } catch (e) {
+          logger.w('[DialectColorCache]  ! failed to parse fallback grey: ' + e.toString());
+        }
+      }
+    }
+
     return colors;
   }
 }
@@ -84,6 +137,10 @@ class DynamicIcon extends StatelessWidget {
     this.iconGradient,
     this.border,
     this.shadow,
+    this.showCenterDot = false,
+    this.dotDiameter = 6,
+    this.dotColor,
+    this.cacheKey,
   });
 
   final IconData icon;
@@ -103,6 +160,12 @@ class DynamicIcon extends StatelessWidget {
   final BoxBorder? border;
   final List<BoxShadow>? shadow;
 
+  final bool showCenterDot;
+  final double dotDiameter;
+  final Color? dotColor;
+
+  final String? cacheKey; // unique rebuild key to avoid stale reuse across recordings
+
   static int getColorFromHex(String hexColor) {
     hexColor = hexColor.toUpperCase().replaceAll("#", "");
     if (hexColor.length == 6) {
@@ -119,7 +182,7 @@ class DynamicIcon extends StatelessWidget {
     final uri = Uri(
       scheme: 'https',
       host: Config.host,
-      path: '/dialects',
+      path: '/recordings/dialects',
     );
 
     final response = await http.get(
@@ -137,29 +200,49 @@ class DynamicIcon extends StatelessWidget {
     final data = jsonDecode(response.body);
     final result = <String, String>{};
 
+    String? _normalizeHex(String? s) {
+      if (s == null) return null;
+      final t = s.trim();
+      if (t.isEmpty) return null;
+      final noHash = t.startsWith('#') ? t.substring(1) : t;
+      final hex6 = RegExp(r'^[0-9a-fA-F]{6}$');
+      if (!hex6.hasMatch(noHash)) return null;
+      return '#'+noHash.toUpperCase();
+    }
+
     if (data is Map) {
       // Map form: { "BC": "#FDE441", ... } or { "BC": {"color":"#FDE441"}, ... }
       data.forEach((k, v) {
+        String? hex;
         if (v is String) {
-          result[k.toString()] = v;
+          hex = _normalizeHex(v);
         } else if (v is Map && v['color'] is String) {
-          result[k.toString()] = v['color'] as String;
+          hex = _normalizeHex(v['color'] as String);
+        }
+        if (hex != null) {
+          result[k.toString()] = hex;
+          logger.v('[DialectColorCache] fetched ' + k.toString() + ' -> ' + hex + ' (server)');
+        } else {
+          logger.v('[DialectColorCache] skipped entry key=' + k.toString());
         }
       });
     } else if (data is List) {
       // List form: [ {"code":"BC","color":"#FDE441"}, ... ]
       for (final item in data) {
         if (item is Map) {
-          final code = (item['code'] ?? item['dialect'] ?? item['dialect_code'])
-              ?.toString();
-          final color = item['color']?.toString();
-          if (code != null && color != null) {
-            result[code] = color;
+          final code = (item['code'] ?? item['dialect'] ?? item['dialect_code'] ?? item['dialectCode'])?.toString();
+          final colorRaw = item['color']?.toString();
+          final hex = _normalizeHex(colorRaw);
+          if (code != null && hex != null) {
+            result[code] = hex;
+            logger.v('[DialectColorCache] fetched ' + code + ' -> ' + hex + ' (server)');
+          } else {
+            logger.v('[DialectColorCache] skipped entry code=' + (code?.toString() ?? 'null') + ' color=' + (colorRaw?.toString() ?? 'null'));
           }
         }
       }
     } else {
-      logger.w('Unexpected /dialects response format: ${data.runtimeType}');
+      logger.w('Unexpected /recordings/dialects response format: ' + data.runtimeType.toString());
     }
 
     return result;
@@ -188,6 +271,7 @@ class DynamicIcon extends StatelessWidget {
         return;
       }
       await DialectColorCache._writeRaw(serverMap);
+      logger.i('[DialectColorCache] refreshDialects: cached ' + serverMap.length.toString() + ' entries from server.');
     } catch (e) {
       logger.e('Failed to refresh dialect colors: $e');
     }
@@ -196,6 +280,50 @@ class DynamicIcon extends StatelessWidget {
   /// Convenience wrapper to refresh all dialect colors.
   static Future<void> refreshAllDialects() async {
     await refreshDialects();
+  }
+
+  /// Fetch all dialect codes from server, regardless of whether a color is provided.
+  /// Uses the same /recordings/dialects endpoint but does not filter out empty colors.
+  static Future<List<String>> fetchAllDialectCodesFromServer() async {
+    final uri = Uri(
+      scheme: 'https',
+      host: Config.host,
+      path: '/recordings/dialects',
+    );
+    try {
+      final response = await http.get(uri, headers: { 'Content-Type': 'application/json' });
+      if (response.statusCode != 200) {
+        logger.w('[DynamicIcon] fetchAllDialectCodesFromServer HTTP ' + response.statusCode.toString());
+        return const [];
+      }
+      final body = jsonDecode(response.body);
+      final codes = <String>{};
+      if (body is List) {
+        for (final item in body) {
+          if (item is Map) {
+            final code = (item['dialectCode'] ?? item['code'] ?? item['dialect'] ?? item['dialect_code'])?.toString();
+            if (code != null && code.trim().isNotEmpty) codes.add(code.trim());
+          }
+        }
+      } else if (body is Map) {
+        // Map form: keys are codes
+        for (final k in body.keys) {
+          final code = k.toString();
+          if (code.trim().isNotEmpty) codes.add(code.trim());
+        }
+      }
+      final out = codes.toList()..sort();
+      logger.i('[DynamicIcon] fetchAllDialectCodesFromServer: ' + out.length.toString() + ' codes');
+      return out;
+    } catch (e) {
+      logger.e('[DynamicIcon] fetchAllDialectCodesFromServer error: ' + e.toString());
+      return const [];
+    }
+  }
+
+  /// Return the built-in default dialect keys (for fallback in legends etc.).
+  static List<String> getDefaultDialectKeys() {
+    return DialectColorCache._defaults.keys.toList();
   }
 
   /// Returns a map of dialect -> Color for legend display.
@@ -232,23 +360,62 @@ class DynamicIcon extends StatelessWidget {
             : null;
 
     return FutureBuilder<List<Color>>(
+      key: ValueKey(cacheKey ?? (dialects ?? const <String>[]).join('+')),
       future: colorsFuture,
       builder: (context, snapshot) {
         // Start from explicitly provided background color/gradient as defaults
         Gradient? effBgGradient = backgroundGradient;
         Color? effBgColor = backgroundColor;
 
-        // If dialect colors are available: 1 color -> solid fill; >1 -> gradient fill
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData &&
-            snapshot.data!.isNotEmpty) {
-          final colors = snapshot.data!;
+        bool useDiagonalSplit = false;
+        List<Color> splitColors = const [];
+
+        List<Color> _chooseColors() {
+          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData && snapshot.data!.isNotEmpty) {
+            logger.v('[DynamicIcon] colors from async cache for ' + (dialects ?? const <String>[]).join(',') + ' -> ' + snapshot.data!.length.toString() + ' color(s)');
+            return snapshot.data!;
+          }
+          // Fallback: derive colors synchronously from defaults while waiting
+          final ds = (dialects ?? const <String>[]);
+          logger.v('[DynamicIcon] sync fallback colors for ' + ds.join(','));
+          final cols = <Color>[];
+          for (final dRaw in ds) {
+            final d = (dRaw).trim();
+            if (d.isEmpty) continue;
+            final hex = DialectColorCache._defaults[d] ?? DialectColorCache._defaults['Unknown'];
+            if (hex == null) continue;
+            try {
+              cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
+              logger.v('[DynamicIcon]  • ' + d + ' -> ' + hex + ' (defaults/sync)');
+            } catch (e) {
+              logger.w('[DynamicIcon]  ! failed to parse hex for ' + d + ': ' + e.toString());
+            }
+          }
+          if (cols.isEmpty) {
+            final hex = DialectColorCache._defaults['Unknown'];
+            if (hex != null) {
+              try {
+                cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
+                logger.v('[DynamicIcon]  • (empty) -> ' + hex + ' (fallback/sync)');
+              } catch (e) {
+                logger.w('[DynamicIcon]  ! failed to parse sync fallback grey: ' + e.toString());
+              }
+            }
+          }
+          return cols;
+        }
+
+        final colors = _chooseColors();
+        if (colors.isNotEmpty) {
           if (colors.length == 1) {
             effBgColor = colors.first;
             effBgGradient = null;
+          } else if (colors.length == 2) {
+            useDiagonalSplit = true;
+            splitColors = colors;
+            effBgColor = null;
+            effBgGradient = null;
           } else {
-            // Build a step (hard-stop) gradient: each segment keeps a solid color
-            // by using duplicated stops at the segment boundaries.
             final hardColors = <Color>[];
             final stops = <double>[];
             final n = colors.length;
@@ -260,7 +427,6 @@ class DynamicIcon extends StatelessWidget {
               hardColors.add(colors[i]);
               stops.add(end);
             }
-
             effBgGradient = LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -268,26 +434,96 @@ class DynamicIcon extends StatelessWidget {
               stops: stops,
               tileMode: TileMode.clamp,
             );
-            effBgColor = null; // gradient drives the background
+            effBgColor = null;
           }
+        } else {
+          // Final safeguard: always show grey fill for unknown/empty cases
+          effBgColor = Color(int.parse('0xffaaaaaa'));
+          effBgGradient = null;
         }
 
         // Square content area; we don't draw a glyph now (tile itself is the icon)
         Widget glyph = SizedBox.square(dimension: iconSize);
 
+        // Optionally overlay a centered dot (e.g., to mark a special state)
+        Widget content = glyph;
+        if (showCenterDot) {
+          content = Stack(
+            alignment: Alignment.center,
+            children: [
+              glyph,
+              Container(
+                width: dotDiameter,
+                height: dotDiameter,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor ?? Colors.black,
+                ),
+              ),
+            ],
+          );
+        }
+
+        // If exactly two dialects are present, paint a hard diagonal split (TL→BR)
+        Widget paintedContent = content;
+        if (useDiagonalSplit && splitColors.length == 2) {
+          paintedContent = ClipRRect(
+            borderRadius: BorderRadius.circular(cornerRadius),
+            child: CustomPaint(
+              painter: _DiagonalSplitPainter(splitColors[0], splitColors[1]),
+              child: content,
+            ),
+          );
+        }
+
         return Container(
           padding: padding,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: effBgGradient == null ? effBgColor : null,
-            gradient: effBgGradient,
+            color: useDiagonalSplit
+                ? Colors.transparent
+                : (effBgGradient == null ? effBgColor : null),
+            gradient: useDiagonalSplit ? null : effBgGradient,
             borderRadius: BorderRadius.circular(cornerRadius),
             border: border ?? Border.all(color: Colors.black, width: 1),
             boxShadow: shadow,
           ),
-          child: glyph,
+          child: paintedContent,
         );
       },
     );
+  }
+}
+
+class _DiagonalSplitPainter extends CustomPainter {
+  final Color c1;
+  final Color c2;
+  _DiagonalSplitPainter(this.c1, this.c2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p1 = Paint()..color = c1;
+    final p2 = Paint()..color = c2;
+
+    // Triangle 1: top-left → top-right → bottom-left
+    final path1 = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path1, p1);
+
+    // Triangle 2: bottom-right → bottom-left → top-right
+    final path2 = Path()
+      ..moveTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path2, p2);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DiagonalSplitPainter oldDelegate) {
+    return oldDelegate.c1 != c1 || oldDelegate.c2 != c2;
   }
 }

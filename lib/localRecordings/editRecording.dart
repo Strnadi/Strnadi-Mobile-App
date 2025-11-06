@@ -23,6 +23,8 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/database/databaseNew.dart';
 
+import 'package:strnadi/database/Models/recording.dart';
+
 class EditRecordingPage extends StatefulWidget {
   final Recording recording;
 

@@ -42,7 +42,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   final String? appBarTitle;
   final Widget content;
   final VoidCallback? logout;
-  final allawArrowBack;
+  final allowArrowBack;
   final IconData? icon;
   final bool? isGuestUser;
 
@@ -55,7 +55,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
     required this.content,
     required this.selectedPage, // Make selectedPage required
     this.logout,
-    this.allawArrowBack = false,
+    this.allowArrowBack = false,
     this.icon,
     this.isGuestUser,
   }) : super(key: key);
@@ -100,7 +100,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
                       },
                     ),
                 ],
-                automaticallyImplyLeading: allawArrowBack,
+                automaticallyImplyLeading: allowArrowBack,
               )
             : null,
         backgroundColor: Colors.white,

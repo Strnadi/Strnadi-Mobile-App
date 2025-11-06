@@ -19,6 +19,8 @@ import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:logger/logger.dart';
 
+import '../config/config.dart';
+
 final logger = Logger();
 
 Future<Map<String, dynamic>> loadServiceAccountJson() async {
@@ -42,13 +44,43 @@ Future<void> sendPushNotificationDirectly(String deviceToken, String title, Stri
     final client = await clientViaServiceAccount(accountCredentials, scopes);
     final url = Uri.parse('https://fcm.googleapis.com/v1/projects/$projectId/messages:send');
 
+    // Build a data-only, silent push. The client should read:
+    //   final lang = data['lang'];
+    //   final title = jsonDecode(data['title'])[lang];
+    //   final message = jsonDecode(data['message'])[lang];
+    const String iosBundleId = 'com.delta.strnadi';
+    final String lang = Config.getLanguagePreference().toString();
+    final Map<String, String> titleMap = {'en': title};
+    final Map<String, String> messageMap = {'en': body};
+
     final payload = {
       "message": {
         "token": deviceToken,
-        "notification": {
-          "title": title,
-          "body": body,
+        "data": {
+          "lang": lang,
+          "title": jsonEncode(titleMap),
+          "message": jsonEncode(messageMap),
         },
+        "apns": {
+          "headers": {
+            // Required on iOS 13+
+            "apns-push-type": "background",
+            // 5 for background, 10 for alert
+            "apns-priority": "5",
+            // Must equal your iOS bundle identifier
+            "apns-topic": iosBundleId
+          },
+          "payload": {
+            "aps": {
+              // Silent/background push
+              "content-available": 1
+            }
+          }
+        },
+        "android": {
+          // Normal for data-only; use "high" if you need immediate delivery
+          "priority": "normal"
+        }
       }
     };
 

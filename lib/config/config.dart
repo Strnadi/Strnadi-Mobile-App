@@ -31,7 +31,16 @@ enum DataUsageOption { wifiOnly, wifiAndMobile }
 /// Server health status codes
 enum ServerHealth { healthy, maintenance, offline }
 
-enum LanguagePreference { en, cs, de }
+enum LanguagePreference {
+  en,
+  cs,
+  de;
+
+  String GetVal() => "Hello";
+
+  @override
+  String toString() => this.name;
+}
 
 enum HostEnvironment { prod, dev }
 
@@ -206,13 +215,16 @@ class Config {
         return ServerHealth.offline;
       }
     } on SocketException catch (e, stackTrace) {
-      logger.w('SocketException when checking API health: $e', error: e, stackTrace: stackTrace);
+      logger.w('SocketException when checking API health: $e',
+          error: e, stackTrace: stackTrace);
       return ServerHealth.offline;
     } on TimeoutException catch (e, stackTrace) {
-      logger.w('Timeout when checking API health: $e', error: e, stackTrace: stackTrace);
+      logger.w('Timeout when checking API health: $e',
+          error: e, stackTrace: stackTrace);
       return ServerHealth.offline;
     } catch (e, stackTrace) {
-      logger.e('Unexpected error checking API health: $e', error: e, stackTrace: stackTrace);
+      logger.e('Unexpected error checking API health: $e',
+          error: e, stackTrace: stackTrace);
       return ServerHealth.offline;
     }
   }

@@ -15,6 +15,8 @@
  */
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +45,7 @@ import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -51,8 +54,50 @@ import 'package:strnadi/recording/ios/recordingLiveActivity.dart' as recLA;
 
 // Create a global logger instance.
 final logger = Logger();
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
+
+class UploadProgressBridge {
+  static const String portName = 'upload_progress_port';
+  static final UploadProgressBridge instance = UploadProgressBridge._();
+  UploadProgressBridge._();
+
+  ReceivePort? _port;
+
+  void start() {
+    // Ensure we always own the mapping
+    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    _port = ReceivePort();
+    IsolateNameServer.registerPortWithName(_port!.sendPort, portName);
+
+    _port!.listen((msg) {
+      try {
+        if (msg is List && msg.isNotEmpty) {
+          final String kind = msg[0] as String;
+          if (kind == 'update' && msg.length >= 4) {
+            final int partId = msg[1] as int;
+            final int sent   = msg[2] as int;
+            final int total  = msg[3] as int;
+            UploadProgressBus.update(partId, sent, total);
+          } else if (kind == 'done' && msg.length >= 2) {
+            final int partId = msg[1] as int;
+            UploadProgressBus.markDone(partId);
+          }
+        }
+      } catch (e) {
+        logger.d('[UploadProgressBridge] error: $e');
+      }
+    });
+    logger.d('[UploadProgressBridge] started and listening on $portName');
+  }
+
+  void stop() {
+    try { _port?.close(); } catch (_) {}
+    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    logger.d('[UploadProgressBridge] stopped');
+  }
+}
 
 void _showMessage(BuildContext context, String message) {
   showDialog(
@@ -94,11 +139,16 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    // Register global upload progress bridge so background isolates can report to UI
+    UploadProgressBridge.instance.start();
 
     // 1) Firebase initialization
     await Firebase.initializeApp();
     await Config.loadConfig();
     await Config.loadFirebaseConfig();
+
+    // Warm the dialect-color cache from the server (non-blocking)
+    unawaited(DynamicIcon.refreshAllDialects());
 
     // 2) Workmanager initialization
     Workmanager().initialize(
@@ -204,7 +254,9 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
     // Initialize your database and other services.
     logger.i('Loading database');
     try {
-      await DatabaseNew.database.timeout(const Duration(seconds: 10));
+      await DatabaseNew.initDb();
+      await DatabaseNew.enforceMaxRecordings();
+      await DatabaseNew.checkSendingRecordings();
     } catch (e, stack) {
       logger.e('Error initializing database: $e',
           error: e, stackTrace: stack);
@@ -253,7 +305,27 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // When the app returns to foreground, reconcile any stale sending flags
+      DatabaseNew.checkSendingRecordings();
+    }
+  }
 
   bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
 

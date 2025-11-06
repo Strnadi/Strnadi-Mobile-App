@@ -19,6 +19,7 @@
 
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/widgets/GuestUserWarning.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';

@@ -19,6 +19,7 @@
 
 import 'dart:convert';
 
+import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 
@@ -26,7 +27,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import 'package:strnadi/database/Models/recording.dart';
+import '../database/fileSize.dart';
 import '../dialects/ModelHandler.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
@@ -57,6 +61,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   SortBy sortOptions = SortBy.date;
 
   bool isAscending = true; // Add
+
+  bool compactView = false; // Default to detailed view
 
   Timer? _refreshTimer;
 
@@ -126,7 +132,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     );
   }
 
-  void getRecordings() async {
+  Future<void> getRecordings() async {
     List<Recording> recordings = await DatabaseNew.getRecordings();
     setState(() {
       list = recordings;
@@ -241,6 +247,125 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   });
                   Navigator.pop(context);
                 }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildCompactRecordingItem(
+      Recording rec, String dateText, VoidCallback openRec) {
+    return InkWell(
+      onTap: openRec,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            rec.name != null
+                ? Text(
+                    _truncateName(rec.name!, maxLength: 14),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  )
+                : FutureBuilder<String?>(
+                    future: () async {
+                      var parts =
+                          await DatabaseNew.getPartsByRecordingId(rec.id!);
+                      if (parts.isEmpty) return rec.id?.toString();
+                      String? text = await reverseGeocode(
+                              parts[0].gpsLatitudeStart,
+                              parts[0].gpsLongitudeStart) ??
+                          rec.id?.toString();
+                      rec.name = text;
+                      return text;
+                    }(),
+                    builder: (context, snapshot) {
+                      String topText;
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        topText = t('recList.name.loading');
+                      } else if (snapshot.hasError || snapshot.data == null) {
+                        topText =
+                            rec.id?.toString() ?? t('recList.name.unknown');
+                      } else {
+                        topText = snapshot.data!;
+                      }
+                      return Text(
+                        _truncateName(topText, maxLength: 10),
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
+                      );
+                    },
+                  ),
+            VerticalDivider(width: 8),
+            Text(
+              dateText.split(' ').first,
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+            VerticalDivider(width: 8),
+            FutureBuilder<String>(
+              future: getDialectName(rec.id!),
+              builder: (context, snapshot) {
+                final txt = (snapshot.connectionState == ConnectionState.done &&
+                        snapshot.hasData)
+                    ? snapshot.data!
+                    : t('recList.dialect.loading');
+                return Text(
+                  txt,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                );
+              },
+            ),
+            VerticalDivider(width: 8),
+            if (rec.estimatedBirdsCount != null)
+              Text(
+                '${rec.estimatedBirdsCount}',
+                style: TextStyle(fontSize: 12, color: Colors.amber[700]),
+              ),
+            VerticalDivider(width: 8),
+            FutureBuilder<List<RecordingPart>>(
+              future: Future.value(DatabaseNew.getPartsByRecordingId(rec.id!)),
+              builder: (context, snapshot) {
+                String status;
+                Color color;
+                if (rec.sending) {
+                  status = '🔵';
+                  color = Colors.blue;
+                } else if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  status = t('recList.status.checkingParts');
+                  color = Colors.grey;
+                } else if (snapshot.hasError) {
+                  status = rec.sent ? '✅' : '❌';
+                  color = rec.sent ? Colors.green : Colors.orange;
+                } else {
+                  final parts = snapshot.data!;
+                  if (rec.sent && parts.any((p) => !p.sent)) {
+                    status = '❌';
+                    color = Colors.red;
+                  } else {
+                    status = rec.sent ? '✅' : '❌';
+                    color = rec.sent ? Colors.green : Colors.orange;
+                  }
+                }
+                return Text(
+                  status,
+                  style: TextStyle(
+                      fontSize: 12, color: color, fontWeight: FontWeight.w600),
+                );
+              },
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_right, color: Colors.grey, size: 18),
           ],
         ),
       ),
@@ -382,6 +507,15 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           backgroundColor: Colors.white,
           actions: [
             IconButton(
+              icon: Icon(compactView ? Icons.view_agenda : Icons.view_headline),
+              tooltip: compactView
+                  ? "Switch to detailed view"
+                  : "Switch to compact view",
+              onPressed: () => setState(() {
+                compactView = !compactView;
+              }),
+            ),
+            IconButton(
               icon: const Icon(Icons.sort),
               color: Colors.black,
               onPressed: () => _showSortFilterOptions(context),
@@ -393,7 +527,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         child: RefreshIndicator(
           onRefresh: () async {
             await DatabaseNew.syncRecordings();
-            getRecordings();
+            await DatabaseNew.checkSendingRecordings();
+            await getRecordings();
           },
           child: Column(
             children: [
@@ -430,195 +565,208 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                               ? formatDateTime(rec.createdAt!)
                               : '';
 
-                          return InkWell(
-                              onTap: () => openRecording(rec),
-                              child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            rec.name != null
-                                                ? Text(
-                                                    _truncateName(rec.name!),
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  )
-                                                : FutureBuilder<String?>(
-                                                    future: () async {
-                                                      var parts =
-                                                          await DatabaseNew
-                                                              .getPartsById(
-                                                                  rec.id!);
-                                                      if (parts.isEmpty) {
-                                                        return rec.id
-                                                            ?.toString();
-                                                      }
-                                                      String? text =
-                                                          await reverseGeocode(
-                                                                  parts[0]
-                                                                      .gpsLatitudeStart,
-                                                                  parts[0]
-                                                                      .gpsLongitudeStart) ??
-                                                              rec.id
-                                                                  ?.toString();
-                                                      rec.name = text;
-                                                      return text;
-                                                    }(),
-                                                    builder:
-                                                        (context, snapshot) {
-                                                      String topText;
-                                                      if (snapshot
-                                                              .connectionState ==
-                                                          ConnectionState
-                                                              .waiting) {
-                                                        topText = t(
-                                                            'recList.name.loading');
-                                                      } else if (snapshot
-                                                              .hasError ||
-                                                          snapshot.data ==
-                                                              null) {
-                                                        topText = rec.id
-                                                                ?.toString() ??
-                                                            t('recList.name.unknown');
-                                                      } else {
-                                                        topText =
-                                                            snapshot.data!;
-                                                      }
-                                                      return Text(
-                                                        _truncateName(topText),
-                                                        style: TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                            const SizedBox(height: 4),
-                                            FutureBuilder<String>(
-                                              future: getDialectName(rec.id!),
-                                              builder: (context, snapshot) {
-                                                String dialectText;
-                                                if (snapshot.connectionState ==
-                                                    ConnectionState.waiting) {
-                                                  dialectText = t(
-                                                      'recList.dialect.loading');
-                                                } else if (snapshot.hasError ||
-                                                    snapshot.data == null) {
-                                                  dialectText = t(
-                                                      'recList.dialect.unknown');
-                                                } else {
-                                                  dialectText = snapshot.data!;
-                                                }
-                                                return Text(
-                                                  dialectText,
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.grey,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
+                          if (compactView) {
+                            return buildCompactRecordingItem(
+                                rec, dateText, () => openRecording(rec));
+                          } else {
+                            return InkWell(
+                                onTap: () => openRecording(rec),
+                                child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
                                         ),
-                                        // Right Column
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            FutureBuilder<List<RecordingPart>>(
-                                              future: Future.value(
-                                                  DatabaseNew.getPartsById(
-                                                      rec.id!)),
-                                              builder: (context, snapshot) {
-                                                String status;
-                                                Color color;
-                                                if (rec.sending) {
-                                                  status = t(
-                                                      'recList.status.sending');
-                                                  color = Colors.blue;
-                                                } else if (snapshot
-                                                        .connectionState ==
-                                                    ConnectionState.waiting) {
-                                                  status = t(
-                                                      'recList.status.checkingParts');
-                                                  color = Colors.grey;
-                                                } else if (snapshot.hasError) {
-                                                  status = rec.sent
-                                                      ? t('recList.status.uploaded')
-                                                      : t('recList.status.waitingForUpload');
-                                                  color = rec.sent
-                                                      ? Colors.green
-                                                      : Colors.orange;
-                                                } else {
-                                                  final parts = snapshot.data!;
-                                                  if (rec.sent &&
-                                                      parts.any(
-                                                          (p) => !p.sent)) {
-                                                    logger.w(
-                                                        'Unsent parts found');
-                                                    String partsS = "";
-                                                    for (var part in parts) {
-                                                      partsS +=
-                                                          '${part.toJson()}\n';
-                                                    }
-                                                    logger.w(
-                                                        'All parts: $partsS');
-                                                    status = t(
-                                                        'recList.status.unsentParts');
-                                                    color = Colors.red;
+                                      ],
+                                    ),
+                                    child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              rec.name != null
+                                                  ? Text(
+                                                      _truncateName(rec.name!),
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    )
+                                                  : FutureBuilder<String?>(
+                                                      future: () async {
+                                                        var parts =
+                                                            await DatabaseNew
+                                                                .getPartsByRecordingId(
+                                                                    rec.id!);
+                                                        if (parts.isEmpty) {
+                                                          return rec.id
+                                                              ?.toString();
+                                                        }
+                                                        String? text =
+                                                            await reverseGeocode(
+                                                                    parts[0]
+                                                                        .gpsLatitudeStart,
+                                                                    parts[0]
+                                                                        .gpsLongitudeStart) ??
+                                                                rec.id
+                                                                    ?.toString();
+                                                        rec.name = text;
+                                                        return text;
+                                                      }(),
+                                                      builder:
+                                                          (context, snapshot) {
+                                                        String topText;
+                                                        if (snapshot
+                                                                .connectionState ==
+                                                            ConnectionState
+                                                                .waiting) {
+                                                          topText = t(
+                                                              'recList.name.loading');
+                                                        } else if (snapshot
+                                                                .hasError ||
+                                                            snapshot.data ==
+                                                                null) {
+                                                          topText = rec.id
+                                                                  ?.toString() ??
+                                                              t('recList.name.unknown');
+                                                        } else {
+                                                          topText =
+                                                              snapshot.data!;
+                                                        }
+                                                        return Text(
+                                                          _truncateName(
+                                                              topText),
+                                                          style: TextStyle(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                              const SizedBox(height: 4),
+                                              FutureBuilder<String>(
+                                                future: getDialectName(rec.id!),
+                                                builder: (context, snapshot) {
+                                                  String dialectText;
+                                                  if (snapshot
+                                                          .connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    dialectText = t(
+                                                        'recList.dialect.loading');
+                                                  } else if (snapshot
+                                                          .hasError ||
+                                                      snapshot.data == null) {
+                                                    dialectText = t(
+                                                        'recList.dialect.unknown');
                                                   } else {
+                                                    dialectText =
+                                                        snapshot.data!;
+                                                  }
+                                                  return Text(
+                                                    dialectText,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                          // Right Column
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              FutureBuilder<
+                                                  List<RecordingPart>>(
+                                                future: Future.value(DatabaseNew
+                                                    .getPartsByRecordingId(
+                                                        rec.id!)),
+                                                builder: (context, snapshot) {
+                                                  String status;
+                                                  Color color;
+                                                  if (rec.sending) {
+                                                    status = t(
+                                                        'recList.status.sending');
+                                                    color = Colors.blue;
+                                                  } else if (snapshot
+                                                          .connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    status = t(
+                                                        'recList.status.checkingParts');
+                                                    color = Colors.grey;
+                                                  } else if (snapshot
+                                                      .hasError) {
                                                     status = rec.sent
                                                         ? t('recList.status.uploaded')
                                                         : t('recList.status.waitingForUpload');
                                                     color = rec.sent
                                                         ? Colors.green
                                                         : Colors.orange;
+                                                  } else {
+                                                    final parts =
+                                                        snapshot.data!;
+                                                    if (rec.sent &&
+                                                        parts.any(
+                                                            (p) => !p.sent)) {
+                                                      logger.w(
+                                                          'Unsent parts found');
+                                                      String partsS = "";
+                                                      for (var part in parts) {
+                                                        partsS +=
+                                                            '${part.toJson()}\n';
+                                                      }
+                                                      logger.w(
+                                                          'All parts: $partsS');
+                                                      status = t(
+                                                          'recList.status.unsentParts');
+                                                      color = Colors.red;
+                                                    } else {
+                                                      status = rec.sent
+                                                          ? t('recList.status.uploaded')
+                                                          : t('recList.status.waitingForUpload');
+                                                      color = rec.sent
+                                                          ? Colors.green
+                                                          : Colors.orange;
+                                                    }
                                                   }
-                                                }
-                                                return Text(
-                                                  status,
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: color,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              dateText,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey,
+                                                  return Text(
+                                                    status,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: color,
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                            ),
-                                            const Icon(Icons.chevron_right,
-                                                color: Colors.grey),
-                                          ],
-                                        ),
-                                      ])));
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                dateText,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              const Icon(Icons.chevron_right,
+                                                  color: Colors.grey),
+                                            ],
+                                          ),
+                                        ])));
+                          }
                         },
                       ),
               ),
@@ -673,17 +821,24 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         return t('recList.dialect.without');
       }
 
-      // Return the first non‑empty, non‑placeholder dialect we find.
+      // Return the first non-empty, non-placeholder dialect we find.
       for (final d in dialects) {
-        final String? name = d.userGuessDialect;
-        if (name != null &&
-            name.isNotEmpty &&
-            name != t('recList.dialect.undetermined')) {
-          return name;
+        final String? english = DialectKeywordTranslator.toEnglish(d.userGuessDialect);
+        if (english != null && english.isNotEmpty) {
+          if (english == 'Unassessed' || english == 'Undetermined') {
+            continue;
+          }
+          if (english == 'Unknown' || english == 'Unknown dialect') {
+            return t('recList.dialect.unknown');
+          }
+          if (english == 'No Dialect') {
+            return t('recList.dialect.without');
+          }
+          return DialectKeywordTranslator.toLocalized(english);
         }
       }
 
-      // If every dialect string is empty or "Nevyhodnoceno", fall back.
+      // If every dialect string is empty or undetermined, fall back.
       return t('recList.dialect.unknown');
     } catch (e, stackTrace) {
       logger.e('Error fetching dialects for recording $recordingId: $e',

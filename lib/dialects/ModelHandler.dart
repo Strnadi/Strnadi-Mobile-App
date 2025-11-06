@@ -15,8 +15,6 @@
  */
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/PostRecordingForm/addDialect.dart';
-
 import '../database/databaseNew.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -24,6 +22,8 @@ import 'package:strnadi/config/config.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/PostRecordingForm/addDialect.dart';
+
+import 'dialect_keyword_translator.dart';
 
 Logger logger = Logger();
 
@@ -43,11 +43,13 @@ class Dialect{
     this.BEID,
     this.recordingId,
     this.recordingBEID,
-    this.userGuessDialect,
-    this.adminDialect,
+    String? userGuessDialect,
+    String? adminDialect,
     required this.startDate,
     required this.endDate,
-  });
+  })  : userGuessDialect =
+            DialectKeywordTranslator.toEnglish(userGuessDialect),
+        adminDialect = DialectKeywordTranslator.toEnglish(adminDialect);
 
   factory Dialect.fromJson(Map<String, dynamic> json) { //From DB Json
     return Dialect(
@@ -81,8 +83,8 @@ class Dialect{
       'BEID': BEID,
       'recordingId': recordingId,
       'recordingBEID': recordingBEID,
-      'userGuessDialect': userGuessDialect,
-      'adminDialect': adminDialect,
+      'userGuessDialect': DialectKeywordTranslator.toEnglish(userGuessDialect),
+      'adminDialect': DialectKeywordTranslator.toEnglish(adminDialect),
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
     };
@@ -94,12 +96,17 @@ class Dialect{
       'recordingId': recordingBEID,
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
-      'dialectCode': userGuessDialect,
+      'dialectCode': DialectKeywordTranslator.toEnglish(userGuessDialect),
     };
   }
   get dialect {
-    return adminDialect ?? 'Nevyhodnoceno';
+    return DialectKeywordTranslator.toLocalized(adminDialect ?? 'Unassessed');
   }
+
+  String? get userGuessDialectLocalized =>
+      userGuessDialect == null
+          ? null
+          : DialectKeywordTranslator.toLocalized(userGuessDialect!);
 }
 
 List<Dialect> dialectsFromBEJson(List<dynamic> json, {int? recordingId}) {
@@ -182,18 +189,27 @@ DialectModel ToDialectModel(Dialect dialect) {
     'BlBh': Colors.lightBlue,
     'BhBl': Colors.blue,
     'XB': Colors.red,
-    'Jiné': Colors.white,
-    'Nevím': Colors.grey.shade300,
+    'Other': Colors.white,
+    "I don't know": Colors.grey.shade300,
+    'Unknown': Colors.grey.shade500,
+    'Unassessed': Colors.grey.shade400,
+    'Undetermined': Colors.grey.shade400,
+    'No Dialect': Colors.black,
   };
+  final String englishType =
+      DialectKeywordTranslator.toEnglish(dialect.adminDialect) ??
+          dialect.adminDialect ??
+          'Unassessed';
+  final String displayLabel = DialectKeywordTranslator.toLocalized(englishType);
 
   return DialectModel(
-    label: dialect.dialect,
+    label: displayLabel,
     startTime: Duration(
     milliseconds: dialect.startDate.millisecondsSinceEpoch).inSeconds
         .toDouble(),
     endTime: Duration(milliseconds: dialect.endDate.millisecondsSinceEpoch)
         .inSeconds.toDouble(),
-    type: dialect.dialect,
-    color: dialectColors[dialect.dialect] ?? Colors.white,
+    type: englishType,
+    color: dialectColors[englishType] ?? Colors.white,
     );
 }
