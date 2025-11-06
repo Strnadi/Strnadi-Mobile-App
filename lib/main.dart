@@ -45,6 +45,7 @@ import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -144,6 +145,9 @@ void main() {
     await Firebase.initializeApp();
     await Config.loadConfig();
     await Config.loadFirebaseConfig();
+
+    // Warm the dialect-color cache from the server (non-blocking)
+    unawaited(DynamicIcon.refreshAllDialects());
 
     // 2) Workmanager initialization
     Workmanager().initialize(

@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
+
 class DetectedDialect {
   int? id; // local PK
   int? BEId; // backend dialect id
@@ -22,6 +24,8 @@ class DetectedDialect {
   String? userGuessDialect;
   int? confirmedDialectId;
   String? confirmedDialect;
+  int? predictedDialectId;
+  String? predictedDialect;
 
   DetectedDialect({
     this.id,
@@ -29,10 +33,17 @@ class DetectedDialect {
     this.filteredPartLocalId,
     this.filteredPartBEID,
     this.userGuessDialectId,
-    this.userGuessDialect,
+    String? userGuessDialect,
     this.confirmedDialectId,
-    this.confirmedDialect,
-  });
+    String? confirmedDialect,
+    this.predictedDialectId,
+    String? predictedDialect,
+  })  : userGuessDialect =
+            DialectKeywordTranslator.toEnglish(userGuessDialect),
+        confirmedDialect =
+            DialectKeywordTranslator.toEnglish(confirmedDialect),
+        predictedDialect =
+            DialectKeywordTranslator.toEnglish(predictedDialect);
 
   factory DetectedDialect.fromDb(Map<String, Object?> row) {
     return DetectedDialect(
@@ -44,6 +55,8 @@ class DetectedDialect {
       userGuessDialect: row['userGuessDialect'] as String?,
       confirmedDialectId: row['confirmedDialectId'] as int?,
       confirmedDialect: row['confirmedDialect'] as String?,
+      predictedDialectId: row['predictedDialectId'] as int?,
+      predictedDialect: row['predictedDialect'] as String?,
     );
   }
 
@@ -62,6 +75,8 @@ class DetectedDialect {
       userGuessDialect: json['userGuessDialect'] as String?,
       confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
       confirmedDialect: json['confirmedDialect'] as String?,
+      predictedDialectId: (json['predictedDialectId'] as num?)?.toInt(),
+      predictedDialect: json['predictedDialect'] as String?
     );
   }
 
@@ -72,9 +87,26 @@ class DetectedDialect {
       'filteredPartLocalId': filteredPartLocalId,
       'filteredPartBEID': filteredPartBEID,
       'userGuessDialectId': userGuessDialectId,
-      'userGuessDialect': userGuessDialect,
+      'userGuessDialect': DialectKeywordTranslator.toEnglish(userGuessDialect),
       'confirmedDialectId': confirmedDialectId,
-      'confirmedDialect': confirmedDialect,
+      'confirmedDialect': DialectKeywordTranslator.toEnglish(confirmedDialect),
+      'predictedDialectId': predictedDialectId,
+      'predictedDialect': DialectKeywordTranslator.toEnglish(predictedDialect),
     };
   }
+
+  String? get confirmedDialectLocalized =>
+      confirmedDialect == null
+          ? null
+          : DialectKeywordTranslator.toLocalized(confirmedDialect!);
+
+  String? get userGuessDialectLocalized =>
+      userGuessDialect == null
+          ? null
+          : DialectKeywordTranslator.toLocalized(userGuessDialect!);
+
+  String? get predictedDialectLocalized =>
+      predictedDialect == null
+          ? null
+          : DialectKeywordTranslator.toLocalized(predictedDialect!);
 }

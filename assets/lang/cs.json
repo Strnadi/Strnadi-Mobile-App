@@ -224,6 +224,22 @@
   "dialectBadge": {
     "title": "Dialekt"
   },
+  "dialectKeywords": {
+    "unknown": "Neznámý",
+    "unknownDialect": "Neznámý dialekt",
+    "undetermined": "Neurčeno",
+    "noDialect": "Bez dialektu",
+    "withoutDialect": "Bez dialektu",
+    "other": "Jiné",
+    "iDontKnow": "Nevím",
+    "rare": "Vzácné",
+    "transitional": "Přechodný",
+    "mix": "Mix",
+    "atypical": "Atypický",
+    "unfinished": "Nedokončený",
+    "unassessed": "Nevyhodnoceno",
+    "unusable": "Nepoužitelný"
+  },
   "editRecording": {
     "title": "Upravit záznam",
     "fields": {

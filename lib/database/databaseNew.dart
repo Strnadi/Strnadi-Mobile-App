@@ -36,6 +36,7 @@ import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
 import 'package:strnadi/recording/waw.dart';
 import 'package:strnadi/dialects/ModelHandler.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:dio/dio.dart';
 
 import 'package:strnadi/notificationPage/notifications.dart';
@@ -1471,7 +1472,7 @@ class DatabaseNew {
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 11,
+    return openDatabase('soundNew.db', version: 12,
         onCreate: (Database db, int version) async {
       await db.execute('''
       CREATE TABLE recordings(
@@ -1570,6 +1571,8 @@ class DatabaseNew {
       userGuessDialect TEXT,
       confirmedDialectId INTEGER,
       confirmedDialect TEXT,
+      predictedDialectId INTEGER,
+      predictedDialect TEXT,
       FOREIGN KEY(filteredPartLocalId) REFERENCES FilteredRecordingParts(id)
     )
     ''');
@@ -1776,6 +1779,11 @@ class DatabaseNew {
 
         await fetchAndUpdateDurationsFromBackend(DatabaseNew());
         await updateAllRecordingsDurations(DatabaseNew());
+        await db.setVersion(newVersion);
+      }
+      if (oldVersion <= 11){
+        await db.execute('ALTER TABLE detectedDialects ADD COLUMN predictedDialectId INTEGER');
+        await db.execute('ALTER TABLE detectedDialects ADD COLUMN predictedDialect TEXT;');
         await db.setVersion(newVersion);
       }
     });
@@ -2070,12 +2078,13 @@ class DatabaseNew {
   ''', [recordingLocalId]);
 
     final codes = rows
-        .map((r) => (r['code'] as String).trim())
-        .where((s) => s.isNotEmpty)
+        .map((r) => DialectKeywordTranslator.toEnglish(r['code'] as String?) ?? '')
+        .where((s) => s.trim().isNotEmpty)
+        .map((s) => s.trim())
         .toSet()
         .toList();
 
-    return codes.isEmpty ? <String>['Neurceno'] : codes;
+    return codes.isEmpty ? <String>['Unknown'] : codes;
   }
 
   /// Returns all parts for a given recordingId from the DB.

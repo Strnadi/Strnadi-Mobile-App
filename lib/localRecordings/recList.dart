@@ -30,6 +30,7 @@ import 'package:logger/logger.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import '../database/fileSize.dart';
 import '../dialects/ModelHandler.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
@@ -820,17 +821,24 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         return t('recList.dialect.without');
       }
 
-      // Return the first non‑empty, non‑placeholder dialect we find.
+      // Return the first non-empty, non-placeholder dialect we find.
       for (final d in dialects) {
-        final String? name = d.userGuessDialect;
-        if (name != null &&
-            name.isNotEmpty &&
-            name != t('recList.dialect.undetermined')) {
-          return name;
+        final String? english = DialectKeywordTranslator.toEnglish(d.userGuessDialect);
+        if (english != null && english.isNotEmpty) {
+          if (english == 'Unassessed' || english == 'Undetermined') {
+            continue;
+          }
+          if (english == 'Unknown' || english == 'Unknown dialect') {
+            return t('recList.dialect.unknown');
+          }
+          if (english == 'No Dialect') {
+            return t('recList.dialect.without');
+          }
+          return DialectKeywordTranslator.toLocalized(english);
         }
       }
 
-      // If every dialect string is empty or "Nevyhodnoceno", fall back.
+      // If every dialect string is empty or undetermined, fall back.
       return t('recList.dialect.unknown');
     } catch (e, stackTrace) {
       logger.e('Error fetching dialects for recording $recordingId: $e',
