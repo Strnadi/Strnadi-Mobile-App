@@ -66,7 +66,9 @@ class UploadProgressBridge {
 
   void start() {
     // Ensure we always own the mapping
-    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    try {
+      IsolateNameServer.removePortNameMapping(portName);
+    } catch (_) {}
     _port = ReceivePort();
     IsolateNameServer.registerPortWithName(_port!.sendPort, portName);
 
@@ -76,8 +78,8 @@ class UploadProgressBridge {
           final String kind = msg[0] as String;
           if (kind == 'update' && msg.length >= 4) {
             final int partId = msg[1] as int;
-            final int sent   = msg[2] as int;
-            final int total  = msg[3] as int;
+            final int sent = msg[2] as int;
+            final int total = msg[3] as int;
             UploadProgressBus.update(partId, sent, total);
           } else if (kind == 'done' && msg.length >= 2) {
             final int partId = msg[1] as int;
@@ -92,8 +94,12 @@ class UploadProgressBridge {
   }
 
   void stop() {
-    try { _port?.close(); } catch (_) {}
-    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    try {
+      _port?.close();
+    } catch (_) {}
+    try {
+      IsolateNameServer.removePortNameMapping(portName);
+    } catch (_) {}
     logger.d('[UploadProgressBridge] stopped');
   }
 }
@@ -155,8 +161,8 @@ void main() {
       isInDebugMode: false,
     );
 
-  // Load localized strings from JSON.
-  await Localization.load(null);
+    // Load localized strings from JSON.
+    await Localization.load(null);
 
     await Config.loadConfig();
     await Config.loadFirebaseConfig();
@@ -189,10 +195,10 @@ void main() {
 
     // 5) Continue with app bootstrap directly
     await _continueBootstrap(trackingAuthorized: trackingAuthorized);
-    }, (error, stack) {
-      if (TrackingConsentManager.isAuthorized) {
-        Sentry.captureException(error, stackTrace: stack);
-      }
+  }, (error, stack) {
+    if (TrackingConsentManager.isAuthorized) {
+      Sentry.captureException(error, stackTrace: stack);
+    }
   });
 }
 
@@ -257,8 +263,7 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
       await DatabaseNew.enforceMaxRecordings();
       await DatabaseNew.checkSendingRecordings();
     } catch (e, stack) {
-      logger.e('Error initializing database: $e',
-          error: e, stackTrace: stack);
+      logger.e('Error initializing database: $e', error: e, stackTrace: stack);
     }
     logger.i('Loaded Database');
 
@@ -283,8 +288,8 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
           ..addIntegration(LoggingIntegration())
           ..profilesSampleRate = 1.0
           ..tracesSampleRate = 1.0
-          ..experimental.replay.sessionSampleRate = 1.0
-          ..experimental.replay.onErrorSampleRate = 1.0
+          ..replay.sessionSampleRate = 1.0
+          ..replay.onErrorSampleRate = 1.0
           ..environment = kDebugMode ? 'development' : 'production';
       },
       appRunner: () async {
@@ -305,7 +310,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-
   @override
   void initState() {
     super.initState();
@@ -328,7 +332,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
 
-  void refreshBadge(){
+  void refreshBadge() {
     setState(() => debugBadge = Config.hostEnvironment == HostEnvironment.dev);
   }
 

@@ -1,6 +1,6 @@
 import UIKit
 import Flutter
-import workmanager
+import workmanager_apple
 import geolocator_apple
 import file_picker
 import firebase_core
@@ -12,6 +12,7 @@ import sentry_flutter
 import sqflite_darwin
 import AVFoundation
 import app_links
+import audioplayers_darwin
 
 // Global function for registering plugins
 func registerPlugins(registry: FlutterPluginRegistry) {
