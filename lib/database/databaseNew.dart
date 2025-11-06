@@ -2112,13 +2112,19 @@ class DatabaseNew {
       logger.w('Could not download recording ${response.body} | ${response.statusCode}');
     }
     Map<String, dynamic> body = jsonDecode(response.body);
-    final List<RecordingPart> parts = body['parts'].map((row) => RecordingPart.fromBEJson(row, id)).toList();
+    final List<dynamic> partsArr = (body['parts'] as List?) ?? const [];
+    final List<RecordingPart> parts = partsArr
+        .map<RecordingPart>((row) => RecordingPart.fromBEJson(
+              (row as Map).cast<String, dynamic>(),
+              id,
+            ))
+        .toList(growable: false);
     final List<Future<void>> tasks = <Future<void>>[];
     for (RecordingPart part in parts){
       tasks.add(()async{await insertRecordingPart(part);}());
     }
     await Future.wait(tasks);
-    Recording recording = Recording.fromBEJson(jsonDecode(response.body), jsonDecode(response.body)['userId']);
+    Recording recording = Recording.fromBEJson(body, body['userId']);
     return await insertRecording(recording);
   }
 
