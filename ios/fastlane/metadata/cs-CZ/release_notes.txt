@@ -1,0 +1,33 @@
+1.4.14 (2025-11-06)
+- Předvyplňuje krok se jménem při registraci a správně uvolňuje controllery, takže se při návratu do formuláře nezobrazují stará data a nevznikají úniky paměti.
+- Synchronizace na pozadí už nepřepíše nahrávky jiného uživatele – aktualizují se jen záznamy, které patří přihlášenému účtu.
+- Balík závislostí pro Firebase, nahrávání, lokalizaci, audio, notifikace a analytiku byl povýšen na aktuální verze, aby zůstal zabezpečený a kompatibilní.
+
+1.4.13 (2025-11-06)
+- Opravené stahování ze serveru bezpečně zpracuje prázdné seznamy částí a nejprve uloží načtené části, než se záznam znovu použije.
+- Logika zvýraznění filtrovaných částí na mapě nyní používá indikátor stavu 6, takže markery správně zobrazují reprezentativní záznamy.
+
+1.4.12 (2025-11-06)
+- Přidaný překladač klíčových slov nářečí a upravené vykreslování mapy zajišťují sjednocené barvy i pořadí potvrzených a predikovaných nářečí včetně teček pro reprezentativní části.
+- V seznamu lokálních nahrávek přibyl kompaktní režim, hromadné odeslání a vylepšené třídění, takže se s rozsáhlou knihovnou pracuje snáze.
+- Push notifikace jsou spolehlivější díky opětovnému nastavení kanálů a dekódování lokalizovaných datových zpráv.
+
+1.4.11 (2025-11-05)
+- Na mapě přibyl vyhledávací panel na adresy i souřadnice, takže se lze okamžitě přepnout na přesnou polohu.
+- Pipeline pro nahrávání částí zvuku byla přepsána na HTTP multipart s hlášením průběhu každé úlohy na pozadí.
+- Délka nahrávek a ovládací prvky se nyní zobrazují jednotně v seznamu offline souborů i v detailu na mapě.
+- Přidána stránka úspěchů, která kombinuje hráčův postup s celkovým katalogem staženým ze serveru.
+- Stránka propojených služeb umožňuje připojit Apple nebo Google přihlášení vždy, když to účet podporuje.
+
+1.4.10 (2025-10-23)
+- Mapové markery lze nově seskupovat do klastrů nebo zobrazit jednotlivě podle potřeby uživatele.
+- Seznam lokálních nahrávek nabízí kompaktní karty, rychlé třídění a tlačítko „odeslat vše neodeslané“ pro rychlejší synchronizaci.
+
+1.4.09 (2025-10-23)
+- Přihlašovací a registrační obrazovky nyní využívají univerzální překryvný loader, který zabraňuje vícenásobným odesláním během komunikace se serverem.
+- Stránka profilu byla přepracována – načítá, upravuje a obnovuje uživatelská data přes zabezpečené API s odpovídající zpětnou vazbou v aplikaci.
+
+1.4.08 (2025-10-21)
+- Úvodní obrazovka má nové rozhraní s výběrem jazyka, režimem hosta a lepším offline chováním, takže první přihlášení je jednodušší.
+- Profilové fotografie se ukládají do cache a znovu se stahují jen v případě potřeby, čímž se snižuje provoz po síti.
+- Mapové ikony jsou generovány dynamicky s uloženými barvami nářečí a nastavení nabízí přepínač prostředí pro pokročilé uživatele.
