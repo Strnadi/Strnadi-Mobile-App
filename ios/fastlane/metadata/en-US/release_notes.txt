@@ -1,0 +1,33 @@
+1.4.14 (2025-11-06)
+- Prefills the name step during registration and disposes the controllers correctly to avoid stale data and leaks when returning to the form.
+- Prevents background sync from overwriting another user’s recording by only updating cached entries that belong to the signed-in account.
+- Upgraded the Firebase, recording, location, audio, notification, and analytics packages to their latest major versions to keep the stack secure and compatible.
+
+1.4.13 (2025-11-06)
+- Fixed server downloads so that recordings without parts are parsed safely and cached parts are inserted reliably before reuse.
+- Corrected the filtered-part highlighting logic on the map so markers show the state-6 indicator for representative detections.
+
+1.4.12 (2025-11-06)
+- Added a dialect keyword translator and reworked map rendering so confirmed and predicted dialects share consistent colours and ordering, including center-dot cues for representative parts.
+- Introduced a compact view, bulk send button, and refreshed sorting controls to manage large local recording libraries more efficiently.
+- Hardened push notifications by re-initialising local channels and decoding localized payloads from data messages.
+
+1.4.11 (2025-11-05)
+- Added an address and coordinate search bar on the map so users can jump to exact locations instantly.
+- Rebuilt the upload pipeline to stream audio parts via HTTP multipart with progress reporting for each background job.
+- Display recording durations and transport controls consistently in both local list items and the map detail view.
+- Added an achievements screen that merges user progress with the global catalogue fetched from the backend.
+- Expanded the connected platforms page so accounts can link Apple or Google sign-in when available.
+
+1.4.10 (2025-10-23)
+- Introduced optional clustering for map markers, letting users toggle between grouped bubbles and individual pins on demand.
+- Enhanced the local recordings list with compact cards, quick sorting, and a "send all unsent" action for faster data synchronization.
+
+1.4.09 (2025-10-23)
+- Wrapped authentication and registration flows in a reusable loader overlay to block duplicate submissions while network requests run.
+- Reworked the profile settings page to fetch, edit, and refresh user data through authenticated API calls with in-app feedback.
+
+1.4.08 (2025-10-21)
+- Redesigned the welcome screen with language selection, guest access, and richer offline handling to simplify first-time sign-in.
+- Cached profile photos locally and only re-downloaded them when necessary to reduce repeated network transfers.
+- Added dynamic map icons with cached dialect colours and environment-aware settings controls for advanced users.
