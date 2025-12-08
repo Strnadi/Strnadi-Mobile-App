@@ -70,7 +70,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadEnvAccessAndValue() async {
     try {
       final role = await _secure.read(key: 'role') ?? '';
-      final allowed = role == 'admin' || role == 'tester' || Config.hostEnvironment == HostEnvironment.dev;
+      final allowed = role == 'admin' ||
+          role == 'tester' ||
+          Config.hostEnvironment == HostEnvironment.dev;
       _canEditEnv = allowed;
       _env = Config.hostEnvironment;
     } catch (e) {
@@ -255,6 +257,9 @@ class _SettingsPageState extends State<SettingsPage> {
         await _saveSettings();
       },
       activeColor: Colors.green,
+      inactiveThumbColor: Colors.grey.shade600,
+      selectedTileColor: Colors.grey,
+      inactiveTrackColor: Colors.grey.shade300,
     );
   }
 }
