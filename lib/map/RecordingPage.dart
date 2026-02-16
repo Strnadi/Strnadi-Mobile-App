@@ -220,9 +220,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Future<void> getParts() async {
     // Resolve local recording ID from BE ID, then load all parts
-    final int? recLocalId = await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
+    final int? recLocalId =
+        await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
     final List<RecordingPart> loadedParts =
-    await DatabaseNew.getPartsByRecordingId(recLocalId!);
+        await DatabaseNew.getPartsByRecordingId(recLocalId!);
 
     // Sort by startTime (DateTime). Nulls go last.
     loadedParts.sort((a, b) {
@@ -242,7 +243,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     });
 
     if (parts.isNotEmpty && parts.first != null) {
-      await reverseGeocode(parts.first!.gpsLatitudeStart, parts.first!.gpsLongitudeStart);
+      await reverseGeocode(
+          parts.first!.gpsLatitudeStart, parts.first!.gpsLongitudeStart);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _mapController.move(
           LatLng(parts.first!.gpsLatitudeStart, parts.first!.gpsLongitudeStart),
@@ -406,8 +408,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         });
         if (wasCanceled) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(t('recordingPage.status.downloadCanceled'))),
+            SnackBar(content: Text(t('recordingPage.status.downloadCanceled'))),
           );
           return;
         }
@@ -528,8 +529,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       }
 
       final Duration startOffset = _offsetWithinConcatenated(startDate);
-      final Duration endOffset   = _offsetWithinConcatenated(endDate);
-      final Duration safeEnd     = endOffset < startOffset ? startOffset : endOffset;
+      final Duration endOffset = _offsetWithinConcatenated(endDate);
+      final Duration safeEnd =
+          endOffset < startOffset ? startOffset : endOffset;
 
       final dynamic rawDialects = map['detectedDialects'];
       if (rawDialects is List && rawDialects.isNotEmpty) {
@@ -652,6 +654,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     }
     return false;
   }
+
   Duration _offsetWithinConcatenated(DateTime timestamp) {
     // Fallback if parts are not loaded yet
     if (parts.isEmpty) {
@@ -1009,8 +1012,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600),
+                                    fontSize: 15, fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -1027,11 +1029,17 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                   child: LinearProgressIndicator(
                                     value: _downloadProgress,
                                     minHeight: 6,
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.primary,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                    '${(_downloadProgress * 100).toStringAsFixed(0)}%'),
+                                    '${(_downloadProgress * 100).toStringAsFixed(1)}%'),
                                 const SizedBox(height: 4),
                                 TextButton(
                                   onPressed: () {
