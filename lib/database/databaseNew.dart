@@ -1463,6 +1463,9 @@ class DatabaseNew {
           logger.e('Error downloading part BEID: ${part.BEId}: $e',
               error: e, stackTrace: stackTrace);
           Sentry.captureException(e, stackTrace: stackTrace);
+          throw FetchException(
+              'Error downloading recording part: /recordings/part/${recording.BEId}/${part.BEId}/sound',
+              500);
         }
       }
     }
