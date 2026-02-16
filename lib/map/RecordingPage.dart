@@ -198,6 +198,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         await player.setFilePath(widget.recording.path!);
         setState(() {
           isFileLoaded = true;
+          currentPosition = Duration.zero;
+          totalDuration = player.duration ?? Duration.zero;
         });
       } catch (e, stackTrace) {
         logger.e("Error loading audio file: $e",
@@ -260,26 +262,37 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       if (!await _ensureFileLoaded()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(t('recordingPage.status.errorDownloading'))),
+            SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
           );
         }
         return;
       }
+      final Duration total = _effectivePlaybackDuration();
+      final bool atEnd = total > Duration.zero &&
+          currentPosition >= total - const Duration(milliseconds: 300);
       if (player.playing) {
         await player.pause();
       } else {
+        if (atEnd) {
+          await player.seek(Duration.zero);
+        }
         await player.play();
       }
     } catch (e, stackTrace) {
-      logger.e("Error toggling playback: $e",
-          error: e, stackTrace: stackTrace);
+      logger.e("Error toggling playback: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
   void seekRelative(int seconds) {
-    final newPosition = currentPosition + Duration(seconds: seconds);
+    final Duration total = _effectivePlaybackDuration();
+    Duration newPosition = currentPosition + Duration(seconds: seconds);
+    if (newPosition < Duration.zero) {
+      newPosition = Duration.zero;
+    }
+    if (total > Duration.zero && newPosition > total) {
+      newPosition = total;
+    }
     player.seek(newPosition);
   }
 
@@ -296,6 +309,37 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final int minutes = totalSeconds ~/ 60;
     final int seconds = totalSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Duration _effectivePlaybackDuration() {
+    if (totalDuration > Duration.zero) {
+      return totalDuration;
+    }
+    final int fallbackSeconds = widget.recording.totalSeconds?.round() ?? 0;
+    if (fallbackSeconds <= 0) {
+      return Duration.zero;
+    }
+    return Duration(seconds: fallbackSeconds);
+  }
+
+  Duration _displayPlaybackPosition() {
+    final Duration total = _effectivePlaybackDuration();
+    if (total > Duration.zero && currentPosition > total) {
+      return total;
+    }
+    if (currentPosition < Duration.zero) {
+      return Duration.zero;
+    }
+    return currentPosition;
+  }
+
+  double _playbackProgress() {
+    final Duration total = _effectivePlaybackDuration();
+    if (total.inMilliseconds <= 0) {
+      return 0.0;
+    }
+    final Duration position = _displayPlaybackPosition();
+    return (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
   }
 
   @override
@@ -1031,44 +1075,45 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         ),
                         child: Column(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _formatPlayerTime(currentPosition),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                Text(
-                                  _formatPlayerTime(
-                                    totalDuration > Duration.zero
-                                        ? totalDuration
-                                        : Duration(
-                                            seconds: widget
-                                                    .recording.totalSeconds
-                                                    ?.round() ??
-                                                0),
+                            Builder(builder: (context) {
+                              final Duration displayPosition =
+                                  _displayPlaybackPosition();
+                              final Duration displayTotal =
+                                  _effectivePlaybackDuration();
+                              return Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _formatPlayerTime(displayPosition),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
                                   ),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
+                                  Text(
+                                    _formatPlayerTime(displayTotal),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              );
+                            }),
                             const SizedBox(height: 8),
                             LinearProgressIndicator(
-                              value: totalDuration.inMilliseconds > 0
-                                  ? currentPosition.inMilliseconds /
-                                      totalDuration.inMilliseconds
-                                  : 0.0,
+                              value: _playbackProgress(),
                               minHeight: 6,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).colorScheme.primary,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 IconButton(
-                                    icon:
-                                        const Icon(Icons.replay_10, size: 28),
+                                    icon: const Icon(Icons.replay_10, size: 28),
                                     onPressed: () => seekRelative(-10)),
                                 const SizedBox(width: 4),
                                 Container(
