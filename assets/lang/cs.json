@@ -326,7 +326,8 @@
       "delete": "Smazat záznam",
       "resendUnsentParts": "Odeslat znovu",
       "send": "Odeslat záznam",
-      "deleteCache": "Smazat z cache"
+      "deleteCache": "Smazat z cache",
+      "cancel": "Zrušit"
     },
     "dialogs": {
       "confirmDelete": {
@@ -386,6 +387,9 @@
       "set": "Nastavit",
       "resetFilters": "Resetovat"
     },
+    "search": {
+      "hint": "Hledat místo nebo souřadnice (např. 50.087, 14.421)"
+    },
     "filters": {
       "clustering": {
         "title": "Seskupování nahrávek",
@@ -424,7 +428,9 @@
     "status": {
       "loading": "Nahrávka není dostupná",
       "downloading": "Stáhnout nahrávku",
-      "errorDownloading": "Error downloading recording"
+      "errorDownloading": "Chyba při stahování nahrávky",
+      "notDownloaded": "Ještě není staženo",
+      "downloadCanceled": "Stahování zrušeno"
     },
     "audioPlayer": {
       "replay": "Přetočit 10s zpět",

@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -29,6 +30,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/firebase/firebase.dart' as firebase;
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/md_renderer.dart';
+import 'package:strnadi/privacy/tracking_consent.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/FlagDropdown.dart';
 import 'package:strnadi/widgets/loader.dart';
@@ -156,6 +158,14 @@ class _AuthState extends State<Authorizator> {
 
   void _hideLoader() {
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _trackSession(int userId, {required bool verified}) {
+    unawaited(TrackingConsentManager.identifyUser(userId.toString()));
+    unawaited(TrackingConsentManager.captureEvent(
+      verified ? 'session_restored' : 'login_requires_verification',
+      properties: const {'method': 'jwt'},
+    ));
   }
 
   Future<T?> _withLoader<T>(Future<T> Function() action) async {
@@ -484,6 +494,9 @@ class _AuthState extends State<Authorizator> {
         await secureStorage.write(key: 'nick', value: data['nickname']);
         await secureStorage.write(key: 'role', value: data['role']);
 
+        if (userId != null) {
+          _trackSession(userId, verified: true);
+        }
         logger.i('Syncing recordings on login');
         await DatabaseNew.syncRecordings();
         logger.i('Syncing recordings on login done');
@@ -508,6 +521,7 @@ class _AuthState extends State<Authorizator> {
         });
         int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
+        _trackSession(userId, verified: false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

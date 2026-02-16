@@ -314,6 +314,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    TrackingConsentManager.ensureObserver();
+    unawaited(TrackingConsentManager.captureEvent('app_opened', properties: {
+      'environment': Config.hostEnvironment.name,
+    }));
   }
 
   @override
@@ -342,6 +346,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: (debugBadge),
       title: 'Strnadi',
       navigatorKey: navigatorKey,
+      navigatorObservers: TrackingConsentManager.navigatorObservers,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSwatch().copyWith(

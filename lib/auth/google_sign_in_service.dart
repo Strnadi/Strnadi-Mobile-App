@@ -13,9 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -69,8 +67,7 @@ class GoogleSignInService {
       }
 
       // Obtain the auth details from the request.
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       late String idToken;
       if (googleAuth.idToken != null) {
@@ -82,13 +79,11 @@ class GoogleSignInService {
       }
       logger.i('got auth');
 
-      logger.i('google idToken: $idToken');
-
-      FlutterSecureStorage secureStorage = FlutterSecureStorage();
+      logger.i('google idToken received');
 
       Map<String, String> headers = {'Content-Type': 'application/json'};
       if (jwt != null && jwt.isNotEmpty) {
-        headers.addAll({'Authentication': 'Bearer ${jwt}'});
+        headers.addAll({'Authorization': 'Bearer $jwt'});
       }
 
       //Send to BE
@@ -129,8 +124,7 @@ class GoogleSignInService {
       }
 
       // Obtain the auth details from the request.
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       late String idToken;
       if (googleAuth.idToken != null) {
@@ -143,7 +137,7 @@ class GoogleSignInService {
 
       logger.i('got auth');
 
-      logger.i('google idToken: $idToken');
+      logger.i('google idToken received');
 
       //Send to BE
       Uri url = Uri.parse('https://${Config.host}/auth/login-google');
@@ -173,8 +167,7 @@ class GoogleSignInService {
     if (googleUser == null) {
       throw Exception('Google sign in canceled');
     }
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
+    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
     final idToken = googleAuth.idToken;
     return idToken!;
   }

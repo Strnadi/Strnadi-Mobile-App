@@ -13,13 +13,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:strnadi/localization/localization.dart';
 import 'dart:io';
-import 'package:flutter/material.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -32,6 +31,7 @@ import 'package:strnadi/HealthCheck/serverHealth.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/user/settingsList.dart';
+import 'package:strnadi/privacy/tracking_consent.dart';
 import '../config/config.dart';
 import '../main.dart';
 import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
@@ -304,6 +304,9 @@ class _UserPageState extends State<UserPage> {
                     if (_isLoading) return;
                     Navigator.of(context).pop(); // close dialog first
                     await _withLoader(() async {
+                      unawaited(TrackingConsentManager.captureEvent(
+                          'logout', properties: {'method': 'manual'}));
+                      unawaited(TrackingConsentManager.resetIdentity());
                       await GoogleSignInService.signOut();
                       await secureStorage.deleteAll();
                       await strnadiFirebase.deleteToken();
@@ -320,6 +323,9 @@ class _UserPageState extends State<UserPage> {
     }
     else {
       await _withLoader(() async {
+        unawaited(TrackingConsentManager.captureEvent(
+            'logout', properties: {'method': 'manual'}));
+        unawaited(TrackingConsentManager.resetIdentity());
         await GoogleSignInService.signOut();
         await secureStorage.deleteAll();
         await strnadiFirebase.deleteToken();

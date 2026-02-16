@@ -145,10 +145,23 @@ class _RegOverviewState extends State<RegOverview> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${response.body.toString()}',
         });
-        int userId = int.parse(idResponse.body);
+        if (idResponse.statusCode != 200) {
+          logger.e(
+              'Failed to retrieve user ID after sign-up: ${idResponse.statusCode} | ${idResponse.body}');
+          _showMessage(t('login.errors.idGetError'));
+          return;
+        }
+        int userId = int.tryParse(idResponse.body) ?? -1;
+        if (userId < 0) {
+          logger
+              .e('Invalid user ID response after sign-up: ${idResponse.body}');
+          _showMessage(t('login.errors.idGetError'));
+          return;
+        }
         await secureStorage.write(key: 'userId', value: userId.toString());
 
-        if (widget.jwt == null) {
+        final isEmailRegistration = (widget.password ?? '').isNotEmpty;
+        if (isEmailRegistration) {
           await secureStorage.write(key: 'verified', value: 'false');
           Navigator.pushReplacement(
             context,

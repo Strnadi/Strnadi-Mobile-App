@@ -328,7 +328,8 @@
       "delete": "Delete record",
       "resendUnsentParts": "Resend",
       "send": "Send record",
-      "deleteCache": "Delete from cache"
+      "deleteCache": "Delete from cache",
+      "cancel": "Cancel"
     },
     "dialogs": {
       "confirmDelete": {
@@ -388,6 +389,9 @@
       "set": "Set",
       "resetFilters": "Reset"
     },
+    "search": {
+      "hint": "Search place or coordinates (e.g. 50.087, 14.421)"
+    },
     "filters": {
       "clustering": {
         "title": "Point clustering",
@@ -426,7 +430,9 @@
     "status": {
       "loading": "Recording is not available",
       "downloading": "Download recording",
-      "errorDownloading": "Error downloading recording"
+      "errorDownloading": "Error downloading recording",
+      "notDownloaded": "Not downloaded yet",
+      "downloadCanceled": "Download canceled"
     },
     "audioPlayer": {
       "replay": "Rewind 10s",

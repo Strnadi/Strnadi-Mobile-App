@@ -33,7 +33,15 @@ class RegName extends StatefulWidget {
   final String? appleId;
   final bool consent;
 
-  const RegName({super.key, required this.email, required this.consent, required this.jwt, this.password, this.name, this.surname, this.appleId});
+  const RegName(
+      {super.key,
+      required this.email,
+      required this.consent,
+      required this.jwt,
+      this.password,
+      this.name,
+      this.surname,
+      this.appleId});
 
   @override
   State<RegName> createState() => _RegNameState();
@@ -65,10 +73,18 @@ class _RegNameState extends State<RegName> {
     super.dispose();
   }
 
+  Future<void> _signOutGoogleSilently() async {
+    try {
+      await GoogleSignInService.signOut();
+    } catch (e) {
+      logger.w('Google sign out failed: $e');
+    }
+  }
+
   /// Form is valid if both required fields (Jméno, Příjmení) are non-empty.
   bool get _isFormValid =>
       _nameController.text.trim().isNotEmpty &&
-          _surnameController.text.trim().isNotEmpty;
+      _surnameController.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -79,15 +95,9 @@ class _RegNameState extends State<RegName> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if(didPop) return;
-        try {
-          GoogleSignInService.signOut();
-        }
-        catch(e){
-          logger.w('Google sign out failed: $e');
-        }
+        if (didPop) return;
+        _signOutGoogleSilently();
         Navigator.pop(context);
-        return;
       },
       child: Scaffold(
         appBar: AppBar(
@@ -99,7 +109,11 @@ class _RegNameState extends State<RegName> {
               width: 30,
               height: 30,
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () async {
+              await _signOutGoogleSilently();
+              if (!mounted) return;
+              Navigator.pop(context);
+            },
           ),
         ),
         backgroundColor: Colors.white,
@@ -112,7 +126,8 @@ class _RegNameState extends State<RegName> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: Text(t('signup.name.title'),
+                    child: Text(
+                      t('signup.name.title'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -124,7 +139,8 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 32),
 
                   // "Jméno *" label and text field
-                  Text(t('signup.name.name'),
+                  Text(
+                    t('signup.name.name'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -138,18 +154,20 @@ class _RegNameState extends State<RegName> {
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
@@ -164,7 +182,8 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 16),
 
                   // "Příjmení *" label and text field
-                  Text(t('signup.name.last_name'),
+                  Text(
+                    t('signup.name.last_name'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -178,18 +197,20 @@ class _RegNameState extends State<RegName> {
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
@@ -204,7 +225,8 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 16),
 
                   // "Přezdívka" label and text field (optional)
-                  Text(t('signup.name.nickname'),
+                  Text(
+                    t('signup.name.nickname'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -219,8 +241,8 @@ class _RegNameState extends State<RegName> {
                       hintText: t('signup.name.nickname_hint'),
                       fillColor: Colors.grey[200],
                       filled: true,
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
@@ -228,7 +250,8 @@ class _RegNameState extends State<RegName> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(t('signup.name.real_name_warning'),
+                  Text(
+                    t('signup.name.real_name_warning'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -264,7 +287,8 @@ class _RegNameState extends State<RegName> {
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         backgroundColor: _isFormValid ? yellow : Colors.grey,
-                        foregroundColor: _isFormValid ? textColor : Colors.white,
+                        foregroundColor:
+                            _isFormValid ? textColor : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         textStyle: TextStyle(
                           fontSize: 16,
@@ -284,7 +308,8 @@ class _RegNameState extends State<RegName> {
         ),
         // Bottom segmented progress bar with larger bottom padding
         bottomNavigationBar: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+          padding:
+              const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
           child: Row(
             children: List.generate(5, (index) {
               bool completed = index < 3;

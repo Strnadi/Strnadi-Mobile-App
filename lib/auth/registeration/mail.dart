@@ -76,7 +76,8 @@ class _RegMailState extends State<RegMail> {
   Future<void> cacheUserData(int userID) async {
     Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
 
-    http.Response response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    http.Response response =
+        await http.get(url, headers: {'Content-Type': 'application/json'});
     try {
       if (response.statusCode == 200) {
         var jsonResponse = jsonDecode(response.body);
@@ -95,7 +96,7 @@ class _RegMailState extends State<RegMail> {
         logger.w(
             'Failed to fetch user name. Status code: ${response.statusCode}');
       }
-    } catch (error, stackTrace){
+    } catch (error, stackTrace) {
       logger.e('Error fetching user name: $error',
           error: error, stackTrace: stackTrace);
       await Sentry.captureException(error, stackTrace: stackTrace);
@@ -173,314 +174,360 @@ class _RegMailState extends State<RegMail> {
 
     // Optional: Prevent back navigation during loading
     return WillPopScope(
-      onWillPop: () async => !_isLoading,
-      child: Stack(
-        children: [
-          Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leading: IconButton(
-              icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              // Title
-              Text(
-                t('signup.mail.title'),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+        onWillPop: () async => !_isLoading,
+        child: Stack(
+          children: [
+            Scaffold(
+              appBar: AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                leading: IconButton(
+                  icon: Image.asset('assets/icons/backButton.png',
+                      width: 30, height: 30),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-              const SizedBox(height: 40),
-
-              // "E-mail" label
-              Text(
-                t('login.inputs.emailLabel'),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Email TextField
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                onChanged: (value) {
-                  setState(() {
-                    // Validate email format
-                    if (!isValidEmail(value)) {
-                      _emailErrorMessage = 'Email není v platném formátu';
-                    } else {
-                      // Clear the format error and check if email exists
-                      _emailErrorMessage = null;
-                      _checkEmail(value).then((emailExists) {
-                        setState(() {
-                          _emailErrorMessage =
-                              emailExists ? 'Email již existuje' : null;
-                        });
-                      });
-                    }
-                  });
-                },
-                decoration: InputDecoration(
-                  fillColor: Colors.grey[200],
-                  filled: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                  errorText: _emailErrorMessage,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Smaller grey background for terms
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Custom checkbox
-                    CheckboxTheme(
-                      data: CheckboxThemeData(
-                        side: _isChecked
-                            ? const BorderSide(
-                                width: 0, color: Colors.transparent)
-                            : const BorderSide(width: 2, color: Colors.grey),
+              backgroundColor: Colors.white,
+              body: SafeArea(
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      Text(
+                        t('signup.mail.title'),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      child: Checkbox(
-                        value: _isChecked,
-                        onChanged: (bool? newValue) {
+                      const SizedBox(height: 40),
+
+                      // "E-mail" label
+                      Text(
+                        t('login.inputs.emailLabel'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Email TextField
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        onChanged: (value) {
                           setState(() {
-                            _isChecked = newValue ?? false;
+                            // Validate email format
+                            if (!isValidEmail(value)) {
+                              _emailErrorMessage =
+                                  'Email není v platném formátu';
+                            } else {
+                              // Clear the format error and check if email exists
+                              _emailErrorMessage = null;
+                              _checkEmail(value).then((emailExists) {
+                                setState(() {
+                                  _emailErrorMessage =
+                                      emailExists ? 'Email již existuje' : null;
+                                });
+                              });
+                            }
                           });
                         },
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(2),
+                        decoration: InputDecoration(
+                          fillColor: Colors.grey[200],
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide.none,
+                            borderRadius: BorderRadius.circular(16.0),
+                          ),
+                          errorText: _emailErrorMessage,
                         ),
-                        fillColor: MaterialStateProperty.resolveWith((states) {
-                          if (states.contains(MaterialState.selected)) {
-                            return Colors.black;
-                          }
-                          return Colors.white;
-                        }),
-                        checkColor: Colors.white,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(color: Colors.black),
+                      const SizedBox(height: 16),
+
+                      // Smaller grey background for terms
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            TextSpan(
-                              text:
-                                  t('signup.mail.consent.con1'),
-                            ),
-                            TextSpan(
-                              text: t('signup.mail.consent.con2'),
-                              style: TextStyle(
-                                color: Colors.blue,
-                                decoration: TextDecoration.underline,
+                            // Custom checkbox
+                            CheckboxTheme(
+                              data: CheckboxThemeData(
+                                side: _isChecked
+                                    ? const BorderSide(
+                                        width: 0, color: Colors.transparent)
+                                    : const BorderSide(
+                                        width: 2, color: Colors.grey),
                               ),
-                              recognizer: TapGestureRecognizer()
-                                ..onTap = () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => MDRender(
-                                        mdPath:
-                                            'assets/docs/terms-of-services.md',
-                                        title: t('auth.terms.title'),
-                                      ),
-                                    ),
-                                  );
+                              child: Checkbox(
+                                value: _isChecked,
+                                onChanged: (bool? newValue) {
+                                  setState(() {
+                                    _isChecked = newValue ?? false;
+                                  });
                                 },
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                                fillColor:
+                                    MaterialStateProperty.resolveWith((states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return Colors.black;
+                                  }
+                                  return Colors.white;
+                                }),
+                                checkColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(color: Colors.black),
+                                  children: [
+                                    TextSpan(
+                                      text: t('signup.mail.consent.con1'),
+                                    ),
+                                    TextSpan(
+                                      text: t('signup.mail.consent.con2'),
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => MDRender(
+                                                mdPath:
+                                                    'assets/docs/terms-of-services.md',
+                                                title: t('auth.terms.title'),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_termsError)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    t('signup.mail.errors.continue_consent'),
-                    style: TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                ),
-              const SizedBox(height: 24),
+                      if (_termsError)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            t('signup.mail.errors.continue_consent'),
+                            style: TextStyle(color: Colors.red, fontSize: 12),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
 
-              // Larger "Pokračovat" button (full width)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: !_isLoading ? () {
-                    _withLoader(() async {
-                      await _checkEmail(_emailController.text).then((emailExists) {
-                        setState(() {
-                          if (!isValidEmail(_emailController.text)) {
-                            _emailErrorMessage = t('signup.mail.errors.mail_format_err');
-                          } else if (emailExists) {
-                            _emailErrorMessage = t('signup.mail.errors.mail_exists');
-                          } else {
-                            _emailErrorMessage = null;
-                          }
-                          _termsError = !_isChecked;
-                        });
-                        if (isValidEmail(_emailController.text) && _isChecked && !emailExists) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegPassword(
-                                email: _emailController.text,
-                                jwt: '',
-                                consent: true,
-                              ),
+                      // Larger "Pokračovat" button (full width)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: !_isLoading
+                              ? () {
+                                  _withLoader(() async {
+                                    await _checkEmail(_emailController.text)
+                                        .then((emailExists) {
+                                      setState(() {
+                                        if (!isValidEmail(
+                                            _emailController.text)) {
+                                          _emailErrorMessage = t(
+                                              'signup.mail.errors.mail_format_err');
+                                        } else if (emailExists) {
+                                          _emailErrorMessage = t(
+                                              'signup.mail.errors.mail_exists');
+                                        } else {
+                                          _emailErrorMessage = null;
+                                        }
+                                        _termsError = !_isChecked;
+                                      });
+                                      if (isValidEmail(_emailController.text) &&
+                                          _isChecked &&
+                                          !emailExists) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => RegPassword(
+                                              email: _emailController.text,
+                                              jwt: '',
+                                              consent: true,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }).catchError((_) {});
+                                  });
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            backgroundColor: formValid ? yellow : Colors.grey,
+                            foregroundColor:
+                                formValid ? textColor : Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            textStyle: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                          );
-                        }
-                      }).catchError((_) {});
-                    });
-                  } : null,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    backgroundColor: formValid ? yellow : Colors.grey,
-                    foregroundColor: formValid ? textColor : Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: Text(t('signup.mail.buttons.continue')),
-                ),
-              ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0),
+                            ),
+                          ),
+                          child: Text(t('signup.mail.buttons.continue')),
+                        ),
+                      ),
 
-              const SizedBox(height: 32),
+                      const SizedBox(height: 32),
 
-              // Google sign-in section
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: Colors.grey.shade300,
-                      thickness: 1,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(t('login.or')),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: Colors.grey.shade300,
-                      thickness: 1,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: !_isLoading ? () {
-                    if (!_isChecked) {
-                      setState(() { _termsError = true; });
-                      return;
-                    }
-                    _withLoader(() async {
-                      logger.i('Google button clicked');
-                      Map<String, dynamic>? data = await gle.GoogleSignInService.googleAuth();
-                      if (data == null) {
-                        logger.w('Google sign in returned null data');
-                        return;
-                      }
-                      if (data['status'] == 200) {
-                        logger.i(
-                            'Google sign in successful, returned data: ${data.toString()}');
-                        if (data['exists'] == false) {
-                          // New user, proceed with registration
-                          logger.i(
-                              'Google sign in: new user, proceeding to registration');
-                          Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => RegName(
-                                    name: data['firstName'] as String? ?? '',
-                                    surname:
-                                    data['lastName'] as String? ?? '',
-                                    email: data['email'] as String? ?? '',
-                                    jwt: data['jwt'] as String,
-                                    consent: true,
-                                  )));
-                          return;
-                        } else if (data['exists'] == true) {
-                          // User exists, proceed with login
-                        }
-                        String? jwt = data['jwt'] as String?;
-                        final secureStorage = const FlutterSecureStorage();
-                        // Persist the token locally
-                        await secureStorage.write(key: 'token', value: jwt);
-                        await secureStorage.write(key: 'verified', value: true.toString());
-                        logger.i('Google sign‑in successful, token stored');
+                      // Google sign-in section
+                      const SizedBox(height: 32),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: Colors.grey.shade300,
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(t('login.or')),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: Colors.grey.shade300,
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: !_isLoading
+                              ? () {
+                                  if (!_isChecked) {
+                                    setState(() {
+                                      _termsError = true;
+                                    });
+                                    return;
+                                  }
+                                  _withLoader(() async {
+                                    try {
+                                      logger.i('Google button clicked');
+                                      Map<String, dynamic>? data = await gle
+                                          .GoogleSignInService.googleAuth();
+                                      if (data == null) {
+                                        logger.w(
+                                            'Google sign in returned null data');
+                                        return;
+                                      }
+                                      if (data['status'] == 200) {
+                                        logger.i(
+                                            'Google sign in successful, returned data: ${data.toString()}');
+                                        if (data['exists'] == false) {
+                                          // New user, proceed with registration
+                                          logger.i(
+                                              'Google sign in: new user, proceeding to registration');
+                                          Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (_) => RegName(
+                                                        name: data['firstName']
+                                                                as String? ??
+                                                            '',
+                                                        surname: data[
+                                                                    'lastName']
+                                                                as String? ??
+                                                            '',
+                                                        email: data['email']
+                                                                as String? ??
+                                                            '',
+                                                        jwt: data['jwt']
+                                                            as String,
+                                                        consent: true,
+                                                      )));
+                                          return;
+                                        }
+                                        String? jwt = data['jwt'] as String?;
+                                        final secureStorage =
+                                            const FlutterSecureStorage();
+                                        // Persist the token locally
+                                        await secureStorage.write(
+                                            key: 'token', value: jwt);
+                                        await secureStorage.write(
+                                            key: 'verified',
+                                            value: true.toString());
+                                        logger.i(
+                                            'Google sign‑in successful, token stored');
 
-                        // Retrieve user‑id from backend
-                        final idResponse = await http.get(
-                            Uri.parse('https://${Config.host}/users/get-id'),
-                            headers: {
-                              'Content-Type': 'application/json',
-                              'Authorization': 'Bearer $jwt',
-                            });
-                        if (idResponse.statusCode != 200) {
-                          logger.e('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
-                          _showMessage(t('login.errors.idGetError'));
-                          return;
-                        }
-                        await secureStorage.write(key: 'userId', value: idResponse.body);
-                        await cacheUserData(int.parse(idResponse.body));
-                        await fb.refreshToken();
-                        // Go to recorder screen
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => LiveRec()),
-                        );
-                      } else {
-                        logger.w(
-                            'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
-                        _showMessage(t('login.errors.loginFailed'));
-                        return;
-                      }
-                      /*
+                                        // Retrieve user‑id from backend
+                                        final idResponse = await http.get(
+                                            Uri.parse(
+                                                'https://${Config.host}/users/get-id'),
+                                            headers: {
+                                              'Content-Type':
+                                                  'application/json',
+                                              'Authorization': 'Bearer $jwt',
+                                            });
+                                        if (idResponse.statusCode != 200) {
+                                          logger.e(
+                                              'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                                          _showMessage(
+                                              t('login.errors.idGetError'));
+                                          return;
+                                        }
+                                        await secureStorage.write(
+                                            key: 'userId',
+                                            value: idResponse.body);
+                                        await cacheUserData(
+                                            int.parse(idResponse.body));
+                                        await fb.refreshToken();
+                                        // Go to recorder screen
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) => LiveRec()),
+                                        );
+                                      } else {
+                                        logger.w(
+                                            'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                                        _showMessage(
+                                            t('login.errors.loginFailed'));
+                                        return;
+                                      }
+                                    } catch (error, stackTrace) {
+                                      logger.e('Google sign in error: $error',
+                                          error: error, stackTrace: stackTrace);
+                                      await Sentry.captureException(error,
+                                          stackTrace: stackTrace);
+                                      _showMessage(
+                                          t('login.errors.loginFailed'));
+                                    }
+                                    /*
                       await gle.GoogleSignInService.signUpWithGoogle().then((user) {
                         if (user != null && user['status'] != 409) {
                           Navigator.push(
@@ -506,188 +553,231 @@ class _RegMailState extends State<RegMail> {
                         Sentry.captureException(error);
                       });
                       */
-                    });
-                  } : null,
-                  icon: Image.asset(
-                    'assets/images/google.webp',
-                    height: 24,
-                    width: 24,
-                  ),
-                  label: Text(
-                    t('login.buttons.googleSignIn'),
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: !_isLoading ? () {
-                    if (!_isChecked) {
-                      setState(() => _termsError = true);
-                      return;
-                    }
-                    _withLoader(() async {
-                      logger.i('Apple button clicked');
-                      try {
-                        final data = await apple.AppleAuth.signInAndGetJwt(null);
-                        if (data == null) {
-                          logger.w('Apple sign in return data null');
-                          return;
-                        } else if (data['status'] == 200) {
-                          logger.i('Apple sign in successful, returned data: ${data.toString()}');
-                          if (data['exists'] == false) {
-                            logger.i('Apple sign in: new user, proceeding to registration');
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RegName(
-                                  name: data['firstName'] as String? ?? '',
-                                  surname: data['lastName'] as String? ?? '',
-                                  email: data['email'] as String? ?? '',
-                                  jwt: data['jwt'] as String,
-                                  appleId: data['userIdentifier'] as String? ?? '',
-                                  consent: true,
-                                ),
-                              ),
-                            );
-                            return;
-                          } else if (data['exists'] == true) {
-                            // User exists, proceed with login
-                          }
-                        } else if (data['status'] == 400) {
-                          logger.w('Apple sign in failed: no email returned');
-                          _showMessage(t('auth.apple.error.no_email'));
-                          return;
-                        } else {
-                          logger.w('Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
-                          _showMessage(t('auth.apple.error.login_failed'));
-                          return;
-                        }
-
-                        final String? firstName = data['firstName'] as String?;
-                        final String? lastName = data['lastName'] as String?;
-                        final String? email = data['email'] as String?;
-
-                        if ((firstName != null && lastName != null && email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegName(
-                                name: firstName,
-                                surname: lastName,
-                                email: email,
-                                jwt: data['jwt'] as String,
-                                consent: true,
-                              ),
+                                  });
+                                }
+                              : null,
+                          icon: Image.asset(
+                            'assets/images/google.webp',
+                            height: 24,
+                            width: 24,
+                          ),
+                          label: Text(
+                            t('login.buttons.googleSignIn'),
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            side: BorderSide(color: Colors.grey[300]!),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          );
-                          return;
-                        }
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: !_isLoading
+                              ? () {
+                                  if (!_isChecked) {
+                                    setState(() => _termsError = true);
+                                    return;
+                                  }
+                                  _withLoader(() async {
+                                    logger.i('Apple button clicked');
+                                    try {
+                                      final data =
+                                          await apple.AppleAuth.signInAndGetJwt(
+                                              null);
+                                      if (data == null) {
+                                        logger.w(
+                                            'Apple sign in return data null');
+                                        return;
+                                      } else if (data['status'] == 200) {
+                                        logger.i(
+                                            'Apple sign in successful, returned data: ${data.toString()}');
+                                        if (data['exists'] == false) {
+                                          logger.i(
+                                              'Apple sign in: new user, proceeding to registration');
+                                          Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => RegName(
+                                                name: data['firstName']
+                                                        as String? ??
+                                                    '',
+                                                surname: data['lastName']
+                                                        as String? ??
+                                                    '',
+                                                email:
+                                                    data['email'] as String? ??
+                                                        '',
+                                                jwt: data['jwt'] as String,
+                                                appleId: data['userIdentifier']
+                                                        as String? ??
+                                                    '',
+                                                consent: true,
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        } else if (data['exists'] == true) {
+                                          // User exists, proceed with login
+                                        }
+                                      } else if (data['status'] == 400) {
+                                        logger.w(
+                                            'Apple sign in failed: no email returned');
+                                        _showMessage(
+                                            t('auth.apple.error.no_email'));
+                                        return;
+                                      } else {
+                                        logger.w(
+                                            'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                                        _showMessage(
+                                            t('auth.apple.error.login_failed'));
+                                        return;
+                                      }
 
-                        final String jwt = data['jwt'] as String;
-                        final secureStorage = const FlutterSecureStorage();
-                        await secureStorage.write(key: 'token', value: jwt);
-                        logger.i('Apple sign‑in successful, token stored');
+                                      final String? firstName =
+                                          data['firstName'] as String?;
+                                      final String? lastName =
+                                          data['lastName'] as String?;
+                                      final String? email =
+                                          data['email'] as String?;
 
-                        final idResponse = await http.get(
-                          Uri.parse('https://${Config.host}/users/get-id'),
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer $jwt',
-                          },
-                        );
-                        if (idResponse.statusCode != 200) {
-                          logger.w('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
-                          _showMessage(t('login.errors.idGetError'));
-                          return;
-                        }
-                        logger.i('User ID retrieved: ${idResponse.body}');
+                                      if ((firstName != null &&
+                                          lastName != null &&
+                                          email != null &&
+                                          firstName.isEmpty &&
+                                          lastName.isEmpty &&
+                                          email.isEmpty)) {
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => RegName(
+                                              name: firstName,
+                                              surname: lastName,
+                                              email: email,
+                                              jwt: data['jwt'] as String,
+                                              consent: true,
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
 
-                        await secureStorage.write(key: 'userId', value: idResponse.body);
-                        await secureStorage.write(key: 'verified', value: true.toString());
-                        await fb.refreshToken();
-                        await cacheUserData(int.parse(idResponse.body));
+                                      final String jwt = data['jwt'] as String;
+                                      final secureStorage =
+                                          const FlutterSecureStorage();
+                                      await secureStorage.write(
+                                          key: 'token', value: jwt);
+                                      logger.i(
+                                          'Apple sign‑in successful, token stored');
 
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => LiveRec()),
-                        );
-                      } catch (e, stackTrace) {
-                        logger.e('Apple sign in error: $e');
-                        Sentry.captureException(e, stackTrace: stackTrace);
-                        _showMessage(t('auth.apple.error.login_failed'));
-                      }
-                    });
-                  } : null,
-                  icon: Image.asset(
-                    'assets/images/apple.png',
-                    height: 24,
-                    width: 24,
-                  ),
-                  label: Text(
-                    t('signup.mail.buttons.con_apple'),
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                      final idResponse = await http.get(
+                                        Uri.parse(
+                                            'https://${Config.host}/users/get-id'),
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                          'Authorization': 'Bearer $jwt',
+                                        },
+                                      );
+                                      if (idResponse.statusCode != 200) {
+                                        logger.w(
+                                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                                        _showMessage(
+                                            t('login.errors.idGetError'));
+                                        return;
+                                      }
+                                      logger.i(
+                                          'User ID retrieved: ${idResponse.body}');
+
+                                      await secureStorage.write(
+                                          key: 'userId',
+                                          value: idResponse.body);
+                                      await secureStorage.write(
+                                          key: 'verified',
+                                          value: true.toString());
+                                      await fb.refreshToken();
+                                      await cacheUserData(
+                                          int.parse(idResponse.body));
+
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => LiveRec()),
+                                      );
+                                    } catch (e, stackTrace) {
+                                      logger.e('Apple sign in error: $e');
+                                      Sentry.captureException(e,
+                                          stackTrace: stackTrace);
+                                      _showMessage(
+                                          t('auth.apple.error.login_failed'));
+                                    }
+                                  });
+                                }
+                              : null,
+                          icon: Image.asset(
+                            'assets/images/apple.png',
+                            height: 24,
+                            width: 24,
+                          ),
+                          label: Text(
+                            t('signup.mail.buttons.con_apple'),
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
-        child: Row(
-          children: List.generate(5, (index) {
-            bool completed = index < 1;
-            return Expanded(
-              child: Container(
-                height: 4,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: completed ? yellow : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
+              bottomNavigationBar: Padding(
+                padding: const EdgeInsets.only(
+                    left: 16, right: 16, top: 16, bottom: 48),
+                child: Row(
+                  children: List.generate(5, (index) {
+                    bool completed = index < 1;
+                    return Expanded(
+                      child: Container(
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: completed ? yellow : Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ),
-            );
-          }),
-        ),
-      ),
-    ),
-    if (_isLoading)
-      Positioned.fill(
-        child: AbsorbPointer(
-          absorbing: true,
-          child: Container(
-            color: Colors.black.withOpacity(0.5),
-            child: const Center(child: CircularProgressIndicator()),
-          ),
-        ),
-      ),
-  ],
-  )
-  );
+            ),
+            if (_isLoading)
+              Positioned.fill(
+                child: AbsorbPointer(
+                  absorbing: true,
+                  child: Container(
+                    color: Colors.black.withOpacity(0.5),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              ),
+          ],
+        ));
   }
 }

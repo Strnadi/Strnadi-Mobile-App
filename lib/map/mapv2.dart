@@ -926,7 +926,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ],
               ),
               Positioned(
-                top: 36,
+                top: 80,
                 left: 16,
                 right: 16,
                 child: Row(

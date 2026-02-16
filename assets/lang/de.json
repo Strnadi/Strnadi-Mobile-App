@@ -326,7 +326,8 @@
       "delete": "Eintrag löschen",
       "resendUnsentParts": "Erneut senden",
       "send": "Eintrag senden",
-      "deleteCache": "Aus Cache löschen"
+      "deleteCache": "Aus Cache löschen",
+      "cancel": "Abbrechen"
     },
     "dialogs": {
       "confirmDelete": {
@@ -386,6 +387,9 @@
       "set": "Festlegen",
       "resetFilters": "Zurücksetzen"
     },
+    "search": {
+      "hint": "Ort oder Koordinaten suchen (z. B. 50.087, 14.421)"
+    },
     "filters": {
       "clustering": {
         "title": "Clustering",
@@ -424,7 +428,9 @@
     "status": {
       "loading": "Aufnahme ist nicht verfügbar",
       "downloading": "Aufnahme herunterladen",
-      "errorDownloading": "Fehler beim Herunterladen der Aufnahme"
+      "errorDownloading": "Fehler beim Herunterladen der Aufnahme",
+      "notDownloaded": "Noch nicht heruntergeladen",
+      "downloadCanceled": "Download abgebrochen"
     },
     "audioPlayer": {
       "replay": "10 s zurückspulen",

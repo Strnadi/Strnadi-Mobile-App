@@ -148,12 +148,12 @@ Future<List<Dialect>> fetchRecordingDialects(int? recordingBEID) async {
   http.Response response;
   try {
     final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
-    final Uri url = Uri(
+    Uri url = Uri(
         scheme: 'https',
         host: Config.host,
         path: '/recordings/filtered');
     if (recordingBEID!=null){
-      url.replace(query: 'recordingId=$recordingBEID');
+      url = url.replace(query: 'recordingId=$recordingBEID');
     }
     response = await http.get(url, headers: {
       'Content-Type': 'application/json',

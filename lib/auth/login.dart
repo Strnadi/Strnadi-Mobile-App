@@ -13,29 +13,31 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/gestures.dart';
-import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
-import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/appleAuth.dart' as apple;
+import 'package:strnadi/auth/google_sign_in_service.dart' as google;
 import 'package:strnadi/auth/launch_warning.dart';
+import 'package:strnadi/auth/registeration/nameReg.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/firebase/firebase.dart' as fb;
+import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/privacy/tracking_consent.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../recording/streamRec.dart';
 import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
-import 'package:strnadi/firebase/firebase.dart' as fb;
-import 'package:strnadi/auth/google_sign_in_service.dart' as google;
-import 'package:strnadi/auth/appleAuth.dart' as apple;
-import 'package:strnadi/auth/registeration/nameReg.dart';
 
 final logger = Logger();
 
@@ -53,15 +55,29 @@ class _LoginState extends State<Login> {
 
   bool _isLoading = false;
   void _showLoader() {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
   }
 
   void _hideLoader() {
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });
+  }
+
+  void _trackLogin({
+    required String method,
+    required int userId,
+    required bool verified,
+  }) {
+    unawaited(TrackingConsentManager.identifyUser(userId.toString()));
+    unawaited(TrackingConsentManager.captureEvent(
+      verified ? 'login_success' : 'login_requires_verification',
+      properties: {'method': method},
+    ));
   }
 
   @override
@@ -79,6 +95,7 @@ class _LoginState extends State<Login> {
         });
       };
   }
+
   /// Helper function to show loader, run [fn], and then hide loader.
   Future<void> _withLoader(Future<void> Function() fn) async {
     _showLoader();
@@ -100,7 +117,8 @@ class _LoginState extends State<Login> {
   Future<void> cacheUserData(int userID) async {
     Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
 
-    http.Response response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    http.Response response =
+        await http.get(url, headers: {'Content-Type': 'application/json'});
     try {
       if (response.statusCode == 200) {
         var jsonResponse = jsonDecode(response.body);
@@ -119,7 +137,7 @@ class _LoginState extends State<Login> {
         logger.w(
             'Failed to fetch user name. Status code: ${response.statusCode}');
       }
-    } catch (error, stackTrace){
+    } catch (error, stackTrace) {
       logger.e('Error fetching user name: $error',
           error: error, stackTrace: stackTrace);
       await Sentry.captureException(error, stackTrace: stackTrace);
@@ -139,7 +157,6 @@ class _LoginState extends State<Login> {
       _showMessage(t('login.errors.invalidEmailError'));
       return;
     }
-
 
     try {
       final response = await http.post(
@@ -172,6 +189,7 @@ class _LoginState extends State<Login> {
           },
         );
 
+        int? userId;
         if (verifyResponse.statusCode == 403) {
           // If the JWT check returns 403, the account is not verified.
           Uri url =
@@ -180,15 +198,16 @@ class _LoginState extends State<Login> {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
           });
-          int userId = int.parse(response.body);
+          userId = int.parse(response.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
           await cacheUserData(userId);
+          _trackLogin(method: 'password', userId: userId, verified: false);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => EmailNotVerified(
                 userEmail: _emailController.text,
-                userId: userId,
+                userId: userId!,
               ),
             ),
           );
@@ -202,11 +221,14 @@ class _LoginState extends State<Login> {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${response.body.toString()}',
           });
-          int userId = int.parse(idResponse.body);
+          userId = int.parse(idResponse.body);
           await secureStorage.write(key: 'userId', value: userId.toString());
           await cacheUserData(userId);
         }
         await secureStorage.write(key: 'verified', value: 'true');
+        if (userId != null) {
+          _trackLogin(method: 'password', userId: userId, verified: true);
+        }
         logger.i(response.body);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
@@ -232,6 +254,7 @@ class _LoginState extends State<Login> {
         int userId = int.parse(idResponse.body);
         await secureStorage.write(key: 'userId', value: userId.toString());
         await cacheUserData(userId);
+        _trackLogin(method: 'password', userId: userId, verified: false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -283,17 +306,17 @@ class _LoginState extends State<Login> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              // Spacing from the top (additional to AppBar)
-              const SizedBox(height: 20),
+            // Spacing from the top (additional to AppBar)
+            const SizedBox(height: 20),
 
-              // Title: "Přihlášení"
-              Text(
-                t('login.title'),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+            // Title: "Přihlášení"
+            Text(
+              t('login.title'),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
+            ),
 
             const SizedBox(height: 40),
 
@@ -382,58 +405,61 @@ class _LoginState extends State<Login> {
               ),
             ),
 
-              // "Zapomenuté heslo?" aligned to the right
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: !_isLoading ? () {
-                    _withLoader(() async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ForgottenPassword(),
-                        ),
-                      );
-                    });
-                  } : null,
-                  child: Text(t('login.buttons.forgotPassword')),
+            // "Zapomenuté heslo?" aligned to the right
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: !_isLoading
+                    ? () {
+                        _withLoader(() async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgottenPassword(),
+                            ),
+                          );
+                        });
+                      }
+                    : null,
+                child: Text(t('login.buttons.forgotPassword')),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(
+                    color: Colors.grey.shade300,
+                    thickness: 1,
+                  ),
                 ),
-              ),
-
-              const SizedBox(height: 24),
-
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: Colors.grey.shade300,
-                      thickness: 1,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(t('login.or')),
+                ),
+                Expanded(
+                  child: Divider(
+                    color: Colors.grey.shade300,
+                    thickness: 1,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(t('login.or')),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: Colors.grey.shade300,
-                      thickness: 1,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    logger.i('Google button clicked');
-                    _showLoader();
-                    Map<String, dynamic>? data = await google.GoogleSignInService.googleAuth();
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  logger.i('Google button clicked');
+                  _showLoader();
+                  try {
+                    Map<String, dynamic>? data =
+                        await google.GoogleSignInService.googleAuth();
                     if (data == null) {
                       logger.w('Google sign in returned null data');
-                      _hideLoader();
                       return;
                     }
                     if (data['status'] == 200) {
@@ -441,48 +467,55 @@ class _LoginState extends State<Login> {
                           'Google sign in successful, returned data: ${data.toString()}');
                       if (data['exists'] == false) {
                         // New user, proceed with registration
-                        _hideLoader();
+                        unawaited(TrackingConsentManager.captureEvent(
+                            'signup_start',
+                            properties: {'method': 'google'}));
                         logger.i(
                             'Google sign in: new user, proceeding to registration');
                         Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
                                 builder: (_) => RegName(
-                                  name: data['firstName'] as String? ?? '',
-                                  surname:
-                                  data['lastName'] as String? ?? '',
-                                  email: data['email'] as String? ?? '',
-                                  jwt: data['jwt'] as String,
-                                  consent: true,
-                                )));
+                                      name: data['firstName'] as String? ?? '',
+                                      surname:
+                                          data['lastName'] as String? ?? '',
+                                      email: data['email'] as String? ?? '',
+                                      jwt: data['jwt'] as String,
+                                      consent: true,
+                                    )));
                         return;
-                      } else if (data['exists'] == true) {
-                        // User exists, proceed with login
                       }
                       String? jwt = data['jwt'] as String?;
                       final secureStorage = const FlutterSecureStorage();
                       // Persist the token locally
                       await secureStorage.write(key: 'token', value: jwt);
-                      await secureStorage.write(key: 'verified', value: true.toString());
+                      await secureStorage.write(
+                          key: 'verified', value: true.toString());
                       logger.i('Google sign‑in successful, token stored');
 
                       // Retrieve user‑id from backend
                       final idResponse = await http.get(
-                        Uri.parse('https://${Config.host}/users/get-id'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': 'Bearer $jwt',
-                        });
+                          Uri.parse('https://${Config.host}/users/get-id'),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer $jwt',
+                          });
                       if (idResponse.statusCode != 200) {
-                        logger.e('Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
-                        _hideLoader();
+                        logger.e(
+                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
                         _showMessage(t('login.errors.idGetError'));
                         return;
                       }
-                      await secureStorage.write(key: 'userId', value: idResponse.body);
-                      await cacheUserData(int.parse(idResponse.body));
+                      final userId = int.parse(idResponse.body);
+                      await secureStorage.write(
+                          key: 'userId', value: idResponse.body);
+                      await cacheUserData(userId);
+                      _trackLogin(
+                        method: 'google',
+                        userId: userId,
+                        verified: true,
+                      );
                       await fb.refreshToken();
-                      _hideLoader();
                       // Go to recorder screen
                       Navigator.pushReplacement(
                         context,
@@ -491,12 +524,20 @@ class _LoginState extends State<Login> {
                     } else {
                       logger.w(
                           'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
-                      _hideLoader();
                       _showMessage(t('login.errors.loginFailed'));
                       return;
                     }
+                  } catch (e, stackTrace) {
+                    logger.e('Google sign-in error: $e',
+                        error: e, stackTrace: stackTrace);
+                    await Sentry.captureException(e, stackTrace: stackTrace);
+                    _showMessage(t('login.errors.loginFailed'));
+                    return;
+                  } finally {
+                    _hideLoader();
+                  }
 
-                    /*
+                  /*
                     logger.i('Button clicked');
                     //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
                     late int userId;
@@ -527,31 +568,31 @@ class _LoginState extends State<Login> {
                     builder: (_) => LiveRec()));
                   }
                     */
-                  },
-                  icon: Image.asset(
-                    'assets/images/google.webp',
-                    height: 24,
-                    width: 24,
+                },
+                icon: Image.asset(
+                  'assets/images/google.webp',
+                  height: 24,
+                  width: 24,
+                ),
+                label: Text(
+                  t('login.buttons.googleSignIn'),
+                  style: TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  side: BorderSide(color: Colors.grey[300]!),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  label: Text(
-                    t('login.buttons.googleSignIn'),
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
@@ -571,6 +612,9 @@ class _LoginState extends State<Login> {
                           'Apple sign in successful, returned data: ${data.toString()}');
                       if (data['exists'] == false) {
                         // New user, proceed with registration
+                        unawaited(TrackingConsentManager.captureEvent(
+                            'signup_start',
+                            properties: {'method': 'apple'}));
                         _hideLoader();
                         logger.i(
                             'Apple sign in: new user, proceeding to registration');
@@ -578,16 +622,16 @@ class _LoginState extends State<Login> {
                             context,
                             MaterialPageRoute(
                                 builder: (_) => RegName(
-                                  name: data['firstName'] as String? ?? '',
-                                  surname:
-                                  data['lastName'] as String? ?? '',
-                                  email: data['email'] as String? ?? '',
-                                  jwt: data['jwt'] as String,
-                                  appleId:
-                                  data['userIdentifier'] as String? ??
-                                      '',
-                                  consent: true,
-                                )));
+                                      name: data['firstName'] as String? ?? '',
+                                      surname:
+                                          data['lastName'] as String? ?? '',
+                                      email: data['email'] as String? ?? '',
+                                      jwt: data['jwt'] as String,
+                                      appleId:
+                                          data['userIdentifier'] as String? ??
+                                              '',
+                                      consent: true,
+                                    )));
                         return;
                       } else if (data['exists'] == true) {
                         // User exists, proceed with login
@@ -612,7 +656,10 @@ class _LoginState extends State<Login> {
 
                     if ((firstName != null &&
                         lastName != null &&
-                        email != null && firstName.isEmpty && lastName.isEmpty && email.isEmpty)){
+                        email != null &&
+                        firstName.isEmpty &&
+                        lastName.isEmpty &&
+                        email.isEmpty)) {
                       // Missing profile data → go to the registration screen
                       _hideLoader();
                       Navigator.pushReplacement(
@@ -635,7 +682,8 @@ class _LoginState extends State<Login> {
 
                     // Persist the token locally
                     await secureStorage.write(key: 'token', value: jwt);
-                    await secureStorage.write(key: 'verified', value: true.toString());
+                    await secureStorage.write(
+                        key: 'verified', value: true.toString());
                     logger.i('Apple sign‑in successful, token stored');
 
                     // Retrieve user‑id from backend
@@ -657,6 +705,11 @@ class _LoginState extends State<Login> {
 
                     await secureStorage.write(
                         key: 'userId', value: idResponse.body);
+                    _trackLogin(
+                      method: 'apple',
+                      userId: int.parse(idResponse.body),
+                      verified: true,
+                    );
                     await fb.refreshToken();
 
                     // Get users data
@@ -669,8 +722,7 @@ class _LoginState extends State<Login> {
                       context,
                       MaterialPageRoute(builder: (_) => LiveRec()),
                     );
-                  }
-                  catch (e, stackTrace) {
+                  } catch (e, stackTrace) {
                     logger.e('Apple sign-in error: $e',
                         error: e, stackTrace: stackTrace);
                     await Sentry.captureException(e, stackTrace: stackTrace);
@@ -713,7 +765,8 @@ class _LoginState extends State<Login> {
             backgroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              icon: Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+              icon: Image.asset('assets/icons/backButton.png',
+                  width: 30, height: 30),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -732,7 +785,8 @@ class _LoginState extends State<Login> {
                   backgroundColor: yellow,
                   foregroundColor: yellowishBlack,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textStyle:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16.0),
                   ),
