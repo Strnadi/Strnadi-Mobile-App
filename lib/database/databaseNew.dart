@@ -1391,30 +1391,28 @@ class DatabaseNew {
     Directory tempDir = await getApplicationDocumentsDirectory();
     List<String> paths = [];
     final Dio dio = Dio();
-    final Map<int, int> partTotals = {};
-    final Map<int, int> partReceived = {};
     int completedParts = 0;
+    double currentPartProgress = 0.0;
 
     void reportProgress() {
       if (onProgress == null) return;
-      final int totalBytes =
-          partTotals.values.fold(0, (sum, v) => sum + v);
-      final int receivedBytes =
-          partReceived.values.fold(0, (sum, v) => sum + v);
-      if (totalBytes > 0) {
-        onProgress(receivedBytes / totalBytes);
-        return;
-      }
       if (parts.isEmpty) {
         onProgress(1.0);
         return;
       }
-      onProgress(completedParts / parts.length);
+      // Parts are downloaded sequentially, so include the current part fraction
+      // to keep progress monotonic and avoid 100% -> lower% jumps between parts.
+      final double progress =
+          ((completedParts + currentPartProgress) / parts.length)
+              .clamp(0.0, 1.0);
+      onProgress(progress);
     }
 
     onProgress?.call(0.0);
 
     for (final part in parts) {
+      currentPartProgress = 0.0;
+      reportProgress();
       // Download each part's full sound
       final Uri url = Uri(
         scheme: 'https',
@@ -1430,9 +1428,8 @@ class DatabaseNew {
           ),
           cancelToken: cancelToken,
           onReceiveProgress: (received, total) {
-            if (total > 0 && part.BEId != null) {
-              partTotals[part.BEId!] = total;
-              partReceived[part.BEId!] = received;
+            if (total > 0) {
+              currentPartProgress = (received / total).clamp(0.0, 1.0);
               reportProgress();
             }
           },
@@ -1455,6 +1452,7 @@ class DatabaseNew {
 
         paths.add(partFilePath);
         completedParts += 1;
+        currentPartProgress = 0.0;
         reportProgress();
       } catch (e, stackTrace) {
         if (e is FetchException) {
