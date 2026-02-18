@@ -18,8 +18,8 @@ import 'dart:convert';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
-import 'package:strnadi/config/config.dart';
+import 'package:strnadi/api/controllers/auth_controller.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
@@ -57,6 +57,9 @@ class RegOverview extends StatefulWidget {
 }
 
 class _RegOverviewState extends State<RegOverview> {
+  static const AuthController _authController = AuthController();
+  static const UserController _userController = UserController();
+
   static const Color textColor = Color(0xFF2D2B18);
   static const Color yellow = Color(0xFFFFD641);
   final Logger logger = Logger();
@@ -100,13 +103,8 @@ class _RegOverviewState extends State<RegOverview> {
 
   Future<void> register() async {
     final secureStorage = FlutterSecureStorage();
-    final url = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/auth/sign-up',
-    );
 
-    final requestBody = jsonEncode({
+    final requestBody = <String, dynamic>{
       'email': widget.email,
       'password': widget.password,
       'FirstName': widget.name,
@@ -117,44 +115,35 @@ class _RegOverviewState extends State<RegOverview> {
           widget.postCode.isNotEmpty ? int.tryParse(widget.postCode) : null,
       'appleId': widget.appleId,
       'consent': widget.consent && _marketingConsent,
-    });
+    };
 
-    logger.i("Sign Up Request Body: $requestBody");
+    logger.i("Sign Up Request Body: ${jsonEncode(requestBody)}");
 
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${widget.jwt}',
-        },
+      final response = await _authController.signUp(
         body: requestBody,
+        token: widget.jwt,
       );
 
-      logger.i("Sign Up Response: ${response.body}");
+      logger.i("Sign Up Response: ${response.data}");
 
       if ([200, 201, 202].contains(response.statusCode)) {
         // Store the token if returned
         await secureStorage.write(
-            key: 'token', value: response.body.toString());
+            key: 'token', value: response.data.toString());
         await fb.refreshToken();
 
-        Uri url =
-            Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
-        var idResponse = await http.get(url, headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${response.body.toString()}',
-        });
+        final idResponse = await _userController.getUserIdFromToken();
         if (idResponse.statusCode != 200) {
           logger.e(
-              'Failed to retrieve user ID after sign-up: ${idResponse.statusCode} | ${idResponse.body}');
+              'Failed to retrieve user ID after sign-up: ${idResponse.statusCode} | ${idResponse.data}');
           _showMessage(t('login.errors.idGetError'));
           return;
         }
-        int userId = int.tryParse(idResponse.body) ?? -1;
+        int userId = int.tryParse(idResponse.data.toString()) ?? -1;
         if (userId < 0) {
           logger
-              .e('Invalid user ID response after sign-up: ${idResponse.body}');
+              .e('Invalid user ID response after sign-up: ${idResponse.data}');
           _showMessage(t('login.errors.idGetError'));
           return;
         }
@@ -174,12 +163,12 @@ class _RegOverviewState extends State<RegOverview> {
         }
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
-        logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
+        logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
         _showMessage(t('signup.overview.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
         _showMessage(t('signup.overview.errors.error_ocured'));
-        logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
+        logger.e("Sign up failed: ${response.statusCode} | ${response.data}");
       }
     } catch (error) {
       GoogleSignInService.signOut();

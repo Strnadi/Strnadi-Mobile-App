@@ -82,4 +82,16 @@ class UserController {
       options: Options(contentType: Headers.jsonContentType),
     );
   }
+
+  Future<Response<dynamic>> checkEmailExists(String email) {
+    return _dio.getUri(
+      _uri('/users/exists', queryParameters: <String, String>{
+        'email': email,
+      }),
+      options: Options(
+        contentType: Headers.jsonContentType,
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
 }

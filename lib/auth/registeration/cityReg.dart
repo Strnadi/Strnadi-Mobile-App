@@ -20,7 +20,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:logger/logger.dart';
@@ -28,11 +28,11 @@ import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/navigation/session_navigation.dart';
 
-import '../../config/config.dart';
 import 'emailSent.dart';
 import 'overview.dart';
 
 Logger logger = Logger();
+const AuthController _authController = AuthController();
 
 class RegLocation extends StatefulWidget {
   final String email;
@@ -87,14 +87,7 @@ class _RegLocationState extends State<RegLocation> {
 
   Future<void> register() async {
     final secureStorage = FlutterSecureStorage();
-
-    final url = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/auth/sign-up',
-    );
-
-    final requestBody = jsonEncode({
+    final requestBody = <String, dynamic>{
       'email': widget.email,
       'password': widget.password,
       'FirstName': widget.name,
@@ -105,26 +98,22 @@ class _RegLocationState extends State<RegLocation> {
           ? int.parse(_pscController.text).toUnsigned(32)
           : null,
       'consent': widget.consent,
-    });
+    };
 
-    logger.i("Sign Up Request Body: $requestBody");
+    logger.i("Sign Up Request Body: ${jsonEncode(requestBody)}");
 
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${widget.jwt}',
-        },
+      final response = await _authController.signUp(
         body: requestBody,
+        token: widget.jwt,
       );
 
-      logger.i("Sign Up Response: ${response.body}");
+      logger.i("Sign Up Response: ${response.data}");
 
       if ([200, 201, 202].contains(response.statusCode)) {
         // Store the token if returned
         await secureStorage.write(
-            key: 'token', value: response.body.toString());
+            key: 'token', value: response.data.toString());
         await fb.refreshToken();
 
         // Navigate to the login screen (or next step)
@@ -136,12 +125,12 @@ class _RegLocationState extends State<RegLocation> {
         );
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
-        logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
+        logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
         _showMessage(t('signup.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
         _showMessage(t('signup.errors.error_ocured'));
-        logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
+        logger.e("Sign up failed: ${response.statusCode} | ${response.data}");
       }
     } catch (error) {
       GoogleSignInService.signOut();

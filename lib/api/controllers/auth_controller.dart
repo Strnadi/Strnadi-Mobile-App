@@ -104,4 +104,97 @@ class AuthController {
       ),
     );
   }
+
+  Future<Response<dynamic>> setResetPassword({
+    required String email,
+    required String token,
+    required String password,
+  }) {
+    return _dio.patchUri(
+      _uri('/auth/$email/reset-password'),
+      data: <String, String>{'password': password},
+      options: Options(
+        contentType: Headers.jsonContentType,
+        headers: <String, String>{'Authorization': 'Bearer $token'},
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> signUp({
+    required Map<String, dynamic> body,
+    String? token,
+  }) {
+    return _dio.postUri(
+      _uri('/auth/sign-up'),
+      data: body,
+      options: Options(
+        contentType: Headers.jsonContentType,
+        headers: token == null || token.isEmpty
+            ? null
+            : <String, String>{'Authorization': 'Bearer $token'},
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> appleSignIn({
+    required Map<String, dynamic> body,
+    String? token,
+  }) {
+    return _dio.postUri(
+      _uri('/auth/apple'),
+      data: body,
+      options: Options(
+        contentType: Headers.jsonContentType,
+        headers: token == null || token.isEmpty
+            ? null
+            : <String, String>{'Authorization': 'Bearer $token'},
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> googleSignIn({
+    required String idToken,
+    String? token,
+  }) {
+    return _dio.postUri(
+      _uri('/auth/google'),
+      data: <String, String>{'idToken': idToken},
+      options: Options(
+        contentType: Headers.jsonContentType,
+        headers: token == null || token.isEmpty
+            ? null
+            : <String, String>{'Authorization': 'Bearer $token'},
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> loginGoogle({
+    required String idToken,
+  }) {
+    return _dio.postUri(
+      _uri('/auth/login-google'),
+      data: <String, String>{'idToken': idToken},
+      options: Options(
+        contentType: Headers.jsonContentType,
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> signUpGoogle({
+    required String idToken,
+  }) {
+    return _dio.postUri(
+      _uri('/auth/sign-up-google'),
+      data: <String, String>{'idToken': idToken},
+      options: Options(
+        contentType: Headers.jsonContentType,
+        extra: const <String, Object>{'authRequired': false},
+      ),
+    );
+  }
 }

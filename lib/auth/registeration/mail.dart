@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/auth/authorizator.dart';
@@ -30,8 +30,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 import 'package:strnadi/auth/appleAuth.dart' as apple;
-
-import '../../config/config.dart';
 import '../../firebase/firebase.dart' as fb;
 import '../../md_renderer.dart';
 import '../../recording/streamRec.dart';
@@ -46,6 +44,8 @@ class RegMail extends StatefulWidget {
 }
 
 class _RegMailState extends State<RegMail> {
+  static const UserController _userController = UserController();
+
   bool _isChecked = false;
   final TextEditingController _emailController = TextEditingController();
 
@@ -74,13 +74,17 @@ class _RegMailState extends State<RegMail> {
   }
 
   Future<void> cacheUserData(int userID) async {
-    Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
-
-    http.Response response =
-        await http.get(url, headers: {'Content-Type': 'application/json'});
     try {
+      final response = await _userController.getUserById(userID);
       if (response.statusCode == 200) {
-        var jsonResponse = jsonDecode(response.body);
+        final dynamic raw = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        if (raw is! Map) {
+          logger.w('Failed to parse user profile payload: ${raw.runtimeType}');
+          return;
+        }
+        final Map<String, dynamic> jsonResponse = raw.cast<String, dynamic>();
         String firstName = jsonResponse['firstName'];
         String lastName = jsonResponse['lastName'];
         String nick = jsonResponse['nickname'];
@@ -141,15 +145,7 @@ class _RegMailState extends State<RegMail> {
   }
 
   Future<bool> _checkEmail(String email) async {
-    final Uri url = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/users/exists',
-      queryParameters: {
-        'email': email,
-      },
-    );
-    final response = await http.get(url);
+    final response = await _userController.checkEmailExists(email);
     if ([200, 404].contains(response.statusCode)) {
       return false; // Email exists (or JWT received)
     } else if (response.statusCode == 409) {
@@ -157,7 +153,7 @@ class _RegMailState extends State<RegMail> {
       return true;
     } else {
       logger.w(
-          'Failed to check email: ${response.statusCode} | ${response.body}');
+          'Failed to check email: ${response.statusCode} | ${response.data}');
       return true;
     }
   }
@@ -490,26 +486,21 @@ class _RegMailState extends State<RegMail> {
                                             'Google sign‑in successful, token stored');
 
                                         // Retrieve user‑id from backend
-                                        final idResponse = await http.get(
-                                            Uri.parse(
-                                                'https://${Config.host}/users/get-id'),
-                                            headers: {
-                                              'Content-Type':
-                                                  'application/json',
-                                              'Authorization': 'Bearer $jwt',
-                                            });
+                                        final idResponse = await _userController
+                                            .getUserIdFromToken();
                                         if (idResponse.statusCode != 200) {
                                           logger.e(
-                                              'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                                              'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
                                           _showMessage(
                                               t('login.errors.idGetError'));
                                           return;
                                         }
+                                        final userId = int.parse(
+                                            idResponse.data.toString());
                                         await secureStorage.write(
                                             key: 'userId',
-                                            value: idResponse.body);
-                                        await cacheUserData(
-                                            int.parse(idResponse.body));
+                                            value: userId.toString());
+                                        await cacheUserData(userId);
                                         await fb.refreshToken();
                                         // Go to recorder screen
                                         Navigator.pushReplacement(
@@ -684,33 +675,27 @@ class _RegMailState extends State<RegMail> {
                                       logger.i(
                                           'Apple sign‑in successful, token stored');
 
-                                      final idResponse = await http.get(
-                                        Uri.parse(
-                                            'https://${Config.host}/users/get-id'),
-                                        headers: {
-                                          'Content-Type': 'application/json',
-                                          'Authorization': 'Bearer $jwt',
-                                        },
-                                      );
+                                      final idResponse = await _userController
+                                          .getUserIdFromToken();
                                       if (idResponse.statusCode != 200) {
                                         logger.w(
-                                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
                                         _showMessage(
                                             t('login.errors.idGetError'));
                                         return;
                                       }
-                                      logger.i(
-                                          'User ID retrieved: ${idResponse.body}');
+                                      final userId =
+                                          int.parse(idResponse.data.toString());
+                                      logger.i('User ID retrieved: $userId');
 
                                       await secureStorage.write(
                                           key: 'userId',
-                                          value: idResponse.body);
+                                          value: userId.toString());
                                       await secureStorage.write(
                                           key: 'verified',
                                           value: true.toString());
                                       await fb.refreshToken();
-                                      await cacheUserData(
-                                          int.parse(idResponse.body));
+                                      await cacheUserData(userId);
 
                                       Navigator.pushReplacement(
                                         context,

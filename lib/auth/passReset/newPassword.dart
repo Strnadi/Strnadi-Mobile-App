@@ -14,20 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-import 'dart:convert';
-
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
-
-import '../../config/config.dart';
 import 'changedPassword.dart';
 
 final logger = Logger();
+const AuthController _authController = AuthController();
 
 class ChangePassword extends StatefulWidget {
   final String jwt;
@@ -379,26 +376,17 @@ class _RegPasswordState extends State<ChangePassword> {
     if (email == null) {
       return false;
     }
-    final uri = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/auth/$email/reset-password');
-    final response = await http.patch(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      },
-      body: jsonEncode({
-        'password': password,
-      }),
+    final response = await _authController.setResetPassword(
+      email: email,
+      token: jwt,
+      password: password,
     );
 
     if (response.statusCode == 200) {
       logger.i('Password reset successful');
       return true;
     } else {
-      logger.e('Failed to reset password: ${response.body}');
+      logger.e('Failed to reset password: ${response.data}');
       return false;
     }
   }

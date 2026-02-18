@@ -15,14 +15,13 @@
  */
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:convert';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-import '../config/config.dart';
-
 Logger logger = Logger();
+const AuthController _authController = AuthController();
 
 class GoogleSignInService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -81,26 +80,24 @@ class GoogleSignInService {
 
       logger.i('google idToken received');
 
-      Map<String, String> headers = {'Content-Type': 'application/json'};
-      if (jwt != null && jwt.isNotEmpty) {
-        headers.addAll({'Authorization': 'Bearer $jwt'});
-      }
-
-      //Send to BE
-
-      http.Response response = await http.post(
-          Uri(scheme: 'https', host: Config.host, path: '/auth/google'),
-          headers: headers,
-          body: jsonEncode({"idToken": idToken}));
+      final response = await _authController.googleSignIn(
+        idToken: idToken,
+        token: jwt,
+      );
 
       Map<String, dynamic> product = {"status": response.statusCode};
 
       if (response.statusCode != 200) {
         logger.w(
-            'Google sign in failed: ${response.statusCode} | ${response.body}');
+            'Google sign in failed: ${response.statusCode} | ${response.data}');
         return product;
       }
-      product.addAll(jsonDecode(response.body));
+      final dynamic raw = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      if (raw is Map) {
+        product.addAll(raw.cast<String, dynamic>());
+      }
       logger.i('Google sign in successful');
       return product;
     } catch (e, stackTrace) {
@@ -139,20 +136,14 @@ class GoogleSignInService {
 
       logger.i('google idToken received');
 
-      //Send to BE
-      Uri url = Uri.parse('https://${Config.host}/auth/login-google');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'idToken': idToken,
-          }));
+      final response = await _authController.loginGoogle(idToken: idToken);
       if (response.statusCode == 200) {
         logger.i('Google sign in succesfull');
-        final jwt = response.body;
+        final jwt = response.data.toString();
         return jwt;
       } else {
         throw Exception(
-            'Sign in failed: ${response.statusCode} | ${response.body}');
+            'Sign in failed: ${response.statusCode} | ${response.data}');
       }
     } catch (e, stackTrace) {
       signOut();
@@ -177,14 +168,7 @@ class GoogleSignInService {
 
     logger.i('Google email: ${JwtDecoder.decode(idToken)['sub']}');
 
-    // Call your backend sign-up endpoint.
-    // Replace the URL with your actual backend endpoint.
-    final url = 'https://${Config.host}/auth/sign-up-google';
-    final response = await http.post(Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'idToken': idToken,
-        }));
+    final response = await _authController.signUpGoogle(idToken: idToken);
 
     if (response.statusCode == 409) {
       GoogleSignInService.signOut();
@@ -192,11 +176,17 @@ class GoogleSignInService {
       return {'status': 409};
     } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
-      logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
+      logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
       return {'status': response.statusCode};
     }
 
-    Map<String, dynamic> user = jsonDecode(response.body);
+    final dynamic raw = response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
+    if (raw is! Map) {
+      return {'status': response.statusCode};
+    }
+    Map<String, dynamic> user = raw.cast<String, dynamic>();
     user.addEntries({'status': response.statusCode}.entries);
     return user;
   }

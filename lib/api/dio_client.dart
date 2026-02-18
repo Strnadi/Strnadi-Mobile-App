@@ -25,15 +25,7 @@ class ApiDioClient {
   static int _requestCounter = 0;
 
   static const Set<String> _sensitiveQueryKeys = <String>{
-    'token',
-    'jwt',
-    'authorization',
-    'auth',
-    'password',
-    'email',
-    'fcmToken',
-    'refreshToken',
-    'accessToken',
+
   };
 
   static Dio get instance {
@@ -77,7 +69,7 @@ class ApiDioClient {
           final Map<String, dynamic> sanitizedHeaders =
               Map<String, dynamic>.from(options.headers);
           if (sanitizedHeaders.containsKey('Authorization')) {
-            sanitizedHeaders['Authorization'] = '***';
+            //sanitizedHeaders['Authorization'] = '***';
           }
 
           final Uri sanitizedUri = _sanitizeUri(options.uri);

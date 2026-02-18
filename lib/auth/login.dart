@@ -20,19 +20,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/auth/appleAuth.dart' as apple;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
-import 'package:strnadi/auth/launch_warning.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
-import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../recording/streamRec.dart';
 import 'passReset/forgottenPassword.dart';
@@ -49,6 +47,9 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
+  static const AuthController _authController = AuthController();
+  static const UserController _userController = UserController();
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   late TapGestureRecognizer _registerTapRecognizer;
@@ -120,13 +121,17 @@ class _LoginState extends State<Login> {
   }
 
   Future<void> cacheUserData(int userID) async {
-    Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$userID');
-
-    http.Response response =
-        await http.get(url, headers: {'Content-Type': 'application/json'});
     try {
+      final response = await _userController.getUserById(userID);
       if (response.statusCode == 200) {
-        var jsonResponse = jsonDecode(response.body);
+        final dynamic raw = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        if (raw is! Map) {
+          logger.w('Failed to parse user profile payload: ${raw.runtimeType}');
+          return;
+        }
+        final Map<String, dynamic> jsonResponse = raw.cast<String, dynamic>();
         String firstName = jsonResponse['firstName'];
         String lastName = jsonResponse['lastName'];
         String nick = jsonResponse['nickname'];
@@ -150,8 +155,6 @@ class _LoginState extends State<Login> {
   }
 
   void login() async {
-    final url = Uri.https(Config.host, '/auth/login');
-
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       _showMessage(t('login.errors.emptyFieldsError'));
       return;
@@ -164,16 +167,13 @@ class _LoginState extends State<Login> {
     }
 
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': _emailController.text,
-          'password': _passwordController.text,
-        }),
+      final response = await _authController.login(
+        email: _emailController.text,
+        password: _passwordController.text,
       );
 
-      logger.i('Login response: ${response.statusCode} | ${response.body}');
+      logger.i('Login response: ${response.statusCode} | ${response.data}');
+      final String token = response.data.toString();
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         _finishCredentialAutofill();
@@ -182,29 +182,19 @@ class _LoginState extends State<Login> {
         if (await secureStorage.read(key: 'token') != null) {
           secureStorage.delete(key: 'token');
         }
-        await secureStorage.write(
-            key: 'token', value: response.body.toString());
+        await secureStorage.write(key: 'token', value: token);
 
-        final verifyUrl = Uri.https(Config.host, '/auth/verify-jwt');
-
-        final verifyResponse = await http.get(
-          verifyUrl,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${response.body.toString()}',
-          },
-        );
+        final verifyResponse = await _authController.verifyJwt(token);
 
         int? userId;
         if (verifyResponse.statusCode == 403) {
           // If the JWT check returns 403, the account is not verified.
-          Uri url =
-              Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
-          var response = await http.get(url, headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
-          });
-          userId = int.parse(response.body);
+          final idResponse = await _userController.getUserIdFromToken();
+          if (idResponse.statusCode != 200) {
+            _showMessage(t('login.errors.idGetError'));
+            return;
+          }
+          userId = int.parse(idResponse.data.toString());
           await secureStorage.write(key: 'userId', value: userId.toString());
           await cacheUserData(userId);
           _trackLogin(method: 'password', userId: userId, verified: false);
@@ -219,15 +209,13 @@ class _LoginState extends State<Login> {
           );
           return;
         } else {
-          await secureStorage.write(
-              key: 'token', value: response.body.toString());
-          Uri url =
-              Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
-          var idResponse = await http.get(url, headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${response.body.toString()}',
-          });
-          userId = int.parse(idResponse.body);
+          await secureStorage.write(key: 'token', value: token);
+          final idResponse = await _userController.getUserIdFromToken();
+          if (idResponse.statusCode != 200) {
+            _showMessage(t('login.errors.idGetError'));
+            return;
+          }
+          userId = int.parse(idResponse.data.toString());
           await secureStorage.write(key: 'userId', value: userId.toString());
           await cacheUserData(userId);
         }
@@ -235,7 +223,7 @@ class _LoginState extends State<Login> {
         if (userId != null) {
           _trackLogin(method: 'password', userId: userId, verified: true);
         }
-        logger.i(response.body);
+        logger.i(token);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
         Navigator.pushReplacement(
@@ -250,15 +238,13 @@ class _LoginState extends State<Login> {
       } else if (response.statusCode == 403) {
         _finishCredentialAutofill();
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
-        await secureStorage.write(
-            key: 'token', value: response.body.toString());
-        Uri url =
-            Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
-        var idResponse = await http.get(url, headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${await secureStorage.read(key: 'token')}',
-        });
-        int userId = int.parse(idResponse.body);
+        await secureStorage.write(key: 'token', value: token);
+        final idResponse = await _userController.getUserIdFromToken();
+        if (idResponse.statusCode != 200) {
+          _showMessage(t('login.errors.idGetError'));
+          return;
+        }
+        int userId = int.parse(idResponse.data.toString());
         await secureStorage.write(key: 'userId', value: userId.toString());
         await cacheUserData(userId);
         _trackLogin(method: 'password', userId: userId, verified: false);
@@ -275,7 +261,7 @@ class _LoginState extends State<Login> {
         _showMessage(t('login.errors.invalidCredentials'));
       } else {
         logger.w(
-            'Login failed: Code: ${response.statusCode} message: ${response.body}');
+            'Login failed: Code: ${response.statusCode} message: ${response.data}');
         _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
@@ -507,21 +493,17 @@ class _LoginState extends State<Login> {
                       logger.i('Google sign‑in successful, token stored');
 
                       // Retrieve user‑id from backend
-                      final idResponse = await http.get(
-                          Uri.parse('https://${Config.host}/users/get-id'),
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer $jwt',
-                          });
+                      final idResponse =
+                          await _userController.getUserIdFromToken();
                       if (idResponse.statusCode != 200) {
                         logger.e(
-                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
                         _showMessage(t('login.errors.idGetError'));
                         return;
                       }
-                      final userId = int.parse(idResponse.body);
+                      final userId = int.parse(idResponse.data.toString());
                       await secureStorage.write(
-                          key: 'userId', value: idResponse.body);
+                          key: 'userId', value: userId.toString());
                       await cacheUserData(userId);
                       _trackLogin(
                         method: 'google',
@@ -549,38 +531,6 @@ class _LoginState extends State<Login> {
                   } finally {
                     _hideLoader();
                   }
-
-                  /*
-                    logger.i('Button clicked');
-                    //google.GoogleSignInService _googleSignInService = google.GoogleSignInService();
-                    late int userId;
-                    String? jwt = await google.GoogleSignInService.signInWithGoogle();
-                    // Handle 'Continue with Google' logic here
-                    if (jwt != null)
-                    {
-                      FlutterSecureStorage secureStorage = const FlutterSecureStorage();
-                      secureStorage.write(key: 'token', value: jwt);
-                      http.Response response = await http.get(
-                        Uri.parse('https://${Config.host}/users/get-id'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': 'Bearer $jwt',
-                        });
-                      if (response.statusCode == 200) {
-                        await secureStorage.write(key: 'verified', value: true.toString());
-                        await secureStorage.write(
-                            key: 'userId',
-                            value: response.body.toString());
-                        await cacheUserData(int.parse(response.body.toString()));
-                    }
-
-                    await fb.refreshToken();
-                    Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                    builder: (_) => LiveRec()));
-                  }
-                    */
                 },
                 icon: Image.asset(
                   'assets/images/google.webp',
@@ -700,34 +650,30 @@ class _LoginState extends State<Login> {
                     logger.i('Apple sign‑in successful, token stored');
 
                     // Retrieve user‑id from backend
-                    final idResponse = await http.get(
-                      Uri.parse('https://${Config.host}/users/get-id'),
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer $jwt',
-                      },
-                    );
+                    final idResponse =
+                        await _userController.getUserIdFromToken();
                     if (idResponse.statusCode != 200) {
                       _hideLoader();
                       logger.w(
-                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.body}');
+                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
                       _showMessage('login.errors.idGetError');
                       return;
                     }
-                    logger.i('User ID retrieved: ${idResponse.body}');
+                    final userId = int.parse(idResponse.data.toString());
+                    logger.i('User ID retrieved: $userId');
 
                     await secureStorage.write(
-                        key: 'userId', value: idResponse.body);
+                        key: 'userId', value: userId.toString());
                     _trackLogin(
                       method: 'apple',
-                      userId: int.parse(idResponse.body),
+                      userId: userId,
                       verified: true,
                     );
                     await fb.refreshToken();
 
                     // Get users data
 
-                    await cacheUserData(int.parse(idResponse.body));
+                    await cacheUserData(userId);
                     _hideLoader();
 
                     // Go to recorder screen
