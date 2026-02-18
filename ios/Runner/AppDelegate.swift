@@ -22,37 +22,11 @@ func registerPlugins(registry: FlutterPluginRegistry) {
 }
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
     override func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-
-        GeneratedPluginRegistrant.register(with: self)
-
-        if let controller = window?.rootViewController as? FlutterViewController {
-            let audioChannel = FlutterMethodChannel(name: "com.delta.strnadi/audio", binaryMessenger: controller.binaryMessenger)
-            audioChannel.setMethodCallHandler { (call, result) in
-                if call.method == "getBestAudioSettings" {
-                    do {
-                        let audioSession = AVAudioSession.sharedInstance()
-                        try audioSession.setCategory(.record, mode: .measurement, options: [])
-                        try audioSession.setActive(true)
-                        let sampleRate = audioSession.sampleRate
-                        let settings: [String: Any] = [
-                            "sampleRate": Int(sampleRate),
-                            "bitRate": 128000
-                        ]
-                        result(settings)
-                    } catch {
-                        result(FlutterError(code: "UNAVAILABLE", message: "Cannot load microphone settings", details: error.localizedDescription))
-                    }
-                } else {
-                    result(FlutterMethodNotImplemented)
-                }
-            }
-        }
-        
         // Retrieve the link from parameters
         if let url = AppLinks.shared.getLink(launchOptions: launchOptions) {
           // We have a link, propagate it to your Flutter app or not
@@ -71,6 +45,35 @@ func registerPlugins(registry: FlutterPluginRegistry) {
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
+    func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+        GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+        let audioChannel = FlutterMethodChannel(
+            name: "com.delta.strnadi/audio",
+            binaryMessenger: engineBridge.applicationRegistrar.messenger()
+        )
+
+        audioChannel.setMethodCallHandler { (call, result) in
+            if call.method == "getBestAudioSettings" {
+                do {
+                    let audioSession = AVAudioSession.sharedInstance()
+                    try audioSession.setCategory(.record, mode: .measurement, options: [])
+                    try audioSession.setActive(true)
+                    let sampleRate = audioSession.sampleRate
+                    let settings: [String: Any] = [
+                        "sampleRate": Int(sampleRate),
+                        "bitRate": 128000
+                    ]
+                    result(settings)
+                } catch {
+                    result(FlutterError(code: "UNAVAILABLE", message: "Cannot load microphone settings", details: error.localizedDescription))
+                }
+            } else {
+                result(FlutterMethodNotImplemented)
+            }
+        }
+    }
+
     // Forward Universal Links (NSUserActivity) to Flutter/plugins and return whether it was handled.
     override func application(
         _ application: UIApplication,
@@ -80,4 +83,3 @@ func registerPlugins(registry: FlutterPluginRegistry) {
         return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 }
-
