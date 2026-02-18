@@ -15,25 +15,21 @@
  */
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:strnadi/localization/localization.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:http/http.dart' as http;
-import 'package:strnadi/HealthCheck/serverHealth.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/user/settingsList.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
 import '../config/config.dart';
-import '../main.dart';
 import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
 
 class UserPage extends StatefulWidget {
@@ -44,6 +40,8 @@ class UserPage extends StatefulWidget {
 }
 
 class _UserPageState extends State<UserPage> {
+  static const UserController _userController = UserController();
+
   var secureStorage = const FlutterSecureStorage();
 
   late String userName = 'null';
@@ -131,17 +129,26 @@ class _UserPageState extends State<UserPage> {
     });
   }
 
-  Future<void> getProfilePic(String? mail) async {
-    var email;
-    final jwt = await secureStorage.read(key: 'token');
-    final id = await secureStorage.read(key: "userId");
+  Map<String, dynamic>? _decodeMapPayload(dynamic payload) {
+    try {
+      if (payload is Map) {
+        return payload.cast<String, dynamic>();
+      }
+      if (payload is String) {
+        final decoded = jsonDecode(payload);
+        return decoded is Map ? decoded.cast<String, dynamic>() : null;
+      }
+      if (payload is List<int>) {
+        final decoded = jsonDecode(utf8.decode(payload));
+        return decoded is Map ? decoded.cast<String, dynamic>() : null;
+      }
+    } catch (_) {}
+    return null;
+  }
 
-    if (mail == null) {
-      final token = await secureStorage.read(key: 'token');
-      email = JwtDecoder.decode(token!)['sub'];
-    } else {
-      email = mail;
-    }
+  Future<void> getProfilePic(String? mail) async {
+    final id = await secureStorage.read(key: "userId");
+    if (id == null) return;
 
     final cacheKey = 'profilePic_$id';
     final cacheManager = DefaultCacheManager();
@@ -154,19 +161,14 @@ class _UserPageState extends State<UserPage> {
       return;
     }
 
-    final url = Uri.parse('https://${Config.host}/users/$id/get-profile-photo');
-    logger.i(url);
-
     try {
-      final value = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-      );
+      final value = await _userController.getProfilePhoto(int.parse(id));
       if (value.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(value.body);
+        final Map<String, dynamic>? data = _decodeMapPayload(value.data);
+        if (data == null) {
+          logger.e('Profile picture payload is not JSON map.');
+          return;
+        }
         final file = await convertBase64ToImage(
           data['photoBase64'],
           'profilePic.${data['format']}',
@@ -181,7 +183,7 @@ class _UserPageState extends State<UserPage> {
         logger.i("Profile picture downloaded $profileImagePath");
       } else {
         logger.e(
-            "Profile picture download failed with status code ${value.statusCode} ${value.body}");
+            "Profile picture download failed with status code ${value.statusCode} ${value.data}");
       }
     } catch (e, st) {
       logger.e('Profile picture download error', error: e, stackTrace: st);
@@ -205,20 +207,17 @@ class _UserPageState extends State<UserPage> {
     }
 
     final jwt = await secureStorage.read(key: 'token');
-    final String email = JwtDecoder.decode(jwt!)['sub'];
-    final Uri url = Uri(scheme: 'https', host: Config.host, path: '/users/$id');
+    if (jwt == null || id == null) return;
 
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt'
-        },
-      );
+      final response = await _userController.getUserById(int.parse(id));
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        final Map<String, dynamic>? data = _decodeMapPayload(response.data);
+        if (data == null) {
+          logger.e('User payload is not JSON map.');
+          return;
+        }
         setState(() {
           userName = data['firstName'];
           lastName = data['lastName'];
@@ -253,24 +252,17 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> UploadProfilePic() async {
-    final jwt = await secureStorage.read(key: 'token');
     final id = await secureStorage.read(key: "userId");
+    if (id == null) return;
 
-    final url =
-        Uri.parse("https://${Config.host}/users/$id/upload-profile-photo");
-    final body = jsonEncode({
-      'photoBase64': base64Encode(File(profileImagePath!).readAsBytesSync()),
-      'format': profileImagePath!.split('.').last,
-    });
+    final String photoBase64 =
+        base64Encode(File(profileImagePath!).readAsBytesSync());
+    final String format = profileImagePath!.split('.').last;
     try {
-      final value = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $jwt',
-          'Accept': '*/*',
-          'Content-Type': 'application/json',
-        },
-        body: body,
+      final value = await _userController.uploadProfilePhoto(
+        userId: int.parse(id),
+        photoBase64: photoBase64,
+        format: format,
       );
       if (value.statusCode == 200) {
         _showMessage(t('Profile picture uploaded'), context);
@@ -287,7 +279,7 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> logout(BuildContext context, {bool popUp = true}) async {
-    if(popUp) {
+    if (popUp) {
       showDialog(
           context: context,
           builder: (context) {
@@ -304,8 +296,8 @@ class _UserPageState extends State<UserPage> {
                     if (_isLoading) return;
                     Navigator.of(context).pop(); // close dialog first
                     await _withLoader(() async {
-                      unawaited(TrackingConsentManager.captureEvent(
-                          'logout', properties: {'method': 'manual'}));
+                      unawaited(TrackingConsentManager.captureEvent('logout',
+                          properties: {'method': 'manual'}));
                       unawaited(TrackingConsentManager.resetIdentity());
                       await GoogleSignInService.signOut();
                       await secureStorage.deleteAll();
@@ -320,18 +312,17 @@ class _UserPageState extends State<UserPage> {
               ],
             );
           });
-    }
-    else {
+    } else {
       await _withLoader(() async {
-        unawaited(TrackingConsentManager.captureEvent(
-            'logout', properties: {'method': 'manual'}));
+        unawaited(TrackingConsentManager.captureEvent('logout',
+            properties: {'method': 'manual'}));
         unawaited(TrackingConsentManager.resetIdentity());
         await GoogleSignInService.signOut();
         await secureStorage.deleteAll();
         await strnadiFirebase.deleteToken();
         if (!mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(
-            '/authorizator', (route) => false);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/authorizator', (route) => false);
       });
     }
   }
@@ -381,7 +372,10 @@ class _UserPageState extends State<UserPage> {
                     ),
                   ),
                   _isConnected
-                      ? MenuScreen(refreshUserCallback: refreshUserData,logout: logout,)
+                      ? MenuScreen(
+                          refreshUserCallback: refreshUserData,
+                          logout: logout,
+                        )
                       : Text(t('user.menu.error.noInternet')),
                 ],
               ),

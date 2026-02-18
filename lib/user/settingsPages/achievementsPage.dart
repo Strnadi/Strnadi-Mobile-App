@@ -17,12 +17,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/achievements_controller.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/widgets/progressIndicator.dart';
 
 import '../../config/config.dart';
-import '../../localization/localization.dart';
 
 class Achievement {
   final String title;
@@ -46,6 +45,9 @@ class AchievementsPage extends StatefulWidget {
 }
 
 class _AchievementsPageState extends State<AchievementsPage> {
+  static const AchievementsController _achievementsController =
+      AchievementsController();
+
   late Future<List<Achievement>> _achievementsFuture;
   List<Achievement> achievements = [];
   bool isLoading = true;
@@ -82,6 +84,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
     }).toList();
   }
 
+  String _encodeResponseData(dynamic payload) {
+    if (payload == null) return '[]';
+    if (payload is String) return payload;
+    return jsonEncode(payload);
+  }
+
   Future<List<Achievement>> getUserAchievement() async {
     List<Achievement> list = [];
 
@@ -91,20 +99,20 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     logger.i('$token');
 
-    final url = Uri.parse("https://${Config.host}/achievements?userId=$token");
+    final int userId = int.tryParse(token ?? '') ?? -1;
+    if (userId <= 0) {
+      return list;
+    }
     try {
-      final value = await http.get(
-        url,
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/json',
-        },
-      );
+      final value = await _achievementsController.fetchForUser(userId);
       if (value.statusCode == 200) {
-        logger.i('achievements ${value.body}');
+        logger.i('achievements ${value.data}');
         // Parse your achievements here and add to list
         // Example:
-        list = await parseAchievements(value.body, defaultVal: true);
+        list = await parseAchievements(
+          _encodeResponseData(value.data),
+          defaultVal: true,
+        );
       } else {
         logger.e('Failed to fetch achievements: ${value.statusCode}');
       }
@@ -219,20 +227,13 @@ class _AchievementsPageState extends State<AchievementsPage> {
   Future<List<Achievement>> getAllAchievements() async {
     List<Achievement> list = [];
 
-    final url = Uri.parse("https://${Config.host}/achievements");
     try {
-      final value = await http.get(
-        url,
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/json',
-        },
-      );
+      final value = await _achievementsController.fetchAll();
       if (value.statusCode == 200) {
-        logger.i('achievements ${value.body}');
+        logger.i('achievements ${value.data}');
         // Parse your achievements here and add to list
         // Example:
-        list = await parseAchievements(value.body);
+        list = await parseAchievements(_encodeResponseData(value.data));
       } else {
         logger.e('Failed to fetch achievements: ${value.statusCode}');
       }

@@ -15,7 +15,7 @@
  */
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:logger/logger.dart';
 

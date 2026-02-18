@@ -20,7 +20,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
 

@@ -17,9 +17,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/articles_controller.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'package:strnadi/user/settingsPages/achievementsPage.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
 import 'package:strnadi/user/settingsPages/connectedPlatforms.dart';
@@ -31,6 +30,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../config/config.dart';
 
 class MenuScreen extends StatelessWidget {
+  static const ArticlesController _articlesController = ArticlesController();
+
   Function() refreshUserCallback;
   Function(BuildContext, {bool popUp}) logout;
 
@@ -92,7 +93,7 @@ class MenuScreen extends StatelessWidget {
         i = 3;
     }
     String lang;
-    switch (await Config.getLanguagePreference()){
+    switch (await Config.getLanguagePreference()) {
       case LanguagePreference.cs:
         lang = "cs-CZ";
       case LanguagePreference.en:
@@ -101,13 +102,16 @@ class MenuScreen extends StatelessWidget {
         lang = "de-DE";
     }
 
-    final url = Uri.parse('https://${Config.host}/articles/$i/$lang.md');
-    final response = await http.get(url, headers: {
-      'accept': 'application/json',
-    });
+    final response = await _articlesController.fetchArticleMarkdown(
+      articleId: i,
+      languageTag: lang,
+    );
 
     if (response.statusCode == 200) {
-      final text = utf8.decode(response.bodyBytes);
+      final dynamic data = response.data;
+      final String text = data is List<int>
+          ? utf8.decode(data)
+          : (data is String ? data : data.toString());
       return text;
     }
 

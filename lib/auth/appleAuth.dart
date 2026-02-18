@@ -20,7 +20,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:strnadi/database/databaseNew.dart' hide logger;
 import '../config/config.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 
 /// A simple model that contains the data returned by Apple after
 /// a successful sign‑in.

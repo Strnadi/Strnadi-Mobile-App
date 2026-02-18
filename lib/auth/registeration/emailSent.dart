@@ -16,16 +16,14 @@
 import 'dart:async';
 
 import 'package:strnadi/localization/localization.dart';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
-
-import '../../config/config.dart';
 
 Logger logger = Logger();
 
@@ -42,6 +40,9 @@ class VerifyEmail extends StatefulWidget {
 }
 
 class _VerifyEmailState extends State<VerifyEmail> {
+  static const AuthController _authController = AuthController();
+  static const UserController _userController = UserController();
+
   // Reuse your existing color and styling constants
   static const Color textColor = Color(0xFF2D2B18);
   static const Color yellow = Color(0xFFFFD641);
@@ -81,28 +82,31 @@ class _VerifyEmailState extends State<VerifyEmail> {
   }
 
   Future<void> resendEmail() async {
-    FlutterSecureStorage secureStorage = FlutterSecureStorage();
+    final FlutterSecureStorage secureStorage = FlutterSecureStorage();
     final String? jwt = await secureStorage.read(key: 'token');
-    int? userId = int.parse((await secureStorage.read(key: 'userid')) ?? '-1');
+    if (jwt == null || jwt.isEmpty) {
+      logger.e('Cannot resend verification email: missing JWT.');
+      return;
+    }
+
+    int userId =
+        int.tryParse((await secureStorage.read(key: 'userid')) ?? '') ?? -1;
     if (userId == -1) {
-      Uri IdUrl =
-          Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
-      var idResponse = await http.get(IdUrl, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      });
-      userId = int.parse(idResponse.body);
+      final idResponse = await _userController.getUserIdFromToken();
+      if (idResponse.statusCode == 200) {
+        final dynamic raw = idResponse.data;
+        userId = raw is int ? raw : int.parse(raw.toString());
+      }
+    }
+    if (userId <= 0) {
+      logger.e('Cannot resend verification email: missing userId.');
+      return;
     }
     await secureStorage.write(key: 'userId', value: userId.toString());
-    final Uri url =
-        Uri.https(Config.host, '/auth/${userId}/resend-verify-email');
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
+      final response = await _authController.resendVerificationEmail(
+        userId: userId,
+        token: jwt,
       );
       if (response.statusCode == 200) {
         logger.i('Email sent');
@@ -123,7 +127,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 ));
       } else {
         logger.e(
-            'Failed to send email ${response.statusCode} | ${response.body}');
+            'Failed to send email ${response.statusCode} | ${response.data}');
       }
     } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);

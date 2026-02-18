@@ -15,8 +15,7 @@
  */
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,6 +44,7 @@ enum LanguagePreference {
 enum HostEnvironment { prod, dev }
 
 Logger logger = Logger();
+const HealthController _healthController = HealthController();
 
 class Config {
   static Map<String, dynamic>? _config;
@@ -204,7 +204,9 @@ class Config {
   static Future<ServerHealth> checkServerHealth() async {
     final uri = Uri.parse('https://${host}/utils/health');
     try {
-      final response = await http.head(uri).timeout(const Duration(seconds: 5));
+      final response = await _healthController
+          .checkBackendHealth(host: host)
+          .timeout(const Duration(seconds: 5));
       logger
           .i('Checking API health at $uri: status code ${response.statusCode}');
       if (response.statusCode == 200) {

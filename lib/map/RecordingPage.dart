@@ -27,7 +27,8 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -77,6 +78,9 @@ class RecordingFromMap extends StatefulWidget {
 }
 
 class _RecordingFromMapState extends State<RecordingFromMap> {
+  static const FilteredRecordingsController _filteredRecordingsController =
+      FilteredRecordingsController();
+
   bool loaded = false;
   late LatLng center;
   late List<RecordingPart?> parts = [];
@@ -499,21 +503,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Future<List<_DialectDisplayEntry>> _fetchDialectsFromBackend(
       int recordingBeId) async {
-    final uri = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/recordings/filtered',
-      queryParameters: {
-        'recordingId': recordingBeId.toString(),
-        'verified': 'false',
-      },
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    final response = await _filteredRecordingsController.fetchFilteredParts(
+      recordingId: recordingBeId,
+      verified: false,
     );
 
     if (response.statusCode == 204) {
@@ -524,8 +516,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       throw Exception('HTTP ${response.statusCode}');
     }
 
-    final body = utf8.decode(response.bodyBytes);
-    final decoded = jsonDecode(body);
+    final dynamic decoded = response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
     if (decoded is! List) {
       return const [];
     }
@@ -1036,10 +1029,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                           ),
                         )
                       : widget.recording.downloaded
-                          ? SizedBox(
-                              height: 200,
-                              width: double.infinity,
-                            )
+                          ? const SizedBox.shrink()
                           : Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16.0, vertical: 12.0),

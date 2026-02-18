@@ -18,9 +18,8 @@ import 'dart:async';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/config/config.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
@@ -39,6 +38,8 @@ class EmailNotVerified extends StatefulWidget {
 }
 
 class _EmailNotVerifiedState extends State<EmailNotVerified> {
+  static const AuthController _authController = AuthController();
+
   static const Color textColor = Color(0xFF2D2B18);
   static const Color yellow = Color(0xFFFFD641);
 
@@ -81,15 +82,14 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   Future<void> resendEmail() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     final String? jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.https(Config.host,
-        '/auth/${await secureStorage.read(key: 'userId')}/resend-verify-email');
+    if (jwt == null || jwt.isEmpty) {
+      logger.e('Missing JWT while trying to resend verification email.');
+      return;
+    }
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
+      final response = await _authController.resendVerificationEmail(
+        userId: widget.userId,
+        token: jwt,
       );
       if (response.statusCode == 200) {
         logger.i('Verification email sent');
@@ -112,7 +112,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
         );
       } else {
         logger.e(
-            'Failed to send email ${response.statusCode} | ${response.body}');
+            'Failed to send email ${response.statusCode} | ${response.data}');
       }
     } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);

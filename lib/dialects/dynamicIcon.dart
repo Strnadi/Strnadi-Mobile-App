@@ -16,11 +16,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/dialects_controller.dart';
+import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../config/config.dart';
 import 'dialect_keyword_translator.dart';
+
+const DialectsController _dialectsController = DialectsController();
+final Logger logger = Logger();
 
 class DialectColorCache {
   static const _prefsKey = 'dialect_colors_v1';
@@ -69,11 +71,13 @@ class DialectColorCache {
 
     // If cache is empty (first start offline), use defaults wholesale.
     final Map<String, String> source = raw.isEmpty ? _defaults : raw;
-    logger.v('[DialectColorCache] getColors: source=' + (raw.isEmpty ? 'defaults' : 'cache') + ', requested=' + dialects.join(','));
+    logger.v('[DialectColorCache] getColors: source=' +
+        (raw.isEmpty ? 'defaults' : 'cache') +
+        ', requested=' +
+        dialects.join(','));
 
     for (final dRaw in dialects) {
-      final canonical =
-          DialectKeywordTranslator.toEnglish(dRaw) ?? dRaw.trim();
+      final canonical = DialectKeywordTranslator.toEnglish(dRaw) ?? dRaw.trim();
       if (canonical.isEmpty) continue;
       String? hex = source[canonical];
       String chosenFrom = raw.isEmpty ? 'defaults' : 'cache';
@@ -114,7 +118,8 @@ class DialectColorCache {
           colors.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
           logger.v('[DialectColorCache]  • (empty) -> ' + hex + ' (fallback)');
         } catch (e) {
-          logger.w('[DialectColorCache]  ! failed to parse fallback grey: ' + e.toString());
+          logger.w('[DialectColorCache]  ! failed to parse fallback grey: ' +
+              e.toString());
         }
       }
     }
@@ -164,7 +169,8 @@ class DynamicIcon extends StatelessWidget {
   final double dotDiameter;
   final Color? dotColor;
 
-  final String? cacheKey; // unique rebuild key to avoid stale reuse across recordings
+  final String?
+      cacheKey; // unique rebuild key to avoid stale reuse across recordings
 
   static int getColorFromHex(String hexColor) {
     hexColor = hexColor.toUpperCase().replaceAll("#", "");
@@ -179,25 +185,16 @@ class DynamicIcon extends StatelessWidget {
   /// 1) Map: { "BC": "#FDE441", ... }
   /// 2) List of objects: [ {"code":"BC","color":"#FDE441"}, ... ]
   static Future<Map<String, String>> _fetchAllDialectColors() async {
-    final uri = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/recordings/dialects',
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
+    final response = await _dialectsController.fetchDialectPalette();
 
     if (response.statusCode != 200) {
       throw Exception(
           'Failed to fetch dialect colors: HTTP ${response.statusCode}');
     }
 
-    final data = jsonDecode(response.body);
+    final dynamic data = response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
     final result = <String, String>{};
 
     String? _normalizeHex(String? s) {
@@ -207,7 +204,7 @@ class DynamicIcon extends StatelessWidget {
       final noHash = t.startsWith('#') ? t.substring(1) : t;
       final hex6 = RegExp(r'^[0-9a-fA-F]{6}$');
       if (!hex6.hasMatch(noHash)) return null;
-      return '#'+noHash.toUpperCase();
+      return '#' + noHash.toUpperCase();
     }
 
     if (data is Map) {
@@ -221,7 +218,11 @@ class DynamicIcon extends StatelessWidget {
         }
         if (hex != null) {
           result[k.toString()] = hex;
-          logger.v('[DialectColorCache] fetched ' + k.toString() + ' -> ' + hex + ' (server)');
+          logger.v('[DialectColorCache] fetched ' +
+              k.toString() +
+              ' -> ' +
+              hex +
+              ' (server)');
         } else {
           logger.v('[DialectColorCache] skipped entry key=' + k.toString());
         }
@@ -230,19 +231,31 @@ class DynamicIcon extends StatelessWidget {
       // List form: [ {"code":"BC","color":"#FDE441"}, ... ]
       for (final item in data) {
         if (item is Map) {
-          final code = (item['code'] ?? item['dialect'] ?? item['dialect_code'] ?? item['dialectCode'])?.toString();
+          final code = (item['code'] ??
+                  item['dialect'] ??
+                  item['dialect_code'] ??
+                  item['dialectCode'])
+              ?.toString();
           final colorRaw = item['color']?.toString();
           final hex = _normalizeHex(colorRaw);
           if (code != null && hex != null) {
             result[code] = hex;
-            logger.v('[DialectColorCache] fetched ' + code + ' -> ' + hex + ' (server)');
+            logger.v('[DialectColorCache] fetched ' +
+                code +
+                ' -> ' +
+                hex +
+                ' (server)');
           } else {
-            logger.v('[DialectColorCache] skipped entry code=' + (code?.toString() ?? 'null') + ' color=' + (colorRaw?.toString() ?? 'null'));
+            logger.v('[DialectColorCache] skipped entry code=' +
+                (code?.toString() ?? 'null') +
+                ' color=' +
+                (colorRaw?.toString() ?? 'null'));
           }
         }
       }
     } else {
-      logger.w('Unexpected /recordings/dialects response format: ' + data.runtimeType.toString());
+      logger.w('Unexpected /recordings/dialects response format: ' +
+          data.runtimeType.toString());
     }
 
     return result;
@@ -271,7 +284,9 @@ class DynamicIcon extends StatelessWidget {
         return;
       }
       await DialectColorCache._writeRaw(serverMap);
-      logger.i('[DialectColorCache] refreshDialects: cached ' + serverMap.length.toString() + ' entries from server.');
+      logger.i('[DialectColorCache] refreshDialects: cached ' +
+          serverMap.length.toString() +
+          ' entries from server.');
     } catch (e) {
       logger.e('Failed to refresh dialect colors: $e');
     }
@@ -285,23 +300,25 @@ class DynamicIcon extends StatelessWidget {
   /// Fetch all dialect codes from server, regardless of whether a color is provided.
   /// Uses the same /recordings/dialects endpoint but does not filter out empty colors.
   static Future<List<String>> fetchAllDialectCodesFromServer() async {
-    final uri = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/recordings/dialects',
-    );
     try {
-      final response = await http.get(uri, headers: { 'Content-Type': 'application/json' });
+      final response = await _dialectsController.fetchDialectPalette();
       if (response.statusCode != 200) {
-        logger.w('[DynamicIcon] fetchAllDialectCodesFromServer HTTP ' + response.statusCode.toString());
+        logger.w('[DynamicIcon] fetchAllDialectCodesFromServer HTTP ' +
+            response.statusCode.toString());
         return const [];
       }
-      final body = jsonDecode(response.body);
+      final dynamic body = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
       final codes = <String>{};
       if (body is List) {
         for (final item in body) {
           if (item is Map) {
-            final code = (item['dialectCode'] ?? item['code'] ?? item['dialect'] ?? item['dialect_code'])?.toString();
+            final code = (item['dialectCode'] ??
+                    item['code'] ??
+                    item['dialect'] ??
+                    item['dialect_code'])
+                ?.toString();
             if (code != null && code.trim().isNotEmpty) codes.add(code.trim());
           }
         }
@@ -313,10 +330,13 @@ class DynamicIcon extends StatelessWidget {
         }
       }
       final out = codes.toList()..sort();
-      logger.i('[DynamicIcon] fetchAllDialectCodesFromServer: ' + out.length.toString() + ' codes');
+      logger.i('[DynamicIcon] fetchAllDialectCodesFromServer: ' +
+          out.length.toString() +
+          ' codes');
       return out;
     } catch (e) {
-      logger.e('[DynamicIcon] fetchAllDialectCodesFromServer error: ' + e.toString());
+      logger.e('[DynamicIcon] fetchAllDialectCodesFromServer error: ' +
+          e.toString());
       return const [];
     }
   }
@@ -371,8 +391,14 @@ class DynamicIcon extends StatelessWidget {
         List<Color> splitColors = const [];
 
         List<Color> _chooseColors() {
-          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData && snapshot.data!.isNotEmpty) {
-            logger.v('[DynamicIcon] colors from async cache for ' + (dialects ?? const <String>[]).join(',') + ' -> ' + snapshot.data!.length.toString() + ' color(s)');
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData &&
+              snapshot.data!.isNotEmpty) {
+            logger.v('[DynamicIcon] colors from async cache for ' +
+                (dialects ?? const <String>[]).join(',') +
+                ' -> ' +
+                snapshot.data!.length.toString() +
+                ' color(s)');
             return snapshot.data!;
           }
           // Fallback: derive colors synchronously from defaults while waiting
@@ -382,13 +408,18 @@ class DynamicIcon extends StatelessWidget {
           for (final dRaw in ds) {
             final d = (dRaw).trim();
             if (d.isEmpty) continue;
-            final hex = DialectColorCache._defaults[d] ?? DialectColorCache._defaults['Unknown'];
+            final hex = DialectColorCache._defaults[d] ??
+                DialectColorCache._defaults['Unknown'];
             if (hex == null) continue;
             try {
               cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-              logger.v('[DynamicIcon]  • ' + d + ' -> ' + hex + ' (defaults/sync)');
+              logger.v(
+                  '[DynamicIcon]  • ' + d + ' -> ' + hex + ' (defaults/sync)');
             } catch (e) {
-              logger.w('[DynamicIcon]  ! failed to parse hex for ' + d + ': ' + e.toString());
+              logger.w('[DynamicIcon]  ! failed to parse hex for ' +
+                  d +
+                  ': ' +
+                  e.toString());
             }
           }
           if (cols.isEmpty) {
@@ -396,9 +427,12 @@ class DynamicIcon extends StatelessWidget {
             if (hex != null) {
               try {
                 cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-                logger.v('[DynamicIcon]  • (empty) -> ' + hex + ' (fallback/sync)');
+                logger.v(
+                    '[DynamicIcon]  • (empty) -> ' + hex + ' (fallback/sync)');
               } catch (e) {
-                logger.w('[DynamicIcon]  ! failed to parse sync fallback grey: ' + e.toString());
+                logger.w(
+                    '[DynamicIcon]  ! failed to parse sync fallback grey: ' +
+                        e.toString());
               }
             }
           }

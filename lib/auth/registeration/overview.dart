@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:logger/logger.dart';

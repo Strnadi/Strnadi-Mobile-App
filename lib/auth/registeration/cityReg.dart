@@ -20,7 +20,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:logger/logger.dart';

@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/auth/authorizator.dart';

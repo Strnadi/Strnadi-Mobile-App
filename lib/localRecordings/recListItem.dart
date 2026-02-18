@@ -26,7 +26,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -518,10 +518,7 @@ class _RecordingItemState extends State<RecordingItem> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   widget.recording.downloaded
-                      ? SizedBox(
-                          height: 200,
-                          width: double.infinity,
-                        )
+                      ? const SizedBox.shrink()
                       : Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16.0, vertical: 12.0),

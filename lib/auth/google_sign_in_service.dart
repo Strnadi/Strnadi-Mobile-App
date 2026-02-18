@@ -15,7 +15,7 @@
  */
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';

@@ -14,7 +14,15 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-export 'package:strnadi/database/src/database_logger.dart' show getPath, logger;
-export 'package:strnadi/database/src/upload_progress_bus.dart'
-    show DownloadProgress, UploadProgress, UploadProgressBus;
-export 'package:strnadi/database/src/database_repository.dart' show DatabaseNew;
+import 'package:logger/logger.dart';
+import 'package:path_provider/path_provider.dart';
+
+final logger = Logger();
+
+Future<String> getPath() async {
+  final dir = await getApplicationDocumentsDirectory();
+  final String path =
+      dir.path + 'audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+  logger.i('Generated file path: $path');
+  return path;
+}

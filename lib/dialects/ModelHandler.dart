@@ -16,18 +16,18 @@
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import '../database/databaseNew.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'dart:convert';
-import 'package:strnadi/config/config.dart';
 import 'package:logger/logger.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/PostRecordingForm/addDialect.dart';
 
 import 'dialect_keyword_translator.dart';
 
 Logger logger = Logger();
+const FilteredRecordingsController _filteredRecordingsController =
+    FilteredRecordingsController();
 
-class Dialect{
+class Dialect {
   int? id; // Unique identifier for the dialect
   int? BEID; // Backend identifier for the dialect
   int? recordingId; // Identifier for the associated recording
@@ -47,11 +47,11 @@ class Dialect{
     String? adminDialect,
     required this.startDate,
     required this.endDate,
-  })  : userGuessDialect =
-            DialectKeywordTranslator.toEnglish(userGuessDialect),
+  })  : userGuessDialect = DialectKeywordTranslator.toEnglish(userGuessDialect),
         adminDialect = DialectKeywordTranslator.toEnglish(adminDialect);
 
-  factory Dialect.fromJson(Map<String, dynamic> json) { //From DB Json
+  factory Dialect.fromJson(Map<String, dynamic> json) {
+    //From DB Json
     return Dialect(
       id: json['id'],
       BEID: json['BEID'],
@@ -64,7 +64,9 @@ class Dialect{
     );
   }
 
-  factory Dialect.fromBEJson(Map<String, dynamic> json, int? recordingId, int? recordingBEID, DateTime startDate, DateTime endDate){ // From BE Json
+  factory Dialect.fromBEJson(Map<String, dynamic> json, int? recordingId,
+      int? recordingBEID, DateTime startDate, DateTime endDate) {
+    // From BE Json
     return Dialect(
       id: null,
       BEID: json['id'],
@@ -77,7 +79,8 @@ class Dialect{
     );
   }
 
-  Map<String, dynamic> toJson() { // To DB Json
+  Map<String, dynamic> toJson() {
+    // To DB Json
     return {
       'id': id,
       'BEID': BEID,
@@ -99,14 +102,14 @@ class Dialect{
       'dialectCode': DialectKeywordTranslator.toEnglish(userGuessDialect),
     };
   }
+
   get dialect {
     return DialectKeywordTranslator.toLocalized(adminDialect ?? 'Unassessed');
   }
 
-  String? get userGuessDialectLocalized =>
-      userGuessDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(userGuessDialect!);
+  String? get userGuessDialectLocalized => userGuessDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(userGuessDialect!);
 }
 
 List<Dialect> dialectsFromBEJson(List<dynamic> json, {int? recordingId}) {
@@ -137,7 +140,7 @@ List<Dialect> dialectsFromBEJson(List<dynamic> json, {int? recordingId}) {
   return dialects;
 }
 
-Future<void> insertDialects(List <Dialect> dialects) async {
+Future<void> insertDialects(List<Dialect> dialects) async {
   for (Dialect dialect in dialects) {
     await DatabaseNew.insertDialect(dialect);
   }
@@ -145,38 +148,41 @@ Future<void> insertDialects(List <Dialect> dialects) async {
 
 Future<List<Dialect>> fetchRecordingDialects(int? recordingBEID) async {
   logger.i('Loading dialects for recording: ${recordingBEID}');
-  http.Response response;
+  dynamic responseData;
+  int? responseStatus;
   try {
-    final String jwt = await FlutterSecureStorage().read(key: 'token') ?? '';
-    Uri url = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/recordings/filtered');
-    if (recordingBEID!=null){
-      url = url.replace(query: 'recordingId=$recordingBEID');
-    }
-    response = await http.get(url, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $jwt'
-    },);
-  }
-  catch(e, stackTrace){
-    logger.e('Failed to load dialects for recording: $recordingBEID :$e', error: e, stackTrace: stackTrace);
+    final response = await _filteredRecordingsController.fetchFilteredParts(
+      recordingId: recordingBEID,
+      verified: false,
+    );
+    responseStatus = response.statusCode;
+    responseData = response.data;
+  } catch (e, stackTrace) {
+    logger.e('Failed to load dialects for recording: $recordingBEID :$e',
+        error: e, stackTrace: stackTrace);
     Sentry.captureException(e, stackTrace: stackTrace);
     return [];
   }
   try {
-    if (response.statusCode == 200) {
+    if (responseStatus == 200) {
       logger.i('Loaded dialects for recording: $recordingBEID');
-      return dialectsFromBEJson(json.decode(response.body));
-    }
-    else {
-      logger.e('Failed to load $recordingBEID dialects: ${response.statusCode} | ${response.body}');
+      final dynamic decoded = responseData is String
+          ? json.decode(responseData as String)
+          : responseData;
+      if (decoded is List) {
+        return dialectsFromBEJson(decoded);
+      }
+      logger.w(
+          'Unexpected filtered dialect payload type: ${decoded.runtimeType}');
+      return [];
+    } else {
+      logger.e(
+          'Failed to load $recordingBEID dialects: $responseStatus | $responseData');
       return [];
     }
-  }
-  catch(e, stackTrace){
-    logger.e('Failed to load $recordingBEID dialects: $e', error: e, stackTrace: stackTrace);
+  } catch (e, stackTrace) {
+    logger.e('Failed to load $recordingBEID dialects: $e',
+        error: e, stackTrace: stackTrace);
     Sentry.captureException(e, stackTrace: stackTrace);
     return [];
   }
@@ -204,12 +210,13 @@ DialectModel ToDialectModel(Dialect dialect) {
 
   return DialectModel(
     label: displayLabel,
-    startTime: Duration(
-    milliseconds: dialect.startDate.millisecondsSinceEpoch).inSeconds
+    startTime: Duration(milliseconds: dialect.startDate.millisecondsSinceEpoch)
+        .inSeconds
         .toDouble(),
     endTime: Duration(milliseconds: dialect.endDate.millisecondsSinceEpoch)
-        .inSeconds.toDouble(),
+        .inSeconds
+        .toDouble(),
     type: englishType,
     color: dialectColors[englishType] ?? Colors.white,
-    );
+  );
 }

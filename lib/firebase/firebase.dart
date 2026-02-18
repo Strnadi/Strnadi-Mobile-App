@@ -13,31 +13,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/api/controllers/device_controller.dart';
 import '../config/config.dart';
 import '../firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
 import 'package:logger/logger.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:strnadi/auth/authorizator.dart' as auth;
-import 'package:jwt_decoder/jwt_decoder.dart';
 
 final logger = Logger();
+const DeviceController _deviceController = DeviceController();
 
 bool adding = false;
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 void initFirebase() async {
   // Initialize Firebase.
@@ -50,10 +48,10 @@ void initFirebase() async {
 
 void initLocalNotifications() {
   const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
   final DarwinInitializationSettings initializationSettingsIOS =
-  DarwinInitializationSettings(
+      DarwinInitializationSettings(
     requestAlertPermission: true,
     requestBadgePermission: true,
     requestSoundPermission: true,
@@ -82,7 +80,7 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
 
   if (notification != null && android != null) {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
+        AndroidNotificationDetails(
       'com.delta.strnadi', // Set a unique channel id
       'Strnadi', // Set a human-readable channel name
       channelDescription: 'Aplikace Strnadi',
@@ -92,7 +90,7 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
     );
 
     const NotificationDetails platformChannelSpecifics =
-    NotificationDetails(android: androidPlatformChannelSpecifics);
+        NotificationDetails(android: androidPlatformChannelSpecifics);
 
     await flutterLocalNotificationsPlugin.show(
       notification.hashCode,
@@ -107,9 +105,9 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
 Future<void> _showLocalNotificationFromData(Map<String, dynamic> data) async {
   try {
     final String? langPref = (await Config.getLanguagePreference()).toString();
-    final String lang = (langPref == null || langPref.isEmpty) ? 'en' : langPref;
+    final String lang =
+        (langPref == null || langPref.isEmpty) ? 'en' : langPref;
     final Map<String, dynamic> lower = _toLowercaseKeys(data);
-
 
     final String? title = lower['title$lang']?.toString();
     final String? body = lower['body$lang']?.toString();
@@ -138,7 +136,8 @@ Future<void> _showLocalNotificationFromData(Map<String, dynamic> data) async {
       platformChannelSpecifics,
     );
   } catch (e, st) {
-    logger.e("Failed to show local notification from data", error: e, stackTrace: st);
+    logger.e("Failed to show local notification from data",
+        error: e, stackTrace: st);
   }
 }
 
@@ -196,11 +195,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   DatabaseNew.insertNotification(message);
 }
 
-Future<void> addDevice() async{
-  if(adding) return;
+Future<void> addDevice() async {
+  if (adding) return;
   adding = true;
 
-  while(!(await auth.isLoggedIn()==auth.AuthStatus.loggedIn)){
+  while (!(await auth.isLoggedIn() == auth.AuthStatus.loggedIn)) {
     await Future.delayed(Duration(seconds: 10));
   }
 
@@ -210,140 +209,114 @@ Future<void> addDevice() async{
     String? token = await messaging.getToken();
     logger.i("Firebase token: $token");
 
-    Uri url = Uri.https(Config.host, '/devices/add');
     DeviceInfo deviceInfo = await getDeviceInfo();
-    String? jwt = await secureStorage.read(key: 'token');
+    final String? jwt = await secureStorage.read(key: 'token');
     logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
     String? userIdS = await secureStorage.read(key: 'userId');
-    while(userIdS ==  null){
+    while (userIdS == null) {
       await Future.delayed(Duration(seconds: 1));
       userIdS = await secureStorage.read(key: 'userId');
     }
     int userId = int.parse(userIdS);
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      },
-      body: jsonEncode({
-        'fcmToken': token,
-        'devicePlatform': deviceInfo.platform,
-        'deviceModel': deviceInfo.deviceModel,
-        'userId': userId
-      }),
-    );
+    final response = await _deviceController.addDevice({
+      'fcmToken': token,
+      'devicePlatform': deviceInfo.platform,
+      'deviceModel': deviceInfo.deviceModel,
+      'userId': userId
+    });
     if (response.statusCode == 200) {
       logger.i('Device added');
       FlutterSecureStorage().write(key: 'fcmToken', value: token);
       adding = false;
-    }
-    else {
+    } else {
       adding = false;
-      logger.e('Failed to add device ${response.statusCode} | ${response.body}');
+      logger
+          .e('Failed to add device ${response.statusCode} | ${response.data}');
     }
-  } catch(e, stackTrace){
+  } catch (e, stackTrace) {
     adding = false;
     logger.e(e, stackTrace: stackTrace);
     Sentry.captureException(e, stackTrace: stackTrace);
   }
 }
 
-Future<void> updateDevice(String? oldToken, String? newToken) async{
-  if(oldToken == null){
+Future<void> updateDevice(String? oldToken, String? newToken) async {
+  if (oldToken == null) {
     logger.e('Old token is null sending new token');
     await addDevice();
     return;
   }
-  if(newToken == null){
+  if (newToken == null) {
     logger.e('New token is null deleting token');
     deleteToken();
   }
 
-  Uri url = Uri.https(Config.host, '/devices/update');
-
   try {
-    String? jwt = await const FlutterSecureStorage().read(key: 'token');
+    final String? jwt = await const FlutterSecureStorage().read(key: 'token');
     logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
-    final response = await http.patch(url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-        body: jsonEncode({
-          'newFCMToken': newToken,
-          'oldFCMToken': oldToken
-        })
-    );
-    if(response.statusCode == 200){
+    final response = await _deviceController
+        .updateDevice({'newFCMToken': newToken, 'oldFCMToken': oldToken});
+    if (response.statusCode == 200) {
       logger.i('Device updated');
       FlutterSecureStorage().write(key: 'fcmToken', value: newToken);
+    } else {
+      logger.e(
+          'Failed to update device ${response.statusCode} | ${response.data}');
     }
-    else{
-      logger.e('Failed to update device ${response.statusCode} | ${response.body}');
-    }
-  }
-  catch(e, stackTrace){
+  } catch (e, stackTrace) {
     logger.e(e, stackTrace: stackTrace);
     Sentry.captureException(e, stackTrace: stackTrace);
   }
 }
 
-Future<void> deleteToken()async{
-
+Future<void> deleteToken() async {
   String? token = await FlutterSecureStorage().read(key: 'fcmToken');
-  Uri uri = Uri.https(Config.host, '/devices/delete/$token');
 
-  if(token == null){
+  if (token == null) {
     logger.i('No token to delete');
     return;
   }
 
-  try{
-    String? jwt = await FlutterSecureStorage().read(key: 'token');
-    final response = await http.delete(uri, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $jwt'
-    });
-    if (response.statusCode == 200){
+  try {
+    final response = await _deviceController.deleteDeviceToken(token);
+    if (response.statusCode == 200) {
       logger.i('Token deleted');
       FlutterSecureStorage().delete(key: 'fcmToken');
+    } else {
+      logger.e(
+          'Failed to delete token ${response.statusCode} | ${response.data}');
     }
-    else{
-      logger.e('Failed to delete token ${response.statusCode} | ${response.body}');
-
-    }
-  }
-  catch (error) {
+  } catch (error) {
     logger.e(error);
     Sentry.captureException(error);
   }
 }
 
-Future<void> refreshToken() async{
+Future<void> refreshToken() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
-  if(oldToken == null){
+  if (oldToken == null) {
     await addDevice();
-  }
-  else{
+  } else {
     String? newToken = await messaging.getToken();
-    if(newToken != oldToken){
+    if (newToken != oldToken) {
       await updateDevice(oldToken, newToken!);
     }
     logger.i('Firebase token $newToken');
   }
 }
 
-Future<void> initFirebaseMessaging() async{
+Future<void> initFirebaseMessaging() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
   // Request permissions (required for iOS).
-  await messaging.requestPermission(
+  await messaging
+      .requestPermission(
     alert: true,
     badge: true,
     sound: true,
-  ).then((NotificationSettings settings) {
+  )
+      .then((NotificationSettings settings) {
     logger.i("User granted permission: ${settings.authorizationStatus}");
   });
 
@@ -356,10 +329,10 @@ Future<void> initFirebaseMessaging() async{
   await refreshToken();
 
   // Listen for token refresh.
-  messaging.onTokenRefresh.listen((newToken) async{
+  messaging.onTokenRefresh.listen((newToken) async {
     logger.i("Token refreshed: $newToken");
     String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
-    if(oldToken != null) {
+    if (oldToken != null) {
       await updateDevice(oldToken, newToken);
     } else {
       await addDevice();
@@ -370,7 +343,8 @@ Future<void> initFirebaseMessaging() async{
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     logger.i("Received a foreground message: ${message.messageId}");
     if (message.notification != null) {
-      logger.i("Message contains notification: ${message.notification?.body ?? "Empty"}");
+      logger.i(
+          "Message contains notification: ${message.notification?.body ?? "Empty"}");
       _showLocalNotification(message);
     } else if (message.data.isNotEmpty) {
       // Data-only (silent) push: decode and show locally
