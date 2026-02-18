@@ -23,6 +23,7 @@ import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 
 import '../../config/config.dart';
 
@@ -74,21 +75,18 @@ class _VerifyEmailState extends State<VerifyEmail> {
     });
   }
 
-  void alreadyVerified(){
+  Future<void> alreadyVerified() async {
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+    await navigateToSessionLanding(context);
   }
 
   Future<void> resendEmail() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     final String? jwt = await secureStorage.read(key: 'token');
-    int? userId = int.parse((await secureStorage.read(key: 'userid'))?? '-1');
-    if(userId==-1) {
-      Uri IdUrl = Uri(
-          scheme: 'https',
-          host: Config.host,
-          path: '/users/get-id'
-      );
+    int? userId = int.parse((await secureStorage.read(key: 'userid')) ?? '-1');
+    if (userId == -1) {
+      Uri IdUrl =
+          Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
       var idResponse = await http.get(IdUrl, headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwt',
@@ -96,36 +94,38 @@ class _VerifyEmailState extends State<VerifyEmail> {
       userId = int.parse(idResponse.body);
     }
     await secureStorage.write(key: 'userId', value: userId.toString());
-    final Uri url = Uri.https(Config.host, '/auth/${userId}/resend-verify-email');
+    final Uri url =
+        Uri.https(Config.host, '/auth/${userId}/resend-verify-email');
     try {
       final response = await http.get(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $jwt',
-          },
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
       );
-      if(response.statusCode == 200){
+      if (response.statusCode == 200) {
         logger.i('Email sent');
-      }
-      else if(response.statusCode == 208){
+      } else if (response.statusCode == 208) {
         logger.i('Email already verified');
-        showDialog(context: context, builder: (_) => AlertDialog(
-          title: Text(t('signup.emailVerify.alreadyVerified.title')),
-          content: Text(t('signup.emailVerify.alreadyVerified.message')),
-          actions: [
-            TextButton(
-              onPressed: alreadyVerified,
-              child: Text(t('auth.buttons.ok')),
-            ),
-          ],
-        ));
-      }
-      else {
+        showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+                  title: Text(t('signup.emailVerify.alreadyVerified.title')),
+                  content:
+                      Text(t('signup.emailVerify.alreadyVerified.message')),
+                  actions: [
+                    TextButton(
+                      onPressed: alreadyVerified,
+                      child: Text(t('auth.buttons.ok')),
+                    ),
+                  ],
+                ));
+      } else {
         logger.e(
             'Failed to send email ${response.statusCode} | ${response.body}');
       }
-    } catch(e, stackTrace){
+    } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
@@ -155,7 +155,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+        await navigateToSessionLanding(context);
         return;
       },
       child: Scaffold(
@@ -171,8 +171,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
               width: 30,
               height: 30,
             ),
-            onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+            onPressed: () async {
+              await navigateToSessionLanding(context);
             },
           ),
         ),
@@ -186,7 +186,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                Text(t('Ověřte svůj e-mail'),
+                Text(
+                  t('Ověřte svůj e-mail'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -263,8 +264,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+                    onPressed: () async {
+                      await navigateToSessionLanding(context);
                     },
                     style: ElevatedButton.styleFrom(
                       elevation: 0,

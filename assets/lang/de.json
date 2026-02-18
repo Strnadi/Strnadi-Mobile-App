@@ -631,6 +631,18 @@
       },
       "descriptions": {
         "localRecordingsMax": "Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht."
+      },
+      "cacheManager": {
+        "title": "Manager für heruntergeladene Aufnahmen",
+        "description": "Verwalte lokal heruntergeladene Aufnahmen aus allen Umgebungen.",
+        "empty": "Keine heruntergeladenen Aufnahmen gefunden.",
+        "unnamed": "Unbenannte Aufnahme",
+        "confirmTitle": "Heruntergeladene Aufnahme entfernen?",
+        "confirmMessage": "Dadurch wird die Aufnahme aus dem lokalen Speicher entfernt.",
+        "buttons": {
+          "cancel": "Abbrechen",
+          "remove": "Entfernen"
+        }
       }
     },
     "menu": {

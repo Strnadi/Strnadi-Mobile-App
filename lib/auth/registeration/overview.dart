@@ -19,11 +19,11 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 import 'emailSent.dart';
 
 class RegOverview extends StatefulWidget {
@@ -170,8 +170,7 @@ class _RegOverviewState extends State<RegOverview> {
             ),
           );
         } else {
-          Navigator.pushNamedAndRemoveUntil(
-              context, '/authorizator', (Route<dynamic> route) => false);
+          await navigateToSessionLanding(context);
         }
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();

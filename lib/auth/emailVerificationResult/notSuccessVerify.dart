@@ -15,18 +15,15 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 
 /// A screen shown when e‑mail verification fails.
 class EmailVerificationFailed extends StatelessWidget {
   const EmailVerificationFailed({Key? key}) : super(key: key);
 
   /// Navigates back to the login / authorizator flow.
-  void _goToLogin(BuildContext context) {
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/authorizator',
-      (Route<dynamic> route) => false,
-    );
+  Future<void> _goToLogin(BuildContext context) async {
+    await navigateToSessionLanding(context);
   }
 
   @override

@@ -94,10 +94,12 @@ class _RegNameState extends State<RegName> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) {
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        _signOutGoogleSilently();
-        Navigator.pop(context);
+        final navigator = Navigator.of(context);
+        await _signOutGoogleSilently();
+        if (!mounted) return;
+        navigator.pop();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -110,9 +112,10 @@ class _RegNameState extends State<RegName> {
               height: 30,
             ),
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await _signOutGoogleSilently();
               if (!mounted) return;
-              Navigator.pop(context);
+              navigator.pop();
             },
           ),
         ),

@@ -430,7 +430,8 @@
       "downloading": "Stáhnout nahrávku",
       "errorDownloading": "Chyba při stahování nahrávky",
       "notDownloaded": "Ještě není staženo",
-      "downloadCanceled": "Stahování zrušeno"
+      "downloadCanceled": "Stahování zrušeno",
+      "playRestricted": "Nahrávky ostatních uživatelů mohou přehrávat pouze administrátoři."
     },
     "audioPlayer": {
       "replay": "Přetočit 10s zpět",
@@ -631,6 +632,18 @@
       },
       "descriptions": {
         "localRecordingsMax": "Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny."
+      },
+      "cacheManager": {
+        "title": "Správce stažených nahrávek",
+        "description": "Správa lokálně stažených nahrávek ze všech prostředí.",
+        "empty": "Nebyly nalezeny žádné stažené nahrávky.",
+        "unnamed": "Nahrávka bez názvu",
+        "confirmTitle": "Odstranit staženou nahrávku?",
+        "confirmMessage": "Tímto odstraníte nahrávku z lokálního úložiště.",
+        "buttons": {
+          "cancel": "Zrušit",
+          "remove": "Odstranit"
+        }
       }
     },
     "menu": {

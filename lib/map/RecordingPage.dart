@@ -24,8 +24,6 @@ import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/localization/localization.dart';
 
-import 'package:strnadi/localization/localization.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
@@ -37,11 +35,10 @@ import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/userBadge.dart';
 import 'package:strnadi/locationService.dart';
-import 'package:strnadi/user/settingsPages/userInfo.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:dio/dio.dart';
-import '../PostRecordingForm/RecordingForm.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 
 final logger = Logger();
@@ -95,6 +92,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   bool _dialectsLoading = false;
   String? _dialectsError;
   List<_DialectDisplayEntry> _dialectEntries = const [];
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  bool _playAccessResolved = false;
+  bool _canAccessPlayback = false;
 
   final MapController _mapController = MapController();
 
@@ -107,7 +107,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   void initState() {
     super.initState();
     locationService = LocationService();
-    getParts();
+    _resolvePlaybackAccess();
+    _initializeRecordingState();
     _loadDialects();
     logger.i(
         "[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
@@ -127,69 +128,72 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         isPlaying = playing;
       });
     });
-
-    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
-      getData().then((_) {
-        setState(() {
-          loaded = true;
-        });
-      });
-    } else {
-      doSomeShit();
-    }
   }
 
-  // this is in init but init can't be async so i did this piece of thing
-  Future<void> doSomeShit() async {
-    // Check if any parts exist for this recording
-    final int? localId =
-        await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
-    if (localId == null) {
-      logger.w(
-          "[RecordingItem] Failed to resolve local id for recording BEId: ${widget.recording.BEId}");
-      setState(() {
-        loaded = true;
-      });
-      return;
+  Future<void> _resolvePlaybackAccess() async {
+    final String role =
+        (await _secureStorage.read(key: 'role') ?? '').toLowerCase();
+    final int? currentUserId =
+        int.tryParse((await _secureStorage.read(key: 'userId') ?? '').trim());
+    final int? ownerUserId = widget.recording.userId;
+    final bool isAdmin = role == 'admin';
+    final bool isOwner = ownerUserId != null &&
+        currentUserId != null &&
+        ownerUserId == currentUserId;
+    if (!mounted) return;
+    setState(() {
+      _canAccessPlayback = isAdmin || isOwner;
+      _playAccessResolved = true;
+    });
+  }
+
+  Future<void> _initializeRecordingState() async {
+    final int? localId = await _resolveLocalRecordingId();
+    if (localId != null) {
+      await getParts(localId: localId);
+    }
+    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+      await getData();
+    }
+    if (!mounted) return;
+    setState(() {
+      loaded = true;
+    });
+  }
+
+  Future<int?> _resolveLocalRecordingId({bool allowFetch = true}) async {
+    if (widget.recording.id != null) {
+      final Recording? byLocalId =
+          await DatabaseNew.getRecordingFromDbByIdNoMail(widget.recording.id!);
+      if (byLocalId != null) {
+        widget.recording = byLocalId;
+        return byLocalId.id;
+      }
     }
 
-    widget.recording.id = localId;
-    List<RecordingPart> parts =
-        await DatabaseNew.getPartsByRecordingId(localId);
-    if (parts.isNotEmpty) {
-      logger.i(
-          "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
-      DatabaseNew.concatRecordingParts(localId).then((_) {
-        logger.i(
-            "[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
-        DatabaseNew.getRecordingFromDbByIdNoMail(localId)
-            .then((updatedRecording) {
-          logger.i(
-              "[RecordingItem] Fetched updated recording: $updatedRecording");
-          logger.i(
-              "[RecordingItem] Original recording path: ${widget.recording.path}");
-          if (updatedRecording?.path != null &&
-              updatedRecording!.path!.isNotEmpty) {
-            logger.i(
-                "[RecordingItem] Updated recording path: ${updatedRecording.path}");
-          } else {
-            logger
-                .w("[RecordingItem] Updated recording path is null or empty.");
-          }
-          setState(() {
-            widget.recording.path =
-                updatedRecording?.path ?? widget.recording.path;
-            loaded = true;
-          });
-        });
-      });
-    } else {
-      logger.w(
-          "[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
-      setState(() {
-        loaded = true;
-      });
+    final int? beId = widget.recording.BEId;
+    if (beId == null) return widget.recording.id;
+
+    final Recording? byBeId = await DatabaseNew.getRecordingFromDbByBEId(beId);
+    if (byBeId != null) {
+      widget.recording = byBeId;
+      return byBeId.id;
     }
+
+    if (!allowFetch) return null;
+
+    final int? fetchedLocalId = await DatabaseNew.fetchRecordingFromBE(beId);
+    if (fetchedLocalId == null) {
+      logger.w(
+          "[RecordingItem] Failed to resolve local id for recording BEId: $beId");
+      return null;
+    }
+    final Recording? fetchedRecording =
+        await DatabaseNew.getRecordingFromDbByIdNoMail(fetchedLocalId);
+    if (fetchedRecording != null) {
+      widget.recording = fetchedRecording;
+    }
+    return fetchedLocalId;
   }
 
   Future<void> getData() async {
@@ -210,6 +214,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<bool> _ensureFileLoaded() async {
+    if (!_canAccessPlayback) return false;
     if (isFileLoaded) return true;
     if (widget.recording.path == null || widget.recording.path!.isEmpty) {
       return false;
@@ -218,12 +223,17 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     return isFileLoaded;
   }
 
-  Future<void> getParts() async {
-    // Resolve local recording ID from BE ID, then load all parts
-    final int? recLocalId =
-        await DatabaseNew.fetchRecordingFromBE(widget.recording.BEId!);
+  Future<void> getParts({int? localId}) async {
+    final int? recLocalId = localId ?? await _resolveLocalRecordingId();
+    if (recLocalId == null) {
+      if (!mounted) return;
+      setState(() {
+        parts = [];
+      });
+      return;
+    }
     final List<RecordingPart> loadedParts =
-        await DatabaseNew.getPartsByRecordingId(recLocalId!);
+        await DatabaseNew.getPartsByRecordingId(recLocalId);
 
     // Sort by startTime (DateTime). Nulls go last.
     loadedParts.sort((a, b) {
@@ -261,6 +271,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   void togglePlay() async {
     try {
+      if (!_canAccessPlayback) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('recordingPage.status.playRestricted'))),
+          );
+        }
+        return;
+      }
       if (!await _ensureFileLoaded()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -287,6 +305,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   void seekRelative(int seconds) {
+    if (!_canAccessPlayback) return;
     final Duration total = _effectivePlaybackDuration();
     Duration newPosition = currentPosition + Duration(seconds: seconds);
     if (newPosition < Duration.zero) {
@@ -352,6 +371,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<void> _downloadRecording() async {
+    if (!_canAccessPlayback) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('recordingPage.status.playRestricted'))),
+        );
+      }
+      return;
+    }
     try {
       setState(() {
         _isDownloading = true;
@@ -360,6 +387,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         // While we download, show the spinner screen even if a path exists
         loaded = false;
       });
+      if (widget.recording.BEId == null) {
+        throw Exception('Recording has no backend id for download');
+      }
       logger
           .i("Initiating download for recording id: ${widget.recording.BEId}");
       int? id = await DatabaseNew.downloadRecording(
@@ -381,6 +411,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         });
         // Initialize audio player with the newly downloaded file
         await getData();
+        await getParts(localId: id);
       }
       logger.i("Downloaded recording updated: ${widget.recording.path}");
       // Mark as fully loaded to exit the spinner state
@@ -937,6 +968,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canUseAudio = _playAccessResolved && _canAccessPlayback;
     if (!_isDownloading &&
         !loaded &&
         widget.recording.path != null &&
@@ -965,107 +997,151 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              widget.recording.downloaded
-                  ? SizedBox(
+              !_playAccessResolved
+                  ? const SizedBox(
                       height: 200,
-                      width: double.infinity,
+                      child: Center(child: CircularProgressIndicator()),
                     )
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 12.0),
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(14.0),
-                          constraints: const BoxConstraints(maxWidth: 420),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              colors: [
-                                Theme.of(context)
+                  : !canUseAudio
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 12.0),
+                          child: Container(
+                            width: double.infinity,
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            padding: const EdgeInsets.all(14.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Theme.of(context)
                                     .colorScheme
-                                    .primary
-                                    .withOpacity(0.12),
-                                Theme.of(context)
-                                    .colorScheme
-                                    .secondary
-                                    .withOpacity(0.08),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            border: Border.all(
+                                    .outline
+                                    .withOpacity(0.25),
+                              ),
                               color: Theme.of(context)
                                   .colorScheme
-                                  .primary
-                                  .withOpacity(0.2),
+                                  .surfaceContainerHighest,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.lock_outline, size: 34),
+                                const SizedBox(height: 8),
+                                Text(
+                                  t('recordingPage.status.playRestricted'),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.cloud_download_outlined,
-                                  size: 34),
-                              const SizedBox(height: 8),
-                              Text(
-                                t('recordingPage.status.notDownloaded'),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 15, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                t('recListItem.noRecording'),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(height: 10),
-                              if (_isDownloading) ...[
-                                SizedBox(
-                                  width: 220,
-                                  child: LinearProgressIndicator(
-                                    value: _downloadProgress,
-                                    minHeight: 6,
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Theme.of(context).colorScheme.primary,
+                        )
+                      : widget.recording.downloaded
+                          ? SizedBox(
+                              height: 200,
+                              width: double.infinity,
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 12.0),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.all(14.0),
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 420),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withOpacity(0.12),
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .secondary
+                                            .withOpacity(0.08),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withOpacity(0.2),
                                     ),
                                   ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.cloud_download_outlined,
+                                          size: 34),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        t('recordingPage.status.notDownloaded'),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        t('recListItem.noRecording'),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      if (_isDownloading) ...[
+                                        SizedBox(
+                                          width: 220,
+                                          child: LinearProgressIndicator(
+                                            value: _downloadProgress,
+                                            minHeight: 6,
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                            '${(_downloadProgress * 100).toStringAsFixed(1)}%'),
+                                        const SizedBox(height: 4),
+                                        TextButton(
+                                          onPressed: () {
+                                            _downloadCancelToken?.cancel(
+                                                'User canceled recording download.');
+                                          },
+                                          child: Text(
+                                              t('recListItem.buttons.cancel')),
+                                        ),
+                                      ] else
+                                        ElevatedButton.icon(
+                                          onPressed: _downloadRecording,
+                                          icon: const Icon(Icons.download),
+                                          label: Text(t(
+                                              'recListItem.buttons.download')),
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                    '${(_downloadProgress * 100).toStringAsFixed(1)}%'),
-                                const SizedBox(height: 4),
-                                TextButton(
-                                  onPressed: () {
-                                    _downloadCancelToken?.cancel(
-                                        'User canceled recording download.');
-                                  },
-                                  child: Text(t('recListItem.buttons.cancel')),
-                                ),
-                              ] else
-                                ElevatedButton.icon(
-                                  onPressed: _downloadRecording,
-                                  icon: const Icon(Icons.download),
-                                  label:
-                                      Text(t('recListItem.buttons.download')),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                              ),
+                            ),
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    if (widget.recording.downloaded)
+                    if (widget.recording.downloaded && canUseAudio)
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(

@@ -70,55 +70,90 @@ class UploadProgressBus {
       _controller = StreamController<Map<int, double>>.broadcast(
         onListen: () {
           _listeners++;
-          logger.i('[UploadProgressBus] onListen: listeners=' + _listeners.toString() + '; current keys=' + _progress.keys.toList().toString());
+          logger.i('[UploadProgressBus] onListen: listeners=' +
+              _listeners.toString() +
+              '; current keys=' +
+              _progress.keys.toList().toString());
           // Immediately send the current snapshot to the new listener
-          final copy = Map<int, double>.unmodifiable(Map<int, double>.from(_progress));
+          final copy =
+              Map<int, double>.unmodifiable(Map<int, double>.from(_progress));
           _emissionSeq++;
-          logger.i('[UploadProgressBus] onListen → emit #' + _emissionSeq.toString() + ' (initial snapshot): size=' + copy.length.toString() + ', keys=' + copy.keys.toList().toString());
+          logger.i('[UploadProgressBus] onListen → emit #' +
+              _emissionSeq.toString() +
+              ' (initial snapshot): size=' +
+              copy.length.toString() +
+              ', keys=' +
+              copy.keys.toList().toString());
           // Defer to next microtask to avoid re-entrancy
           scheduleMicrotask(() => _controller!.add(copy));
         },
         onCancel: () {
           _listeners = (_listeners > 0) ? _listeners - 1 : 0;
-          logger.i('[UploadProgressBus] onCancel: listeners=' + _listeners.toString());
+          logger.i('[UploadProgressBus] onCancel: listeners=' +
+              _listeners.toString());
         },
       );
       logger.i('[UploadProgressBus] controller (re)created');
     }
     return _controller!;
   }
+
   static final Map<int, double> _progress = <int, double>{};
 
   static void debugState([String label = '']) {
-    logger.i('[UploadProgressBus] debugState ' + (label.isEmpty ? '' : '(' + label + ')') + ': listeners=' + _listeners.toString() + ', emissions=' + _emissionSeq.toString() + ', size=' + _progress.length.toString() + ', keys=' + _progress.keys.toList().toString() + ', map=' + _progress.toString());
+    logger.i('[UploadProgressBus] debugState ' +
+        (label.isEmpty ? '' : '(' + label + ')') +
+        ': listeners=' +
+        _listeners.toString() +
+        ', emissions=' +
+        _emissionSeq.toString() +
+        ', size=' +
+        _progress.length.toString() +
+        ', keys=' +
+        _progress.keys.toList().toString() +
+        ', map=' +
+        _progress.toString());
   }
 
-  static Stream<Map<int, double>> get stream => _ensureController().stream.map((event) {
-    logger.i('[UploadProgressBus] stream emit: size=' + event.length.toString() + ', keys=' + event.keys.toList().toString());
-    return event;
-  });
+  static Stream<Map<int, double>> get stream =>
+      _ensureController().stream.map((event) {
+        logger.i('[UploadProgressBus] stream emit: size=' +
+            event.length.toString() +
+            ', keys=' +
+            event.keys.toList().toString());
+        return event;
+      });
   static Map<int, double> get snapshot {
-    logger.d('[UploadProgressBus] snapshot requested: size=' + _progress.length.toString() + ', keys=' + _progress.keys.toList().toString() + ', map=' + _progress.toString());
+    logger.d('[UploadProgressBus] snapshot requested: size=' +
+        _progress.length.toString() +
+        ', keys=' +
+        _progress.keys.toList().toString() +
+        ', map=' +
+        _progress.toString());
     return Map<int, double>.from(_progress);
   }
 
   /// Set how long to retain 100% progress before clearing. Pass null/zero to disable.
   static void setRetainAfterDone(Duration? d) {
     _retainAfterDone = d ?? Duration.zero;
-    logger.i('[UploadProgressBus] setRetainAfterDone → ' + _retainAfterDone.inMilliseconds.toString() + ' ms');
+    logger.i('[UploadProgressBus] setRetainAfterDone → ' +
+        _retainAfterDone.inMilliseconds.toString() +
+        ' ms');
   }
 
   static void update(int partId, int sent, int total) {
     final double progress = (total <= 0) ? 0.0 : (sent / total).clamp(0.0, 1.0);
     final double safe = progress.isNaN ? 0.0 : progress;
     _progress[partId] = safe;
-    logger.d('[UploadProgressBus] update(partId=$partId, sent=$sent, total=$total) → progress=$safe');
+    logger.d(
+        '[UploadProgressBus] update(partId=$partId, sent=$sent, total=$total) → progress=$safe');
     _ensureController().add(Map<int, double>.from(_progress));
   }
 
   static void markDone(int partId) {
     _progress.remove(partId);
-    logger.d('[UploadProgressBus] markDone($partId) -> size=${_progress.length}');
+    logger
+        .d('[UploadProgressBus] markDone($partId) -> size=${_progress.length}');
     _ensureController().add(Map<int, double>.from(_progress));
   }
 
@@ -307,9 +342,10 @@ class DatabaseNew {
         }
       }
       if (recordingPart.BEId != null) {
-        List<Map<String, dynamic>> existingByBeId =
-            await db.query("recordingParts",
-                where: "BEId = ?", whereArgs: [recordingPart.BEId]);
+        List<Map<String, dynamic>> existingByBeId = await db.query(
+            "recordingParts",
+            where: "BEId = ?",
+            whereArgs: [recordingPart.BEId]);
         if (existingByBeId.isNotEmpty) {
           final RecordingPart existing =
               RecordingPart.fromJson(existingByBeId.first);
@@ -433,6 +469,32 @@ class DatabaseNew {
     final List<Map<String, dynamic>> recs = await db.query("recordings",
         where: "mail = ? AND env = ?",
         whereArgs: [email, Config.hostEnvironment.name.toString()]);
+    return List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
+  }
+
+  /// Returns downloaded recordings present in local cache across environments.
+  /// Used by settings cache manager so users can clean local storage reliably,
+  /// including items downloaded in a different environment/account.
+  static Future<List<Recording>> getDownloadedRecordingsForCurrentUser() async {
+    final db = await database;
+    final List<String> where = <String>[
+      'downloaded = 1',
+      "("
+          "(path IS NOT NULL AND path <> '') OR "
+          "EXISTS ("
+          "  SELECT 1 FROM recordingParts p "
+          "  WHERE p.recordingId = recordings.id "
+          "    AND p.path IS NOT NULL "
+          "    AND p.path <> ''"
+          ")"
+          ")",
+    ];
+
+    final List<Map<String, dynamic>> recs = await db.query(
+      'recordings',
+      where: where.join(' AND '),
+      orderBy: 'datetime(createdAt) DESC',
+    );
     return List.generate(recs.length, (i) => Recording.fromJson(recs[i]));
   }
 
@@ -605,11 +667,14 @@ class DatabaseNew {
       return;
     }
     if (recording.sent == true) {
-      logger.i('sendRecordingNew: recording ${recording.id} already marked as sent. Skipping.');
+      logger.i(
+          'sendRecordingNew: recording ${recording.id} already marked as sent. Skipping.');
       return;
     }
-    if (recording.sending == true || _inflightRecordingIds.contains(recording.id)) {
-      logger.i('sendRecordingNew: recording ${recording.id} is already being sent. Skipping. sending:${recording.sending} | ${_inflightRecordingIds.contains(recording.id)}');
+    if (recording.sending == true ||
+        _inflightRecordingIds.contains(recording.id)) {
+      logger.i(
+          'sendRecordingNew: recording ${recording.id} is already being sent. Skipping. sending:${recording.sending} | ${_inflightRecordingIds.contains(recording.id)}');
       return;
     }
     _inflightRecordingIds.add(recording.id!);
@@ -794,8 +859,10 @@ class DatabaseNew {
   }
 
   static Future<void> sendRecordingPart(RecordingPart recordingPart) async {
-    if (recordingPart.id != null && _inflightPartIds.contains(recordingPart.id)) {
-      logger.i('sendRecordingPart: part ${recordingPart.id} already in-flight. Skipping.');
+    if (recordingPart.id != null &&
+        _inflightPartIds.contains(recordingPart.id)) {
+      logger.i(
+          'sendRecordingPart: part ${recordingPart.id} already in-flight. Skipping.');
       return;
     }
     // mark as sending
@@ -835,7 +902,8 @@ class DatabaseNew {
           recordingPart.sent = true;
           recordingPart.sending = false;
           await updateRecordingPart(recordingPart);
-          final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+          final port =
+              IsolateNameServer.lookupPortByName('upload_progress_port');
           if (port != null && recordingPart.id != null) {
             port.send(['done', recordingPart.id!]);
           }
@@ -882,11 +950,14 @@ class DatabaseNew {
       return;
     }
     if (recordingPart.sent == true) {
-      logger.i('sendRecordingPartNew: part ${recordingPart.id} already sent. Skipping.');
+      logger.i(
+          'sendRecordingPartNew: part ${recordingPart.id} already sent. Skipping.');
       return;
     }
-    if (recordingPart.sending == true || _inflightPartIds.contains(recordingPart.id)) {
-      logger.i('sendRecordingPartNew: part ${recordingPart.id} already in-flight. Skipping.');
+    if (recordingPart.sending == true ||
+        _inflightPartIds.contains(recordingPart.id)) {
+      logger.i(
+          'sendRecordingPartNew: part ${recordingPart.id} already in-flight. Skipping.');
       return;
     }
     _inflightPartIds.add(recordingPart.id!);
@@ -961,11 +1032,14 @@ class DatabaseNew {
           UploadProgressBus.update(recordingPart.id!, sent, total);
           if (onProgress != null) onProgress(sent, total);
 
-          final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+          final port =
+              IsolateNameServer.lookupPortByName('upload_progress_port');
           if (port == null) {
-            logger.w('[UploadBridge] lookupPortByName(\"upload_progress_port\") returned NULL – likely a background isolate cannot see the UI port. partId=${recordingPart.id}, sent=$sent, total=$total');
+            logger.w(
+                '[UploadBridge] lookupPortByName(\"upload_progress_port\") returned NULL – likely a background isolate cannot see the UI port. partId=${recordingPart.id}, sent=$sent, total=$total');
           } else {
-            logger.i('[UploadBridge] sending progress to UI port: partId=${recordingPart.id}, sent=$sent, total=$total');
+            logger.i(
+                '[UploadBridge] sending progress to UI port: partId=${recordingPart.id}, sent=$sent, total=$total');
             port.send(['update', recordingPart.id!, sent, total]);
           }
         },
@@ -998,11 +1072,14 @@ class DatabaseNew {
               UploadProgressBus.update(recordingPart.id!, sent, total);
               if (onProgress != null) onProgress(sent, total);
 
-              final port = IsolateNameServer.lookupPortByName('upload_progress_port');
+              final port =
+                  IsolateNameServer.lookupPortByName('upload_progress_port');
               if (port == null) {
-                logger.w('[UploadBridge] lookupPortByName(\"upload_progress_port\") returned NULL – likely a background isolate cannot see the UI port. partId=${recordingPart.id}, sent=$sent, total=$total');
+                logger.w(
+                    '[UploadBridge] lookupPortByName(\"upload_progress_port\") returned NULL – likely a background isolate cannot see the UI port. partId=${recordingPart.id}, sent=$sent, total=$total');
               } else {
-                logger.i('[UploadBridge] sending progress to UI port: partId=${recordingPart.id}, sent=$sent, total=$total');
+                logger.i(
+                    '[UploadBridge] sending progress to UI port: partId=${recordingPart.id}, sent=$sent, total=$total');
                 port.send(['update', recordingPart.id!, sent, total]);
               }
             },
@@ -1021,9 +1098,11 @@ class DatabaseNew {
         UploadProgressBus.markDone(recordingPart.id!);
         final port = IsolateNameServer.lookupPortByName('upload_progress_port');
         if (port == null) {
-          logger.w('[UploadBridge] done: UI port not found; cannot notify UI isolate. partId=${recordingPart.id}');
+          logger.w(
+              '[UploadBridge] done: UI port not found; cannot notify UI isolate. partId=${recordingPart.id}');
         } else {
-          logger.i('[UploadBridge] done: notifying UI isolate for partId=${recordingPart.id}');
+          logger.i(
+              '[UploadBridge] done: notifying UI isolate for partId=${recordingPart.id}');
           port.send(['done', recordingPart.id!]);
         }
         await updateRecordingPart(recordingPart);
@@ -1378,7 +1457,7 @@ class DatabaseNew {
     if (recording.downloaded) return recording.id;
 
     if (recording.id == null) {
-        throw FetchException('Recording has no local ID', 500);
+      throw FetchException('Recording has no local ID', 500);
     }
 
     String? jwt = await FlutterSecureStorage().read(key: 'token');
@@ -1481,7 +1560,8 @@ class DatabaseNew {
     recording.downloaded = true;
     await updateRecording(recording);
 
-    logger.i('Downloaded recording id: ${recording.BEId}. File saved to: $outputPath');
+    logger.i(
+        'Downloaded recording id: ${recording.BEId}. File saved to: $outputPath');
     onProgress?.call(1.0);
     return recording.id;
   }
@@ -1824,9 +1904,11 @@ class DatabaseNew {
         await updateAllRecordingsDurations(DatabaseNew());
         await db.setVersion(newVersion);
       }
-      if (oldVersion <= 11){
-        await db.execute('ALTER TABLE detectedDialects ADD COLUMN predictedDialectId INTEGER');
-        await db.execute('ALTER TABLE detectedDialects ADD COLUMN predictedDialect TEXT;');
+      if (oldVersion <= 11) {
+        await db.execute(
+            'ALTER TABLE detectedDialects ADD COLUMN predictedDialectId INTEGER');
+        await db.execute(
+            'ALTER TABLE detectedDialects ADD COLUMN predictedDialect TEXT;');
         await db.setVersion(newVersion);
       }
     });
@@ -1905,14 +1987,12 @@ class DatabaseNew {
     return null;
   }
 
-  static Future<Recording?> getRecordingFromDbByIdNoMail(int recordingId) async {
+  static Future<Recording?> getRecordingFromDbByIdNoMail(
+      int recordingId) async {
     final db = await database;
     final List<Map<String, dynamic>> results = await db.query("recordings",
         where: "id = ? AND env = ?",
-        whereArgs: [
-          recordingId,
-          Config.hostEnvironment.name.toString()
-        ]);
+        whereArgs: [recordingId, Config.hostEnvironment.name.toString()]);
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
     }
@@ -1946,7 +2026,8 @@ class DatabaseNew {
     if (unsent.isEmpty) return;
 
     // Group parts by local recordingId to make sure we send the parent recording at most once
-    final Map<int, List<Map<String, dynamic>>> byRecording = <int, List<Map<String, dynamic>>>{};
+    final Map<int, List<Map<String, dynamic>>> byRecording =
+        <int, List<Map<String, dynamic>>>{};
     for (final row in unsent) {
       final int recId = (row['recordingId'] as num).toInt();
       byRecording.putIfAbsent(recId, () => <Map<String, dynamic>>[]).add(row);
@@ -1961,8 +2042,10 @@ class DatabaseNew {
 
           // If we have no local recording AND the part has no backendRecordingId, we can't proceed.
           // Log and skip (keeps your original error handling intent).
-          if (recording == null && partRows.every((r) => r['backendRecordingId'] == null)) {
-            logger.i('resendUnsentParts: cannot find recording $recId and parts have no backendRecordingId; skipping group.');
+          if (recording == null &&
+              partRows.every((r) => r['backendRecordingId'] == null)) {
+            logger.i(
+                'resendUnsentParts: cannot find recording $recId and parts have no backendRecordingId; skipping group.');
             return;
           }
 
@@ -1976,8 +2059,11 @@ class DatabaseNew {
 
             if (toSend.isNotEmpty) {
               // Respect single-flight guard for the recording
-              if (recording.sending == true || (recording.id != null && _inflightRecordingIds.contains(recording.id))) {
-                logger.i('resendUnsentParts: recording ${recording.id} already in-flight.');
+              if (recording.sending == true ||
+                  (recording.id != null &&
+                      _inflightRecordingIds.contains(recording.id))) {
+                logger.i(
+                    'resendUnsentParts: recording ${recording.id} already in-flight.');
               } else {
                 await sendRecordingNew(recording, toSend);
               }
@@ -1988,7 +2074,9 @@ class DatabaseNew {
           for (final m in partRows) {
             final part = RecordingPart.fromJson(m);
             if (part.sent == true) continue;
-            if (part.sending == true || (part.id != null && _inflightPartIds.contains(part.id))) continue;
+            if (part.sending == true ||
+                (part.id != null && _inflightPartIds.contains(part.id)))
+              continue;
 
             // Persist the sending flag immediately to avoid concurrent retries picking it up again.
             part.sending = true;
@@ -1996,7 +2084,8 @@ class DatabaseNew {
             await sendRecordingPartNew(part);
           }
         } catch (e, st) {
-          logger.e('resendUnsentParts: failure in group for recordingId=$recId', error: e, stackTrace: st);
+          logger.e('resendUnsentParts: failure in group for recordingId=$recId',
+              error: e, stackTrace: st);
           Sentry.captureException(e, stackTrace: st);
         }
       }());
@@ -2113,7 +2202,8 @@ class DatabaseNew {
   ''', [recordingLocalId]);
 
     final codes = rows
-        .map((r) => DialectKeywordTranslator.toEnglish(r['code'] as String?) ?? '')
+        .map((r) =>
+            DialectKeywordTranslator.toEnglish(r['code'] as String?) ?? '')
         .where((s) => s.trim().isNotEmpty)
         .map((s) => s.trim())
         .toSet()
@@ -2123,7 +2213,8 @@ class DatabaseNew {
   }
 
   /// Returns all parts for a given recordingId from the DB.
-  static Future<List<RecordingPart>> getRecordingPartsByRecordingId(int recordingId) async {
+  static Future<List<RecordingPart>> getRecordingPartsByRecordingId(
+      int recordingId) async {
     final db = await database;
     final List<Map<String, dynamic>> parts = await db.query(
       'recordingParts',
@@ -2135,16 +2226,20 @@ class DatabaseNew {
 
   static Future<int?> fetchRecordingFromBE(int id) async {
     String? jwt = await FlutterSecureStorage().read(key: 'token');
-    if (jwt == null){
+    if (jwt == null) {
       logger.e('Could not fetch jwt');
       return null;
     }
     final http.Response response = await http.get(
-      Uri(scheme: 'https', host: Config.host, path: '/recordings/$id', queryParameters: {"parts": "true"}),
-      headers: {'Authorization': 'Bearer $jwt'}
-    );
-    if (response.statusCode != 200){
-      logger.w('Could not download recording ${response.body} | ${response.statusCode}');
+        Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: '/recordings/$id',
+            queryParameters: {"parts": "true"}),
+        headers: {'Authorization': 'Bearer $jwt'});
+    if (response.statusCode != 200) {
+      logger.w(
+          'Could not download recording ${response.body} | ${response.statusCode}');
     }
     Map<String, dynamic> body = jsonDecode(response.body);
     final List<dynamic> partsArr = (body['parts'] as List?) ?? const [];
@@ -2162,7 +2257,7 @@ class DatabaseNew {
       }
     }
     final List<Future<void>> tasks = <Future<void>>[];
-    for (RecordingPart part in parts){
+    for (RecordingPart part in parts) {
       tasks.add(() async {
         await insertRecordingPart(part);
       }());
@@ -2171,14 +2266,11 @@ class DatabaseNew {
     return localId;
   }
 
-  static Future<Recording?> getRecordingFromDbByBEId(int id) async{
+  static Future<Recording?> getRecordingFromDbByBEId(int id) async {
     final db = await database;
     final List<Map<String, dynamic>> results = await db.query("recordings",
         where: "BEId = ? AND env = ?",
-        whereArgs: [
-          id,
-          Config.hostEnvironment.name.toString()
-        ]);
+        whereArgs: [id, Config.hostEnvironment.name.toString()]);
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
     }
@@ -2187,8 +2279,10 @@ class DatabaseNew {
 
   static Future<void> checkSendingRecordings() async {
     final db = await database;
-    final List<Map<String, dynamic>> result = await db.query("recordings", where: "sending = 1");
-    List<Recording> recordings = result.map((row) => Recording.fromJson(row)).toList();
+    final List<Map<String, dynamic>> result =
+        await db.query("recordings", where: "sending = 1");
+    List<Recording> recordings =
+        result.map((row) => Recording.fromJson(row)).toList();
     for (Recording recording in recordings) {
       final String portName = '/upload/rec/${recording.id}';
       final SendPort? port = IsolateNameServer.lookupPortByName(portName);
@@ -2198,12 +2292,13 @@ class DatabaseNew {
         recording.sending = false;
         await updateRecording(recording);
         _inflightRecordingIds.remove(recording.id);
-        List<RecordingPart> parts = await getRecordingPartsByRecordingId(recording.id!);
+        List<RecordingPart> parts =
+            await getRecordingPartsByRecordingId(recording.id!);
 
         final List<Future<void>> tasks = <Future<void>>[];
 
-        for (RecordingPart part in parts){
-          tasks.add(() async{
+        for (RecordingPart part in parts) {
+          tasks.add(() async {
             part.sending = false;
             await updateRecordingPart(part);
             _inflightPartIds.remove(part.id);
@@ -2211,26 +2306,30 @@ class DatabaseNew {
         }
         await Future.wait(tasks);
 
-        logger.i('Recording ${recording.id} marked as not sending (health server not active).');
+        logger.i(
+            'Recording ${recording.id} marked as not sending (health server not active).');
       } else {
         // Optionally ping it
         final receive = ReceivePort();
         port.send({'replyTo': receive.sendPort, 'cmd': 'ping'});
         try {
-          final response = await receive.first.timeout(const Duration(seconds: 2));
+          final response =
+              await receive.first.timeout(const Duration(seconds: 2));
           if (response is Map && response['status'] == 'uploading') {
             logger.i('Recording ${recording.id} still uploading.');
           } else {
             recording.sending = false;
             await updateRecording(recording);
-            logger.i('Recording ${recording.id} status unclear; marking not sending.');
+            logger.i(
+                'Recording ${recording.id} status unclear; marking not sending.');
             _inflightRecordingIds.remove(recording.id);
-            List<RecordingPart> parts = await getRecordingPartsByRecordingId(recording.id!);
+            List<RecordingPart> parts =
+                await getRecordingPartsByRecordingId(recording.id!);
 
             final List<Future<void>> tasks = <Future<void>>[];
 
-            for (RecordingPart part in parts){
-              tasks.add(() async{
+            for (RecordingPart part in parts) {
+              tasks.add(() async {
                 part.sending = false;
                 await updateRecordingPart(part);
                 _inflightPartIds.remove(part.id);
@@ -2241,14 +2340,16 @@ class DatabaseNew {
         } catch (_) {
           recording.sending = false;
           await updateRecording(recording);
-          logger.i('Recording ${recording.id} did not respond to health ping; marked not sending.');
+          logger.i(
+              'Recording ${recording.id} did not respond to health ping; marked not sending.');
           _inflightRecordingIds.remove(recording.id);
-          List<RecordingPart> parts = await getRecordingPartsByRecordingId(recording.id!);
+          List<RecordingPart> parts =
+              await getRecordingPartsByRecordingId(recording.id!);
 
           final List<Future<void>> tasks = <Future<void>>[];
 
-          for (RecordingPart part in parts){
-            tasks.add(() async{
+          for (RecordingPart part in parts) {
+            tasks.add(() async {
               part.sending = false;
               await updateRecordingPart(part);
               _inflightPartIds.remove(part.id);

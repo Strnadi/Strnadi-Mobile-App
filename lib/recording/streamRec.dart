@@ -747,7 +747,8 @@ class _LiveRecState extends State<LiveRec> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
-        _discardRecording();
+        if (didPop) return;
+        await _discardRecording();
       },
       child: scaffoldWidget,
     );
@@ -800,20 +801,23 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  void _discardRecording() async {
-    _pause();
-    bool discard = await changeConfirmation();
-    if (discard) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
-          settings: const RouteSettings(name: '/Recorder'),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
+  Future<void> _discardRecording() async {
+    if (_recordState == RecordState.record) {
+      await _pause();
     }
+
+    bool discard = await changeConfirmation();
+    if (!discard || !mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
+        settings: const RouteSettings(name: '/Recorder'),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
   }
 
   Future<void> _start() async {

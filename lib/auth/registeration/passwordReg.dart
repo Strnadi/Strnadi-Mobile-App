@@ -17,10 +17,9 @@
 
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
-import 'package:strnadi/auth/registeration/cityReg.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
-import 'package:flutter/material.dart';
 
 final logger = Logger();
 
@@ -46,7 +45,7 @@ class _RegPasswordState extends State<RegPassword> {
   // Controllers for the password and its confirmation
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
 
   // Whether the password fields are hidden
   bool _obscurePassword = true;
@@ -57,17 +56,13 @@ class _RegPasswordState extends State<RegPassword> {
   static const Color yellow = Color(0xFFFFD641);
 
   /// Individual checks for each requirement
-  bool get _hasUpper =>
-      RegExp(r'[A-Z]').hasMatch(_passwordController.text);
-  bool get _hasLower =>
-      RegExp(r'[a-z]').hasMatch(_passwordController.text);
-  bool get _hasDigit =>
-      RegExp(r'\d').hasMatch(_passwordController.text);
+  bool get _hasUpper => RegExp(r'[A-Z]').hasMatch(_passwordController.text);
+  bool get _hasLower => RegExp(r'[a-z]').hasMatch(_passwordController.text);
+  bool get _hasDigit => RegExp(r'\d').hasMatch(_passwordController.text);
   // bool get _hasSymbol =>
   //     RegExp('[!@#\$%^&*(),.?":{}|<>_\-–=+~;\'\\/]')
   //         .hasMatch(_passwordController.text);
-  bool get _hasLength =>
-      _passwordController.text.length >= 8;
+  bool get _hasLength => _passwordController.text.length >= 8;
 
   /// Final check: all partial checks must pass
   bool _passwordMeetsRequirements(String password) {
@@ -90,6 +85,13 @@ class _RegPasswordState extends State<RegPassword> {
   }
 
   @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       // Minimal app bar (white background, no shadow)
@@ -105,206 +107,284 @@ class _RegPasswordState extends State<RegPassword> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Text(t('signup.password.title'),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // "Heslo" label
-                Text(t('signup.password.password'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Password field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: InputDecoration(
-                    fillColor: Colors.grey[200],
-                    filled: true,
-                    hintText: t('signup.password.password_hint'),
-                    hintStyle: TextStyle(color: Colors.grey),
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+            child: AutofillGroup(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    t('signup.password.title'),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return t('signup.password.password_hint');
-                    } else if (!_passwordMeetsRequirements(value)) {
-                      return t('signup.password.errors.req_not_met');
-                    }
-                    return null;
-                  },
-                  onChanged: (_) {
-                    setState(() {});
-                    _formKey.currentState?.validate();
-                  },
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                // "Zopakujte heslo" label
-                Text(t('signup.password.repeat_password'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Confirm password field
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    fillColor: Colors.grey[200],
-                    filled: true,
-                    hintText: t('signup.password.password_again_hint'),
-                    hintStyle: TextStyle(color: Colors.grey),
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
+                  // "E-mail" label (readonly, but part of autofill credentials pair)
+                  Text(
+                    t('login.inputs.emailLabel'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
                     ),
                   ),
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return t('signup.password.password_again_hint');
-                    } else if (value.trim() != _passwordController.text.trim()) {
-                      return t('signup.password.errors.password_match_err');
-                    }
-                    return null;
-                  },
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 24),
-
-                // Password requirements, each line lights up green if met
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t('signup.password.password_req.capital_letter'),
-                      style: TextStyle(
-                        color: _hasUpper ? Colors.green : textColor,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(t('signup.password.password_req.lovercase_letter'),
-                      style: TextStyle(
-                        color: _hasLower ? Colors.green : textColor,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(t('signup.password.password_req.digit'),
-                      style: TextStyle(
-                        color: _hasDigit ? Colors.green : textColor,
-                        fontSize: 14,
-                      ),
-                    ),
-                    // Text(
-                    //   '• Alespoň jeden symbol (!@#\$%^&*…?)',
-                    //   style: TextStyle(
-                    //     color: _hasSymbol ? Colors.green : textColor,
-                    //     fontSize: 14,
-                    //   ),
-                    // ),
-                    Text(t('signup.password.password_req.lenght_req'),
-                      style: TextStyle(
-                        color: _hasLength ? Colors.green : textColor,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // "Pokračovat" button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState?.validate() ?? false) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegName(email: widget.email, consent: widget.consent,jwt: widget.jwt ,password:  _passwordController.text)));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      backgroundColor: _isFormValid ? yellow : Colors.grey,
-                      foregroundColor: _isFormValid ? textColor : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    initialValue: widget.email,
+                    readOnly: true,
+                    autofillHints: const [
+                      AutofillHints.newUsername,
+                      AutofillHints.email,
+                    ],
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: Text(t('signup.mail.buttons.continue')),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+
+                  // "Heslo" label
+                  Text(
+                    t('signup.password.password'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Password field
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.newPassword],
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      hintText: t('signup.password.password_hint'),
+                      hintStyle: TextStyle(color: Colors.grey),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return t('signup.password.password_hint');
+                      } else if (!_passwordMeetsRequirements(value)) {
+                        return t('signup.password.errors.req_not_met');
+                      }
+                      return null;
+                    },
+                    onChanged: (_) {
+                      setState(() {});
+                      _formKey.currentState?.validate();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // "Zopakujte heslo" label
+                  Text(
+                    t('signup.password.repeat_password'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Confirm password field
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.newPassword],
+                    onFieldSubmitted: (_) {
+                      if (_formKey.currentState?.validate() ?? false) {
+                        TextInput.finishAutofillContext(shouldSave: true);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              email: widget.email,
+                              consent: widget.consent,
+                              jwt: widget.jwt,
+                              password: _passwordController.text,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    decoration: InputDecoration(
+                      fillColor: Colors.grey[200],
+                      filled: true,
+                      hintText: t('signup.password.password_again_hint'),
+                      hintStyle: TextStyle(color: Colors.grey),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                    ),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return t('signup.password.password_again_hint');
+                      } else if (value.trim() !=
+                          _passwordController.text.trim()) {
+                        return t('signup.password.errors.password_match_err');
+                      }
+                      return null;
+                    },
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Password requirements, each line lights up green if met
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t('signup.password.password_req.capital_letter'),
+                        style: TextStyle(
+                          color: _hasUpper ? Colors.green : textColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        t('signup.password.password_req.lovercase_letter'),
+                        style: TextStyle(
+                          color: _hasLower ? Colors.green : textColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        t('signup.password.password_req.digit'),
+                        style: TextStyle(
+                          color: _hasDigit ? Colors.green : textColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                      // Text(
+                      //   '• Alespoň jeden symbol (!@#\$%^&*…?)',
+                      //   style: TextStyle(
+                      //     color: _hasSymbol ? Colors.green : textColor,
+                      //     fontSize: 14,
+                      //   ),
+                      // ),
+                      Text(
+                        t('signup.password.password_req.lenght_req'),
+                        style: TextStyle(
+                          color: _hasLength ? Colors.green : textColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // "Pokračovat" button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_formKey.currentState?.validate() ?? false) {
+                          TextInput.finishAutofillContext(shouldSave: true);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegName(
+                                email: widget.email,
+                                consent: widget.consent,
+                                jwt: widget.jwt,
+                                password: _passwordController.text,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        backgroundColor: _isFormValid ? yellow : Colors.grey,
+                        foregroundColor:
+                            _isFormValid ? textColor : Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        textStyle: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                      ),
+                      child: Text(t('signup.mail.buttons.continue')),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -312,7 +392,8 @@ class _RegPasswordState extends State<RegPassword> {
 
       // Bottom segmented progress bar with extra bottom padding
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+        padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
         child: Row(
           children: List.generate(5, (index) {
             // Fill first 2 segments to show "2 out of 6" progress

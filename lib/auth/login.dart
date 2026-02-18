@@ -80,6 +80,11 @@ class _LoginState extends State<Login> {
     ));
   }
 
+  void _finishCredentialAutofill() {
+    // Triggers iOS/Android password managers to offer saving credentials.
+    TextInput.finishAutofillContext(shouldSave: true);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -171,6 +176,7 @@ class _LoginState extends State<Login> {
       logger.i('Login response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 202) {
+        _finishCredentialAutofill();
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
         if (await secureStorage.read(key: 'token') != null) {
@@ -242,6 +248,7 @@ class _LoginState extends State<Login> {
           ),
         );
       } else if (response.statusCode == 403) {
+        _finishCredentialAutofill();
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
         await secureStorage.write(
             key: 'token', value: response.body.toString());
@@ -338,7 +345,11 @@ class _LoginState extends State<Login> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
-                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [
+                      AutofillHints.username,
+                      AutofillHints.email,
+                    ],
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,
@@ -369,7 +380,9 @@ class _LoginState extends State<Login> {
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.password],
+                    onSubmitted: (_) => login(),
                     decoration: InputDecoration(
                       fillColor: Colors.grey[200],
                       filled: true,

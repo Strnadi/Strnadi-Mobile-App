@@ -221,6 +221,11 @@ class _RegMailState extends State<RegMail> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         autocorrect: false,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [
+                          AutofillHints.newUsername,
+                          AutofillHints.email,
+                        ],
                         onChanged: (value) {
                           setState(() {
                             // Validate email format

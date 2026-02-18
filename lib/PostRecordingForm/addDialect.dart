@@ -16,7 +16,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
@@ -42,11 +41,9 @@ class DialectSelectionDialog extends StatefulWidget {
   final double? currentPosition;
   final double duration;
   final Function(DialectModel?) onDialectAdded;
-  Widget? spectogram;
 
   DialectSelectionDialog({
     Key? key,
-    this.spectogram,
     this.currentPosition,
     required this.duration,
     required this.onDialectAdded,
@@ -123,7 +120,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     }
   }
 
-
   String _formatDuration(double seconds) {
     int mins = (seconds / 60).floor();
     int secs = (seconds % 60).floor();
@@ -156,7 +152,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(t('postRecordingForm.addDialect.title'),
+                      Text(
+                        t('postRecordingForm.addDialect.title'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -164,17 +161,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      // Spectogram with overlay markers
-                      if (widget.spectogram != null) SizedBox(
-                        height: 200,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Spectrogram background
-                            widget.spectogram!,
-                          ],
-                        ),
-                      ),
                       // Playback controls row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -240,10 +226,12 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         ),
                         onPressed: selectedDialect != null
                             ? () async {
-                                final color = await _resolveDialectColor(selectedDialect!);
-                                final canonical = DialectKeywordTranslator
-                                        .toEnglish(selectedDialect!) ??
-                                    selectedDialect!;
+                                final color = await _resolveDialectColor(
+                                    selectedDialect!);
+                                final canonical =
+                                    DialectKeywordTranslator.toEnglish(
+                                            selectedDialect!) ??
+                                        selectedDialect!;
                                 final displayLabel =
                                     _displayLabelForType(canonical);
                                 widget.onDialectAdded(DialectModel(
@@ -382,7 +370,8 @@ class CustomTrackShape extends RoundedRectSliderTrackShape {
   }) {
     final double trackHeight = sliderTheme.trackHeight ?? 0;
     final double trackLeft = offset.dx;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final double trackTop =
+        offset.dy + (parentBox.size.height - trackHeight) / 2;
     final double trackWidth = parentBox.size.width;
     return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }

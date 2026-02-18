@@ -21,6 +21,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 
@@ -29,11 +30,9 @@ Logger logger = Logger();
 class EmailNotVerified extends StatefulWidget {
   final int userId;
   final String userEmail;
-  const EmailNotVerified({
-    Key? key,
-    required this.userId,
-    required this.userEmail
-  }) : super(key: key);
+  const EmailNotVerified(
+      {Key? key, required this.userId, required this.userEmail})
+      : super(key: key);
 
   @override
   State<EmailNotVerified> createState() => _EmailNotVerifiedState();
@@ -73,16 +72,17 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   }
 
   /// Navigates back to the login/authorization page when email is verified.
-  void alreadyVerified() {
+  Future<void> alreadyVerified() async {
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+    await navigateToSessionLanding(context);
   }
 
   /// Resend verification email.
   Future<void> resendEmail() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     final String? jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.https(Config.host, '/auth/${await secureStorage.read(key: 'userId')}/resend-verify-email');
+    final Uri url = Uri.https(Config.host,
+        '/auth/${await secureStorage.read(key: 'userId')}/resend-verify-email');
     try {
       final response = await http.get(
         url,
@@ -100,7 +100,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text(t('signup.emailSent.dialogs.alreadyVerified.title')),
-            content: Text(t('signup.emailSent.dialogs.alreadyVerified.message')),
+            content:
+                Text(t('signup.emailSent.dialogs.alreadyVerified.message')),
             actions: [
               TextButton(
                 onPressed: alreadyVerified,
@@ -110,7 +111,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
         );
       } else {
-        logger.e('Failed to send email ${response.statusCode} | ${response.body}');
+        logger.e(
+            'Failed to send email ${response.statusCode} | ${response.body}');
       }
     } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);
@@ -149,7 +151,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
           onPressed: () {
             FlutterSecureStorage().delete(key: 'token');
-            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/authorizator', (Route<dynamic> route) => false);
           },
         ),
       ),
@@ -160,7 +163,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              Text(t('signup.emailSent.notVerified'),
+              Text(
+                t('signup.emailSent.notVerified'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -188,13 +192,16 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    textStyle:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
                   ),
                   child: Text(
-                    _counter > 0 ? '${t('signup.emailVerify.resend')} ($_counter s)' : t('signup.emailVerify.resend'),
+                    _counter > 0
+                        ? '${t('signup.emailVerify.resend')} ($_counter s)'
+                        : t('signup.emailVerify.resend'),
                   ),
                 ),
               ),
@@ -210,7 +217,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                     foregroundColor: textColor,
                     side: const BorderSide(color: yellow, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    textStyle:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
@@ -223,15 +231,16 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+                  onPressed: () async {
+                    await navigateToSessionLanding(context);
                   },
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
                     backgroundColor: yellow,
                     foregroundColor: textColor,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    textStyle:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.0),
                     ),
@@ -246,7 +255,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       ),
       // Bottom segmented progress bar
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+        padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
         child: Row(
           children: List.generate(5, (index) {
             // All segments shown as complete

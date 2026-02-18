@@ -1,0 +1,67 @@
+App Store Connect - Detailed changelog (EN)
+Range: 1.4.08 to 1.4.17
+Note: Versions 1.4.16 and 1.4.17 are currently in local working state (not yet represented by a new git tag/commit).
+
+Version 1.4.08
+- Added dynamic icon generation on the map.
+- Expanded app environment switching.
+- Finalized guest mode and language switching on login screens.
+- Updated login/guest UI elements and icons.
+- Improved backend text loading and lazy-loading behavior in UI.
+
+Version 1.4.09
+- Improved profile picture caching.
+- Updated cache-related dependencies.
+- Fixed map icon rendering issues.
+- Delivered bug fixes across auth, localization, and related modules.
+
+Version 1.4.10
+- Added map point clustering and cluster on/off toggle.
+- Improved grouped sending flow for local recordings.
+- Fixed environment-related issues and logout flow behavior.
+- Updated dictionary/translations and minor UX issues.
+
+Version 1.4.11
+- Added HTTP file upload and improved upload mechanics.
+- Added coordinate search on the map.
+- Improved time display on the map and dialect-color point grouping.
+- Added local recording duration display.
+- Added user achievements page.
+- Improved Google sign-in flow and account linking.
+
+Version 1.4.12
+- Fixed duplicate recording markers on the map.
+- Restored multi-dialect clustering on the map.
+- Added dialect keyword translations and UI improvements.
+- Improved compact view for local recordings.
+- Fixed notification flow issues affecting map-related behavior.
+- Updated Android/Gradle configuration.
+
+Version 1.4.13
+- Fixed filtered recording-part state handling.
+- Fixed recording download issues.
+- Stabilized map and database logic.
+
+Version 1.4.14
+- Updated packages and iOS project dependencies.
+- Fixed issues in authentication flows.
+- Fixed database and app initialization behavior.
+- Included additional buffer/flow stability fixes.
+
+Version 1.4.15
+- Reviewed and updated authentication flows (login/registration and related screens).
+- Updated localization content (CS/DE/EN).
+- Fixed settings slider visibility.
+- Updated time formatting and background work manager behavior.
+- Added further stability improvements across map, user, privacy, and database modules.
+
+Version 1.4.16
+- Fixed map recording download progress across parts (monotonic, no false 100% states).
+- Improved error handling for partial download failures.
+- Fixed playback progress behavior (duration fallback and bounds clamping).
+- Improved progress bar readability with clearer track/fill colors.
+
+Version 1.4.17
+- Finalized release with map download/playback progress fixes.
+- Consolidated release metadata and release notes under version 1.4.17.
+- Improved playback UX predictability (seek bounds and replay behavior after reaching end).

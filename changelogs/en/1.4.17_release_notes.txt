@@ -1,0 +1,15 @@
+Google Play Console (EN, short version)
+---------------------------------------
+We improved map recording playback and download progress. Download progress across parts is now accurate (no false 100% or jumps), playback progress is more precise, seeking is limited to valid bounds, and progress bars are easier to read. We also made ongoing updates to sign-in, localization, and privacy settings.
+
+
+App Store Connect (EN, detailed version)
+----------------------------------------
+In this release, we focused on stability and progress accuracy for recording download and playback:
+
+- Fixed multi-part recording download progress on the map to prevent jumps and false 100% states.
+- Improved playback progress behavior (more accurate duration fallback, edge-state handling, correct behavior after reaching the end).
+- Limited playback seek actions to valid time bounds.
+- Improved progress bar readability with clearer track/fill colors.
+
+We also included ongoing improvements in sign-in flows, localization, and privacy settings.

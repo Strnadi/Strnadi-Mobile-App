@@ -432,7 +432,8 @@
       "downloading": "Download recording",
       "errorDownloading": "Error downloading recording",
       "notDownloaded": "Not downloaded yet",
-      "downloadCanceled": "Download canceled"
+      "downloadCanceled": "Download canceled",
+      "playRestricted": "Only admins can play recordings from other users."
     },
     "audioPlayer": {
       "replay": "Rewind 10s",
@@ -633,6 +634,18 @@
       },
       "descriptions": {
         "localRecordingsMax": "Upon reaching this limit, the oldest recordings will be removed."
+      },
+      "cacheManager": {
+        "title": "Downloaded recordings manager",
+        "description": "Manage locally downloaded recordings from all environments.",
+        "empty": "No downloaded recordings found.",
+        "unnamed": "Unnamed recording",
+        "confirmTitle": "Remove downloaded recording?",
+        "confirmMessage": "This will remove the recording from local storage.",
+        "buttons": {
+          "cancel": "Cancel",
+          "remove": "Remove"
+        }
       }
     },
     "menu": {
