@@ -35,6 +35,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/dialectBadge.dart';
 import 'package:strnadi/locationService.dart';
 import '../dialects/ModelHandler.dart';
+import '../navigation/scaffold_with_bottom_bar.dart';
 import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
 import 'package:strnadi/widgets/loader.dart';
@@ -795,7 +796,7 @@ class _RecordingItemState extends State<RecordingItem> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(t('recListItem.estimatedBirdsCount')),
+                              Text('${t('recListItem.estimatedBirdsCount')}: '),
                               Text(widget.recording.estimatedBirdsCount
                                   .toString()),
                             ],

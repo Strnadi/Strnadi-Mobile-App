@@ -20,8 +20,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/appleAuth.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' hide logger;
+import 'package:strnadi/localization/localization.dart';
 import '../../HealthCheck/serverHealth.dart' show logger;
 import '../../bottomBar.dart';
+import '../../navigation/scaffold_with_bottom_bar.dart';
 
 class Connectedplatforms extends StatefulWidget {
   const Connectedplatforms({super.key});
@@ -81,10 +83,12 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
 
   @override
   Widget build(BuildContext context) {
+    final String appBarTitle = t('user.menu.items.connectedAccounts');
+
     if (shouldShowAppleSignIn == null) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
-        appBarTitle: "Propojené služby",
+        appBarTitle: appBarTitle,
         allowArrowBack: true,
         content: const Center(child: CircularProgressIndicator()),
       );
@@ -92,7 +96,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
     if (shouldShowAppleSignIn == false && ShouldShowGoogleSignIn == false) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
-        appBarTitle: "Propojené služby",
+        appBarTitle: appBarTitle,
         allowArrowBack: true,
         content: Center(
             child: Column(
@@ -113,7 +117,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
 
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
-      appBarTitle: "Propojené služby",
+      appBarTitle: appBarTitle,
       allowArrowBack: true,
       content: Center(
           child: Column(

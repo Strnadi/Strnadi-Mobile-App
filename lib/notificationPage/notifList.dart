@@ -21,6 +21,8 @@ import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localization/localization.dart';
 
+import '../navigation/scaffold_with_bottom_bar.dart';
+
 class NotificationScreen extends StatefulWidget {
   @override
   _NotificationScreenState createState() => _NotificationScreenState();
@@ -52,7 +54,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
         limit: 1,
       );
       final int recId = rows.isNotEmpty
-          ? (rows.first['recordingId'] as int?) ?? int.tryParse('${rows.first['recordingId']}') ?? -1
+          ? (rows.first['recordingId'] as int?) ??
+              int.tryParse('${rows.first['recordingId']}') ??
+              -1
           : -1;
       _partIdToRecId[partId] = recId;
       return recId;
@@ -61,14 +65,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
   }
 
-  Future<Map<int, List<_PartProgress>>> _groupByRecording(Map<int, double> data) async {
+  Future<Map<int, List<_PartProgress>>> _groupByRecording(
+      Map<int, double> data) async {
     final Map<int, List<_PartProgress>> grouped = <int, List<_PartProgress>>{};
     for (final entry in data.entries) {
       final int partId = entry.key;
       double progress = entry.value;
       if (progress.isNaN) progress = 0.0;
       final int recId = await _resolveRecIdForPart(partId);
-      grouped.putIfAbsent(recId, () => <_PartProgress>[]).add(_PartProgress(partId, progress));
+      grouped
+          .putIfAbsent(recId, () => <_PartProgress>[])
+          .add(_PartProgress(partId, progress));
     }
     return grouped;
   }
@@ -76,10 +83,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    getNotifications();
+    loadNotifications();
   }
 
-  void getNotifications() async {
+  Future<void> loadNotifications() async {
+    await DatabaseNew.markAllNotificationsAsRead();
     final list = await DatabaseNew.getNotificationList();
     if (!mounted) return;
     setState(() {
@@ -109,12 +117,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return fallback;
   }
 
-
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.notification,
       appBarTitle: t('notifications.title'),
+      allowArrowBack: true,
+      showNotificationBell: false,
       content: Column(
         children: [
           // Active uploads panel
@@ -132,12 +141,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       margin: EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Padding(
                         padding: EdgeInsets.all(12.0),
-                        child: SizedBox(height: 48, child: Center(child: CircularProgressIndicator())),
+                        child: SizedBox(
+                            height: 48,
+                            child: Center(child: CircularProgressIndicator())),
                       ),
                     );
                   }
 
-                  final grouped = groupSnap.data ?? const <int, List<_PartProgress>>{};
+                  final grouped =
+                      groupSnap.data ?? const <int, List<_PartProgress>>{};
 
                   // Flatten to a deterministic order: unknown id (-1) last
                   final recIds = grouped.keys.toList()
@@ -147,7 +159,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       return a.compareTo(b);
                     });
 
-                  debugPrint('[notifList] UploadProgressBus builder: hasData=' + (snapshot.hasData).toString() + ', recordings=' + recIds.length.toString());
+                  debugPrint('[notifList] UploadProgressBus builder: hasData=' +
+                      (snapshot.hasData).toString() +
+                      ', recordings=' +
+                      recIds.length.toString());
 
                   return Card(
                     margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -172,7 +187,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           if (data.isEmpty)
                             Text(
                               t('notifications.no_uploads'),
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
                             )
                           else
                             // For each recording render a card with its parts as progress bars
@@ -180,7 +196,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: recIds.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
                               itemBuilder: (context, idx) {
                                 final recId = recIds[idx];
                                 final parts = grouped[recId]!;
@@ -192,48 +209,68 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   ),
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          const Icon(Icons.mic_rounded, size: 18),
+                                          const Icon(Icons.mic_rounded,
+                                              size: 18),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: FutureBuilder<String>(
                                               future: recId == -1
-                                                  ? Future.value(t('notifications.unknown_recording'))
-                                                  : _resolveRecordingTitle(recId),
+                                                  ? Future.value(t(
+                                                      'notifications.unknown_recording'))
+                                                  : _resolveRecordingTitle(
+                                                      recId),
                                               builder: (context, snap) {
-                                                final title = snap.data ?? 'Recording #$recId';
+                                                final title = snap.data ??
+                                                    'Recording #$recId';
                                                 return Text(
                                                   title,
-                                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 );
                                               },
                                             ),
                                           ),
                                           if (recId != -1)
-                                            Text('#$recId', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                            Text('#$recId',
+                                                style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey)),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
                                       // List each part with its progress bar
                                       ListView.separated(
                                         shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
+                                        physics:
+                                            const NeverScrollableScrollPhysics(),
                                         itemCount: parts.length,
-                                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 8),
                                         itemBuilder: (context, i) {
                                           final part = parts[i];
-                                          final pct = (part.progress * 100).clamp(0, 100).toStringAsFixed(0);
+                                          final pct = (part.progress * 100)
+                                              .clamp(0, 100)
+                                              .toStringAsFixed(0);
                                           return Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              Text('Part #${part.partId} – $pct%', style: const TextStyle(fontSize: 12)),
+                                              Text(
+                                                  'Part #${part.partId} – $pct%',
+                                                  style: const TextStyle(
+                                                      fontSize: 12)),
                                               const SizedBox(height: 4),
                                               LinearProgressIndicator(
-                                                value: (part.progress >= 0.0 && part.progress <= 1.0)
+                                                value: (part.progress >= 0.0 &&
+                                                        part.progress <= 1.0)
                                                     ? part.progress
                                                     : null,
                                               ),
@@ -279,9 +316,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(notification.time, style: const TextStyle(color: Colors.grey)),
+                            Text(notification.time,
+                                style: const TextStyle(color: Colors.grey)),
                             if (notification.unread)
-                              const Icon(Icons.circle, color: Colors.black, size: 10),
+                              const Icon(Icons.circle,
+                                  color: Colors.black, size: 10),
                           ],
                         ),
                       );

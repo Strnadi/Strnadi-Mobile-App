@@ -30,6 +30,23 @@ class GoogleSignInService {
   static const String _serverClientId =
       '287278255232-2rfu5vd3j233uhn4ktacpfs7rep0s44d.apps.googleusercontent.com';
 
+  static String? _sanitizeEmail(dynamic value) {
+    if (value is! String) {
+      return null;
+    }
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static String? _extractEmailFromIdToken(String idToken) {
+    try {
+      return _sanitizeEmail(JwtDecoder.decode(idToken)['email']);
+    } catch (e) {
+      logger.w('Failed to decode Google idToken email: $e');
+      return null;
+    }
+  }
+
   static Future<void> _ensureInitialized() {
     return _initialization ??= _googleSignIn.initialize(
       serverClientId: _serverClientId,
@@ -76,12 +93,17 @@ class GoogleSignInService {
         signOut();
         return null;
       }
+
+      final accountEmail = _sanitizeEmail(googleUser.email);
+      final tokenEmail = _extractEmailFromIdToken(idToken);
+      final googleEmail = accountEmail ?? tokenEmail;
       logger.i('got auth');
 
       logger.i('google idToken received');
 
       final response = await _authController.googleSignIn(
         idToken: idToken,
+        email: googleEmail,
         token: jwt,
       );
 
@@ -98,6 +120,7 @@ class GoogleSignInService {
       if (raw is Map) {
         product.addAll(raw.cast<String, dynamic>());
       }
+      product['email'] = _sanitizeEmail(product['email']) ?? googleEmail ?? '';
       logger.i('Google sign in successful');
       return product;
     } catch (e, stackTrace) {
@@ -165,10 +188,12 @@ class GoogleSignInService {
 
   static Future<Map<String, dynamic>?> signUpWithGoogle() async {
     final idToken = await getIdToken();
+    final email = _extractEmailFromIdToken(idToken);
 
-    logger.i('Google email: ${JwtDecoder.decode(idToken)['sub']}');
+    logger.i('Google email: ${email ?? 'unknown'}');
 
-    final response = await _authController.signUpGoogle(idToken: idToken);
+    final response =
+        await _authController.signUpGoogle(idToken: idToken, email: email);
 
     if (response.statusCode == 409) {
       GoogleSignInService.signOut();

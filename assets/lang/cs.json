@@ -326,7 +326,7 @@
       "delete": "Smazat záznam",
       "resendUnsentParts": "Odeslat znovu",
       "send": "Odeslat záznam",
-      "deleteCache": "Smazat z cache",
+      "deleteCache": "Smazat ze zařízení",
       "cancel": "Zrušit"
     },
     "dialogs": {
@@ -709,6 +709,18 @@
           }
         }
       }
+    }
+  },
+  "blogExplorer": {
+    "title": "Blog",
+    "searchHint": "Hledat články",
+    "uncategorized": "Další články",
+    "empty": "Nebyly nalezeny žádné články.",
+    "retry": "Zkusit znovu",
+    "errors": {
+      "load": "Nepodařilo se načíst články.",
+      "open": "Nepodařilo se otevřít článek.",
+      "loadGuide": "Nepodařilo se načíst příručku."
     }
   },
   "notifications": {

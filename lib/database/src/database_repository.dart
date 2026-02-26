@@ -22,6 +22,7 @@ import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:path_provider/path_provider.dart';
@@ -60,6 +61,8 @@ class DatabaseNew {
 
   static List<Recording>? fetchedRecordings;
   static List<RecordingPart>? fetchedRecordingParts;
+  static final ValueNotifier<int> unreadNotificationCount =
+      ValueNotifier<int>(0);
 
   static bool fetching = false;
 
@@ -1060,6 +1063,7 @@ class DatabaseNew {
       'body': message.data.toString(),
       'receivedAt': message.sentTime,
     });
+    await refreshUnreadNotificationCount();
   }
 
   // New helper method to insert a custom local notification.
@@ -1097,6 +1101,28 @@ class DatabaseNew {
       ));
     }
     return messages;
+  }
+
+  static Future<int> getUnreadNotificationCount() async {
+    final db = await database;
+    final List<Map<String, Object?>> result = await db.rawQuery(
+      'SELECT COUNT(*) AS unreadCount FROM Notifications WHERE read = 0',
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  static Future<void> refreshUnreadNotificationCount() async {
+    unreadNotificationCount.value = await getUnreadNotificationCount();
+  }
+
+  static Future<void> markAllNotificationsAsRead() async {
+    final db = await database;
+    await db.update(
+      'Notifications',
+      {'read': 1},
+      where: 'read = 0',
+    );
+    await refreshUnreadNotificationCount();
   }
 
   static Future<Recording?> getRecordingFromDbById(int recordingId) async {

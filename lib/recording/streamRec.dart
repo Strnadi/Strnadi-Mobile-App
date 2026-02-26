@@ -49,6 +49,10 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../navigation/guide_shortcut_button.dart';
+import '../navigation/notification_bell_button.dart';
+import '../navigation/scaffold_with_bottom_bar.dart';
+
 final logger = Logger();
 
 class RecordingTaskHandler extends TaskHandler {
@@ -512,7 +516,13 @@ class _LiveRecState extends State<LiveRec> {
 
     // Create the scaffold widget.
     final scaffoldWidget = Scaffold(
-      appBar: AppBar(automaticallyImplyLeading: false),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: const GuideShortcutButton(),
+        actions: const [
+          NotificationBellButton(),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.only(top: 0),
         child: Column(

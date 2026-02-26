@@ -157,11 +157,16 @@ class AuthController {
 
   Future<Response<dynamic>> googleSignIn({
     required String idToken,
+    String? email,
     String? token,
   }) {
+    final data = <String, String>{'idToken': idToken};
+    if (email != null && email.isNotEmpty) {
+      data['email'] = email;
+    }
     return _dio.postUri(
       _uri('/auth/google'),
-      data: <String, String>{'idToken': idToken},
+      data: data,
       options: Options(
         contentType: Headers.jsonContentType,
         headers: token == null || token.isEmpty
@@ -187,10 +192,15 @@ class AuthController {
 
   Future<Response<dynamic>> signUpGoogle({
     required String idToken,
+    String? email,
   }) {
+    final data = <String, String>{'idToken': idToken};
+    if (email != null && email.isNotEmpty) {
+      data['email'] = email;
+    }
     return _dio.postUri(
       _uri('/auth/sign-up-google'),
-      data: <String, String>{'idToken': idToken},
+      data: data,
       options: Options(
         contentType: Headers.jsonContentType,
         extra: const <String, Object>{'authRequired': false},

@@ -40,7 +40,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:dio/dio.dart';
-import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
+import '../config/config.dart';
+import '../navigation/scaffold_with_bottom_bar.dart'; // Contains MAPY_CZ_API_KEY
 
 final logger = Logger();
 
@@ -1274,7 +1275,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(t("Predpokladany pocet strnadu: ")),
+                          Text('${t('recListItem.estimatedBirdsCount')}: '),
                           Text(widget.recording.estimatedBirdsCount.toString()),
                         ],
                       ),

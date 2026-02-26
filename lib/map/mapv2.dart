@@ -67,6 +67,8 @@ import '../database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 
+import '../navigation/scaffold_with_bottom_bar.dart';
+
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
@@ -907,10 +909,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   @override
   Widget build(BuildContext context) {
+    final double bottomSystemInset = MediaQuery.of(context).viewPadding.bottom;
+    final double controlsBottomOffset = 20 + bottomSystemInset;
+    final double mapyLegendBottomOffset = 10 + bottomSystemInset;
+
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.map,
       appBarTitle: null,
       isGuestUser: _isGuestUser,
+      showNotificationBell: false,
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -1009,7 +1016,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ),
               ),
               Positioned(
-                bottom: 20,
+                bottom: controlsBottomOffset,
                 right: 20,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1055,7 +1062,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ),
               ),
               Positioned(
-                bottom: 10,
+                bottom: mapyLegendBottomOffset,
                 left: 10,
                 child: Container(
                   padding:
@@ -1634,8 +1641,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (BuildContext context) {
+        final double bottomSystemInset =
+            MediaQuery.of(context).viewPadding.bottom;
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomSystemInset),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(

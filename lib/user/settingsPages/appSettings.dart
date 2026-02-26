@@ -25,6 +25,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:logger/logger.dart';
 import '../../bottomBar.dart';
+import '../../navigation/scaffold_with_bottom_bar.dart';
 import '../settingsManager.dart';
 import 'package:strnadi/config/config.dart';
 

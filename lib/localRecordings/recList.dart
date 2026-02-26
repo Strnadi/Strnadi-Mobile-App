@@ -40,6 +40,8 @@ import '../config/config.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../exceptions.dart';
+import '../navigation/notification_bell_button.dart';
+import '../navigation/scaffold_with_bottom_bar.dart';
 
 final logger = Logger();
 
@@ -521,6 +523,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
               onPressed: () => _showSortFilterOptions(context),
               tooltip: t('recList.buttons.sortAndFilter'),
             ),
+            const NotificationBellButton(),
           ]),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -823,7 +826,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
       // Return the first non-empty, non-placeholder dialect we find.
       for (final d in dialects) {
-        final String? english = DialectKeywordTranslator.toEnglish(d.userGuessDialect);
+        final String? english =
+            DialectKeywordTranslator.toEnglish(d.userGuessDialect);
         if (english != null && english.isNotEmpty) {
           if (english == 'Unassessed' || english == 'Undetermined') {
             continue;

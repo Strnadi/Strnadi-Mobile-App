@@ -709,6 +709,18 @@
       }
     }
   },
+  "blogExplorer": {
+    "title": "Blog",
+    "searchHint": "Artikel suchen",
+    "uncategorized": "Weitere Artikel",
+    "empty": "Keine Artikel gefunden.",
+    "retry": "Erneut versuchen",
+    "errors": {
+      "load": "Artikel konnten nicht geladen werden.",
+      "open": "Artikel konnte nicht geöffnet werden.",
+      "loadGuide": "Leitfaden konnte nicht geladen werden."
+    }
+  },
   "notifications": {
     "title": "Benachrichtigungen",
     "uploads_in_progress": "Uploads laufen im Hintergrund",

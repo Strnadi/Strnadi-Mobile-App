@@ -32,6 +32,8 @@ import 'package:strnadi/privacy/tracking_consent.dart';
 import '../config/config.dart';
 import 'package:strnadi/firebase/firebase.dart' as strnadiFirebase;
 
+import '../navigation/scaffold_with_bottom_bar.dart';
+
 class UserPage extends StatefulWidget {
   const UserPage({Key? key}) : super(key: key);
 

@@ -328,7 +328,7 @@
       "delete": "Delete record",
       "resendUnsentParts": "Resend",
       "send": "Send record",
-      "deleteCache": "Delete from cache",
+      "deleteCache": "Delete from device",
       "cancel": "Cancel"
     },
     "dialogs": {
@@ -711,6 +711,18 @@
           }
         }
       }
+    }
+  },
+  "blogExplorer": {
+    "title": "Blog",
+    "searchHint": "Search articles",
+    "uncategorized": "Other articles",
+    "empty": "No articles found.",
+    "retry": "Retry",
+    "errors": {
+      "load": "Failed to load articles.",
+      "open": "Failed to open article.",
+      "loadGuide": "Failed to load guide."
     }
   },
   "notifications": {
