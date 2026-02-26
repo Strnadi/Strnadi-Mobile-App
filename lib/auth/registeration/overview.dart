@@ -131,7 +131,6 @@ class _RegOverviewState extends State<RegOverview> {
         // Store the token if returned
         await secureStorage.write(
             key: 'token', value: response.data.toString());
-        await fb.refreshToken();
 
         final idResponse = await _userController.getUserIdFromToken();
         if (idResponse.statusCode != 200) {
@@ -148,6 +147,7 @@ class _RegOverviewState extends State<RegOverview> {
           return;
         }
         await secureStorage.write(key: 'userId', value: userId.toString());
+        await fb.refreshToken();
 
         final isEmailRegistration = (widget.password ?? '').isNotEmpty;
         if (isEmailRegistration) {
