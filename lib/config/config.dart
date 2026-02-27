@@ -21,6 +21,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import '../main.dart';
 
@@ -53,6 +54,7 @@ class Config {
   static const String _dataUsagePrefKey = 'data_usage_option';
   static DataUsageOption? _dataUsageOption;
   static const String _languagePrefKey = 'preferred_language';
+  static const Set<String> _supportedLanguageCodes = {'cs', 'en', 'de'};
   static const String _hostEnvPrefKey = 'host_environment';
   static HostEnvironment? _hostEnv;
 
@@ -156,15 +158,24 @@ class Config {
 
   static Future<LanguagePreference> getLanguagePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_languagePrefKey);
-    if (raw == null) {
-      return LanguagePreference.cs;
-    } else {
-      return LanguagePreference.values.firstWhere(
-        (e) => e.toString() == raw,
-        orElse: () => LanguagePreference.cs,
-      );
+    String? raw = prefs.getString(_languagePrefKey);
+    if (raw == null || !_supportedLanguageCodes.contains(raw)) {
+      raw = _resolveInitialLanguageCode();
+      await prefs.setString(_languagePrefKey, raw);
     }
+    return LanguagePreference.values.firstWhere(
+      (e) => e.toString() == raw,
+      orElse: () => LanguagePreference.en,
+    );
+  }
+
+  static String _resolveInitialLanguageCode() {
+    final deviceCode =
+        ui.PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    if (_supportedLanguageCodes.contains(deviceCode)) {
+      return deviceCode;
+    }
+    return 'en';
   }
 
   // Get API Key

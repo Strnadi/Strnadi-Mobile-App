@@ -32,7 +32,7 @@ import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 import 'package:strnadi/auth/appleAuth.dart' as apple;
 import '../../firebase/firebase.dart' as fb;
 import '../../md_renderer.dart';
-import '../../recording/streamRec.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 
 Logger logger = Logger();
 
@@ -502,12 +502,7 @@ class _RegMailState extends State<RegMail> {
                                             value: userId.toString());
                                         await cacheUserData(userId);
                                         await fb.refreshToken();
-                                        // Go to recorder screen
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) => LiveRec()),
-                                        );
+                                        await navigateToSessionLanding(context);
                                       } else {
                                         logger.w(
                                             'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
@@ -697,11 +692,7 @@ class _RegMailState extends State<RegMail> {
                                       await fb.refreshToken();
                                       await cacheUserData(userId);
 
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => LiveRec()),
-                                      );
+                                      await navigateToSessionLanding(context);
                                     } catch (e, stackTrace) {
                                       logger.e('Apple sign in error: $e');
                                       Sentry.captureException(e,

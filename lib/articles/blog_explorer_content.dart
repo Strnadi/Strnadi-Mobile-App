@@ -187,9 +187,10 @@ class _BlogExplorerContentState extends State<BlogExplorerContent> {
     if (_openingArticleId != null) return;
     setState(() => _openingArticleId = article.id);
     try {
-      final response = await _articlesController.fetchArticleMarkdown(
+      final response =
+          await _articlesController.fetchArticleMarkdownWithFallback(
         articleId: article.id,
-        languageTag: await _readLanguageTag(),
+        preferredLanguageTag: await _readLanguageTag(),
       );
       if (response.statusCode != 200) {
         _showError(t('blogExplorer.errors.open'));

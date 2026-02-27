@@ -70,9 +70,10 @@ class _GuidePageState extends State<GuidePage> {
       _error = null;
     });
     try {
-      final response = await _articlesController.fetchArticleMarkdown(
+      final response =
+          await _articlesController.fetchArticleMarkdownWithFallback(
         articleId: _guideArticleId,
-        languageTag: await _readLanguageTag(),
+        preferredLanguageTag: await _readLanguageTag(),
       );
       if (response.statusCode != 200) {
         setState(() {

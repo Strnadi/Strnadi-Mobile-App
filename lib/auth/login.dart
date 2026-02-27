@@ -31,8 +31,8 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 
-import '../recording/streamRec.dart';
 import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
@@ -226,15 +226,7 @@ class _LoginState extends State<Login> {
         logger.i(token);
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
-            settings: const RouteSettings(name: '/Recorder'),
-            transitionDuration: Duration.zero,
-            reverseTransitionDuration: Duration.zero,
-          ),
-        );
+        await navigateToSessionLanding(context);
       } else if (response.statusCode == 403) {
         _finishCredentialAutofill();
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
@@ -511,11 +503,7 @@ class _LoginState extends State<Login> {
                         verified: true,
                       );
                       await fb.refreshToken();
-                      // Go to recorder screen
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => LiveRec()),
-                      );
+                      await navigateToSessionLanding(context);
                     } else {
                       logger.w(
                           'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
@@ -676,11 +664,7 @@ class _LoginState extends State<Login> {
                     await cacheUserData(userId);
                     _hideLoader();
 
-                    // Go to recorder screen
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => LiveRec()),
-                    );
+                    await navigateToSessionLanding(context);
                   } catch (e, stackTrace) {
                     logger.e('Apple sign-in error: $e',
                         error: e, stackTrace: stackTrace);

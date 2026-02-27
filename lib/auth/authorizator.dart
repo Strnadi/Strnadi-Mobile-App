@@ -173,9 +173,8 @@ class _AuthState extends State<Authorizator> {
   @override
   void initState() {
     super.initState();
-    setState(() {
-      selectedLanguage = languages[0];
-    });
+    selectedLanguage = languages.first;
+    _loadSelectedLanguage();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showWIPwarning();
@@ -188,6 +187,19 @@ class _AuthState extends State<Authorizator> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logger.i('Checking logged-in status on app start');
       checkLoggedIn();
+    });
+  }
+
+  Future<void> _loadSelectedLanguage() async {
+    final languagePreference = await Config.getLanguagePreference();
+    final code = Config.StringFromLanguagePreference(languagePreference);
+    final resolved = languages.firstWhere(
+      (language) => language.code == code,
+      orElse: () => languages.first,
+    );
+    if (!mounted) return;
+    setState(() {
+      selectedLanguage = resolved;
     });
   }
 
@@ -382,10 +394,11 @@ class _AuthState extends State<Authorizator> {
                         if (newValue == null) return;
                         await Localization.load(
                             'assets/lang/${newValue.code}.json');
+                        await Config.setLanguagePreference(
+                          Config.LangFromString(newValue.code),
+                        );
                         if (!mounted) return;
                         setState(() => selectedLanguage = newValue);
-                        Config.setLanguagePreference(
-                            Config.LangFromString(newValue.code));
                         logger.i('Language changed to ${newValue.code}');
                       },
                     ),
@@ -404,37 +417,47 @@ class _AuthState extends State<Authorizator> {
         String? token = await secureStorage.read(key: 'token');
         if (token == null) {
           logger.i("No internet and no token stored.");
-          _showAlert("Offline",
-              "Nemáte připojení k internetu a žádný token není uložen.");
+          _showAlert(
+            t('auth.alerts.offline_no_token.title'),
+            t('auth.alerts.offline_no_token.message'),
+          );
           return;
         } else {
           DateTime expirationDate = JwtDecoder.getExpirationDate(token);
           if (expirationDate.isBefore(DateTime.now())) {
             logger.i('JWT expired and no internet.');
-            _showAlert("Offline",
-                "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+            _showAlert(
+              t('auth.alerts.offline_expired_token.title'),
+              t('auth.alerts.offline_expired_token.message'),
+            );
             return;
           } else {
             DateTime expirationDate = JwtDecoder.getExpirationDate(token);
             if (expirationDate.isBefore(DateTime.now())) {
               logger.i('JWT expired and no internet.');
-              _showAlert("Offline",
-                  "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+              _showAlert(
+                t('auth.alerts.offline_expired_token.title'),
+                t('auth.alerts.offline_expired_token.message'),
+              );
               return;
             }
             String? verified = await secureStorage.read(key: 'verified');
             if (verified != 'true') {
               logger.i('Account not verified and no internet.');
-              _showAlert("Offline",
-                  "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+              _showAlert(
+                t('auth.alerts.offline_not_verified.title'),
+                t('auth.alerts.offline_not_verified.message'),
+              );
               return;
             }
           }
           String? verified = await secureStorage.read(key: 'verified');
           if (verified != 'true') {
             logger.i('Account not verified and no internet.');
-            _showAlert("Offline",
-                "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+            _showAlert(
+              t('auth.alerts.offline_not_verified.title'),
+              t('auth.alerts.offline_not_verified.message'),
+            );
             return;
           }
         }
@@ -538,7 +561,7 @@ class _AuthState extends State<Authorizator> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Login')),
+        title: Text(t('login.title')),
         content: Text(message),
         actions: [
           TextButton(
@@ -569,7 +592,10 @@ class _AuthState extends State<Authorizator> {
   /// Navigate respecting internet connectivity
   Future<void> _navigateIfAllowed(Widget page) async {
     if (!await Config.hasBasicInternet) {
-      _showAlert("Offline", "Tato akce není dostupná offline.");
+      _showAlert(
+        t('auth.alerts.offline_action_blocked.title'),
+        t('auth.alerts.offline_action_blocked.message'),
+      );
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -580,8 +606,8 @@ class _AuthState extends State<Authorizator> {
       context,
       MaterialPageRoute(
           builder: (_) => MDRender(
-                mdPath: 'assets/docs/terms-of-services.md',
-                title: 'Podmínky používání',
+                mdPath: t('auth.terms.path'),
+                title: t('auth.terms.title'),
               )),
     );
   }

@@ -23,6 +23,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/map/mapv2.dart';
 import 'package:strnadi/navigation/guest_user_popup.dart';
 import 'package:strnadi/navigation/notification_bell_button.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/user/userPage.dart';
 
@@ -53,6 +54,10 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool guestUser = isGuestUser ?? false;
+    final bool shouldRedirectAndroidBackToSessionLanding = !allowArrowBack &&
+        (selectedPage == BottomBarItem.map ||
+            selectedPage == BottomBarItem.blog ||
+            selectedPage == BottomBarItem.user);
     final Widget pageContent = SizedBox(
       height: MediaQuery.of(context).size.height -
           kToolbarHeight -
@@ -60,7 +65,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       child: content,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: appBarTitle != null
           ? AppBar(
               title: appBarTitle!.isNotEmpty
@@ -115,6 +120,19 @@ class ScaffoldWithBottomBar extends StatelessWidget {
         changeConfirmation: () => Future.value(true),
         isGuestUser: guestUser,
       ),
+    );
+
+    if (!shouldRedirectAndroidBackToSessionLanding) {
+      return scaffold;
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        await navigateToSessionLanding(context);
+      },
+      child: scaffold,
     );
   }
 }

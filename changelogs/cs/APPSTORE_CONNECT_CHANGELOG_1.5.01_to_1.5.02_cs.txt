@@ -1,0 +1,9 @@
+App Store Connect - Podrobny changelog (CZ)
+Rozsah: 1.5.01 az 1.5.02
+
+Verze 1.5.02
+- Pridan fallback jazyka pro nacitani markdown clanku (preferovany jazyk -> en-US -> cs-CZ) v Blog Exploreru a Guide strance.
+- Vylepseno urceni jazyka pri prvnim spusteni podle podporovaneho jazyka zarizeni (cs/en/de) a ulozeni preference.
+- Sjednocena navigace po prihlaseni na session landing obrazovku napric login, registraci a neoverenym e-mailem.
+- Pridano bezpecnejsi osetreni tlacitka zpet na Androidu na klicovych obrazovkach, aby nedochazelo k nechtenemu opusteni flow.
+- Lokalizovana offline/auth upozorneni a popisky obrazovky podminek pro konzistentnejsi texty.
