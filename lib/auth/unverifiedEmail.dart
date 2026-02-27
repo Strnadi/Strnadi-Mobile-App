@@ -18,9 +18,9 @@ import 'dart:async';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/config/config.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 
@@ -29,17 +29,17 @@ Logger logger = Logger();
 class EmailNotVerified extends StatefulWidget {
   final int userId;
   final String userEmail;
-  const EmailNotVerified({
-    Key? key,
-    required this.userId,
-    required this.userEmail
-  }) : super(key: key);
+  const EmailNotVerified(
+      {Key? key, required this.userId, required this.userEmail})
+      : super(key: key);
 
   @override
   State<EmailNotVerified> createState() => _EmailNotVerifiedState();
 }
 
 class _EmailNotVerifiedState extends State<EmailNotVerified> {
+  static const AuthController _authController = AuthController();
+
   static const Color textColor = Color(0xFF2D2B18);
   static const Color yellow = Color(0xFFFFD641);
 
@@ -73,23 +73,23 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   }
 
   /// Navigates back to the login/authorization page when email is verified.
-  void alreadyVerified() {
+  Future<void> alreadyVerified() async {
     Navigator.pop(context);
-    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
+    await navigateToSessionLanding(context);
   }
 
   /// Resend verification email.
   Future<void> resendEmail() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     final String? jwt = await secureStorage.read(key: 'token');
-    final Uri url = Uri.https(Config.host, '/auth/${await secureStorage.read(key: 'userId')}/resend-verify-email');
+    if (jwt == null || jwt.isEmpty) {
+      logger.e('Missing JWT while trying to resend verification email.');
+      return;
+    }
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
+      final response = await _authController.resendVerificationEmail(
+        userId: widget.userId,
+        token: jwt,
       );
       if (response.statusCode == 200) {
         logger.i('Verification email sent');
@@ -100,7 +100,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text(t('signup.emailSent.dialogs.alreadyVerified.title')),
-            content: Text(t('signup.emailSent.dialogs.alreadyVerified.message')),
+            content:
+                Text(t('signup.emailSent.dialogs.alreadyVerified.message')),
             actions: [
               TextButton(
                 onPressed: alreadyVerified,
@@ -110,7 +111,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
         );
       } else {
-        logger.e('Failed to send email ${response.statusCode} | ${response.body}');
+        logger.e(
+            'Failed to send email ${response.statusCode} | ${response.data}');
       }
     } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);
@@ -133,135 +135,158 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
     }
   }
 
+  Future<void> _handleBackNavigation() async {
+    final storage = FlutterSecureStorage();
+    final verified = await storage.read(key: 'verified');
+    if (verified != 'true') {
+      await storage.delete(key: 'token');
+    }
+    if (!mounted) return;
+    await navigateToSessionLanding(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        await _handleBackNavigation();
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(t('')),
-        leading: IconButton(
-          icon: Image.asset(
-            'assets/icons/backButton.png',
-            width: 30,
-            height: 30,
-          ),
-          onPressed: () {
-            FlutterSecureStorage().delete(key: 'token');
-            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
-          },
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              Text(t('signup.emailSent.notVerified'),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                t('signup.emailSent.info')
-                    .replaceFirst('{email}', widget.userEmail),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Spacer(),
-              // Resend button (disabled while countdown is running)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _counter > 0 ? null : resendEmail,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: yellow,
-                    foregroundColor: textColor,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: Text(
-                    _counter > 0 ? '${t('signup.emailVerify.resend')} ($_counter s)' : t('signup.emailVerify.resend'),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Open email app button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _openEmailApp,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: Colors.white,
-                    foregroundColor: textColor,
-                    side: const BorderSide(color: yellow, width: 2),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: Text(t('signup.emailVerify.buttons.openEmailApp')),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Continue button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: yellow,
-                    foregroundColor: textColor,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: Text(t('signup.mail.buttons.continue')),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(t('')),
+          leading: IconButton(
+            icon: Image.asset(
+              'assets/icons/backButton.png',
+              width: 30,
+              height: 30,
+            ),
+            onPressed: () async {
+              await _handleBackNavigation();
+            },
           ),
         ),
-      ),
-      // Bottom segmented progress bar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
-        child: Row(
-          children: List.generate(5, (index) {
-            // All segments shown as complete
-            bool completed = index < 5;
-            return Expanded(
-              child: Container(
-                height: 5,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: completed ? yellow : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  t('signup.emailSent.notVerified'),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
                 ),
-              ),
-            );
-          }),
+                const SizedBox(height: 8),
+                Text(
+                  t('signup.emailSent.info')
+                      .replaceFirst('{email}', widget.userEmail),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Spacer(),
+                // Resend button (disabled while countdown is running)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _counter > 0 ? null : resendEmail,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: yellow,
+                      foregroundColor: textColor,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: Text(
+                      _counter > 0
+                          ? '${t('signup.emailVerify.resend')} ($_counter s)'
+                          : t('signup.emailVerify.resend'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Open email app button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _openEmailApp,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.white,
+                      foregroundColor: textColor,
+                      side: const BorderSide(color: yellow, width: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: Text(t('signup.emailVerify.buttons.openEmailApp')),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Continue button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await navigateToSessionLanding(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: yellow,
+                      foregroundColor: textColor,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      textStyle:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: Text(t('signup.mail.buttons.continue')),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+        // Bottom segmented progress bar
+        bottomNavigationBar: Padding(
+          padding:
+              const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+          child: Row(
+            children: List.generate(5, (index) {
+              // All segments shown as complete
+              bool completed = index < 5;
+              return Expanded(
+                child: Container(
+                  height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: completed ? yellow : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );

@@ -16,6 +16,7 @@
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/widgets.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 
 class TrackingConsentManager {
@@ -23,6 +24,7 @@ class TrackingConsentManager {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static TrackingStatus? _cachedStatus;
   static bool _posthogInitialized = false;
+  static PosthogObserver? _posthogObserver;
 
   static TrackingStatus? get status => _cachedStatus;
 
@@ -87,6 +89,7 @@ class TrackingConsentManager {
         if (_posthogInitialized) {
           await Posthog().disable();
           await Posthog().reset();
+          _posthogInitialized = false;
         }
       }
     } catch (_) {
@@ -95,4 +98,45 @@ class TrackingConsentManager {
   }
 
   static bool get isAuthorized => _cachedStatus == TrackingStatus.authorized;
+
+  static bool get isTrackingEnabled =>
+      !kIsWeb && _posthogInitialized && isAuthorized;
+
+  static List<NavigatorObserver> get navigatorObservers {
+    final observer = ensureObserver();
+    return observer == null ? const <NavigatorObserver>[] : <NavigatorObserver>[observer];
+  }
+
+  static NavigatorObserver? ensureObserver() {
+    if (!isTrackingEnabled) {
+      return null;
+    }
+    return _posthogObserver ??= PosthogObserver();
+  }
+
+  static Future<void> identifyUser(String userId,
+      {Map<String, Object>? userProperties}) async {
+    if (!isTrackingEnabled) return;
+    try {
+      await Posthog().identify(
+        userId: userId,
+        userProperties: userProperties,
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> captureEvent(String eventName,
+      {Map<String, Object>? properties}) async {
+    if (!isTrackingEnabled) return;
+    try {
+      await Posthog().capture(eventName: eventName, properties: properties);
+    } catch (_) {}
+  }
+
+  static Future<void> resetIdentity() async {
+    if (!isTrackingEnabled) return;
+    try {
+      await Posthog().reset();
+    } catch (_) {}
+  }
 }

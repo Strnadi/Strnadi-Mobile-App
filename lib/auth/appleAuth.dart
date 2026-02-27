@@ -17,10 +17,11 @@
 
 import 'dart:io' show Platform;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:strnadi/database/databaseNew.dart' hide logger;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import '../config/config.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
+const AuthController _authController = AuthController();
 
 /// A simple model that contains the data returned by Apple after
 /// a successful sign‑in.
@@ -64,8 +65,7 @@ class AppleAuth {
         AppleIDAuthorizationScopes.email,
       ],
       webAuthenticationOptions: WebAuthenticationOptions(
-        clientId:
-            'web.delta.strnadi',
+        clientId: 'web.delta.strnadi',
         redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
       ),
     );
@@ -100,29 +100,27 @@ class AppleAuth {
       'familyName': result.familyName,
     };
 
-    Map<String, String> headers = {
-      'Content-Type': 'application/json',
-      if (jwt != null) 'Authorization': 'Bearer $jwt',
-    };
-
-    final response = await http.post(
-      // Change this URL if your backend listens elsewhere.
-      Uri.parse('https://${Config.host}/auth/apple'),
-      headers: headers,
-      body: jsonEncode(body),
+    final response = await _authController.appleSignIn(
+      body: body,
+      token: jwt,
     );
 
     logger.t(body);
 
-    logger.t(response.body);
+    logger.t(response.data);
 
     Map<String, dynamic> resp = {};
     if (response.statusCode == 200) {
-      resp = jsonDecode(response.body) as Map<String, dynamic>;
+      final dynamic raw = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      if (raw is Map) {
+        resp = raw.cast<String, dynamic>();
+      }
       logger.i('Apple Sign-In successful');
     } else {
       logger.w(
-          'Apple Sign-In failed with status code: ${response.statusCode} | ${response.body}');
+          'Apple Sign-In failed with status code: ${response.statusCode} | ${response.data}');
     }
     resp.addAll({"status": response.statusCode});
     return resp;

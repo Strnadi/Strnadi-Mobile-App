@@ -20,7 +20,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:version/version.dart';
 import 'package:url_launcher/url_launcher.dart';

@@ -20,7 +20,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
 
@@ -45,6 +45,7 @@ import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -65,7 +66,9 @@ class UploadProgressBridge {
 
   void start() {
     // Ensure we always own the mapping
-    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    try {
+      IsolateNameServer.removePortNameMapping(portName);
+    } catch (_) {}
     _port = ReceivePort();
     IsolateNameServer.registerPortWithName(_port!.sendPort, portName);
 
@@ -75,8 +78,8 @@ class UploadProgressBridge {
           final String kind = msg[0] as String;
           if (kind == 'update' && msg.length >= 4) {
             final int partId = msg[1] as int;
-            final int sent   = msg[2] as int;
-            final int total  = msg[3] as int;
+            final int sent = msg[2] as int;
+            final int total = msg[3] as int;
             UploadProgressBus.update(partId, sent, total);
           } else if (kind == 'done' && msg.length >= 2) {
             final int partId = msg[1] as int;
@@ -91,8 +94,12 @@ class UploadProgressBridge {
   }
 
   void stop() {
-    try { _port?.close(); } catch (_) {}
-    try { IsolateNameServer.removePortNameMapping(portName); } catch (_) {}
+    try {
+      _port?.close();
+    } catch (_) {}
+    try {
+      IsolateNameServer.removePortNameMapping(portName);
+    } catch (_) {}
     logger.d('[UploadProgressBridge] stopped');
   }
 }
@@ -145,14 +152,17 @@ void main() {
     await Config.loadConfig();
     await Config.loadFirebaseConfig();
 
+    // Warm the dialect-color cache from the server (non-blocking)
+    unawaited(DynamicIcon.refreshAllDialects());
+
     // 2) Workmanager initialization
     Workmanager().initialize(
       callbackDispatcher, // The top-level function
       isInDebugMode: false,
     );
 
-  // Load localized strings from JSON.
-  await Localization.load(null);
+    // Load localized strings from JSON.
+    await Localization.load(null);
 
     await Config.loadConfig();
     await Config.loadFirebaseConfig();
@@ -185,10 +195,10 @@ void main() {
 
     // 5) Continue with app bootstrap directly
     await _continueBootstrap(trackingAuthorized: trackingAuthorized);
-    }, (error, stack) {
-      if (TrackingConsentManager.isAuthorized) {
-        Sentry.captureException(error, stackTrace: stack);
-      }
+  }, (error, stack) {
+    if (TrackingConsentManager.isAuthorized) {
+      Sentry.captureException(error, stackTrace: stack);
+    }
   });
 }
 
@@ -253,8 +263,7 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
       await DatabaseNew.enforceMaxRecordings();
       await DatabaseNew.checkSendingRecordings();
     } catch (e, stack) {
-      logger.e('Error initializing database: $e',
-          error: e, stackTrace: stack);
+      logger.e('Error initializing database: $e', error: e, stackTrace: stack);
     }
     logger.i('Loaded Database');
 
@@ -279,8 +288,8 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
           ..addIntegration(LoggingIntegration())
           ..profilesSampleRate = 1.0
           ..tracesSampleRate = 1.0
-          ..experimental.replay.sessionSampleRate = 1.0
-          ..experimental.replay.onErrorSampleRate = 1.0
+          ..replay.sessionSampleRate = 1.0
+          ..replay.onErrorSampleRate = 1.0
           ..environment = kDebugMode ? 'development' : 'production';
       },
       appRunner: () async {
@@ -301,11 +310,14 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    TrackingConsentManager.ensureObserver();
+    unawaited(TrackingConsentManager.captureEvent('app_opened', properties: {
+      'environment': Config.hostEnvironment.name,
+    }));
   }
 
   @override
@@ -324,7 +336,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
 
-  void refreshBadge(){
+  void refreshBadge() {
     setState(() => debugBadge = Config.hostEnvironment == HostEnvironment.dev);
   }
 
@@ -334,6 +346,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: (debugBadge),
       title: 'Strnadi',
       navigatorKey: navigatorKey,
+      navigatorObservers: TrackingConsentManager.navigatorObservers,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSwatch().copyWith(

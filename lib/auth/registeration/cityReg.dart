@@ -20,18 +20,19 @@ import 'package:strnadi/localization/localization.dart';
 import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
+import 'package:strnadi/navigation/session_navigation.dart';
 
-import '../../config/config.dart';
 import 'emailSent.dart';
 import 'overview.dart';
 
 Logger logger = Logger();
+const AuthController _authController = AuthController();
 
 class RegLocation extends StatefulWidget {
   final String email;
@@ -43,7 +44,16 @@ class RegLocation extends StatefulWidget {
   final String nickname;
   final String? appleId;
 
-  const RegLocation({super.key, required this.email, required this.consent, this.password, required this.jwt, required this.name, required this.surname, required this.nickname, this.appleId});
+  const RegLocation(
+      {super.key,
+      required this.email,
+      required this.consent,
+      this.password,
+      required this.jwt,
+      required this.name,
+      required this.surname,
+      required this.nickname,
+      this.appleId});
 
   @override
   State<RegLocation> createState() => _RegLocationState();
@@ -77,41 +87,33 @@ class _RegLocationState extends State<RegLocation> {
 
   Future<void> register() async {
     final secureStorage = FlutterSecureStorage();
-
-    final url = Uri(
-      scheme: 'https',
-      host: Config.host,
-      path: '/auth/sign-up',
-    );
-
-    final requestBody = jsonEncode({
+    final requestBody = <String, dynamic>{
       'email': widget.email,
       'password': widget.password,
       'FirstName': widget.name,
       'LastName': widget.surname,
       'nickname': widget.nickname.isEmpty ? null : widget.nickname,
       'city': _obecController.text,
-      'postCode': _pscController.text.isNotEmpty ? int.parse(_pscController.text).toUnsigned(32) : null,
+      'postCode': _pscController.text.isNotEmpty
+          ? int.parse(_pscController.text).toUnsigned(32)
+          : null,
       'consent': widget.consent,
-    });
+    };
 
-    logger.i("Sign Up Request Body: $requestBody");
+    logger.i("Sign Up Request Body: ${jsonEncode(requestBody)}");
 
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${widget.jwt}',
-        },
+      final response = await _authController.signUp(
         body: requestBody,
+        token: widget.jwt,
       );
 
-      logger.i("Sign Up Response: ${response.body}");
+      logger.i("Sign Up Response: ${response.data}");
 
       if ([200, 201, 202].contains(response.statusCode)) {
         // Store the token if returned
-        await secureStorage.write(key: 'token', value: response.body.toString());
+        await secureStorage.write(
+            key: 'token', value: response.data.toString());
         await fb.refreshToken();
 
         // Navigate to the login screen (or next step)
@@ -123,12 +125,12 @@ class _RegLocationState extends State<RegLocation> {
         );
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
-        logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
+        logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
         _showMessage(t('signup.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
         _showMessage(t('signup.errors.error_ocured'));
-        logger.e("Sign up failed: ${response.statusCode} | ${response.body}");
+        logger.e("Sign up failed: ${response.statusCode} | ${response.data}");
       }
     } catch (error) {
       GoogleSignInService.signOut();
@@ -142,179 +144,202 @@ class _RegLocationState extends State<RegLocation> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if (!didPop) {
-          Navigator.pop(context);
-        }
-      },
-    child:  Scaffold(
-      // White background, same as in your example
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Image.asset(
-            'assets/icons/backButton.png',
-            width: 30,
-            height: 30,
-          ),
-          onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(context, '/authorizator', (Route<dynamic> route) => false);
-          },
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Text(t('signup.city.title'),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Subtitle / Description
-                Text(t('signup.city.subtitle'),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // PSČ label
-                Text(t('signup.city.post_code'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _pscController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    fillColor: Colors.grey[200],
-                    filled: true,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 16),
-
-                // Obec label
-                Text(t('signup.city.city'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _obecController,
-                  keyboardType: TextInputType.text,
-                  decoration: InputDecoration(
-                    fillColor: Colors.grey[200],
-                    filled: true,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.red, width: 2),
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 32),
-
-                // Pokračovat button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState?.validate() ?? false) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => RegOverview(name: widget.name, surname: widget.surname, nickname: widget.nickname, email: widget.email, postCode: _pscController.text, city: _obecController.text, password: widget.password, consent: widget.consent, jwt: widget.jwt, appleId: widget.appleId,)));
-                        //register();
-                        // Navigate to the next screen or handle logic
-                        // e.g.: Navigator.push(context, MaterialPageRoute(builder: (_) => NextPage()));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      backgroundColor: _isFormValid ? yellow : Colors.grey,
-                      foregroundColor: _isFormValid ? textColor : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16.0),
-                      ),
-                    ),
-                    child: Text(t('signup.mail.buttons.continue')),
-                  ),
-                ),
-              ],
+        canPop: false,
+        onPopInvokedWithResult: (bool didPop, dynamic result) async {
+          if (!didPop) {
+            await navigateToSessionLanding(context);
+          }
+        },
+        child: Scaffold(
+          // White background, same as in your example
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: Image.asset(
+                'assets/icons/backButton.png',
+                width: 30,
+                height: 30,
+              ),
+              onPressed: () async {
+                await navigateToSessionLanding(context);
+              },
             ),
           ),
-        ),
-      ),
-      // Bottom segmented progress bar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
-        child: Row(
-          children: List.generate(5, (index) {
-            // You can customize which segment(s) are considered "completed"
-            // For example, if this page is the 2nd or 3rd step:
-            bool completed = index < 4; // or index < 3, etc.
-            return Expanded(
-              child: Container(
-                height: 4,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: completed ? yellow : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      t('signup.city.title'),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Subtitle / Description
+                    Text(
+                      t('signup.city.subtitle'),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // PSČ label
+                    Text(
+                      t('signup.city.post_code'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _pscController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        fillColor: Colors.grey[200],
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Obec label
+                    Text(
+                      t('signup.city.city'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _obecController,
+                      keyboardType: TextInputType.text,
+                      decoration: InputDecoration(
+                        fillColor: Colors.grey[200],
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Pokračovat button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => RegOverview(
+                                          name: widget.name,
+                                          surname: widget.surname,
+                                          nickname: widget.nickname,
+                                          email: widget.email,
+                                          postCode: _pscController.text,
+                                          city: _obecController.text,
+                                          password: widget.password,
+                                          consent: widget.consent,
+                                          jwt: widget.jwt,
+                                          appleId: widget.appleId,
+                                        )));
+                            //register();
+                            // Navigate to the next screen or handle logic
+                            // e.g.: Navigator.push(context, MaterialPageRoute(builder: (_) => NextPage()));
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          backgroundColor: _isFormValid ? yellow : Colors.grey,
+                          foregroundColor:
+                              _isFormValid ? textColor : Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          textStyle: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                          ),
+                        ),
+                        child: Text(t('signup.mail.buttons.continue')),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          }),
-        ),
-      ),
-    )
-    );
+            ),
+          ),
+          // Bottom segmented progress bar
+          bottomNavigationBar: Padding(
+            padding:
+                const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+            child: Row(
+              children: List.generate(5, (index) {
+                // You can customize which segment(s) are considered "completed"
+                // For example, if this page is the 2nd or 3rd step:
+                bool completed = index < 4; // or index < 3, etc.
+                return Expanded(
+                  child: Container(
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: completed ? yellow : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ));
   }
 }

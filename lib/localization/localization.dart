@@ -14,17 +14,43 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Localization {
   static Map<String, String> _localizedStrings = {};
+  static const String _legacyLanguageKey = 'language';
+  static const String _languagePrefKey = 'preferred_language';
+  static const Set<String> _supportedLanguages = {'cs', 'en', 'de'};
 
   static Future<void> load(String? dict) async {
-    FlutterSecureStorage storage = const FlutterSecureStorage();
+    if (dict == null) {
+      final prefs = await SharedPreferences.getInstance();
+      String? language = prefs.getString(_languagePrefKey);
+      final bool hasSupportedPref = _supportedLanguages.contains(language);
+      if (!hasSupportedPref) {
+        const storage = FlutterSecureStorage();
+        language = await storage.read(key: _legacyLanguageKey);
+      }
 
-    var language = await storage.read(key: 'language');
-    dict ??= 'assets/lang/${language ?? 'cs'}.json';
+      String languageCode;
+      if (_supportedLanguages.contains(language)) {
+        languageCode = language!;
+      } else {
+        final deviceCode =
+            ui.PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+        languageCode =
+            _supportedLanguages.contains(deviceCode) ? deviceCode : 'en';
+      }
+
+      // Persist resolved language so first-run detection happens only once.
+      if (prefs.getString(_languagePrefKey) != languageCode) {
+        await prefs.setString(_languagePrefKey, languageCode);
+      }
+      dict = 'assets/lang/$languageCode.json';
+    }
 
     final jsonString = await rootBundle.loadString(dict);
     final Map<String, dynamic> jsonMap = json.decode(jsonString);

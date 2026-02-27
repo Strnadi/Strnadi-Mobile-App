@@ -13,12 +13,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -29,6 +30,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/firebase/firebase.dart' as firebase;
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/md_renderer.dart';
+import 'package:strnadi/privacy/tracking_consent.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/FlagDropdown.dart';
 import 'package:strnadi/widgets/loader.dart';
@@ -40,6 +42,8 @@ import 'launch_warning.dart';
 import 'login.dart' show Login;
 
 Logger logger = Logger();
+const AuthController _authController = AuthController();
+const UserController _userController = UserController();
 
 enum AuthType { login, register }
 
@@ -58,22 +62,10 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
-    final Uri url = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/auth/verify-jwt',
-        queryParameters: {'jwt': token});
-
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await _authController.verifyJwt(token);
 
-      logger.i('Response: ${response.statusCode} | ${response.body}');
+      logger.i('Response: ${response.statusCode} | ${response.data}');
 
       if (response.statusCode == 200) {
         await secureStorage.write(key: 'verified', value: 'true');
@@ -84,15 +76,9 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
         }
         // If the token is valid but about to expire, refresh it
         try {
-          final refreshResponse = await http.get(
-            Uri(scheme: 'https', host: Config.host, path: '/auth/renew-jwt'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          );
+          final refreshResponse = await _authController.renewJwt(token);
           if (refreshResponse.statusCode == 200) {
-            String newToken = refreshResponse.body;
+            String newToken = refreshResponse.data.toString();
             await secureStorage.write(key: 'token', value: newToken);
           }
         } catch (e, stackTrace) {
@@ -158,6 +144,14 @@ class _AuthState extends State<Authorizator> {
     if (mounted) setState(() => _isLoading = false);
   }
 
+  void _trackSession(int userId, {required bool verified}) {
+    unawaited(TrackingConsentManager.identifyUser(userId.toString()));
+    unawaited(TrackingConsentManager.captureEvent(
+      verified ? 'session_restored' : 'login_requires_verification',
+      properties: const {'method': 'jwt'},
+    ));
+  }
+
   Future<T?> _withLoader<T>(Future<T> Function() action) async {
     if (_isLoading) return null; // ignore repeated presses while loading
     _showLoader();
@@ -179,9 +173,8 @@ class _AuthState extends State<Authorizator> {
   @override
   void initState() {
     super.initState();
-    setState(() {
-      selectedLanguage = languages[0];
-    });
+    selectedLanguage = languages.first;
+    _loadSelectedLanguage();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showWIPwarning();
@@ -192,8 +185,21 @@ class _AuthState extends State<Authorizator> {
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-        logger.i('Checking logged-in status on app start');
-        checkLoggedIn();
+      logger.i('Checking logged-in status on app start');
+      checkLoggedIn();
+    });
+  }
+
+  Future<void> _loadSelectedLanguage() async {
+    final languagePreference = await Config.getLanguagePreference();
+    final code = Config.StringFromLanguagePreference(languagePreference);
+    final resolved = languages.firstWhere(
+      (language) => language.code == code,
+      orElse: () => languages.first,
+    );
+    if (!mounted) return;
+    setState(() {
+      selectedLanguage = resolved;
     });
   }
 
@@ -211,8 +217,7 @@ class _AuthState extends State<Authorizator> {
     const Color yellow = Color(0xFFFFD641);
     return Loader(
         isLoading: _isLoading,
-        child:
-        Scaffold(
+        child: Scaffold(
             backgroundColor: Colors.white,
             body: SafeArea(
               child: Stack(
@@ -277,7 +282,8 @@ class _AuthState extends State<Authorizator> {
                                   // Remove shadow
                                   backgroundColor: yellow,
                                   foregroundColor: textColor,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
                                   textStyle: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -299,12 +305,14 @@ class _AuthState extends State<Authorizator> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () => _navigateIfAllowed(const Login()),
+                                onPressed: () =>
+                                    _navigateIfAllowed(const Login()),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: textColor,
                                   side: BorderSide(
                                       color: Colors.grey[200]!, width: 2),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
                                   textStyle: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -386,19 +394,18 @@ class _AuthState extends State<Authorizator> {
                         if (newValue == null) return;
                         await Localization.load(
                             'assets/lang/${newValue.code}.json');
+                        await Config.setLanguagePreference(
+                          Config.LangFromString(newValue.code),
+                        );
                         if (!mounted) return;
                         setState(() => selectedLanguage = newValue);
-                        Config.setLanguagePreference(
-                            Config.LangFromString(newValue.code));
                         logger.i('Language changed to ${newValue.code}');
                       },
                     ),
                   )
                 ],
               ),
-            )
-        )
-    );
+            )));
   }
 
   Future<void> checkLoggedIn() async {
@@ -410,37 +417,47 @@ class _AuthState extends State<Authorizator> {
         String? token = await secureStorage.read(key: 'token');
         if (token == null) {
           logger.i("No internet and no token stored.");
-          _showAlert("Offline",
-              "Nemáte připojení k internetu a žádný token není uložen.");
+          _showAlert(
+            t('auth.alerts.offline_no_token.title'),
+            t('auth.alerts.offline_no_token.message'),
+          );
           return;
         } else {
           DateTime expirationDate = JwtDecoder.getExpirationDate(token);
           if (expirationDate.isBefore(DateTime.now())) {
             logger.i('JWT expired and no internet.');
-            _showAlert("Offline",
-                "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+            _showAlert(
+              t('auth.alerts.offline_expired_token.title'),
+              t('auth.alerts.offline_expired_token.message'),
+            );
             return;
           } else {
             DateTime expirationDate = JwtDecoder.getExpirationDate(token);
             if (expirationDate.isBefore(DateTime.now())) {
               logger.i('JWT expired and no internet.');
-              _showAlert("Offline",
-                  "Váš JWT vypršel. Prosím připojte se k internetu pro obnovení.");
+              _showAlert(
+                t('auth.alerts.offline_expired_token.title'),
+                t('auth.alerts.offline_expired_token.message'),
+              );
               return;
             }
             String? verified = await secureStorage.read(key: 'verified');
             if (verified != 'true') {
               logger.i('Account not verified and no internet.');
-              _showAlert("Offline",
-                  "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+              _showAlert(
+                t('auth.alerts.offline_not_verified.title'),
+                t('auth.alerts.offline_not_verified.message'),
+              );
               return;
             }
           }
           String? verified = await secureStorage.read(key: 'verified');
           if (verified != 'true') {
             logger.i('Account not verified and no internet.');
-            _showAlert("Offline",
-                "Váš účet není ověřen. Prosím ověřte svůj email pro další přístup.");
+            _showAlert(
+              t('auth.alerts.offline_not_verified.title'),
+              t('auth.alerts.offline_not_verified.message'),
+            );
             return;
           }
         }
@@ -456,34 +473,40 @@ class _AuthState extends State<Authorizator> {
         int? userId;
 
         if (userIdS == null) {
-          Uri url =
-          Uri(scheme: 'https', host: Config.host, path: '/users/get-id');
-          var idResponse = await http.get(url, headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          });
-          int userId = int.parse(idResponse.body);
+          final idResponse = await _userController.getUserIdFromToken();
+          if (idResponse.statusCode != 200) {
+            logger.e(
+                'Failed to fetch user id: ${idResponse.statusCode} | ${idResponse.data}');
+            return;
+          }
+          userId = int.parse(idResponse.data.toString());
           await secureStorage.write(key: 'userId', value: userId.toString());
         } else {
           userId = int.parse(userIdS);
         }
-        final Uri url = Uri.parse('https://${Config.host}/users/$userId')
-            .replace(queryParameters: {'jwt': token});
-
-        final response = await http.get(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
-
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (userId == null) return;
+        final response = await _userController.getUserById(userId);
+        if (response.statusCode != 200) {
+          logger.e(
+              'Failed to fetch user profile: ${response.statusCode} | ${response.data}');
+          return;
+        }
+        final dynamic raw = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        if (raw is! Map) {
+          logger.e('Failed to parse user profile payload: ${raw.runtimeType}');
+          return;
+        }
+        final Map<String, dynamic> data = raw.cast<String, dynamic>();
         await secureStorage.write(key: 'user', value: data['firstName']);
         await secureStorage.write(key: 'lastname', value: data['lastName']);
         await secureStorage.write(key: 'nick', value: data['nickname']);
         await secureStorage.write(key: 'role', value: data['role']);
 
+        if (userId != null) {
+          _trackSession(userId, verified: true);
+        }
         logger.i('Syncing recordings on login');
         await DatabaseNew.syncRecordings();
         logger.i('Syncing recordings on login done');
@@ -500,19 +523,19 @@ class _AuthState extends State<Authorizator> {
         logger.i('User email not verified, navigating to verification page');
         String? token = await secureStorage.read(key: 'token');
         if (token == null) return;
-        Uri url = Uri(
-            scheme: 'https', host: Config.host, path: '/users/get-id');
-        var idResponse = await http.get(url, headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        });
-        int userId = int.parse(idResponse.body);
+        final idResponse = await _userController.getUserIdFromToken();
+        if (idResponse.statusCode != 200) {
+          logger.e(
+              'Failed to fetch user id: ${idResponse.statusCode} | ${idResponse.data}');
+          return;
+        }
+        int userId = int.parse(idResponse.data.toString());
         await secureStorage.write(key: 'userId', value: userId.toString());
+        _trackSession(userId, verified: false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-              builder: (_) =>
-                  EmailNotVerified(
+              builder: (_) => EmailNotVerified(
                     userEmail: JwtDecoder.decode(token)['sub'],
                     userId: userId,
                   )),
@@ -538,7 +561,7 @@ class _AuthState extends State<Authorizator> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Login')),
+        title: Text(t('login.title')),
         content: Text(message),
         actions: [
           TextButton(
@@ -569,7 +592,10 @@ class _AuthState extends State<Authorizator> {
   /// Navigate respecting internet connectivity
   Future<void> _navigateIfAllowed(Widget page) async {
     if (!await Config.hasBasicInternet) {
-      _showAlert("Offline", "Tato akce není dostupná offline.");
+      _showAlert(
+        t('auth.alerts.offline_action_blocked.title'),
+        t('auth.alerts.offline_action_blocked.message'),
+      );
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -580,9 +606,9 @@ class _AuthState extends State<Authorizator> {
       context,
       MaterialPageRoute(
           builder: (_) => MDRender(
-            mdPath: 'assets/docs/terms-of-services.md',
-            title: 'Podmínky používání',
-          )),
+                mdPath: t('auth.terms.path'),
+                title: t('auth.terms.title'),
+              )),
     );
   }
 }

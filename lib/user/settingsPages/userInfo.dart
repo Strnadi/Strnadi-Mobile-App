@@ -16,16 +16,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import '../../auth/google_sign_in_service.dart';
-import '../../config/config.dart';
 import '../../firebase/firebase.dart' as strnadiFirebase;
 
 Logger logger = Logger();
@@ -62,13 +60,15 @@ class User {
 class ProfileEditPage extends StatefulWidget {
   Function() refreshUserCallback;
 
-  ProfileEditPage({Key? key, required this.refreshUserCallback}) : super(key: key);
+  ProfileEditPage({Key? key, required this.refreshUserCallback})
+      : super(key: key);
 
   @override
   _ProfileEditPageState createState() => _ProfileEditPageState();
 }
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
+  static const UserController _userController = UserController();
   User? user;
 
   final TextEditingController _nicknameController = TextEditingController();
@@ -79,20 +79,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _postCodeController = TextEditingController();
 
   Future<void> fetchUser(int userId, String jwt) async {
-    final url = Uri.parse('https://${Config.host}/users/$userId');
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      },
-    );
+    final response = await _userController.getUserById(userId);
+    final dynamic responseData = response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
 
     if (response.statusCode == 200) {
-      logger.i('Fetched user: ${response.body}');
+      logger.i('Fetched user: $responseData');
 
       setState(() {
-        user = User.fromJson(jsonDecode(response.body));
+        user = User.fromJson((responseData as Map).cast<String, dynamic>());
         _nicknameController.text = user!.nickname;
         _firstnameController.text = user!.firstName;
         _lastnameController.text = user!.lastName;
@@ -101,31 +97,28 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         _emailController.text = user!.email;
       });
     } else {
-      logger.i('Failed to load user: ${response.statusCode} ${response.body}');
+      logger.i('Failed to load user: ${response.statusCode} ${response.data}');
       _showMessage(t("user.profile.dialogs.error.load"));
     }
   }
 
-  Future<void> refreshUser(int userId) async{
+  Future<void> refreshUser(int userId) async {
     final secureStorage = FlutterSecureStorage();
 
-    final http.Response response = await http.get(
-      Uri.parse('https://${Config.host}/users/$userId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${secureStorage.read(key: 'token')}',
-      });
+    final response = await _userController.getUserById(userId);
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final dynamic responseData = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      final data = (responseData as Map).cast<String, dynamic>();
       await secureStorage.write(key: 'user', value: data['firstName']);
       await secureStorage.write(key: 'lastname', value: data['lastName']);
       await secureStorage.write(key: 'nick', value: data['nickname']);
       await secureStorage.write(key: 'role', value: data['role']);
       await widget.refreshUserCallback();
       setState(() {
-        user = User.fromJson(jsonDecode(response.body));
+        user = User.fromJson(data);
       });
-
     }
   }
 
@@ -134,25 +127,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final secureStorage = FlutterSecureStorage();
 
     final id = await secureStorage.read(key: "userId");
-    final url = Uri.parse('https://${Config.host}/users/$id');
-
     logger.i(jsonEncode(updatedData));
 
-    final response = await http.patch(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      },
-      body: jsonEncode(updatedData),
-    );
+    final response =
+        await _userController.updateUserById(int.parse(id!), updatedData);
 
     if (response.statusCode == 200) {
       await refreshUser(int.parse(id!));
       _showMessage(t("user.profile.dialogs.success.update"));
     } else {
       logger
-          .i('Failed to update user: ${response.statusCode} ${response.body}');
+          .i('Failed to update user: ${response.statusCode} ${response.data}');
       _showMessage(t("user.profile.dialogs.error.update"));
     }
   }
@@ -163,10 +148,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     if (user != null && jwt != null) {
       Map<String, dynamic> updatedData = {
-        'nickname': _nicknameController.text.isEmpty ? null : _nicknameController.text,
-        'firstName': _firstnameController.text.isEmpty ? null : _firstnameController.text,
-        'lastName': _lastnameController.text.isEmpty ? null : _lastnameController.text,
-        'postCode': _postCodeController.text.trim().isEmpty ? null : int.parse(_postCodeController.text.trim()),
+        'nickname':
+            _nicknameController.text.isEmpty ? null : _nicknameController.text,
+        'firstName': _firstnameController.text.isEmpty
+            ? null
+            : _firstnameController.text,
+        'lastName':
+            _lastnameController.text.isEmpty ? null : _lastnameController.text,
+        'postCode': _postCodeController.text.trim().isEmpty
+            ? null
+            : int.parse(_postCodeController.text.trim()),
         'city': _cityController.text.isEmpty ? null : _cityController.text,
       };
 
@@ -229,22 +220,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         return;
       }
 
-      final url = Uri.parse('https://${Config.host}/users/$userId');
-
-      final response = await http.delete(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-      );
+      final response = await _userController.deleteUserById(int.parse(userId));
 
       if (response.statusCode == 200) {
         _showMessage(t('user.profile.dialogs.deleteAccount.success'));
         logout(context);
       } else {
         _showMessage(t('user.profile.dialogs.deleteAccount.error'));
-        logger.i('Delete failed: ${response.statusCode} | ${response.body}');
+        logger.i('Delete failed: ${response.statusCode} | ${response.data}');
       }
     }
   }
@@ -293,17 +276,23 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     style:
                         TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 SizedBox(height: 20),
-                _buildTextField(t('user.profile.fields.firstName'), _firstnameController),
-                _buildTextField(t('user.profile.fields.lastName'), _lastnameController),
-                _buildTextField(t('user.profile.fields.nickname'), _nicknameController),
-                _buildTextField(t('user.profile.fields.email'), _emailController, readOnly: true),
+                _buildTextField(
+                    t('user.profile.fields.firstName'), _firstnameController),
+                _buildTextField(
+                    t('user.profile.fields.lastName'), _lastnameController),
+                _buildTextField(
+                    t('user.profile.fields.nickname'), _nicknameController),
+                _buildTextField(
+                    t('user.profile.fields.email'), _emailController,
+                    readOnly: true),
                 _buildTextField(t('user.profile.fields.city'), _cityController),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
                   child: TextField(
                     decoration: InputDecoration(
                       labelText: t('user.profile.fields.postCode'),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
                     ),
                     controller: _postCodeController,
                     keyboardType: TextInputType.number,

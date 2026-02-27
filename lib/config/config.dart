@@ -15,13 +15,13 @@
  */
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import '../main.dart';
 
@@ -45,6 +45,7 @@ enum LanguagePreference {
 enum HostEnvironment { prod, dev }
 
 Logger logger = Logger();
+const HealthController _healthController = HealthController();
 
 class Config {
   static Map<String, dynamic>? _config;
@@ -53,6 +54,7 @@ class Config {
   static const String _dataUsagePrefKey = 'data_usage_option';
   static DataUsageOption? _dataUsageOption;
   static const String _languagePrefKey = 'preferred_language';
+  static const Set<String> _supportedLanguageCodes = {'cs', 'en', 'de'};
   static const String _hostEnvPrefKey = 'host_environment';
   static HostEnvironment? _hostEnv;
 
@@ -156,15 +158,24 @@ class Config {
 
   static Future<LanguagePreference> getLanguagePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_languagePrefKey);
-    if (raw == null) {
-      return LanguagePreference.cs;
-    } else {
-      return LanguagePreference.values.firstWhere(
-        (e) => e.toString() == raw,
-        orElse: () => LanguagePreference.cs,
-      );
+    String? raw = prefs.getString(_languagePrefKey);
+    if (raw == null || !_supportedLanguageCodes.contains(raw)) {
+      raw = _resolveInitialLanguageCode();
+      await prefs.setString(_languagePrefKey, raw);
     }
+    return LanguagePreference.values.firstWhere(
+      (e) => e.toString() == raw,
+      orElse: () => LanguagePreference.en,
+    );
+  }
+
+  static String _resolveInitialLanguageCode() {
+    final deviceCode =
+        ui.PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    if (_supportedLanguageCodes.contains(deviceCode)) {
+      return deviceCode;
+    }
+    return 'en';
   }
 
   // Get API Key
@@ -204,7 +215,9 @@ class Config {
   static Future<ServerHealth> checkServerHealth() async {
     final uri = Uri.parse('https://${host}/utils/health');
     try {
-      final response = await http.head(uri).timeout(const Duration(seconds: 5));
+      final response = await _healthController
+          .checkBackendHealth(host: host)
+          .timeout(const Duration(seconds: 5));
       logger
           .i('Checking API health at $uri: status code ${response.statusCode}');
       if (response.statusCode == 200) {

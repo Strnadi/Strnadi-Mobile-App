@@ -224,6 +224,22 @@
   "dialectBadge": {
     "title": "Dialect"
   },
+  "dialectKeywords": {
+    "unknown": "Unknown",
+    "unknownDialect": "Unknown dialect",
+    "undetermined": "Undetermined",
+    "noDialect": "No Dialect",
+    "withoutDialect": "Without dialect",
+    "other": "Other",
+    "iDontKnow": "I don't know",
+    "rare": "Rare",
+    "transitional": "Transitional",
+    "mix": "Mix",
+    "atypical": "Atypical",
+    "unfinished": "Unfinished",
+    "unassessed": "Unassessed",
+    "unusable": "Unusable"
+  },
   "editRecording": {
     "title": "Edit recording",
     "fields": {
@@ -312,7 +328,8 @@
       "delete": "Delete record",
       "resendUnsentParts": "Resend",
       "send": "Send record",
-      "deleteCache": "Delete from cache"
+      "deleteCache": "Delete from device",
+      "cancel": "Cancel"
     },
     "dialogs": {
       "confirmDelete": {
@@ -372,6 +389,9 @@
       "set": "Set",
       "resetFilters": "Reset"
     },
+    "search": {
+      "hint": "Search place or coordinates (e.g. 50.087, 14.421)"
+    },
     "filters": {
       "clustering": {
         "title": "Point clustering",
@@ -410,7 +430,10 @@
     "status": {
       "loading": "Recording is not available",
       "downloading": "Download recording",
-      "errorDownloading": "Error downloading recording"
+      "errorDownloading": "Error downloading recording",
+      "notDownloaded": "Not downloaded yet",
+      "downloadCanceled": "Download canceled",
+      "playRestricted": "Only admins can play recordings from other users."
     },
     "audioPlayer": {
       "replay": "Rewind 10s",
@@ -611,6 +634,18 @@
       },
       "descriptions": {
         "localRecordingsMax": "Upon reaching this limit, the oldest recordings will be removed."
+      },
+      "cacheManager": {
+        "title": "Downloaded recordings manager",
+        "description": "Manage locally downloaded recordings from all environments.",
+        "empty": "No downloaded recordings found.",
+        "unnamed": "Unnamed recording",
+        "confirmTitle": "Remove downloaded recording?",
+        "confirmMessage": "This will remove the recording from local storage.",
+        "buttons": {
+          "cancel": "Cancel",
+          "remove": "Remove"
+        }
       }
     },
     "menu": {
@@ -676,6 +711,18 @@
           }
         }
       }
+    }
+  },
+  "blogExplorer": {
+    "title": "Blog",
+    "searchHint": "Search articles",
+    "uncategorized": "Other articles",
+    "empty": "No articles found.",
+    "retry": "Retry",
+    "errors": {
+      "load": "Failed to load articles.",
+      "open": "Failed to open article.",
+      "loadGuide": "Failed to load guide."
     }
   },
   "notifications": {

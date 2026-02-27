@@ -16,8 +16,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart';
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:logger/logger.dart';
 
 import '../config/config.dart';
@@ -188,7 +188,7 @@ Future<void> updateRecordingDuration(
 /// Batch update all local recordings with null duration
 Future<void> updateAllRecordingsDurations(DatabaseNew db) async {
   try {
-    final recordings = DatabaseNew.recordings;
+    final recordings = await DatabaseNew.getRecordings();
     int updated = 0;
 
     for (final rec in recordings) {
@@ -221,7 +221,7 @@ Future<void> fetchAndUpdateDurationsFromBackend(DatabaseNew db) async {
     }
 
     // Get all local recordings that are marked as sent
-    final recordings = DatabaseNew.recordings
+    final recordings = (await DatabaseNew.getRecordings())
         .where((rec) => rec.sent && rec.BEId != null)
         .toList();
 

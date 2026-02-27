@@ -47,16 +47,19 @@ import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
+import 'package:strnadi/api/controllers/recordings_controller.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 import 'package:strnadi/map/RecordingPage.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
 import 'package:strnadi/user/userPage.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import '../config/config.dart';
 import 'dart:async';
 import 'package:strnadi/locationService.dart'; // Use the location service
-import 'package:http/http.dart' as http;
 
 import '../database/Models/detectedDialect.dart';
 import '../database/Models/filteredRecordingPart.dart';
@@ -64,11 +67,13 @@ import '../database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 
+import '../navigation/scaffold_with_bottom_bar.dart';
+
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
 /// Global switch that decides whether recordings whose dialect is still
-/// unconfirmed (“Nevyhodnoceno”) are shown on the map.
+/// unconfirmed (“Unassessed”) are shown on the map.
 bool showUnconfirmedDialects = false;
 
 class MapScreenV2 extends StatefulWidget {
@@ -79,6 +84,12 @@ class MapScreenV2 extends StatefulWidget {
 }
 
 class _MapScreenV2State extends State<MapScreenV2> {
+  static const FilteredRecordingsController _filteredRecordingsController =
+      FilteredRecordingsController();
+  static const RecordingsController _recordingsController =
+      RecordingsController();
+  static const UserController _userController = UserController();
+
   late bool _clusterPoints = true;
 
   Map<String, List<Marker>> _dialectSeparatedMarkers = {};
@@ -96,19 +107,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     required bool verified,
   }) async {
     try {
-      final uri = Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: '/recordings/filtered',
-        queryParameters: {
-          if (recordingId != null) 'recordingId': recordingId.toString(),
-          'verified': verified.toString(),
-        },
+      logger.i(
+          '[MapV2] GET /recordings/filtered recordingId=$recordingId verified=$verified');
+      final resp = await _filteredRecordingsController.fetchFilteredParts(
+        recordingId: recordingId,
+        verified: verified,
       );
-      logger.i('[MapV2] GET ' + uri.toString());
-      final resp = await http.get(uri, headers: {
-        'Content-Type': 'application/json',
-      });
 
       if (resp.statusCode == 204) {
         logger.i('[MapV2] /recordings/filtered returned 204 No Content');
@@ -118,11 +122,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
         logger.e('[MapV2] /recordings/filtered failed: ' +
             resp.statusCode.toString() +
             ' body=' +
-            resp.body);
+            resp.data.toString());
         return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
       }
 
-      final List<dynamic> jsonArr = jsonDecode(resp.body) as List<dynamic>;
+      final dynamic decoded =
+          resp.data is String ? jsonDecode(resp.data as String) : resp.data;
+      if (decoded is! List) {
+        logger.w('[MapV2] /recordings/filtered returned non-list payload');
+        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
+      }
+      final List<dynamic> jsonArr = decoded;
       final frps = <FilteredRecordingPart>[];
       final dds = <DetectedDialect>[];
 
@@ -157,6 +167,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   final MapController _mapController = MapController();
+  // Legend dialect codes (start with local defaults; replace with BE list when available)
+  List<String> _legendCodes = DynamicIcon.getDefaultDialectKeys();
   bool _isSatelliteView = false;
   String _recordingAuthorFilter = 'all';
   String _dataFilter = 'new';
@@ -169,6 +181,33 @@ class _MapScreenV2State extends State<MapScreenV2> {
   final Map<int, int> _recLocalToBE = {};
 
   final secureStorage = const FlutterSecureStorage();
+
+  String _canonicalizeDialect(String? value) {
+    if (value == null) return '';
+    final english = DialectKeywordTranslator.toEnglish(value) ?? value.trim();
+    if (english.isEmpty) return '';
+    switch (english) {
+      case 'Unassessed':
+      case 'Undetermined':
+      case 'Unknown dialect':
+        return 'Unknown';
+      default:
+        return english;
+    }
+  }
+
+  List<String> _canonicalizeDialectList(Iterable<String> values) {
+    final result = <String>[];
+    final seen = <String>{};
+    for (final raw in values) {
+      final canonical = _canonicalizeDialect(raw);
+      if (canonical.isEmpty) continue;
+      if (seen.add(canonical)) {
+        result.add(canonical);
+      }
+    }
+    return result;
+  }
 
   // Store the current camera values.
   LatLng _currentCenter = LatLng(50.0755, 14.4378);
@@ -195,6 +234,33 @@ class _MapScreenV2State extends State<MapScreenV2> {
     setState(() {
       _isGuestUser = userId == null || userId.isEmpty;
     });
+  }
+
+  Future<void> _refreshLegendCodes() async {
+    try {
+      final beCodes = await DynamicIcon.fetchAllDialectCodesFromServer();
+      if (!mounted) return;
+      if (beCodes.isNotEmpty) {
+        final canonicalCodes = _canonicalizeDialectList(beCodes);
+        // Sort with 'Unknown' last to keep UI neat
+        canonicalCodes.sort((a, b) {
+          if (a == 'Unknown') return 1;
+          if (b == 'Unknown') return -1;
+          return a.toLowerCase().compareTo(b.toLowerCase());
+        });
+        setState(() {
+          _legendCodes = canonicalCodes;
+        });
+        logger.i('[MapV2] Legend codes updated from BE (' +
+            canonicalCodes.length.toString() +
+            ')');
+      } else {
+        logger.w('[MapV2] Legend codes: BE returned empty; keeping defaults');
+      }
+    } catch (e, st) {
+      logger.w('[MapV2] Legend codes refresh failed: ' + e.toString(),
+          error: e, stackTrace: st);
+    }
   }
 
   void _showMessage(String message) {
@@ -287,6 +353,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _updateGrid();
       }
     });
+
+    // Warm legend codes from BE (non-blocking). UI shows defaults immediately.
+    // When BE responds, we update the list without showing an empty placeholder.
+    unawaited(_refreshLegendCodes());
   }
 
   void fetchClusters() {
@@ -314,28 +384,28 @@ class _MapScreenV2State extends State<MapScreenV2> {
       int? userId;
       //String? email;
       if (_recordingAuthorFilter == 'me') {
-        final jwt = await secureStorage.read(key: 'token');
         userId = int.parse((await secureStorage.read(key: 'userId'))!);
       }
 
-      final response = await http.get(
-        Uri(
-          scheme: 'https',
-          host: Config.host,
-          path: '/recordings',
-          queryParameters: {
-            'parts': 'true',
-            'sound': 'false',
-            if (userId != null) 'userId': userId.toString(),
-          },
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      final response = await _recordingsController.fetchRecordings(
+        userId: userId?.toString(),
+        includeParts: true,
+        includeSound: false,
       );
       if (response.statusCode == 200) {
         logger.i('Recordings fetched');
-        List<dynamic> data = jsonDecode(response.body);
+        final dynamic decoded = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        if (decoded is! List) {
+          logger
+              .e('Failed to parse recordings payload: ${decoded.runtimeType}');
+          return;
+        }
+        final List<dynamic> data = decoded;
+        final String responseBody = response.data is String
+            ? response.data as String
+            : jsonEncode(data);
         List<Part> parts = getParts(jsonEncode(data));
 
         for (int i = 0; i < parts.length; i++) {
@@ -346,7 +416,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         });
         logger.i(
             '[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
-        List<Recording> recordings = await GetRecordings(response.body);
+        List<Recording> recordings = await GetRecordings(responseBody);
         setState(() {
           _fullRecordings = recordings;
         });
@@ -357,12 +427,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
             _recLocalToBE[r.id!] = r.BEId!;
           }
         }
-        logger.i('[MapV2] getRecordings(): local->BE map size=' + _recLocalToBE.length.toString());
+        logger.i('[MapV2] getRecordings(): local->BE map size=' +
+            _recLocalToBE.length.toString());
         logger
             .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
         await _fetchDialects();
       } else {
-        logger.e('Failed to fetch recordings ${response.statusCode}');
+        logger.e(
+            'Failed to fetch recordings ${response.statusCode} | ${response.data}');
       }
     } catch (error, stackTrace) {
       logger.e("Error generariong map $error",
@@ -378,9 +450,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
           ', showUnconfirmed=' +
           _showUnconfirmedDialects.toString());
 
-      // Pull filtered parts from BE (global), not from local DB cache
-      final bool verifiedOnly =
-          !_showUnconfirmedDialects; // hide unconfirmed => ask BE for verified only
+      // Always fetch all FRPs from BE so we don't miss state=7 (predicted) rows.
+      // We then treat predicted as confirmed in client-side selection logic.
+      final bool verifiedOnly = false;
       final api = await _fetchFilteredPartsFromApi(
         // We call once globally to avoid N calls per recording. If needed, we can later scope by recordingId.
         verified: verifiedOnly,
@@ -388,7 +460,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
       final frps = api.frps; // List<FilteredRecordingPart>
       final dds = api.dds; // List<DetectedDialect>
       if (frps.isNotEmpty) {
-        logger.d('[MapV2] example FRP beId/state: ' + (frps.first.BEId?.toString() ?? 'null') + '/' + frps.first.state.toString());
+        logger.d('[MapV2] example FRP beId/state: ' +
+            (frps.first.BEId?.toString() ?? 'null') +
+            '/' +
+            frps.first.state.toString());
       }
 
       logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
@@ -411,7 +486,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
             .where((f) => f.recordingBEID == beId && f.isRepresentant)
             .toList();
         // Add the state==7 flag
-        bool hasState7 = reps.any((f) => f.state == 7);
+        bool hasState6 = reps.any((f) => f.state == 6);
         logger.d('[MapV2] recBE=' +
             beId.toString() +
             ': representative FRPs=' +
@@ -436,13 +511,19 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
           for (final d in rows) {
             final String? confirmed = d.confirmedDialect;
+            final String? predicted = d.predictedDialect; // treat as confirmed
             final String? guessed = d.userGuessDialect;
-            final String? chosen =
-                _showUnconfirmedDialects ? (confirmed ?? guessed) : confirmed;
+            // When unconfirmed are shown: confirmed -> predicted -> guessed
+            // When hidden: confirmed -> predicted (predicted is treated as confirmed)
+            final String? chosen = _showUnconfirmedDialects
+                ? (confirmed ?? predicted ?? guessed)
+                : (confirmed ?? predicted);
             logger.v('[MapV2]     dialectRow be=' +
                 (d.BEId?.toString() ?? 'null') +
                 ' confirmed=' +
                 (confirmed ?? '-') +
+                ' predicted=' +
+                (predicted ?? '-') +
                 ' guessed=' +
                 (guessed ?? '-') +
                 ' chosen=' +
@@ -459,28 +540,30 @@ class _MapScreenV2State extends State<MapScreenV2> {
           recsWithNoCodes++;
           logger.w('[MapV2] recBE=' +
               beId.toString() +
-              ': no dialect codes collected; fallback=Neznámý (repFRPs=' +
+              ': no dialect codes collected; fallback=Unknown (repFRPs=' +
               reps.length.toString() +
               ')');
-          out = <String>['Neznámý'];
+          out = <String>['Unknown'];
         } else {
           // Keep insertion order first
-          out = codes
-              .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
-              .where((c) => c.trim().isNotEmpty)
-              .toList();
+          out = _canonicalizeDialectList(codes);
 
           // Stabilize order by first-seen across representative FRPs so TL->BR is deterministic
           final seenOrder = <String>[];
           for (final frp in reps) {
-            final rows = dds.where((d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId));
+            final rows = dds.where(
+                (d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId));
             for (final d in rows) {
               final String? confirmed = d.confirmedDialect;
+              final String? predicted =
+                  d.predictedDialect; // treat as confirmed
               final String? guessed = d.userGuessDialect;
-              final String? chosen = _showUnconfirmedDialects ? (confirmed ?? guessed) : confirmed;
-              if (chosen != null && chosen.trim().isNotEmpty) {
-                final v = (chosen == 'Neurceno' || chosen == 'Nevyhodnoceno') ? 'Neznámý' : chosen.trim();
-                if (!seenOrder.contains(v)) seenOrder.add(v);
+              final String? chosen = _showUnconfirmedDialects
+                  ? (confirmed ?? predicted ?? guessed)
+                  : (confirmed ?? predicted);
+              final canonical = _canonicalizeDialect(chosen);
+              if (canonical.isNotEmpty && !seenOrder.contains(canonical)) {
+                seenOrder.add(canonical);
               }
             }
           }
@@ -492,20 +575,26 @@ class _MapScreenV2State extends State<MapScreenV2> {
             });
           }
 
-          logger.i('[MapV2] recBE=' + beId.toString() + ': codes=[' + out.join(',') + '] (ordered=[' + seenOrder.join(',') + '])');
+          logger.i('[MapV2] recBE=' +
+              beId.toString() +
+              ': codes=[' +
+              out.join(',') +
+              '] (ordered=[' +
+              seenOrder.join(',') +
+              '])');
         }
 
         // Clamp to two dialects to enable diagonal split; more than two would fall back to mix otherwise
         if (out.length > 2) {
-          logger.w('[MapV2] recBE=' + beId.toString() + ': >2 dialects detected; clamping to first two for split visual');
+          logger.w('[MapV2] recBE=' +
+              beId.toString() +
+              ': >2 dialects detected; clamping to first two for split visual');
           out = out.take(2).toList();
         }
 
-        final normalized = (out.isEmpty ? <String>['Neznámý'] : out)
-            .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
-            .where((c) => c.trim().isNotEmpty)
-            .toList(); // keep order
-        byRecording[beId] = (normalized, hasState7);
+        final normalized =
+            _canonicalizeDialectList(out.isEmpty ? <String>['Unknown'] : out);
+        byRecording[beId] = (normalized, hasState6);
       }
 
       setState(() {
@@ -524,15 +613,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   List<String> _dialectsForRecordingId(int recordingBEId) {
     final entry = _dialectsByRecording[recordingBEId];
-    if (entry == null || entry.$1.isEmpty) return const ['Neznámý'];
-    return entry.$1
-        .map((c) => (c == 'Neurceno' || c == 'Nevyhodnoceno') ? 'Neznámý' : c)
-        .where((c) => c.trim().isNotEmpty)
-        .toSet()
-        .toList();
+    if (entry == null || entry.$1.isEmpty) return const ['Unknown'];
+    return _canonicalizeDialectList(entry.$1);
   }
 
-  bool _hasState7ForRecording(int beId) => _dialectsByRecording[beId]?.$2 ?? false;
+  bool _hasState6ForRecording(int beId) =>
+      _dialectsByRecording[beId]?.$2 ?? false;
 
   Map<int, Part> _latestPartPerRecording() {
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
@@ -540,7 +626,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
     for (final p in _recordings) {
       lastPartByRecording[p.recordingId] = p; // last wins
     }
-    logger.i('[MapV2] unique recordings captured=${lastPartByRecording.length}');
+    logger
+        .i('[MapV2] unique recordings captured=${lastPartByRecording.length}');
     return lastPartByRecording;
   }
 
@@ -551,10 +638,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final markers = <Marker>[];
     lastPartByRecording.forEach((recId, part) {
       final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
-      final beId = _recLocalToBE[recId] ?? recId; // fall back if equal in some datasets
+      final beId =
+          _recLocalToBE[recId] ?? recId; // fall back if equal in some datasets
       final dList = _dialectsForRecordingId(beId);
-      logger.i('[MapV2] marker localId=$recId beId=$beId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
-      logger.d('[MapV2] marker beId=$beId dialects(${dList.length})=${dList.join('+')}');
+      logger.i(
+          '[MapV2] marker localId=$recId beId=$beId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
+      logger.d(
+          '[MapV2] marker beId=$beId dialects(${dList.length})=${dList.join('+')}');
       final dialects = dList;
       markers.add(
         Marker(
@@ -577,9 +667,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     iconSize: 20,
                     padding: EdgeInsets.zero,
                     backgroundColor: Colors.transparent,
-                    dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
-                    cacheKey: 'be:' + beId.toString() + ';dialects:' + dialects.join('+'),
-                    showCenterDot: _hasState7ForRecording(beId),
+                    dialects:
+                        dialects, // <- array, e.g. ['BC','XB'] or ['Unknown']
+                    cacheKey: 'be:' +
+                        beId.toString() +
+                        ';dialects:' +
+                        dialects.join('+'),
+                    showCenterDot: _hasState6ForRecording(beId),
                     dotColor: Colors.black,
                   ),
                 ),
@@ -603,7 +697,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
           '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
       final beId = _recLocalToBE[localId] ?? localId;
       var dialects = _dialectsForRecordingId(beId);
-      logger.d('[MapV2] sep localId=$localId beId=$beId dialects(${dialects.length})=${dialects.join('+')}');
+      logger.d(
+          '[MapV2] sep localId=$localId beId=$beId dialects(${dialects.length})=${dialects.join('+')}');
       final point = LatLng(rec.gpsLatitudeStart, rec.gpsLongitudeStart);
 
       var marker = Marker(
@@ -626,9 +721,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   iconSize: 20,
                   padding: EdgeInsets.zero,
                   backgroundColor: Colors.transparent,
-                  dialects: dialects, // <- array, e.g. ['BC','XB'] or ['Neznámý']
-                  cacheKey: 'be:' + beId.toString() + ';dialects:' + dialects.join('+'),
-                  showCenterDot: _hasState7ForRecording(beId),
+                  dialects:
+                      dialects, // <- array, e.g. ['BC','XB'] or ['Unknown']
+                  cacheKey: 'be:' +
+                      beId.toString() +
+                      ';dialects:' +
+                      dialects.join('+'),
+                  showCenterDot: _hasState6ForRecording(beId),
                   dotColor: Colors.black,
                 ),
               ),
@@ -656,29 +755,25 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<(String?, String?)?> getProfilePic(int? userId_) async {
-    //var email;
-    int? userId;
-    final jwt = await secureStorage.read(key: 'token');
-
-    userId = userId_;
-    final url =
-        Uri.parse('https://${Config.host}/users/$userId/get-profile-photo');
-    logger.i(url);
+    final int? userId = userId_;
+    if (userId == null) {
+      return null;
+    }
 
     try {
-      http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt'
-      }).then((value) {
-        if (value.statusCode == 200) {
-          final Map<String, dynamic> data = jsonDecode(value.body);
-          return (data['photoBase64'], data['format']);
-        } else {
-          logger.e(
-              "Profile picture download failed with status code ${value.statusCode} $url");
-          return null;
+      final value = await _userController.getProfilePhoto(userId);
+      if (value.statusCode == 200) {
+        final dynamic payload = value.data is String
+            ? jsonDecode(value.data as String)
+            : value.data;
+        if (payload is Map) {
+          final map = payload.cast<String, dynamic>();
+          return (map['photoBase64']?.toString(), map['format']?.toString());
         }
-      });
+      } else {
+        logger.e(
+            "Profile picture download failed with status code ${value.statusCode}");
+      }
     } catch (e) {
       return null;
     }
@@ -690,20 +785,32 @@ class _MapScreenV2State extends State<MapScreenV2> {
       logger.i(
           "rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name} ${_fullRecordings[i].id}");
     }
-    var mail = rec.userId;
+    final int? userId = rec.userId;
+    if (userId == null) {
+      return null;
+    }
 
-    var url = Uri(scheme: 'https', host: Config.host, path: '/users/$mail');
-
-    var jwt = await FlutterSecureStorage().read(key: 'token');
-
-    logger.i("mail: $mail url: $url");
+    logger.i("mail: $userId");
 
     try {
-      final resp = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt'
-      }).then((val) => UserData.fromJson(json.decode(val.body)));
-      (String?, String?)? profilePicData = await getProfilePic(mail);
+      final userResponse = await _userController.getUserById(userId);
+      if (userResponse.statusCode != 200) {
+        logger.e(
+            'Failed to fetch user profile. status=${userResponse.statusCode}');
+        return null;
+      }
+
+      final dynamic payload = userResponse.data is String
+          ? json.decode(userResponse.data as String)
+          : userResponse.data;
+      if (payload is! Map) {
+        logger
+            .e('Failed to parse user profile payload: ${payload.runtimeType}');
+        return null;
+      }
+
+      final resp = UserData.fromJson(payload.cast<String, dynamic>());
+      (String?, String?)? profilePicData = await getProfilePic(userId);
       logger.i(resp);
       return resp;
       // if (profilePicData!.$1 == null || profilePicData.$2 == null){
@@ -766,7 +873,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     } else {
       // Fall back to a neutral color for synthetic buckets like "rest" or
       // any dialect code that does not have a configured color yet.
-      final fallback = await DialectColorCache.getColors(['Neznámý']);
+      final fallback = await DialectColorCache.getColors(['Unknown']);
       color = fallback.isNotEmpty ? fallback.first : Colors.grey;
     }
 
@@ -802,10 +909,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   @override
   Widget build(BuildContext context) {
+    final double bottomSystemInset = MediaQuery.of(context).viewPadding.bottom;
+    final double controlsBottomOffset = 20 + bottomSystemInset;
+    final double mapyLegendBottomOffset = 10 + bottomSystemInset;
+
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.map,
       appBarTitle: null,
       isGuestUser: _isGuestUser,
+      showNotificationBell: false,
       content: LayoutBuilder(
         builder: (context, constraints) {
           Size newSize = constraints.biggest;
@@ -866,7 +978,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ],
               ),
               Positioned(
-                top: 36,
+                top: 80,
                 left: 16,
                 right: 16,
                 child: Row(
@@ -904,7 +1016,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ),
               ),
               Positioned(
-                bottom: 20,
+                bottom: controlsBottomOffset,
                 right: 20,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -950,7 +1062,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 ),
               ),
               Positioned(
-                bottom: 10,
+                bottom: mapyLegendBottomOffset,
                 left: 10,
                 child: Container(
                   padding:
@@ -1529,8 +1641,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (BuildContext context) {
+        final double bottomSystemInset =
+            MediaQuery.of(context).viewPadding.bottom;
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomSystemInset),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -1567,7 +1681,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       // _buildSymbolLegendItem('Přechodný', 'Přechodný'),
                       // _buildSymbolLegendItem('Mix', 'Mix'),
                       // _buildSymbolLegendItem('Atypický', 'Atypický'),
-                      // _buildSymbolLegendItem('Nedokončený', 'Nedokončený'),
+                      // _buildSymbolLegendItem('Unfinished', 'Unfinished'),
                       // _buildCircleLegendItem(Colors.black, 'Nepoužitelný'),
                     ],
                   ),
@@ -1651,37 +1765,31 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Widget _buildAutoDialectLegend() {
-    return FutureBuilder<Map<String, Color>>(
-      future: DynamicIcon.getLegendDialectColors(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done ||
-            !snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
-        final entries =
-            snapshot.data!; // key -> Color (DynamicIcon resolves colors itself)
-        final items = <Widget>[];
+    final codes = List<String>.from(_legendCodes);
+    // Ensure 'Unknown' appears last
+    codes.sort((a, b) {
+      if (a == 'Unknown') return 1;
+      if (b == 'Unknown') return -1;
+      return a.toLowerCase().compareTo(b.toLowerCase());
+    });
 
-        for (final key in entries.keys) {
-          // Show label "Nevyhodnoceno" but color as "Neznámý"
-          final display = key == 'Neznámý' ? 'Nevyhodnoceno' : key;
-          items.add(_buildDialectLegendItem(display));
-        }
+    final items = <Widget>[];
+    for (final code in codes) {
+      items.add(_buildDialectLegendItem(code));
+    }
 
-        return Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          alignment: WrapAlignment.center,
-          children: items,
-        );
-      },
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: items,
     );
   }
 
-  Widget _buildDialectLegendItem(String dialectName) {
-    // Map BE label used in backend to color key used by DynamicIcon
-    final String key =
-        (dialectName == 'Nevyhodnoceno') ? 'Neznámý' : dialectName;
+  Widget _buildDialectLegendItem(String englishCode) {
+    final label = englishCode == 'Unknown'
+        ? t('dialectKeywords.unassessed')
+        : DialectKeywordTranslator.toLocalized(englishCode);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -1692,10 +1800,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
             iconSize: 18,
             padding: EdgeInsets.zero,
             backgroundColor: Colors.transparent,
-            dialects: [key],
+            dialects: [englishCode],
           ),
           const SizedBox(width: 6),
-          Text(dialectName),
+          Text(label),
         ],
       ),
     );

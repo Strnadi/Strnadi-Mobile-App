@@ -16,10 +16,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 
 class DialectModel {
   final String type;
@@ -41,11 +41,9 @@ class DialectSelectionDialog extends StatefulWidget {
   final double? currentPosition;
   final double duration;
   final Function(DialectModel?) onDialectAdded;
-  Widget? spectogram;
 
   DialectSelectionDialog({
     Key? key,
-    this.spectogram,
     this.currentPosition,
     required this.duration,
     required this.onDialectAdded,
@@ -62,9 +60,9 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
 
   // Fallback colors for non-dialect options, dialects resolved from cache/defaults.
   final Map<String, Color> specialTypeColors = {
-    'Jiné': Colors.white,
-    'Nevím': Colors.grey,
-    'Bez dialektu': Colors.black,
+    'Other': Colors.white,
+    "I don't know": Colors.grey,
+    'No Dialect': Colors.black,
   };
 
   static const String _prefsKey = 'dialect_colors_v1';
@@ -75,8 +73,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     'BhBl': '#8ED0FF',
     'BlBh': '#4E68F0',
     'XB': '#F04D4D',
-    'Neznámý': '#aaaaaa',
-    'Bez dialektu': '#000000',
+    'Unknown': '#aaaaaa',
+    'No Dialect': '#000000',
   };
 
   Color _hexToColor(String hex) {
@@ -85,7 +83,10 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
 
   Future<Color> _resolveDialectColor(String type) async {
     // Non-dialect special options
-    if (specialTypeColors.containsKey(type)) return specialTypeColors[type]!;
+    final canonical = DialectKeywordTranslator.toEnglish(type) ?? type;
+    if (specialTypeColors.containsKey(canonical)) {
+      return specialTypeColors[canonical]!;
+    }
 
     // Dialect color from cache, with defaults fallback
     try {
@@ -93,13 +94,14 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
       final raw = prefs.getString(_prefsKey);
       if (raw != null && raw.isNotEmpty) {
         final Map<String, dynamic> parsed = jsonDecode(raw);
-        final String? hex = parsed[type] as String?;
+        final String? hex =
+            parsed[canonical] as String? ?? parsed[type] as String?;
         if (hex != null) return _hexToColor(hex);
       }
     } catch (_) {}
 
     // Fallback to internal defaults
-    final hex = _defaults[type];
+    final hex = _defaults[canonical] ?? _defaults[type];
     if (hex != null) return _hexToColor(hex);
 
     // Last resort
@@ -117,7 +119,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
       endTime = (widget.currentPosition! + 3.0).clamp(0.0, widget.duration);
     }
   }
-
 
   String _formatDuration(double seconds) {
     int mins = (seconds / 60).floor();
@@ -151,7 +152,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(t('postRecordingForm.addDialect.title'),
+                      Text(
+                        t('postRecordingForm.addDialect.title'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -159,17 +161,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      // Spectogram with overlay markers
-                      if (widget.spectogram != null) SizedBox(
-                        height: 200,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Spectrogram background
-                            widget.spectogram!,
-                          ],
-                        ),
-                      ),
                       // Playback controls row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -210,18 +201,18 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           _dialectOption('BlBh'),
                           _dialectOption('BhBl'),
                           _dialectOption('XB'),
-                          _dialectOption('Jiné'),
+                          _dialectOption('Other'),
                         ],
                       ),
                       SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: _dialectOption('Bez dialektu'),
+                        child: _dialectOption('No Dialect'),
                       ),
                       SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: _dialectOption('Nevím'),
+                        child: _dialectOption("I don't know"),
                       ),
                       SizedBox(height: 24),
                       ElevatedButton(
@@ -235,10 +226,17 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         ),
                         onPressed: selectedDialect != null
                             ? () async {
-                                final color = await _resolveDialectColor(selectedDialect!);
+                                final color = await _resolveDialectColor(
+                                    selectedDialect!);
+                                final canonical =
+                                    DialectKeywordTranslator.toEnglish(
+                                            selectedDialect!) ??
+                                        selectedDialect!;
+                                final displayLabel =
+                                    _displayLabelForType(canonical);
                                 widget.onDialectAdded(DialectModel(
-                                  type: selectedDialect!,
-                                  label: selectedDialect!,
+                                  type: canonical,
+                                  label: displayLabel,
                                   color: color,
                                   startTime: startTime,
                                   endTime: endTime,
@@ -287,6 +285,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     // Only these are real dialects with icon assets
     const List<String> dialectTypes = ['BC', 'BE', 'BlBh', 'BhBl', 'XB'];
     bool isDialect = dialectTypes.contains(type);
+    final displayLabel = _displayLabelForType(type);
 
     return InkWell(
       onTap: () {
@@ -326,7 +325,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                       ],
                       Expanded(
                         child: Text(
-                          type,
+                          displayLabel,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -343,12 +342,19 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
               )
             : Center(
                 child: Text(
-                  type,
+                  displayLabel,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
       ),
     );
+  }
+
+  String _displayLabelForType(String type) {
+    const List<String> dialectTypes = ['BC', 'BE', 'BlBh', 'BhBl', 'XB'];
+    final canonical = DialectKeywordTranslator.toEnglish(type) ?? type;
+    if (dialectTypes.contains(canonical)) return canonical;
+    return DialectKeywordTranslator.toLocalized(canonical);
   }
 }
 
@@ -364,7 +370,8 @@ class CustomTrackShape extends RoundedRectSliderTrackShape {
   }) {
     final double trackHeight = sliderTheme.trackHeight ?? 0;
     final double trackLeft = offset.dx;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final double trackTop =
+        offset.dy + (parentBox.size.height - trackHeight) / 2;
     final double trackWidth = parentBox.size.width;
     return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }

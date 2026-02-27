@@ -13,31 +13,68 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
-import 'dart:io';
-
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-import '../config/config.dart';
-
 Logger logger = Logger();
+const AuthController _authController = AuthController();
 
 class GoogleSignInService {
-  static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-    serverClientId: '287278255232-2rfu5vd3j233uhn4ktacpfs7rep0s44d.apps.googleusercontent.com'
-  );
+  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  static Future<void>? _initialization;
+  static const List<String> _scopeHint = ['email', 'profile'];
+  static const String _serverClientId =
+      '287278255232-2rfu5vd3j233uhn4ktacpfs7rep0s44d.apps.googleusercontent.com';
+
+  static String? _sanitizeEmail(dynamic value) {
+    if (value is! String) {
+      return null;
+    }
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static String? _extractEmailFromIdToken(String idToken) {
+    try {
+      return _sanitizeEmail(JwtDecoder.decode(idToken)['email']);
+    } catch (e) {
+      logger.w('Failed to decode Google idToken email: $e');
+      return null;
+    }
+  }
+
+  static Future<void> _ensureInitialized() {
+    return _initialization ??= _googleSignIn.initialize(
+      serverClientId: _serverClientId,
+    );
+  }
+
+  static bool _isUserCancellation(GoogleSignInException exception) {
+    return exception.code == GoogleSignInExceptionCode.canceled ||
+        exception.code == GoogleSignInExceptionCode.interrupted ||
+        exception.code == GoogleSignInExceptionCode.uiUnavailable;
+  }
+
+  static Future<GoogleSignInAccount?> _interactiveSignIn() async {
+    await _ensureInitialized();
+    try {
+      return await _googleSignIn.authenticate(scopeHint: _scopeHint);
+    } on GoogleSignInException catch (exception) {
+      if (_isUserCancellation(exception)) {
+        return null;
+      }
+      rethrow;
+    }
+  }
 
   static Future<Map<String, dynamic>?> googleAuth({String? jwt}) async {
     logger.i('Starting google auth process');
-    try{
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    try {
+      final GoogleSignInAccount? googleUser = await _interactiveSignIn();
       if (googleUser == null) {
         // User canceled the sign in.
         logger.w('google sign in canceled');
@@ -46,49 +83,49 @@ class GoogleSignInService {
       }
 
       // Obtain the auth details from the request.
-      final GoogleSignInAuthentication googleAuth = await googleUser
-          .authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       late String idToken;
-      if(googleAuth.idToken != null) {
+      if (googleAuth.idToken != null) {
         idToken = googleAuth.idToken!;
-      }
-      else {
+      } else {
         logger.e('Google sign in failed: idToken is null');
         signOut();
         return null;
       }
+
+      final accountEmail = _sanitizeEmail(googleUser.email);
+      final tokenEmail = _extractEmailFromIdToken(idToken);
+      final googleEmail = accountEmail ?? tokenEmail;
       logger.i('got auth');
 
-      logger.i('google idToken: $idToken');
+      logger.i('google idToken received');
 
-      FlutterSecureStorage secureStorage = FlutterSecureStorage();
-
-      Map<String, String> headers = {'Content-Type': 'application/json'};
-      if (jwt != null && jwt.isNotEmpty){
-        headers.addAll({'Authentication': 'Bearer ${jwt}'});
-      }
-
-      //Send to BE
-
-      http.Response response = await http.post(
-        Uri(scheme: 'https', host: Config.host, path: '/auth/google'),
-            headers: headers,
-            body: jsonEncode({"idToken": idToken})
+      final response = await _authController.googleSignIn(
+        idToken: idToken,
+        email: googleEmail,
+        token: jwt,
       );
 
       Map<String, dynamic> product = {"status": response.statusCode};
 
-      if (response.statusCode != 200){
-        logger.w('Google sign in failed: ${response.statusCode} | ${response.body}');
+      if (response.statusCode != 200) {
+        logger.w(
+            'Google sign in failed: ${response.statusCode} | ${response.data}');
         return product;
       }
-      product.addAll(jsonDecode(response.body));
+      final dynamic raw = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      if (raw is Map) {
+        product.addAll(raw.cast<String, dynamic>());
+      }
+      product['email'] = _sanitizeEmail(product['email']) ?? googleEmail ?? '';
       logger.i('Google sign in successful');
       return product;
-
-    } catch (e, stackTrace){
-      logger.e('Error processing Google Auth: $e', error: e, stackTrace: stackTrace);
+    } catch (e, stackTrace) {
+      logger.e('Error processing Google Auth: $e',
+          error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
       return null;
     }
@@ -98,7 +135,7 @@ class GoogleSignInService {
     // Trigger the authentication flow.
     try {
       logger.i('starting google sign in');
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await _interactiveSignIn();
       if (googleUser == null) {
         // User canceled the sign in.
         logger.w('google sign in canceled');
@@ -107,14 +144,12 @@ class GoogleSignInService {
       }
 
       // Obtain the auth details from the request.
-      final GoogleSignInAuthentication googleAuth = await googleUser
-          .authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       late String idToken;
-      if(googleAuth.idToken != null) {
+      if (googleAuth.idToken != null) {
         idToken = googleAuth.idToken!;
-      }
-      else {
+      } else {
         logger.e('Google sign in failed: idToken is null');
         signOut();
         return null;
@@ -122,73 +157,67 @@ class GoogleSignInService {
 
       logger.i('got auth');
 
-      logger.i('google idToken: $idToken');
+      logger.i('google idToken received');
 
-      //Send to BE
-      Uri url = Uri.parse('https://${Config.host}/auth/login-google');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'idToken': idToken,
-          })
-      );
+      final response = await _authController.loginGoogle(idToken: idToken);
       if (response.statusCode == 200) {
         logger.i('Google sign in succesfull');
-        final jwt = response.body;
+        final jwt = response.data.toString();
         return jwt;
       } else {
         throw Exception(
-            'Sign in failed: ${response.statusCode} | ${response.body}');
+            'Sign in failed: ${response.statusCode} | ${response.data}');
       }
-    } catch(e, stackTrace) {
+    } catch (e, stackTrace) {
       signOut();
-      logger.e('Google sign in failed: ${e.toString()}', error: e, stackTrace: stackTrace);
+      logger.e('Google sign in failed: ${e.toString()}',
+          error: e, stackTrace: stackTrace);
       return null;
     }
   }
 
-  static Future<String> getIdToken() async{
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+  static Future<String> getIdToken() async {
+    final GoogleSignInAccount? googleUser = await _interactiveSignIn();
     if (googleUser == null) {
       throw Exception('Google sign in canceled');
     }
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
     final idToken = googleAuth.idToken;
     return idToken!;
   }
 
   static Future<Map<String, dynamic>?> signUpWithGoogle() async {
     final idToken = await getIdToken();
+    final email = _extractEmailFromIdToken(idToken);
 
-    logger.i('Google email: ${JwtDecoder.decode(idToken)['sub']}');
+    logger.i('Google email: ${email ?? 'unknown'}');
 
-    // Call your backend sign-up endpoint.
-    // Replace the URL with your actual backend endpoint.
-    final url = 'https://${Config.host}/auth/sign-up-google';
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'idToken': idToken,
-      })
-    );
+    final response =
+        await _authController.signUpGoogle(idToken: idToken, email: email);
 
-    if(response.statusCode == 409){
+    if (response.statusCode == 409) {
       GoogleSignInService.signOut();
       logger.w('User already exists');
       return {'status': 409};
     } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
-      logger.w('Sign up failed: ${response.statusCode} | ${response.body}');
+      logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
       return {'status': response.statusCode};
     }
 
-    Map<String,dynamic> user = jsonDecode(response.body);
+    final dynamic raw = response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
+    if (raw is! Map) {
+      return {'status': response.statusCode};
+    }
+    Map<String, dynamic> user = raw.cast<String, dynamic>();
     user.addEntries({'status': response.statusCode}.entries);
     return user;
   }
 
   static Future<void> signOut() async {
+    await _ensureInitialized();
     await _googleSignIn.signOut();
   }
 }

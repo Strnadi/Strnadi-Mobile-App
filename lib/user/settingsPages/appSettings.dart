@@ -13,16 +13,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/database/Models/recording.dart';
+import 'package:strnadi/database/Models/recordingPart.dart';
+import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:logger/logger.dart';
 import '../../bottomBar.dart';
+import '../../navigation/scaffold_with_bottom_bar.dart';
 import '../settingsManager.dart';
 import 'package:strnadi/config/config.dart';
+
+final _logger = Logger();
 
 class SettingsPage extends StatefulWidget {
   SettingsPage({super.key, required this.logout});
@@ -46,11 +53,132 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _canEditEnv = false;
   HostEnvironment _env = HostEnvironment.prod;
   bool _envChanging = false;
+  bool _cacheLoading = false;
+  final List<_CachedRecordingItem> _cachedRecordings = [];
 
   Future<void> _loadSettings() async {
     useMobileData = await _settingsService.isCellular();
     _localRecodingsMax = await _settingsService.getLocalRecordingsMax();
     setState(() {});
+  }
+
+  Future<void> _loadCachedRecordings() async {
+    if (mounted) {
+      setState(() {
+        _cacheLoading = true;
+      });
+    }
+    try {
+      final List<Recording> recordings =
+          await DatabaseNew.getDownloadedRecordingsForCurrentUser();
+      final List<_CachedRecordingItem> loaded = [];
+      for (final Recording recording in recordings) {
+        loaded.add(
+          _CachedRecordingItem(
+            recording: recording,
+            sizeBytes: await _calculateRecordingSize(recording),
+          ),
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _cachedRecordings
+          ..clear()
+          ..addAll(loaded);
+      });
+    } catch (e, stackTrace) {
+      _logger.e('Failed to load cached recordings',
+          error: e, stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _cachedRecordings.clear();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _cacheLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<int> _calculateRecordingSize(Recording recording) async {
+    final Set<String> paths = <String>{};
+    if (recording.path != null && recording.path!.isNotEmpty) {
+      paths.add(recording.path!);
+    }
+    if (recording.id != null) {
+      final List<RecordingPart> parts =
+          await DatabaseNew.getPartsByRecordingId(recording.id!);
+      for (final RecordingPart part in parts) {
+        if (part.path != null && part.path!.isNotEmpty) {
+          paths.add(part.path!);
+        }
+      }
+    }
+
+    int total = 0;
+    for (final String path in paths) {
+      final file = File(path);
+      if (await file.exists()) {
+        total += await file.length();
+      }
+    }
+    return total;
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    double size = bytes.toDouble();
+    int unit = 0;
+    while (size >= 1024 && unit < units.length - 1) {
+      size /= 1024;
+      unit++;
+    }
+    return '${size.toStringAsFixed(unit == 0 ? 0 : 1)} ${units[unit]}';
+  }
+
+  String _fallbackRecordingName(Recording recording) {
+    final String? name = recording.name?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    if (recording.BEId != null) return 'Recording #${recording.BEId}';
+    if (recording.id != null) return 'Recording #${recording.id}';
+    return t('user.settings.cacheManager.unnamed');
+  }
+
+  Future<void> _deleteCachedRecording(_CachedRecordingItem item) async {
+    final bool confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(t('user.settings.cacheManager.confirmTitle')),
+            content: Text(t('user.settings.cacheManager.confirmMessage')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(t('user.settings.cacheManager.buttons.cancel')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(t('user.settings.cacheManager.buttons.remove')),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    if (item.recording.id == null) return;
+    try {
+      await DatabaseNew.deleteRecordingFromCache(item.recording.id!);
+      await _loadCachedRecordings();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to delete cached recording ${item.recording.id}',
+          error: e, stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('recListItem.errors.errorDownloading'))),
+      );
+    }
   }
 
   Future<bool> _saveSettings() async {
@@ -60,7 +188,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadLanguage() async {
-    var prefs = await SharedPreferences.getInstance();
     var language = await Config.getLanguagePreference();
     setState(() {
       this.language = Config.StringFromLanguagePreference(language) ?? 'cs';
@@ -70,7 +197,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadEnvAccessAndValue() async {
     try {
       final role = await _secure.read(key: 'role') ?? '';
-      final allowed = role == 'admin' || role == 'tester' || Config.hostEnvironment == HostEnvironment.dev;
+      final allowed = role == 'admin' ||
+          role == 'tester' ||
+          Config.hostEnvironment == HostEnvironment.dev;
       _canEditEnv = allowed;
       _env = Config.hostEnvironment;
     } catch (e) {
@@ -86,6 +215,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadSettings();
     _loadLanguage();
     _loadEnvAccessAndValue();
+    _loadCachedRecordings();
   }
 
   @override
@@ -94,40 +224,112 @@ class _SettingsPageState extends State<SettingsPage> {
       selectedPage: BottomBarItem.user,
       allowArrowBack: true,
       appBarTitle: t('user.settings.title'),
-      content: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            _buildSectionTitle(t('user.settings.app')),
-            _buildSwitchTile(
-              t('user.settings.fields.useMobileData'),
-              useMobileData,
-              (value) => setState(() => useMobileData = value),
-            ),
-            SpinBox(
-              min: 10,
-              max: 100,
-              value: _localRecodingsMax.toDouble(),
-              onChanged: (value) {
-                setState(() => _localRecodingsMax = value.toInt());
-                _saveSettings();
-              },
-            ),
-            const SizedBox(height: 8),
-            Text(
-              t('user.settings.fields.localRecordingsMax'),
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            LanguageDropdown(language),
-            if (_canEditEnv) ...[
+      content: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               const SizedBox(height: 20),
-              _buildSectionTitle('Developer settings'),
-              _buildEnvDropdown(),
+              _buildSectionTitle(t('user.settings.app')),
+              _buildSwitchTile(
+                t('user.settings.fields.useMobileData'),
+                useMobileData,
+                (value) => setState(() => useMobileData = value),
+              ),
+              SpinBox(
+                min: 10,
+                max: 100,
+                value: _localRecodingsMax.toDouble(),
+                onChanged: (value) {
+                  setState(() => _localRecodingsMax = value.toInt());
+                  _saveSettings();
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                t('user.settings.fields.localRecordingsMax'),
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              LanguageDropdown(language),
+              const SizedBox(height: 20),
+              _buildSectionTitle(t('user.settings.cacheManager.title')),
+              Text(
+                t('user.settings.cacheManager.description'),
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              if (_cacheLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_cachedRecordings.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    t('user.settings.cacheManager.empty'),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _cachedRecordings.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final item = _cachedRecordings[index];
+                    final isDev =
+                        item.recording.env == HostEnvironment.dev.name;
+                    return ListTile(
+                      tileColor: Colors.grey.shade100,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      title: Text(
+                        _fallbackRecordingName(item.recording),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(_formatBytes(item.sizeBytes)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isDev)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'DEV',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          IconButton(
+                            tooltip: t('recListItem.buttons.deleteCache'),
+                            onPressed: () => _deleteCachedRecording(item),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              if (_canEditEnv) ...[
+                const SizedBox(height: 20),
+                _buildSectionTitle('Developer settings'),
+                _buildEnvDropdown(),
+              ],
+              const SizedBox(height: 20),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -255,6 +457,19 @@ class _SettingsPageState extends State<SettingsPage> {
         await _saveSettings();
       },
       activeColor: Colors.green,
+      inactiveThumbColor: Colors.grey.shade600,
+      selectedTileColor: Colors.grey,
+      inactiveTrackColor: Colors.grey.shade300,
     );
   }
+}
+
+class _CachedRecordingItem {
+  final Recording recording;
+  final int sizeBytes;
+
+  const _CachedRecordingItem({
+    required this.recording,
+    required this.sizeBytes,
+  });
 }

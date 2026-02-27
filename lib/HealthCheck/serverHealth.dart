@@ -14,12 +14,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:logger/logger.dart';
 
 import '../config/config.dart';
 
 final logger = Logger();
+const HealthController _healthController = HealthController();
 
 class ServerHealth extends StatefulWidget {
   const ServerHealth({Key? key}) : super(key: key);
@@ -32,10 +33,9 @@ class _ServerHealthState extends State<ServerHealth> {
   bool _isServerHealthy = false;
 
   void checkServerHealth() async {
-    final url = Uri(scheme: 'https', host: Config.host, path: 'utils/health');
-
     try {
-      final response = await http.head(url);
+      final response =
+          await _healthController.checkBackendHealth(host: Config.host);
       if (response.statusCode == 200) {
         setState(() {
           _isServerHealthy = true;

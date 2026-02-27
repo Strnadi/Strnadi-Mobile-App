@@ -30,14 +30,13 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/http_adapter.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
-import 'package:strnadi/widgets/spectogram_painter.dart';
 import '../auth/authorizator.dart';
 import '../config/config.dart';
 import 'package:strnadi/locationService.dart' as loc;
@@ -77,7 +76,6 @@ class _RecordingFormState extends State<RecordingForm> {
   double _strnadiCountController = 1.0;
   double currentPos = 0.0;
   List<File> _selectedImages = [];
-  Widget? spectogram;
   List<DialectModel> dialectSegments = [];
   final _audioPlayer = AudioPlayer();
   Duration currentPositionDuration = Duration.zero;
@@ -126,19 +124,6 @@ class _RecordingFormState extends State<RecordingForm> {
       placeTitle = " ";
     });
 
-    // Initialize spectrogram widget.
-    // setState(() {
-    //   spectogram = LiveSpectogram.SpectogramLive(
-    //     key: spectogramKey,
-    //     data: [],
-    //     filepath: widget.filepath,
-    //     getCurrentPosition: (pos) {
-    //       setState(() {
-    //         currentPos = pos;
-    //       });
-    //     },
-    //   );
-    // });
     _audioPlayer.positionStream.listen((position) {
       setState(() {
         currentPositionDuration = position;
@@ -303,7 +288,6 @@ class _RecordingFormState extends State<RecordingForm> {
             ),
             TextButton(
               onPressed: () {
-                spectogramKey = GlobalKey();
                 Navigator.of(context).pop();
                 Navigator.push(
                   context,
@@ -403,28 +387,18 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   void _showDialectSelectionDialog() {
-    var position = spectogramKey.currentState?.currentPositionPx ?? null;
-    var spect = spectogram;
-    ;
-    setState(() {
-      spectogram = null;
-    });
+    final position = currentPositionDuration.inMilliseconds / 1000.0;
     showDialog(
       // disable tap out hide
       barrierDismissible: false,
       context: context,
       builder: (context) => DialectSelectionDialog(
-        spectogram: spectogram ?? null,
         currentPosition: position,
         duration: totalDuration.inSeconds.toDouble(),
         onDialectAdded: (dialect) {
           setState(() {
-            if (dialect == null) {
-              spectogram = spect;
-              return;
-            }
+            if (dialect == null) return;
             dialectSegments.add(dialect);
-            spectogram = spect;
           });
         },
       ),
@@ -663,7 +637,6 @@ class _RecordingFormState extends State<RecordingForm> {
       Sentry.captureException(e, stackTrace: stackTrace);
     }
     logger.i("Recording uploaded");
-    spectogramKey = GlobalKey();
     Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
   }
 
@@ -676,9 +649,6 @@ class _RecordingFormState extends State<RecordingForm> {
 
   @override
   void dispose() {
-    if (spectogramKey.currentState != null) {
-      spectogramKey.currentState!.dispose();
-    }
     _recordingNameController.dispose();
     _commentController.dispose();
     _audioPlayer.dispose();
@@ -707,7 +677,6 @@ class _RecordingFormState extends State<RecordingForm> {
         if (didPop) return;
         final bool shouldPop = await _confirmDiscard() ?? false;
         if (shouldPop) {
-          spectogramKey = GlobalKey();
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
@@ -787,7 +756,6 @@ class _RecordingFormState extends State<RecordingForm> {
                     ? () async {
                         final bool shouldPop = await _confirmDiscard() ?? false;
                         if (shouldPop) {
-                          spectogramKey = GlobalKey();
                           Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -1090,8 +1058,6 @@ class _RecordingFormState extends State<RecordingForm> {
                                                   ),
                                                   TextButton(
                                                     onPressed: () {
-                                                      spectogramKey =
-                                                          GlobalKey();
                                                       Navigator.of(context)
                                                           .pop();
                                                       Navigator.push(

@@ -15,6 +15,7 @@
  */
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 
 class PasswordChangedScreen extends StatelessWidget {
   const PasswordChangedScreen({super.key});
@@ -28,7 +29,7 @@ class PasswordChangedScreen extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        Navigator.pushReplacementNamed(context, '/authorizator');
+        await navigateToSessionLanding(context);
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -39,7 +40,8 @@ class PasswordChangedScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t('passwordReset.changed.title'),
+                Text(
+                  t('passwordReset.changed.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -47,7 +49,8 @@ class PasswordChangedScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(t('passwordReset.changed.message'),
+                Text(
+                  t('passwordReset.changed.message'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -58,8 +61,8 @@ class PasswordChangedScreen extends StatelessWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/authorizator');
+                      onPressed: () async {
+                        await navigateToSessionLanding(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: yellow,

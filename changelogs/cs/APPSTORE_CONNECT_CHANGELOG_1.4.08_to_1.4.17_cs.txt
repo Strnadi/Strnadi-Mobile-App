@@ -1,0 +1,67 @@
+App Store Connect - Podrobny changelog (CZ)
+Rozsah: 1.4.08 az 1.4.17
+Poznamka: Verze 1.4.16 a 1.4.17 jsou v aktualnim pracovnim stavu (bez noveho git tagu/commitu).
+
+Verze 1.4.08
+- Pridana dynamicka generace ikon na mape.
+- Rozsireno prepinani prostredi aplikace.
+- Dokonceny guest rezim a prepinani jazyka na prihlaseni.
+- Upraveny login/guest UI prvky a ikony.
+- Vylepseno nacitani textu z backendu a lazy loading v UI.
+
+Verze 1.4.09
+- Vylepsena cache profilove fotky.
+- Aktualizovana cache vrstva zavislosti.
+- Opraveno vykreslovani ikon na mape.
+- Opravene chyby v auth, lokalizaci a navaznych modulech.
+
+Verze 1.4.10
+- Pridane clusterovani bodu na mape + moznost clusterovani zapnout/vypnout.
+- Vylepsene skupinove odesilani lokalnich zaznamu.
+- Opravy chyb prostredi (env) a odhlasovani.
+- Upravy slovniku/prekladu a drobne UX opravy.
+
+Verze 1.4.11
+- Pridano HTTP nahravani souboru a zlepsena mechanika uploadu.
+- Pridano vyhledavani souradnic na mape.
+- Vylepseno zobrazeni casu na mape a seskupovani bodu podle barvy dialektu.
+- Pridano zobrazeni delky lokalnich nahravek.
+- Pridana stranka uspechu uzivatele.
+- Vylepsena logika Google prihlaseni a propojeni uctu.
+
+Verze 1.4.12
+- Opraveno duplikovani markeru nahravek na mape.
+- Obnoveno multi-dialektove clusterovani na mape.
+- Pridany preklady dialektovych klicovych slov a UI upravy.
+- Vylepseno kompaktni zobrazeni lokalnich nahravek.
+- Opraveny notifikace a navazne mapove toky.
+- Aktualizace Android/Gradle konfigurace.
+
+Verze 1.4.13
+- Opraven stav filtrovani casti nahravek.
+- Opraveny chyby pri stahovani nahravek.
+- Stabilizace mapove a databazove logiky.
+
+Verze 1.4.14
+- Aktualizace balicku a iOS projektu.
+- Opravy v auth toku.
+- Opravy databazove a inicializacni logiky aplikace.
+- Drobne stabilizacni opravy (buffer/flow).
+
+Verze 1.4.15
+- Revize a upravy auth flow (login/registrace a navazne obrazovky).
+- Aktualizace lokalizaci (CS/DE/EN).
+- Oprava viditelnosti slideru v nastaveni aplikace.
+- Upravy formatu casu a behu background work manageru.
+- Dalsi stabilizacni upravy mapy, uzivatelske casti, soukromi a DB.
+
+Verze 1.4.16
+- Opraven progress stahovani nahravek na mape po castech (monotonni, bez falesneho 100%).
+- Osetreno chovani pri chybe stahovani casti nahravky.
+- Opraven progress prehravani nahravky (spravne fallback trvani, clamp rozsahu).
+- Vylepsena citelnost progress baru (vyraznejsi track/fill barvy).
+
+Verze 1.4.17
+- Finalizace vydani s opravami progress baru stahovani a prehravani na mape.
+- Sjednoceni release metadata a release notes pod verzi 1.4.17.
+- Bezpecnejsi a predvidatelnejsi UX pri prehravani (seek hranice, restart po dohrani).

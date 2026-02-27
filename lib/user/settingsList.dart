@@ -14,21 +14,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'package:strnadi/user/settingsPages/achievementsPage.dart';
 import 'package:strnadi/user/settingsPages/appSettings.dart';
 import 'package:strnadi/user/settingsPages/connectedPlatforms.dart';
 import 'package:strnadi/user/settingsPages/userInfo.dart' hide logger;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:strnadi/md_renderer.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
-import '../config/config.dart';
 
 class MenuScreen extends StatelessWidget {
   Function() refreshUserCallback;
@@ -43,8 +35,6 @@ class MenuScreen extends StatelessWidget {
     t('user.menu.items.settings'),
     t('user.menu.items.connectedAccounts'),
     t('user.menu.items.achievements'),
-    t('user.menu.items.guide'),
-    t('user.menu.items.aboutProject'),
     t('user.menu.items.aboutApp'),
   ];
 
@@ -75,45 +65,6 @@ class MenuScreen extends StatelessWidget {
     );
   }
 
-  _launchURL(String ur) async {
-    final Uri url = Uri.parse(ur);
-    if (!await launchUrl(url)) {
-      throw Exception('Could not launch $url');
-    }
-  }
-
-  Future<String> getMarkdown(int index) async {
-    var i = -1;
-    // hardcoded values from the backend with the article id
-    switch (index) {
-      case 3:
-        i = 6;
-      case 4:
-        i = 3;
-    }
-    String lang;
-    switch (await Config.getLanguagePreference()){
-      case LanguagePreference.cs:
-        lang = "cs-CZ";
-      case LanguagePreference.en:
-        lang = "en-US";
-      case LanguagePreference.de:
-        lang = "de-DE";
-    }
-
-    final url = Uri.parse('https://${Config.host}/articles/$i/$lang.md');
-    final response = await http.get(url, headers: {
-      'accept': 'application/json',
-    });
-
-    if (response.statusCode == 200) {
-      final text = utf8.decode(response.bodyBytes);
-      return text;
-    }
-
-    return 'Error loading article';
-  }
-
   void Executor(int index, BuildContext context) async {
     if (index == 0) {
       Navigator.push(
@@ -134,26 +85,6 @@ class MenuScreen extends StatelessWidget {
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => AchievementsPage()));
     } else if (index == 4) {
-      var text = await getMarkdown(index);
-      logger.i('Markdown content loaded');
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => MDRender(
-                    mdContent: text,
-                    title: 'Jak nahrávat',
-                  )));
-    } else if (index == 5) {
-      var text = await getMarkdown(index);
-      logger.i('Markdown content loaded');
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => MDRender(
-                    mdContent: text,
-                    title: 'O projektu',
-                  )));
-    } else if (index == 6) {
       _showAboutDialog(context);
     } else {
       // TODO: implement other menu items

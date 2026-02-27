@@ -14,19 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-import 'dart:convert';
-
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
-
-import '../../config/config.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 import 'changedPassword.dart';
 
 final logger = Logger();
+const AuthController _authController = AuthController();
 
 class ChangePassword extends StatefulWidget {
   final String jwt;
@@ -46,7 +44,7 @@ class _RegPasswordState extends State<ChangePassword> {
   // Controllers for the password and its confirmation
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
 
   // Whether the password fields are hidden
   bool _obscurePassword = true;
@@ -57,20 +55,16 @@ class _RegPasswordState extends State<ChangePassword> {
   static const Color yellow = Color(0xFFFFD641);
 
   /// Individual checks for each requirement
-  bool get _hasUpper =>
-      RegExp(r'[A-Z]').hasMatch(_passwordController.text);
+  bool get _hasUpper => RegExp(r'[A-Z]').hasMatch(_passwordController.text);
 
-  bool get _hasLower =>
-      RegExp(r'[a-z]').hasMatch(_passwordController.text);
+  bool get _hasLower => RegExp(r'[a-z]').hasMatch(_passwordController.text);
 
-  bool get _hasDigit =>
-      RegExp(r'\d').hasMatch(_passwordController.text);
+  bool get _hasDigit => RegExp(r'\d').hasMatch(_passwordController.text);
 
   // bool get _hasSymbol =>
   //     RegExp('[!@#\$%^&*(),.?":{}|<>_\-–=+~;\'\\/]')
   //         .hasMatch(_passwordController.text);
-  bool get _hasLength =>
-      _passwordController.text.length >= 8;
+  bool get _hasLength => _passwordController.text.length >= 8;
 
   /// Final check: all partial checks must pass
   bool _passwordMeetsRequirements(String password) {
@@ -100,7 +94,7 @@ class _RegPasswordState extends State<ChangePassword> {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        Navigator.of(context).pushReplacementNamed('/authorizator');
+        await navigateToSessionLanding(context);
       },
       child: Scaffold(
         // Minimal app bar (white background, no shadow)
@@ -110,8 +104,8 @@ class _RegPasswordState extends State<ChangePassword> {
           iconTheme: const IconThemeData(color: Colors.black),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.of(context).pushReplacementNamed('/authorizator');
+            onPressed: () async {
+              await navigateToSessionLanding(context);
             },
           ),
         ),
@@ -126,7 +120,8 @@ class _RegPasswordState extends State<ChangePassword> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title
-                  Text(t('signup.password.title'),
+                  Text(
+                    t('signup.password.title'),
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -136,7 +131,8 @@ class _RegPasswordState extends State<ChangePassword> {
                   const SizedBox(height: 24),
 
                   // "Heslo" label
-                  Text(t('signup.password.password'),
+                  Text(
+                    t('signup.password.password'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -154,24 +150,27 @@ class _RegPasswordState extends State<ChangePassword> {
                       filled: true,
                       hintText: t('signup.password.password_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons
-                              .visibility,
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: Colors.grey,
                         ),
                         onPressed: () {
@@ -194,7 +193,8 @@ class _RegPasswordState extends State<ChangePassword> {
                   const SizedBox(height: 16),
 
                   // "Zopakujte heslo" label
-                  Text(t('signup.password.repeat_password'),
+                  Text(
+                    t('signup.password.repeat_password'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -212,18 +212,20 @@ class _RegPasswordState extends State<ChangePassword> {
                       filled: true,
                       hintText: t('signup.password.password_again_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       suffixIcon: IconButton(
@@ -244,7 +246,8 @@ class _RegPasswordState extends State<ChangePassword> {
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return t('signup.password.password_again_hint');
-                      } else if (value.trim() != _passwordController.text.trim()) {
+                      } else if (value.trim() !=
+                          _passwordController.text.trim()) {
                         return t('signup.password.errors.password_match_err');
                       }
                       return null;
@@ -257,19 +260,22 @@ class _RegPasswordState extends State<ChangePassword> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t('signup.password.password_req.capital_letter'),
+                      Text(
+                        t('signup.password.password_req.capital_letter'),
                         style: TextStyle(
                           color: _hasUpper ? Colors.green : textColor,
                           fontSize: 14,
                         ),
                       ),
-                      Text(t('signup.password.password_req.lovercase_letter'),
+                      Text(
+                        t('signup.password.password_req.lovercase_letter'),
                         style: TextStyle(
                           color: _hasLower ? Colors.green : textColor,
                           fontSize: 14,
                         ),
                       ),
-                      Text(t('signup.password.password_req.digit'),
+                      Text(
+                        t('signup.password.password_req.digit'),
                         style: TextStyle(
                           color: _hasDigit ? Colors.green : textColor,
                           fontSize: 14,
@@ -282,7 +288,8 @@ class _RegPasswordState extends State<ChangePassword> {
                       //     fontSize: 14,
                       //   ),
                       // ),
-                      Text(t('signup.password.password_req.lenght_req'),
+                      Text(
+                        t('signup.password.password_req.lenght_req'),
                         style: TextStyle(
                           color: _hasLength ? Colors.green : textColor,
                           fontSize: 14,
@@ -300,15 +307,15 @@ class _RegPasswordState extends State<ChangePassword> {
                         if ((_formKey.currentState?.validate() ?? false) &&
                             !reseting) {
                           reseting = true;
-                          bool result = await setNewPassword(widget.jwt,
-                              _passwordController.text);
+                          bool result = await setNewPassword(
+                              widget.jwt, _passwordController.text);
                           if (result) {
                             Navigator.replace(
                               context,
                               oldRoute: ModalRoute.of(context)!,
                               newRoute: MaterialPageRoute(
-                                builder: (
-                                    context) => const PasswordChangedScreen(),
+                                builder: (context) =>
+                                    const PasswordChangedScreen(),
                               ),
                             );
                           }
@@ -319,7 +326,8 @@ class _RegPasswordState extends State<ChangePassword> {
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         backgroundColor: _isFormValid ? yellow : Colors.grey,
-                        foregroundColor: _isFormValid ? textColor : Colors.white,
+                        foregroundColor:
+                            _isFormValid ? textColor : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         textStyle: TextStyle(
                           fontSize: 16,
@@ -340,8 +348,8 @@ class _RegPasswordState extends State<ChangePassword> {
 
         // Bottom segmented progress bar with extra bottom padding
         bottomNavigationBar: Padding(
-          padding: const EdgeInsets.only(
-              left: 16, right: 16, top: 16, bottom: 48),
+          padding:
+              const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
           child: Row(
             children: List.generate(5, (index) {
               // Fill first 2 segments to show "2 out of 6" progress
@@ -368,25 +376,17 @@ class _RegPasswordState extends State<ChangePassword> {
     if (email == null) {
       return false;
     }
-    final uri = Uri(scheme: 'https',
-        host: Config.host,
-        path: '/auth/$email/reset-password');
-    final response = await http.patch(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwt',
-      },
-      body: jsonEncode({
-        'password': password,
-      }),
+    final response = await _authController.setResetPassword(
+      email: email,
+      token: jwt,
+      password: password,
     );
 
     if (response.statusCode == 200) {
       logger.i('Password reset successful');
       return true;
     } else {
-      logger.e('Failed to reset password: ${response.body}');
+      logger.e('Failed to reset password: ${response.data}');
       return false;
     }
   }

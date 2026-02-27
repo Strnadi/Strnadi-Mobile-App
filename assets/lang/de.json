@@ -224,6 +224,22 @@
   "dialectBadge": {
     "title": "Dialekt"
   },
+  "dialectKeywords": {
+    "unknown": "Unbekannt",
+    "unknownDialect": "Unbekannter Dialekt",
+    "undetermined": "Unbestimmt",
+    "noDialect": "Kein Dialekt",
+    "withoutDialect": "Ohne Dialekt",
+    "other": "Andere",
+    "iDontKnow": "Ich weiß es nicht",
+    "rare": "Selten",
+    "transitional": "Übergang",
+    "mix": "Mischung",
+    "atypical": "Atypisch",
+    "unfinished": "Unvollständig",
+    "unassessed": "Nicht bewertet",
+    "unusable": "Unbrauchbar"
+  },
   "editRecording": {
     "title": "Aufnahme bearbeiten",
     "fields": {
@@ -310,7 +326,8 @@
       "delete": "Eintrag löschen",
       "resendUnsentParts": "Erneut senden",
       "send": "Eintrag senden",
-      "deleteCache": "Aus Cache löschen"
+      "deleteCache": "Aus Cache löschen",
+      "cancel": "Abbrechen"
     },
     "dialogs": {
       "confirmDelete": {
@@ -370,6 +387,9 @@
       "set": "Festlegen",
       "resetFilters": "Zurücksetzen"
     },
+    "search": {
+      "hint": "Ort oder Koordinaten suchen (z. B. 50.087, 14.421)"
+    },
     "filters": {
       "clustering": {
         "title": "Clustering",
@@ -408,7 +428,9 @@
     "status": {
       "loading": "Aufnahme ist nicht verfügbar",
       "downloading": "Aufnahme herunterladen",
-      "errorDownloading": "Fehler beim Herunterladen der Aufnahme"
+      "errorDownloading": "Fehler beim Herunterladen der Aufnahme",
+      "notDownloaded": "Noch nicht heruntergeladen",
+      "downloadCanceled": "Download abgebrochen"
     },
     "audioPlayer": {
       "replay": "10 s zurückspulen",
@@ -609,6 +631,18 @@
       },
       "descriptions": {
         "localRecordingsMax": "Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht."
+      },
+      "cacheManager": {
+        "title": "Manager für heruntergeladene Aufnahmen",
+        "description": "Verwalte lokal heruntergeladene Aufnahmen aus allen Umgebungen.",
+        "empty": "Keine heruntergeladenen Aufnahmen gefunden.",
+        "unnamed": "Unbenannte Aufnahme",
+        "confirmTitle": "Heruntergeladene Aufnahme entfernen?",
+        "confirmMessage": "Dadurch wird die Aufnahme aus dem lokalen Speicher entfernt.",
+        "buttons": {
+          "cancel": "Abbrechen",
+          "remove": "Entfernen"
+        }
       }
     },
     "menu": {
@@ -673,6 +707,18 @@
           }
         }
       }
+    }
+  },
+  "blogExplorer": {
+    "title": "Blog",
+    "searchHint": "Artikel suchen",
+    "uncategorized": "Weitere Artikel",
+    "empty": "Keine Artikel gefunden.",
+    "retry": "Erneut versuchen",
+    "errors": {
+      "load": "Artikel konnten nicht geladen werden.",
+      "open": "Artikel konnte nicht geöffnet werden.",
+      "loadGuide": "Leitfaden konnte nicht geladen werden."
     }
   },
   "notifications": {

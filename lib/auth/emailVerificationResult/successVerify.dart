@@ -15,16 +15,13 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 
 class EmailVerified extends StatelessWidget {
   const EmailVerified({Key? key}) : super(key: key);
 
-  void _goToLogin(BuildContext context) {
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/authorizator',
-      (Route<dynamic> route) => false,
-    );
+  Future<void> _goToLogin(BuildContext context) async {
+    await navigateToSessionLanding(context);
   }
 
   @override

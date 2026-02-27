@@ -14,20 +14,16 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/appleAuth.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' hide logger;
 import 'package:strnadi/localization/localization.dart';
 import '../../HealthCheck/serverHealth.dart' show logger;
 import '../../bottomBar.dart';
-import 'package:strnadi/localization/localization.dart' show t;
-
-import '../../config/config.dart' hide logger;
+import '../../navigation/scaffold_with_bottom_bar.dart';
 
 class Connectedplatforms extends StatefulWidget {
   const Connectedplatforms({super.key});
@@ -37,6 +33,8 @@ class Connectedplatforms extends StatefulWidget {
 }
 
 class _ConnectedPlatformsState extends State<Connectedplatforms> {
+  static const AuthController _authController = AuthController();
+
   late bool? shouldShowAppleSignIn = null;
   late bool? ShouldShowGoogleSignIn = null;
 
@@ -56,18 +54,13 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
   }
 
   Future<bool> shouldShowGoogle() async {
-    var storage = FlutterSecureStorage();
-    var jwt = await storage.read(key: 'token');
-    final url = Uri.parse(
-        'https://${Config.host}/auth/has-google-id?userId=${await storage.read(key: 'userId') ?? ''}');
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
+    final storage = FlutterSecureStorage();
+    final int userId =
+        int.tryParse(await storage.read(key: 'userId') ?? '') ?? -1;
+    if (userId <= 0) return true;
+
+    final response = await _authController.hasGoogleId(userId);
     logger.i(response.statusCode);
-    logger.i(url);
     if (response.statusCode == 200) {
       return false;
     }
@@ -75,18 +68,13 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
   }
 
   Future<bool> shouldShowApple() async {
-    var storage = FlutterSecureStorage();
-    var jwt = await storage.read(key: 'token');
-    final url = Uri.parse(
-        'https://${Config.host}/auth/has-apple-id?userId=${await storage.read(key: 'userId') ?? ''}');
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
+    final storage = FlutterSecureStorage();
+    final int userId =
+        int.tryParse(await storage.read(key: 'userId') ?? '') ?? -1;
+    if (userId <= 0) return true;
+
+    final response = await _authController.hasAppleId(userId);
     logger.i(response.statusCode);
-    logger.i(url);
     if (response.statusCode == 200) {
       return false;
     }
@@ -95,10 +83,12 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
 
   @override
   Widget build(BuildContext context) {
+    final String appBarTitle = t('user.menu.items.connectedAccounts');
+
     if (shouldShowAppleSignIn == null) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
-        appBarTitle: "Propojené služby",
+        appBarTitle: appBarTitle,
         allowArrowBack: true,
         content: const Center(child: CircularProgressIndicator()),
       );
@@ -106,7 +96,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
     if (shouldShowAppleSignIn == false && ShouldShowGoogleSignIn == false) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
-        appBarTitle: "Propojené služby",
+        appBarTitle: appBarTitle,
         allowArrowBack: true,
         content: Center(
             child: Column(
@@ -127,7 +117,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
 
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.user,
-      appBarTitle: "Propojené služby",
+      appBarTitle: appBarTitle,
       allowArrowBack: true,
       content: Center(
           child: Column(
@@ -224,8 +214,6 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        var storage = FlutterSecureStorage();
-                        var jwt = await storage.read(key: 'token');
                         if (kIsWeb) {
                           logger
                               .w("Google Sign-In is not supported on the web.");

@@ -1,0 +1,15 @@
+Google Play Console (CZ, krátká verze)
+--------------------------------------
+Vylepšili jsme mapu a přehrávání nahrávek. Opravili jsme průběh stahování po částech (už nekolísá ani neukazuje falešných 100 %), zpřesnili progress bar přehrávání, omezili posun v čase na platný rozsah a zlepšili viditelnost průběhu. Zároveň jsme provedli aktualizace přihlášení, lokalizací a nastavení soukromí.
+
+
+App Store Connect (CZ, detailnější verze)
+-----------------------------------------
+V této verzi jsme se zaměřili na stabilitu a přesnost průběhu stahování i přehrávání nahrávek:
+
+- Opraven průběh stahování nahrávek na mapě po jednotlivých částech, aby už nedocházelo ke skokům nebo falešnému zobrazení 100 %.
+- Vylepšen progress bar přehrávání (přesnější výpočet délky, ošetření krajních stavů, korektní chování po dohrání).
+- Posun přehrávání je nyní omezen na platný časový rozsah.
+- Lepší čitelnost progress barů díky úpravě barev pozadí a výplně.
+
+Současně jsme provedli další průběžné úpravy v oblasti přihlášení, lokalizací a správy soukromí.

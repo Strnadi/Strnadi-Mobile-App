@@ -28,13 +28,13 @@
  *  - _handleSendRecordingTask
  */
 
-import 'dart:convert';
 import 'dart:ui';
 import 'dart:isolate';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/Models/recording.dart';
@@ -45,6 +45,8 @@ import 'package:strnadi/database/databaseNew.dart';
 import '../dialects/ModelHandler.dart';
 
 final logger = Logger();
+const FilteredRecordingsController _filteredRecordingsController =
+    FilteredRecordingsController();
 
 // ---------- Lightweight health-check port server ----------
 String _healthPortName(int recordingId) => '/upload/rec/$recordingId';
@@ -62,7 +64,8 @@ void _startHealthServer(int recordingId) {
 
   // (Re)register name mapping; if name is taken, remove then register.
   final name = _healthPortName(recordingId);
-  final ok = IsolateNameServer.registerPortWithName(_healthPort!.sendPort, name);
+  final ok =
+      IsolateNameServer.registerPortWithName(_healthPort!.sendPort, name);
   if (!ok) {
     IsolateNameServer.removePortNameMapping(name);
     IsolateNameServer.registerPortWithName(_healthPort!.sendPort, name);
@@ -144,7 +147,8 @@ int? _parseRecordingId(Map<String, dynamic>? inputData) {
     final parsed = int.tryParse(raw.toString());
     return parsed;
   } catch (e, st) {
-    logger.e('Failed to parse recordingId from inputData: $e', error: e, stackTrace: st);
+    logger.e('Failed to parse recordingId from inputData: $e',
+        error: e, stackTrace: st);
     return null;
   }
 }
@@ -155,7 +159,8 @@ Future<Recording?> _getRecordingOrFail(int recordingId) async {
     logger.i('Getting recording from DB with id $recordingId');
     return await DatabaseNew.getRecordingFromDbById(recordingId);
   } catch (e, st) {
-    logger.e('BG Failed to get recording from DB: $e', error: e, stackTrace: st);
+    logger.e('BG Failed to get recording from DB: $e',
+        error: e, stackTrace: st);
     Sentry.captureException(e, stackTrace: st);
     rethrow;
   }
@@ -166,19 +171,26 @@ Future<Recording?> _getRecordingOrFail(int recordingId) async {
 Future<Recording?> _ensureRecordingFileAvailable(Recording? recording) async {
   if (recording == null) return null;
 
-  final needsConcat =
-      (recording.path == null || recording.path!.isEmpty || !recording.downloaded);
+  final needsConcat = (recording.path == null ||
+      recording.path!.isEmpty ||
+      !recording.downloaded);
 
   if (!needsConcat) return recording;
 
   try {
-    logger.i('Recording path is empty or not downloaded. Concatenating parts for recording id ${recording.id}.');
+    logger.i(
+        'Recording path is empty or not downloaded. Concatenating parts for recording id ${recording.id}.');
     await DatabaseNew.concatRecordingParts(recording.id!);
     final updated = await DatabaseNew.getRecordingFromDbById(recording.id!);
-    if (updated != null && (updated.path != null && updated.path!.isNotEmpty && updated.downloaded)) {
-      logger.i('Recording updated after concatenation: path = ${updated.path}, downloaded = ${updated.downloaded}');
+    if (updated != null &&
+        (updated.path != null &&
+            updated.path!.isNotEmpty &&
+            updated.downloaded)) {
+      logger.i(
+          'Recording updated after concatenation: path = ${updated.path}, downloaded = ${updated.downloaded}');
     } else {
-      logger.w('Recording still not downloaded after attempting concatenation.');
+      logger
+          .w('Recording still not downloaded after attempting concatenation.');
     }
     return updated;
   } catch (e, st) {
@@ -221,7 +233,8 @@ Future<void> _sendDialectsForRecording({
     logger.i('Getting dialects from DB with recording id $recordingId');
     dialects = await DatabaseNew.getDialectsByRecordingId(recordingId);
   } catch (e, st) {
-    logger.e('Failed to get dialects for recording $recordingId: $e', error: e, stackTrace: st);
+    logger.e('Failed to get dialects for recording $recordingId: $e',
+        error: e, stackTrace: st);
     Sentry.captureException(e, stackTrace: st);
   }
 
@@ -244,31 +257,24 @@ Future<void> _sendDialectsForRecording({
     logger.t('Dialect body: $body');
 
     try {
-      final resp = await _postDialect(body: body, jwt: jwt);
+      final resp = await _postDialect(body: body);
       if (resp.statusCode == 200) {
         logger.i('Dialect ${dialect.dialect} sent successfully');
       } else {
-        logger.e('Dialect sending failed with status ${resp.statusCode}. Response: ${resp.body}');
+        logger.e(
+            'Dialect sending failed with status ${resp.statusCode}. Response: ${resp.data}');
       }
     } catch (e, st) {
-      logger.e('Error sending dialect ${dialect.dialect}: $e', error: e, stackTrace: st);
+      logger.e('Error sending dialect ${dialect.dialect}: $e',
+          error: e, stackTrace: st);
     }
   }
 }
 
-Future<http.Response> _postDialect({
+Future<Response<dynamic>> _postDialect({
   required Map<String, dynamic> body,
-  required String jwt,
 }) async {
-  final url = Uri.https(Config.host, '/recordings/filtered');
-  return http.post(
-    url,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $jwt',
-    },
-    body: jsonEncode(body),
-  );
+  return _filteredRecordingsController.createFilteredPart(body);
 }
 
 Future<void> _notify(String title, String message) async {
@@ -280,7 +286,8 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
   final recordingId = _parseRecordingId(inputData);
   if (recordingId == null) {
     logger.e('Missing or invalid recordingId in inputData: $inputData');
-    await _notify('Nahrávání nahrávky selhalo', 'Odesílání nahrávky selhalo: chybí recordingId.');
+    await _notify('Nahrávání nahrávky selhalo',
+        'Odesílání nahrávky selhalo: chybí recordingId.');
     return true; // do not retry, input was invalid
   }
 
@@ -288,13 +295,15 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
   try {
     recording = await _getRecordingOrFail(recordingId);
   } catch (_) {
-    await _notify('Nahrávání nahrávky selhalo', 'Odesílání nahrávky $recordingId selhalo při čtení z DB.');
+    await _notify('Nahrávání nahrávky selhalo',
+        'Odesílání nahrávky $recordingId selhalo při čtení z DB.');
     return true; // already logged & captured
   }
 
   if (recording == null) {
     logger.e('Recording $recordingId not found in DB');
-    await _notify('Recording Not Found', 'Recording $recordingId was not found in the database.');
+    await _notify('Recording Not Found',
+        'Recording $recordingId was not found in the database.');
     return true;
   }
 
@@ -306,7 +315,8 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
       recording.path == null ||
       recording.path!.isEmpty ||
       !recording.downloaded) {
-    logger.e('Recording $recordingId not ready after ensure: null/file missing.');
+    logger
+        .e('Recording $recordingId not ready after ensure: null/file missing.');
     await _notify(
       'Nahrávání nahrávky selhalo',
       'Odesílání nahrávky $recordingId selhalo: soubor nahrávky není k dispozici.',
@@ -331,7 +341,8 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
       beRecordingId: recording.BEId,
     );
 
-    await _notify('Nahrávka se odeslala', 'Nahrávka $recordingId se úspěšně odeslala.');
+    await _notify(
+        'Nahrávka se odeslala', 'Nahrávka $recordingId se úspěšně odeslala.');
     return true;
   } catch (e, st) {
     // Reset sending flag on failure
@@ -340,9 +351,11 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
       await DatabaseNew.updateRecording(recording);
     } catch (_) {}
 
-    logger.e('Failed to upload recording $recordingId in background: $e', error: e, stackTrace: st);
+    logger.e('Failed to upload recording $recordingId in background: $e',
+        error: e, stackTrace: st);
     Sentry.captureException(e, stackTrace: st);
-    await _notify('Nahrávání nahrávky selhalo', 'Odesílání nahrávky $recordingId selhalo s chybou: $e');
+    await _notify('Nahrávání nahrávky selhalo',
+        'Odesílání nahrávky $recordingId selhalo s chybou: $e');
     return true; // handled; avoid infinite retries unless WorkManager policy says otherwise
   } finally {
     _stopHealthServer(recordingId); // always tear down mapping
