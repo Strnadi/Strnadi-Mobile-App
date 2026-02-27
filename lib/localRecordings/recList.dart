@@ -456,6 +456,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
+    final bool hasUnsentRecordings = records.any((rec) => !rec.sent);
     records.forEach((rec) => print(
         'rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
 
@@ -543,17 +544,18 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             },
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => sendAllUnsent(),
-                      icon: const Icon(Icons.send),
-                      label: Text(t('recList.buttons.sendAllUnsent')),
+                if (hasUnsentRecordings)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => sendAllUnsent(),
+                        icon: const Icon(Icons.send),
+                        label: Text(t('recList.buttons.sendAllUnsent')),
+                      ),
                     ),
                   ),
-                ),
                 Expanded(
                   child: records.isEmpty
                       ? ListView(
