@@ -72,9 +72,32 @@ import '../navigation/scaffold_with_bottom_bar.dart';
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
-/// Global switch that decides whether recordings whose dialect is still
-/// unconfirmed (“Unassessed”) are shown on the map.
-bool showUnconfirmedDialects = false;
+enum DialectVisibilityMode {
+  all,
+  aiAdmin,
+  adminOnly,
+}
+
+/// Global mode deciding which dialect source is used on the map.
+///
+/// Default: AI+Admin
+DialectVisibilityMode dialectVisibilityMode = DialectVisibilityMode.aiAdmin;
+
+/// Global switch that decides whether recordings without any selected dialect
+/// after filtering are shown on the map.
+bool showDialectlessRecordings = true;
+
+class _RecordingDialectSelection {
+  final List<String> dialects;
+  final bool hasState6;
+  final bool hasAnySelectedDialect;
+
+  const _RecordingDialectSelection({
+    required this.dialects,
+    required this.hasState6,
+    required this.hasAnySelectedDialect,
+  });
+}
 
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
@@ -173,10 +196,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
   String _recordingAuthorFilter = 'all';
   String _dataFilter = 'new';
   bool _showConqueredSectors = true;
-  bool _showUnconfirmedDialects = showUnconfirmedDialects;
+  DialectVisibilityMode _dialectVisibilityMode = dialectVisibilityMode;
+  bool _showDialectlessRecordings = showDialectlessRecordings;
   List<Polyline> _gridLines = [];
-  // Now stores: Map<int, (List<String>, bool)>
-  Map<int, (List<String>, bool)> _dialectsByRecording = {};
+  Map<int, _RecordingDialectSelection> _dialectsByRecording = {};
   // Map local recordingId -> BEId (server id) for consistent lookups
   final Map<int, int> _recLocalToBE = {};
 
@@ -207,6 +230,48 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
     }
     return result;
+  }
+
+  List<String> _selectDialectsForMap(DetectedDialect row) {
+    final String? confirmed = row.confirmedDialect?.trim();
+    final String? predicted = row.predictedDialect?.trim();
+    final String? guessed = row.userGuessDialect?.trim();
+    final selected = <String>[];
+
+    void addIfPresent(String? value) {
+      if (value == null) return;
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return;
+      if (!selected.contains(trimmed)) {
+        selected.add(trimmed);
+      }
+    }
+
+    switch (_dialectVisibilityMode) {
+      case DialectVisibilityMode.all:
+        addIfPresent(confirmed);
+        addIfPresent(predicted);
+        addIfPresent(guessed);
+        return selected;
+      case DialectVisibilityMode.aiAdmin:
+        addIfPresent(confirmed);
+        addIfPresent(predicted);
+        return selected;
+      case DialectVisibilityMode.adminOnly:
+        addIfPresent(confirmed);
+        return selected;
+    }
+  }
+
+  String _dialectVisibilityModeForLog() {
+    switch (_dialectVisibilityMode) {
+      case DialectVisibilityMode.all:
+        return 'all';
+      case DialectVisibilityMode.aiAdmin:
+        return 'aiAdmin';
+      case DialectVisibilityMode.adminOnly:
+        return 'adminOnly';
+    }
   }
 
   // Store the current camera values.
@@ -334,7 +399,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     _getCurrentLocation();
 
-    getRecordings().then((_) => {_fetchDialects(), fetchClusters()});
+    unawaited(getRecordings());
 
     // Subscribe to the centralized location stream.
     _positionStreamSubscription =
@@ -359,24 +424,45 @@ class _MapScreenV2State extends State<MapScreenV2> {
     unawaited(_refreshLegendCodes());
   }
 
-  void fetchClusters() {
-    var markers = getDialectSeparatedRecordings();
+  Future<void> fetchClusters() async {
+    final markers = getDialectSeparatedRecordings();
     logger.i(
         '[MapV2] initState(): dialectSeparatedMarkers building clusters $markers');
-    for (var d in markers.keys) {
-      createClusterOfDialect(markers[d]!, d).then((widget) {
-        setState(() {
-          markersWidgets.add(widget);
-        });
-      });
-    }
+    final entries = markers.entries.toList();
+    final builtWidgets = await Future.wait(
+      entries.map((entry) => createClusterOfDialect(entry.value, entry.key)),
+    );
 
-    logger.i('[MapV2] initState(): dialectSeparatedMarkers count=' +
-        markers.length.toString());
+    if (!mounted) return;
     setState(() {
+      markersWidgets = builtWidgets;
       _dialectSeparatedMarkers = markers;
       keys = markers.keys.toList();
     });
+
+    logger.i('[MapV2] initState(): dialectSeparatedMarkers count=' +
+        markers.length.toString());
+  }
+
+  bool _shouldShowRecordingOnMap(int recordingBEId) {
+    final entry = _dialectsByRecording[recordingBEId];
+    if (entry == null) return true;
+    return _showDialectlessRecordings || entry.hasAnySelectedDialect;
+  }
+
+  String _dialectForLog(String? value) {
+    if (value == null || value.trim().isEmpty) return '-';
+    return value;
+  }
+
+  Future<void> _rebuildMapMarkers() async {
+    if (!_clusterPoints) {
+      if (!mounted) return;
+      setState(() {});
+      return;
+    }
+
+    await fetchClusters();
   }
 
   Future<void> getRecordings() async {
@@ -447,11 +533,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
       // Snapshot sizes for quick diagnosis
       logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
           _fullRecordings.length.toString() +
-          ', showUnconfirmed=' +
-          _showUnconfirmedDialects.toString());
+          ', dialectMode=' +
+          _dialectVisibilityModeForLog() +
+          ', showDialectless=' +
+          _showDialectlessRecordings.toString());
 
-      // Always fetch all FRPs from BE so we don't miss state=7 (predicted) rows.
-      // We then treat predicted as confirmed in client-side selection logic.
+      // Always fetch all FRPs from BE to keep map filtering fully client-side.
       final bool verifiedOnly = false;
       final api = await _fetchFilteredPartsFromApi(
         // We call once globally to avoid N calls per recording. If needed, we can later scope by recordingId.
@@ -471,7 +558,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           ', DDs=' +
           dds.length.toString());
 
-      final Map<int, (List<String>, bool)> byRecording = {};
+      final Map<int, _RecordingDialectSelection> byRecording = {};
       int recsWithNoCodes = 0;
 
       for (final rec in _fullRecordings) {
@@ -485,7 +572,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final reps = frps
             .where((f) => f.recordingBEID == beId && f.isRepresentant)
             .toList();
-        // Add the state==7 flag
+        // Add the state==6 flag
         bool hasState6 = reps.any((f) => f.state == 6);
         logger.d('[MapV2] recBE=' +
             beId.toString() +
@@ -511,25 +598,21 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
           for (final d in rows) {
             final String? confirmed = d.confirmedDialect;
-            final String? predicted = d.predictedDialect; // treat as confirmed
+            final String? predicted = d.predictedDialect;
             final String? guessed = d.userGuessDialect;
-            // When unconfirmed are shown: confirmed -> predicted -> guessed
-            // When hidden: confirmed -> predicted (predicted is treated as confirmed)
-            final String? chosen = _showUnconfirmedDialects
-                ? (confirmed ?? predicted ?? guessed)
-                : (confirmed ?? predicted);
+            final List<String> chosen = _selectDialectsForMap(d);
             logger.v('[MapV2]     dialectRow be=' +
                 (d.BEId?.toString() ?? 'null') +
                 ' confirmed=' +
-                (confirmed ?? '-') +
+                _dialectForLog(confirmed) +
                 ' predicted=' +
-                (predicted ?? '-') +
+                _dialectForLog(predicted) +
                 ' guessed=' +
-                (guessed ?? '-') +
+                _dialectForLog(guessed) +
                 ' chosen=' +
-                (chosen ?? '-'));
-            if (chosen != null && chosen.trim().isNotEmpty) {
-              codes.add(chosen.trim());
+                (chosen.isEmpty ? '-' : chosen.join('|')));
+            for (final selectedDialect in chosen) {
+              codes.add(selectedDialect);
             }
           }
         }
@@ -554,16 +637,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
             final rows = dds.where(
                 (d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId));
             for (final d in rows) {
-              final String? confirmed = d.confirmedDialect;
-              final String? predicted =
-                  d.predictedDialect; // treat as confirmed
-              final String? guessed = d.userGuessDialect;
-              final String? chosen = _showUnconfirmedDialects
-                  ? (confirmed ?? predicted ?? guessed)
-                  : (confirmed ?? predicted);
-              final canonical = _canonicalizeDialect(chosen);
-              if (canonical.isNotEmpty && !seenOrder.contains(canonical)) {
-                seenOrder.add(canonical);
+              final List<String> chosen = _selectDialectsForMap(d);
+              for (final selectedDialect in chosen) {
+                final canonical = _canonicalizeDialect(selectedDialect);
+                if (canonical.isNotEmpty && !seenOrder.contains(canonical)) {
+                  seenOrder.add(canonical);
+                }
               }
             }
           }
@@ -594,7 +673,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
         final normalized =
             _canonicalizeDialectList(out.isEmpty ? <String>['Unknown'] : out);
-        byRecording[beId] = (normalized, hasState6);
+        byRecording[beId] = _RecordingDialectSelection(
+          dialects: normalized,
+          hasState6: hasState6,
+          hasAnySelectedDialect: codes.isNotEmpty,
+        );
       }
 
       setState(() {
@@ -604,6 +687,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           byRecording.length.toString() +
           ', emptyOrUnknown=' +
           recsWithNoCodes.toString());
+      await _rebuildMapMarkers();
     } catch (e, stackTrace) {
       logger.e('Failed to fetch representative dialects: ' + e.toString(),
           error: e, stackTrace: stackTrace);
@@ -613,12 +697,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   List<String> _dialectsForRecordingId(int recordingBEId) {
     final entry = _dialectsByRecording[recordingBEId];
-    if (entry == null || entry.$1.isEmpty) return const ['Unknown'];
-    return _canonicalizeDialectList(entry.$1);
+    if (entry == null || entry.dialects.isEmpty) return const ['Unknown'];
+    return _canonicalizeDialectList(entry.dialects);
   }
 
   bool _hasState6ForRecording(int beId) =>
-      _dialectsByRecording[beId]?.$2 ?? false;
+      _dialectsByRecording[beId]?.hasState6 ?? false;
 
   Map<int, Part> _latestPartPerRecording() {
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
@@ -640,6 +724,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
       final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
       final beId =
           _recLocalToBE[recId] ?? recId; // fall back if equal in some datasets
+      if (!_shouldShowRecordingOnMap(beId)) {
+        logger.d(
+            '[MapV2] marker skipped (dialectless hidden) localId=$recId beId=$beId');
+        return;
+      }
       final dList = _dialectsForRecordingId(beId);
       logger.i(
           '[MapV2] marker localId=$recId beId=$beId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
@@ -696,6 +785,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
       logger.i(
           '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
       final beId = _recLocalToBE[localId] ?? localId;
+      if (!_shouldShowRecordingOnMap(beId)) {
+        logger.d(
+            '[MapV2] sep skipped (dialectless hidden) localId=$localId beId=$beId');
+        return;
+      }
       var dialects = _dialectsForRecordingId(beId);
       logger.d(
           '[MapV2] sep localId=$localId beId=$beId dialects(${dialects.length})=${dialects.join('+')}');
@@ -1342,7 +1436,85 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(t('Zobrazovat i nepotvrzené dialekty:')),
+                          Text('Dialect visibility:'),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    _dialectVisibilityMode =
+                                        DialectVisibilityMode.all;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide(
+                                      color: _dialectVisibilityMode ==
+                                              DialectVisibilityMode.all
+                                          ? Colors.black
+                                          : Colors.grey),
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child:
+                                    Text('Show all (incl. user suggestions)'),
+                              ),
+                              OutlinedButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    _dialectVisibilityMode =
+                                        DialectVisibilityMode.aiAdmin;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide(
+                                      color: _dialectVisibilityMode ==
+                                              DialectVisibilityMode.aiAdmin
+                                          ? Colors.black
+                                          : Colors.grey),
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text('Show AI+Admin'),
+                              ),
+                              OutlinedButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    _dialectVisibilityMode =
+                                        DialectVisibilityMode.adminOnly;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide(
+                                      color: _dialectVisibilityMode ==
+                                              DialectVisibilityMode.adminOnly
+                                          ? Colors.black
+                                          : Colors.grey),
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text('Admin only'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t('Zobrazovat nahrávky bez dialektu:')),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -1351,13 +1523,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 child: OutlinedButton(
                                   onPressed: () {
                                     setModalState(() {
-                                      _showUnconfirmedDialects = false;
+                                      _showDialectlessRecordings = false;
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                        color: !_showUnconfirmedDialects
+                                        color: !_showDialectlessRecordings
                                             ? Colors.black
                                             : Colors.grey),
                                     foregroundColor: Colors.black,
@@ -1373,13 +1545,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 child: OutlinedButton(
                                   onPressed: () {
                                     setModalState(() {
-                                      _showUnconfirmedDialects = true;
+                                      _showDialectlessRecordings = true;
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                        color: _showUnconfirmedDialects
+                                        color: _showDialectlessRecordings
                                             ? Colors.black
                                             : Colors.grey),
                                     foregroundColor: Colors.black,
@@ -1571,7 +1743,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                 setModalState(() {
                                   _isSatelliteView = false;
                                   _recordingAuthorFilter = 'all';
-                                  _showUnconfirmedDialects = false;
+                                  _dialectVisibilityMode =
+                                      DialectVisibilityMode.aiAdmin;
+                                  _showDialectlessRecordings = true;
                                 });
                               },
                               child: Text(t('map.buttons.resetFilters')),
@@ -1593,13 +1767,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   borderRadius: BorderRadius.circular(16.0),
                                 ),
                               ),
-                              onPressed: () {
+                              onPressed: () async {
                                 setState(() {
                                   // Apply filters if needed.
-                                  showUnconfirmedDialects =
-                                      _showUnconfirmedDialects;
+                                  dialectVisibilityMode =
+                                      _dialectVisibilityMode;
+                                  showDialectlessRecordings =
+                                      _showDialectlessRecordings;
                                 });
-                                _fetchDialects(); // refetch dialect data after the setting changes
+                                await _fetchDialects(); // refetch dialect data after settings change
+                                if (!context.mounted) return;
                                 Navigator.pop(context);
                               },
                               child: Text(t('map.buttons.set')),
