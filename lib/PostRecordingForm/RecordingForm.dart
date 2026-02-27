@@ -405,13 +405,6 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
-  String _formatTimestamp(double seconds) {
-    int mins = (seconds ~/ 60);
-    int secs = (seconds % 60).floor();
-    int ms = ((seconds - seconds.floor()) * 100).floor();
-    return "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}.${ms.toString().padLeft(2, '0')}";
-  }
-
   Widget _buildDialectSegment(DialectModel dialect) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -423,13 +416,6 @@ class _RecordingFormState extends State<RecordingForm> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              '${_formatTimestamp(dialect.startTime)} — ${_formatTimestamp(dialect.endTime)}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-            ),
-          ),
-          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
@@ -447,6 +433,7 @@ class _RecordingFormState extends State<RecordingForm> {
               ),
             ),
           ),
+          const Spacer(),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: () {
