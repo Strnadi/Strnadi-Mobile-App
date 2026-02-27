@@ -626,7 +626,7 @@
       "title": "Nastavení",
       "app": "Aplikace",
       "fields": {
-        "useMobileData": "Použít mobilní data pro nahrávání",
+        "useMobileData": "Použít mobilní data pro odeslání nahrávek",
         "localRecordingsMax": "Maximální počet nahrávek uložených lokálně. Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny.",
         "language": "Jazyk aplikace"
       },
@@ -672,7 +672,7 @@
       "appSettings": {
         "title": "Nastavení",
         "fields": {
-          "useMobileData": "Použít mobilní data pro nahrávání",
+          "useMobileData": "Použít mobilní data pro odeslání nahrávek",
           "localRecordingsMax": "Maximální počet nahrávek uložených lokálně"
         },
         "descriptions": {
@@ -725,9 +725,9 @@
   },
   "notifications": {
     "title": "Notifikace",
-    "uploads_in_progress": "Nahrávání probíhá na pozadí",
+    "uploads_in_progress": "Odesílání nahrávek probíhá na pozadí",
     "no_notifications": "Žádné notifikace",
-    "no_uploads": "Žádná aktivní nahrávání na pozadí",
+    "no_uploads": "Žádné aktivní odesílání nahrávek na pozadí",
     "unknown_recording": "Neznámá nahrávka"
   },
   "logout": {

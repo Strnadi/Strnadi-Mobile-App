@@ -628,7 +628,7 @@
       "title": "Settings",
       "app": "App",
       "fields": {
-        "useMobileData": "Use mobile data for recording",
+        "useMobileData": "Use mobile data for uploading recordings",
         "localRecordingsMax": "Maximum number of recordings stored locally. Any recordings beyond this limit will be deleted, starting with the oldest.",
         "language": "App language"
       },
@@ -674,7 +674,7 @@
       "appSettings": {
         "title": "Settings",
         "fields": {
-          "useMobileData": "Use mobile data for recording",
+          "useMobileData": "Use mobile data for uploading recordings",
           "localRecordingsMax": "Maximum number of recordings stored locally"
         },
         "descriptions": {
@@ -727,9 +727,9 @@
   },
   "notifications": {
     "title": "Notifications",
-    "uploads_in_progress": "Uploads are in progress in the background",
+    "uploads_in_progress": "Recording uploads are in progress in the background",
     "no_notifications": "No notifications",
-    "no_uploads": "No active uploads in the background",
+    "no_uploads": "No active recording uploads in the background",
     "unknown_recording": "Unknown recording"
   },
   "logout": {

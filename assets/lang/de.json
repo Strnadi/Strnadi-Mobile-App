@@ -625,7 +625,7 @@
       "title": "Einstellungen",
       "app": "App",
       "fields": {
-        "useMobileData": "Mobile Daten für Uploads verwenden",
+        "useMobileData": "Mobile Daten zum Hochladen von Aufnahmen verwenden",
         "localRecordingsMax": "Maximale Anzahl lokal gespeicherter Aufnahmen. Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht.",
         "language": "App-Sprache"
       },
@@ -670,7 +670,7 @@
       "appSettings": {
         "title": "Einstellungen",
         "fields": {
-          "useMobileData": "Mobile Daten für Uploads verwenden",
+          "useMobileData": "Mobile Daten zum Hochladen von Aufnahmen verwenden",
           "localRecordingsMax": "Maximale Anzahl lokal gespeicherter Aufnahmen"
         },
         "descriptions": {
@@ -723,9 +723,9 @@
   },
   "notifications": {
     "title": "Benachrichtigungen",
-    "uploads_in_progress": "Uploads laufen im Hintergrund",
+    "uploads_in_progress": "Das Hochladen von Aufnahmen läuft im Hintergrund",
     "no_notifications": "Keine Benachrichtigungen",
-    "no_uploads": "Keine aktiven Uploads im Hintergrund",
+    "no_uploads": "Keine aktiven Uploads von Aufnahmen im Hintergrund",
     "unknown_recording": "Unbekannte Aufnahme"
   },
   "logout": {
