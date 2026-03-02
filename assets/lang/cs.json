@@ -452,6 +452,11 @@
     "addDialect": {
       "title": "Přidání dialektu",
       "confirm": "Potvrdit",
+      "note": {
+        "label": "Poznámka k manuálnímu označení (volitelné)",
+        "placeholder": "Doplňte poznámku k vybranému dialektu",
+        "appendHeader": "Manuální označení dialektu:"
+      },
       "options": {
         "BC": "BC",
         "BE": "BE",

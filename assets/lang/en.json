@@ -454,6 +454,11 @@
     "addDialect": {
       "title": "Add dialect",
       "confirm": "Confirm",
+      "note": {
+        "label": "Note for manual label (optional)",
+        "placeholder": "Add a note for the selected dialect",
+        "appendHeader": "Manual dialect labeling:"
+      },
       "options": {
         "BC": "BC",
         "BE": "BE",

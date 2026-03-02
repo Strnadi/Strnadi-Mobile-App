@@ -27,6 +27,7 @@ class DialectModel {
   final Color color;
   final double startTime;
   final double endTime;
+  final String? note;
 
   DialectModel({
     required this.type,
@@ -34,6 +35,7 @@ class DialectModel {
     required this.color,
     required this.startTime,
     required this.endTime,
+    this.note,
   });
 }
 
@@ -57,6 +59,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   String? selectedDialect;
   late double startTime;
   late double endTime;
+  final TextEditingController _noteController = TextEditingController();
 
   // Fallback colors for non-dialect options, dialects resolved from cache/defaults.
   final Map<String, Color> specialTypeColors = {
@@ -124,6 +127,12 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     int mins = (seconds / 60).floor();
     int secs = (seconds % 60).floor();
     return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
   }
 
   @override
@@ -214,6 +223,30 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         width: double.infinity,
                         child: _dialectOption("I don't know"),
                       ),
+                      SizedBox(height: 16),
+                      Text(
+                        t('postRecordingForm.addDialect.note.label'),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: TextFormField(
+                          controller: _noteController,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: t(
+                                'postRecordingForm.addDialect.note.placeholder'),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 15, vertical: 12),
+                          ),
+                          keyboardType: TextInputType.multiline,
+                          maxLines: 3,
+                        ),
+                      ),
                       SizedBox(height: 24),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -240,6 +273,9 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                                   color: color,
                                   startTime: startTime,
                                   endTime: endTime,
+                                  note: _noteController.text.trim().isEmpty
+                                      ? null
+                                      : _noteController.text.trim(),
                                 ));
                                 if (mounted) Navigator.pop(context);
                               }

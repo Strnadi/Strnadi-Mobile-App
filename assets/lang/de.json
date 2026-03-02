@@ -451,6 +451,11 @@
     "addDialect": {
       "title": "Dialekt hinzufügen",
       "confirm": "Bestätigen",
+      "note": {
+        "label": "Notiz zur manuellen Markierung (optional)",
+        "placeholder": "Notiz zum ausgewählten Dialekt hinzufügen",
+        "appendHeader": "Manuelle Dialektmarkierung:"
+      },
       "options": {
         "BC": "BC",
         "BE": "BE",
