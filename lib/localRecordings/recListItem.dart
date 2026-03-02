@@ -1145,11 +1145,7 @@ class _RecordingItemState extends State<RecordingItem> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-<<<<<<< Updated upstream
                               Text('${t('recListItem.estimatedBirdsCount')}: '),
-=======
-                              Text('${t('recListItem.estimatedBirdsCount')} '),
->>>>>>> Stashed changes
                               Text(widget.recording.estimatedBirdsCount
                                   .toString()),
                             ],
