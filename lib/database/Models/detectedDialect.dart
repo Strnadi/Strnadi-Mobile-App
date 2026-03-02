@@ -20,6 +20,8 @@ class DetectedDialect {
   int? BEId; // backend dialect id
   int? filteredPartLocalId; // FK -> FilteredRecordingParts.id
   int? filteredPartBEID; // parent FRP backend id
+  DateTime? filteredPartStartDate;
+  DateTime? filteredPartEndDate;
   int? userGuessDialectId;
   String? userGuessDialect;
   int? confirmedDialectId;
@@ -32,18 +34,17 @@ class DetectedDialect {
     this.BEId,
     this.filteredPartLocalId,
     this.filteredPartBEID,
+    this.filteredPartStartDate,
+    this.filteredPartEndDate,
     this.userGuessDialectId,
     String? userGuessDialect,
     this.confirmedDialectId,
     String? confirmedDialect,
     this.predictedDialectId,
     String? predictedDialect,
-  })  : userGuessDialect =
-            DialectKeywordTranslator.toEnglish(userGuessDialect),
-        confirmedDialect =
-            DialectKeywordTranslator.toEnglish(confirmedDialect),
-        predictedDialect =
-            DialectKeywordTranslator.toEnglish(predictedDialect);
+  })  : userGuessDialect = DialectKeywordTranslator.toEnglish(userGuessDialect),
+        confirmedDialect = DialectKeywordTranslator.toEnglish(confirmedDialect),
+        predictedDialect = DialectKeywordTranslator.toEnglish(predictedDialect);
 
   factory DetectedDialect.fromDb(Map<String, Object?> row) {
     return DetectedDialect(
@@ -51,6 +52,12 @@ class DetectedDialect {
       BEId: row['BEId'] as int?,
       filteredPartLocalId: row['filteredPartLocalId'] as int?,
       filteredPartBEID: row['filteredPartBEID'] as int?,
+      filteredPartStartDate: row['filteredPartStartDate'] is String
+          ? DateTime.tryParse(row['filteredPartStartDate'] as String)
+          : null,
+      filteredPartEndDate: row['filteredPartEndDate'] is String
+          ? DateTime.tryParse(row['filteredPartEndDate'] as String)
+          : null,
       userGuessDialectId: row['userGuessDialectId'] as int?,
       userGuessDialect: row['userGuessDialect'] as String?,
       confirmedDialectId: row['confirmedDialectId'] as int?,
