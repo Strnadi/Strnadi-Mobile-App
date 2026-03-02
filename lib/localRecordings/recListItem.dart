@@ -243,15 +243,47 @@ class _RecordingItemState extends State<RecordingItem> {
     final List<_DialectDetailEntry> unique = <_DialectDetailEntry>[];
     for (final entry in entries) {
       final key =
-          '${entry.userGuess ?? ''}|${entry.aiPrediction ?? ''}|${entry.adminFinal ?? ''}';
+          '${entry.userGuess?.canonicalCode ?? ''}|${entry.aiPrediction?.canonicalCode ?? ''}|${entry.adminFinal?.canonicalCode ?? ''}|${entry.startOffset?.inMilliseconds ?? ''}|${entry.endOffset?.inMilliseconds ?? ''}';
       if (seen.add(key)) {
         unique.add(entry);
+      }
+    }
+
+    final Set<String> requestedCodes = <String>{};
+    for (final entry in unique) {
+      if (entry.userGuess != null) {
+        requestedCodes.add(entry.userGuess!.canonicalCode);
+      }
+      if (entry.aiPrediction != null) {
+        requestedCodes.add(entry.aiPrediction!.canonicalCode);
+      }
+      if (entry.adminFinal != null) {
+        requestedCodes.add(entry.adminFinal!.canonicalCode);
+      }
+    }
+
+    Map<String, Color> colorMap = const {};
+    if (requestedCodes.isNotEmpty) {
+      final List<String> codes = requestedCodes.toList();
+      try {
+        final List<Color> colors = await DialectColorCache.getColors(codes);
+        colorMap = <String, Color>{
+          for (var i = 0; i < codes.length; i++)
+            codes[i]: i < colors.length ? colors[i] : Colors.grey.shade400
+        };
+      } catch (e, stackTrace) {
+        logger.e('Failed to resolve dialect detail colors: $e',
+            error: e, stackTrace: stackTrace);
+        colorMap = <String, Color>{
+          for (final code in codes) code: Colors.grey.shade400,
+        };
       }
     }
 
     if (!mounted) return;
     setState(() {
       _dialectDetails = unique;
+      _dialectColorsByCode = colorMap;
       _dialectDetailsLoading = false;
     });
   }
