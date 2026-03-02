@@ -42,16 +42,30 @@ import 'package:dio/dio.dart';
 
 final logger = Logger();
 
+class _DialectDetailValue {
+  const _DialectDetailValue({
+    required this.displayLabel,
+    required this.canonicalCode,
+  });
+
+  final String displayLabel;
+  final String canonicalCode;
+}
+
 class _DialectDetailEntry {
   const _DialectDetailEntry({
     this.userGuess,
     this.aiPrediction,
     this.adminFinal,
+    this.startOffset,
+    this.endOffset,
   });
 
-  final String? userGuess;
-  final String? aiPrediction;
-  final String? adminFinal;
+  final _DialectDetailValue? userGuess;
+  final _DialectDetailValue? aiPrediction;
+  final _DialectDetailValue? adminFinal;
+  final Duration? startOffset;
+  final Duration? endOffset;
 }
 
 class RecordingItem extends StatefulWidget {
@@ -155,7 +169,7 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
-  String? _localizedDialectOrNull(String? raw) {
+  _DialectDetailValue? _dialectDetailValueOrNull(String? raw) {
     if (raw == null) return null;
     final String english =
         (DialectKeywordTranslator.toEnglish(raw) ?? raw).trim();
