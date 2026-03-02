@@ -405,7 +405,31 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
+  String? _buildRecordingNote() {
+    final userComment = _commentController.text.trim();
+    final List<String> manualDialectLines = dialectSegments.map((dialect) {
+      final String? manualNote = dialect.note?.trim();
+      if (manualNote != null && manualNote.isNotEmpty) {
+        return '- ${dialect.label}: $manualNote';
+      }
+      return '- ${dialect.label}';
+    }).toList();
+
+    if (manualDialectLines.isEmpty) {
+      return userComment.isEmpty ? null : userComment;
+    }
+
+    final String manualDialectBlock =
+        '${t('postRecordingForm.addDialect.note.appendHeader')}\n${manualDialectLines.join('\n')}';
+
+    if (userComment.isEmpty) return manualDialectBlock;
+    return '$userComment\n\n$manualDialectBlock';
+  }
+
   Widget _buildDialectSegment(DialectModel dialect) {
+    final String? manualNote = dialect.note?.trim();
+    final bool hasManualNote = manualNote != null && manualNote.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -414,36 +438,49 @@ class _RecordingFormState extends State<RecordingForm> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: dialect.color,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade400),
-            ),
-            child: Text(
-              dialect.label,
-              style: TextStyle(
-                fontSize: 14,
-                color: dialect.color.computeLuminance() > 0.5
-                    ? Colors.black
-                    : Colors.white,
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: dialect.color,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.grey.shade400),
+                ),
+                child: Text(
+                  dialect.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: dialect.color.computeLuminance() > 0.5
+                        ? Colors.black
+                        : Colors.white,
+                  ),
+                ),
               ),
+              const Spacer(),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    dialectSegments.remove(dialect);
+                  });
+                },
+                child: Icon(Icons.delete_outline,
+                    color: Colors.red.shade300, size: 20),
+              ),
+            ],
+          ),
+          if (hasManualNote) ...[
+            const SizedBox(height: 6),
+            Text(
+              manualNote,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
             ),
-          ),
-          const Spacer(),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                dialectSegments.remove(dialect);
-              });
-            },
-            child: Icon(Icons.delete_outline,
-                color: Colors.red.shade300, size: 20),
-          ),
+          ],
         ],
       ),
     );
@@ -537,8 +574,7 @@ class _RecordingFormState extends State<RecordingForm> {
   Future<void> upload() async {
     logger.i(
         "Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
-    recording.note =
-        _commentController.text.isEmpty ? null : _commentController.text;
+    recording.note = _buildRecordingNote();
     recording.name = _recordingNameController.text.isEmpty
         ? null
         : _recordingNameController.text;
