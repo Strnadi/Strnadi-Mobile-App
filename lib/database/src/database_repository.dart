@@ -1346,7 +1346,7 @@ class DatabaseNew {
       int recordingLocalId) async {
     final db = await database;
     final List<Map<String, Object?>> rows = await db.rawQuery('''
-    SELECT dd.*
+    SELECT dd.*, frp.startDate AS filteredPartStartDate, frp.endDate AS filteredPartEndDate
     FROM FilteredRecordingParts frp
     JOIN DetectedDialects dd ON dd.filteredPartLocalId = frp.id
     WHERE frp.recordingLocalId = ?
