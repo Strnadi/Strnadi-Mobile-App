@@ -32,9 +32,8 @@ import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/localRecordings/dialectBadge.dart';
+import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/locationService.dart';
-import '../dialects/ModelHandler.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
@@ -42,6 +41,18 @@ import 'package:strnadi/widgets/loader.dart';
 import 'package:dio/dio.dart';
 
 final logger = Logger();
+
+class _DialectDetailEntry {
+  const _DialectDetailEntry({
+    this.userGuess,
+    this.aiPrediction,
+    this.adminFinal,
+  });
+
+  final String? userGuess;
+  final String? aiPrediction;
+  final String? adminFinal;
+}
 
 class RecordingItem extends StatefulWidget {
   Recording recording;
@@ -68,7 +79,8 @@ class _RecordingItemState extends State<RecordingItem> {
   CancelToken? _downloadCancelToken;
   double? _scrubProgress;
 
-  Dialect? dialect;
+  List<_DialectDetailEntry> _dialectDetails = const [];
+  bool _dialectDetailsLoading = false;
 
   final MapController _mapController = MapController();
   bool _mapReady = false;
@@ -103,7 +115,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Future<void> _initializeRecording() async {
     await getParts();
-    await GetDialect();
+    await _loadDialectDetails();
 
     logger.i(
         "[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
@@ -143,17 +155,91 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
-  Future<void> GetDialect() async {
-    final int recordingId = widget.recording.id!;
-    final List<Dialect> dialects =
-        await DatabaseNew.getDialectsByRecordingId(recordingId);
+  String? _localizedDialectOrNull(String? raw) {
+    if (raw == null) return null;
+    final String english =
+        (DialectKeywordTranslator.toEnglish(raw) ?? raw).trim();
+    if (english.isEmpty) return null;
+    const Set<String> hidden = <String>{
+      'Unknown',
+      'Unknown dialect',
+      'Undetermined',
+      'Unassessed',
+    };
+    if (hidden.contains(english)) return null;
+    return DialectKeywordTranslator.toLocalized(english);
+  }
 
-    if (dialects.isEmpty) {
-      setState(() => dialect = null);
+  Future<void> _loadDialectDetails() async {
+    final int? recordingId = widget.recording.id;
+    if (recordingId == null) {
+      if (!mounted) return;
+      setState(() {
+        _dialectDetails = const [];
+        _dialectDetailsLoading = false;
+      });
       return;
     }
 
-    setState(() => dialect = dialects.first);
+    if (mounted) {
+      setState(() {
+        _dialectDetailsLoading = true;
+      });
+    }
+
+    final List<_DialectDetailEntry> entries = <_DialectDetailEntry>[];
+
+    try {
+      final detectedDialects =
+          await DatabaseNew.getDetectedDialectsByRecordingLocalId(recordingId);
+      for (final d in detectedDialects) {
+        final entry = _DialectDetailEntry(
+          userGuess: _localizedDialectOrNull(d.userGuessDialect),
+          aiPrediction: _localizedDialectOrNull(d.predictedDialect),
+          adminFinal: _localizedDialectOrNull(d.confirmedDialect),
+        );
+        if (entry.userGuess == null &&
+            entry.aiPrediction == null &&
+            entry.adminFinal == null) {
+          continue;
+        }
+        entries.add(entry);
+      }
+
+      if (entries.isEmpty) {
+        final legacyDialects =
+            await DatabaseNew.getDialectsByRecordingId(recordingId);
+        for (final d in legacyDialects) {
+          final entry = _DialectDetailEntry(
+            userGuess: _localizedDialectOrNull(d.userGuessDialect),
+            aiPrediction: null,
+            adminFinal: _localizedDialectOrNull(d.adminDialect),
+          );
+          if (entry.userGuess == null && entry.adminFinal == null) continue;
+          entries.add(entry);
+        }
+      }
+    } catch (e, stackTrace) {
+      logger.e('Failed to load dialect details for recording $recordingId: $e',
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
+
+    final Set<String> seen = <String>{};
+    final List<_DialectDetailEntry> unique = <_DialectDetailEntry>[];
+    for (final entry in entries) {
+      final key =
+          '${entry.userGuess ?? ''}|${entry.aiPrediction ?? ''}|${entry.adminFinal ?? ''}';
+      if (seen.add(key)) {
+        unique.add(entry);
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _dialectDetails = unique;
+      _dialectDetailsLoading = false;
+    });
   }
 
   Future<void> getData() async {
@@ -194,6 +280,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Future<void> _fetchRecordings() async {
     await getParts();
+    await _loadDialectDetails();
   }
 
   Future<bool> _ensureFileLoaded() async {
@@ -466,6 +553,91 @@ class _RecordingItemState extends State<RecordingItem> {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
+  }
+
+  Widget _buildDialectDetailLine(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label: ',
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDialectDetailCard(_DialectDetailEntry entry) {
+    final List<Widget> lines = <Widget>[];
+
+    if (entry.userGuess != null) {
+      lines.add(_buildDialectDetailLine(
+          t('recListItem.dialectDetails.userGuess'), entry.userGuess!));
+    }
+    if (entry.aiPrediction != null) {
+      if (lines.isNotEmpty) lines.add(const SizedBox(height: 4));
+      lines.add(_buildDialectDetailLine(
+          t('recListItem.dialectDetails.aiPrediction'), entry.aiPrediction!));
+    }
+    if (entry.adminFinal != null) {
+      if (lines.isNotEmpty) lines.add(const SizedBox(height: 4));
+      lines.add(_buildDialectDetailLine(
+          t('recListItem.dialectDetails.adminFinal'), entry.adminFinal!));
+    }
+
+    if (lines.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: lines,
+      ),
+    );
+  }
+
+  Widget _buildDialectDetailsSection() {
+    return Container(
+      padding: const EdgeInsets.all(10.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t('dialectBadge.title'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          if (_dialectDetailsLoading) ...[
+            const SizedBox(height: 8),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            for (final entry in _dialectDetails) _buildDialectDetailCard(entry),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -782,10 +954,9 @@ class _RecordingItemState extends State<RecordingItem> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        if (dialect != null)
-                          DialectBadge(
-                            dialect: dialect!,
-                          ),
+                        if (_dialectDetailsLoading ||
+                            _dialectDetails.isNotEmpty)
+                          _buildDialectDetailsSection(),
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.all(10.0),

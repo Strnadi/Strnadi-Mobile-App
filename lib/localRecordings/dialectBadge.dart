@@ -20,7 +20,6 @@ import 'package:strnadi/dialects/ModelHandler.dart';
 import '../localization/localization.dart';
 
 class DialectBadge extends StatelessWidget {
-
   final Dialect dialect;
   final bool showDot;
 
@@ -52,7 +51,7 @@ class DialectBadge extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                t('dialectsBadge.title'),
+                t('dialectBadge.title'),
                 style: TextStyle(
                   color: Colors.black,
                   fontSize: 12,

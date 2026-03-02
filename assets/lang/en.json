@@ -353,7 +353,12 @@
     "noRecording": "Recording is not available",
     "notePlaceholder": "There is no note for this record",
     "dateTime": "Date and time",
-    "estimatedBirdsCount": "Estimated number of yellowhammers"
+    "estimatedBirdsCount": "Estimated number of yellowhammers",
+    "dialectDetails": {
+      "userGuess": "User guess",
+      "aiPrediction": "AI model prediction",
+      "adminFinal": "Final admin determination"
+    }
   },
   "user_badge": {
     "no_nickname": "User has no nickname"
