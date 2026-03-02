@@ -1342,6 +1342,20 @@ class DatabaseNew {
         where: 'id = ?', whereArgs: [dd.id]);
   }
 
+  static Future<List<DetectedDialect>> getDetectedDialectsByRecordingLocalId(
+      int recordingLocalId) async {
+    final db = await database;
+    final List<Map<String, Object?>> rows = await db.rawQuery('''
+    SELECT dd.*
+    FROM FilteredRecordingParts frp
+    JOIN DetectedDialects dd ON dd.filteredPartLocalId = frp.id
+    WHERE frp.recordingLocalId = ?
+    ORDER BY frp.startDate ASC, dd.id ASC
+  ''', [recordingLocalId]);
+
+    return rows.map((row) => DetectedDialect.fromDb(row)).toList();
+  }
+
   /// Representative dialects for a local recording (prefers confirmed, else user guess)
   static Future<List<String>> getRepresentativeDialectCodesForRecording(
       int recordingLocalId) async {
