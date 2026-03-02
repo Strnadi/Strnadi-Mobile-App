@@ -675,17 +675,51 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
-  Widget _buildDialectDetailLine(String label, String value) {
+  Color _dialectColorForCode(String canonicalCode) {
+    return _dialectColorsByCode[canonicalCode] ?? Colors.grey.shade400;
+  }
+
+  String _formatDurationLabel(Duration value) {
+    if (value <= Duration.zero) {
+      return '0:00';
+    }
+    final int totalSeconds = value.inSeconds;
+    final int minutes = totalSeconds ~/ 60;
+    final int seconds = totalSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDialectTimeRange(Duration? start, Duration? end) {
+    if (start == null || end == null) return '';
+    final String startText = _formatDurationLabel(start);
+    final String endText = _formatDurationLabel(end);
+    if (startText == endText) {
+      return startText;
+    }
+    return '$startText - $endText';
+  }
+
+  Widget _buildDialectDetailLine(String label, _DialectDetailValue value) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           '$label: ',
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
         ),
+        Container(
+          width: 12,
+          height: 12,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: _dialectColorForCode(value.canonicalCode),
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: Colors.black12),
+          ),
+        ),
         Expanded(
           child: Text(
-            value,
+            value.displayLabel,
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -695,8 +729,27 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Widget _buildDialectDetailCard(_DialectDetailEntry entry) {
     final List<Widget> lines = <Widget>[];
+    final bool hasEvaluatedGuess =
+        entry.aiPrediction != null || entry.adminFinal != null;
+    final String timeRange = hasEvaluatedGuess
+        ? _formatDialectTimeRange(entry.startOffset, entry.endOffset)
+        : '';
+
+    if (timeRange.isNotEmpty) {
+      lines.add(
+        Text(
+          timeRange,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
 
     if (entry.userGuess != null) {
+      if (lines.isNotEmpty) lines.add(const SizedBox(height: 4));
       lines.add(_buildDialectDetailLine(
           t('recListItem.dialectDetails.userGuess'), entry.userGuess!));
     }
