@@ -68,23 +68,22 @@ class DetectedDialect {
   }
 
   factory DetectedDialect.fromBEJson(
-      Map<String, Object?> json, {
-        required int parentFilteredPartBEID,
-      }) {
+    Map<String, Object?> json, {
+    required int parentFilteredPartBEID,
+  }) {
     final beidDyn = json['id'];
     final beid = (beidDyn is int)
         ? beidDyn
         : (beidDyn is String ? int.tryParse(beidDyn) : null);
     return DetectedDialect(
-      BEId: beid,
-      filteredPartBEID: parentFilteredPartBEID,
-      userGuessDialectId: (json['userGuessDialectId'] as num?)?.toInt(),
-      userGuessDialect: json['userGuessDialect'] as String?,
-      confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
-      confirmedDialect: json['confirmedDialect'] as String?,
-      predictedDialectId: (json['predictedDialectId'] as num?)?.toInt(),
-      predictedDialect: json['predictedDialect'] as String?
-    );
+        BEId: beid,
+        filteredPartBEID: parentFilteredPartBEID,
+        userGuessDialectId: (json['userGuessDialectId'] as num?)?.toInt(),
+        userGuessDialect: json['userGuessDialect'] as String?,
+        confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
+        confirmedDialect: json['confirmedDialect'] as String?,
+        predictedDialectId: (json['predictedDialectId'] as num?)?.toInt(),
+        predictedDialect: json['predictedDialect'] as String?);
   }
 
   Map<String, Object?> toDbJson() {
@@ -102,18 +101,15 @@ class DetectedDialect {
     };
   }
 
-  String? get confirmedDialectLocalized =>
-      confirmedDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(confirmedDialect!);
+  String? get confirmedDialectLocalized => confirmedDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(confirmedDialect!);
 
-  String? get userGuessDialectLocalized =>
-      userGuessDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(userGuessDialect!);
+  String? get userGuessDialectLocalized => userGuessDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(userGuessDialect!);
 
-  String? get predictedDialectLocalized =>
-      predictedDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(predictedDialect!);
+  String? get predictedDialectLocalized => predictedDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(predictedDialect!);
 }
