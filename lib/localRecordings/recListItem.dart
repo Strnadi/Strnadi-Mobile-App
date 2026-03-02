@@ -657,10 +657,15 @@ class _RecordingItemState extends State<RecordingItem> {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         final results = data['items'];
+        // covert this back to json object and decode the part into map<String, dynamic> to acces
+        logger.i(results);
         if (results.isNotEmpty) {
           logger.i("Reverse geocode result: $results");
+          var mun = data['items']['regionalStructure'];
+          logger.i('municipality: $mun');
           setState(() {
             placeTitle = results[0]['name'];
           });
@@ -1140,7 +1145,11 @@ class _RecordingItemState extends State<RecordingItem> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+<<<<<<< Updated upstream
                               Text('${t('recListItem.estimatedBirdsCount')}: '),
+=======
+                              Text('${t('recListItem.estimatedBirdsCount')} '),
+>>>>>>> Stashed changes
                               Text(widget.recording.estimatedBirdsCount
                                   .toString()),
                             ],

@@ -28,7 +28,8 @@ import 'package:strnadi/database/Models/recording.dart';
 class EditRecordingPage extends StatefulWidget {
   final Recording recording;
 
-  const EditRecordingPage({Key? key, required this.recording}) : super(key: key);
+  const EditRecordingPage({Key? key, required this.recording})
+      : super(key: key);
 
   @override
   _EditRecordingPageState createState() => _EditRecordingPageState();
@@ -39,6 +40,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
   late final TextEditingController _noteController;
   late final TextEditingController _countController;
   late final TextEditingController _deviceController;
+  double _strnadiCountController = 1.0;
 
   @override
   void initState() {
@@ -47,7 +49,8 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
     _noteController = TextEditingController(text: widget.recording.note ?? '');
     _countController = TextEditingController(
         text: widget.recording.estimatedBirdsCount?.toString() ?? '');
-    _deviceController = TextEditingController(text: widget.recording.device ?? '');
+    _deviceController =
+        TextEditingController(text: widget.recording.device ?? '');
   }
 
   @override
@@ -88,6 +91,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final Color yellow = const Color(0xFFFFD641);
     return Scaffold(
       appBar: AppBar(
         title: Text(t('editRecording.title')),
@@ -114,15 +118,30 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
                 maxLines: 3,
               ),
               const SizedBox(height: 10),
-              TextField(
-                controller: _countController,
-                decoration: const InputDecoration(labelText: 'Počet strnadů'),
-                keyboardType: TextInputType.number,
+              Text(t('postRecordingForm.recordingForm.fields.birdCount.name')),
+              const SizedBox(height: 5),
+              Text(
+                _strnadiCountController.toInt() == 3
+                    ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
+                    : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
+                style: const TextStyle(fontSize: 14),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _deviceController,
-                decoration: const InputDecoration(labelText: 'Zařízení'),
+              const SizedBox(height: 5),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: yellow,
+                  inactiveTrackColor: Colors.yellow.shade200,
+                  thumbColor: yellow,
+                  overlayColor: Colors.yellow.withOpacity(0.3),
+                ),
+                child: Slider(
+                  value: _strnadiCountController,
+                  min: 1,
+                  max: 3,
+                  divisions: 2,
+                  onChanged: (value) =>
+                      setState(() => _strnadiCountController = value),
+                ),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
