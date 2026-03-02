@@ -33,6 +33,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/locationService.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import 'editRecording.dart';
@@ -95,6 +96,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   List<_DialectDetailEntry> _dialectDetails = const [];
   bool _dialectDetailsLoading = false;
+  Map<String, Color> _dialectColorsByCode = const {};
 
   final MapController _mapController = MapController();
   bool _mapReady = false;
@@ -181,7 +183,10 @@ class _RecordingItemState extends State<RecordingItem> {
       'Unassessed',
     };
     if (hidden.contains(english)) return null;
-    return DialectKeywordTranslator.toLocalized(english);
+    return _DialectDetailValue(
+      displayLabel: DialectKeywordTranslator.toLocalized(english),
+      canonicalCode: english,
+    );
   }
 
   Future<void> _loadDialectDetails() async {
@@ -190,6 +195,7 @@ class _RecordingItemState extends State<RecordingItem> {
       if (!mounted) return;
       setState(() {
         _dialectDetails = const [];
+        _dialectColorsByCode = const {};
         _dialectDetailsLoading = false;
       });
       return;
@@ -207,10 +213,23 @@ class _RecordingItemState extends State<RecordingItem> {
       final detectedDialects =
           await DatabaseNew.getDetectedDialectsByRecordingLocalId(recordingId);
       for (final d in detectedDialects) {
+        final Duration? startOffset = d.filteredPartStartDate == null
+            ? null
+            : _offsetWithinConcatenated(d.filteredPartStartDate!);
+        final Duration? rawEndOffset = d.filteredPartEndDate == null
+            ? null
+            : _offsetWithinConcatenated(d.filteredPartEndDate!);
+        final Duration? endOffset = (startOffset != null &&
+                rawEndOffset != null &&
+                rawEndOffset < startOffset)
+            ? startOffset
+            : rawEndOffset;
         final entry = _DialectDetailEntry(
-          userGuess: _localizedDialectOrNull(d.userGuessDialect),
-          aiPrediction: _localizedDialectOrNull(d.predictedDialect),
-          adminFinal: _localizedDialectOrNull(d.confirmedDialect),
+          userGuess: _dialectDetailValueOrNull(d.userGuessDialect),
+          aiPrediction: _dialectDetailValueOrNull(d.predictedDialect),
+          adminFinal: _dialectDetailValueOrNull(d.confirmedDialect),
+          startOffset: startOffset,
+          endOffset: endOffset,
         );
         if (entry.userGuess == null &&
             entry.aiPrediction == null &&
@@ -224,10 +243,16 @@ class _RecordingItemState extends State<RecordingItem> {
         final legacyDialects =
             await DatabaseNew.getDialectsByRecordingId(recordingId);
         for (final d in legacyDialects) {
+          final Duration startOffset = _offsetWithinConcatenated(d.startDate);
+          final Duration rawEndOffset = _offsetWithinConcatenated(d.endDate);
+          final Duration endOffset =
+              rawEndOffset < startOffset ? startOffset : rawEndOffset;
           final entry = _DialectDetailEntry(
-            userGuess: _localizedDialectOrNull(d.userGuessDialect),
+            userGuess: _dialectDetailValueOrNull(d.userGuessDialect),
             aiPrediction: null,
-            adminFinal: _localizedDialectOrNull(d.adminDialect),
+            adminFinal: _dialectDetailValueOrNull(d.adminDialect),
+            startOffset: startOffset,
+            endOffset: endOffset,
           );
           if (entry.userGuess == null && entry.adminFinal == null) continue;
           entries.add(entry);
