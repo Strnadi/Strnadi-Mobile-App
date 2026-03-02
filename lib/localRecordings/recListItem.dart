@@ -420,6 +420,55 @@ class _RecordingItemState extends State<RecordingItem> {
     return Duration(seconds: fallbackSeconds);
   }
 
+  Duration _offsetWithinConcatenated(DateTime timestamp) {
+    if (parts.isEmpty) {
+      final DateTime base = widget.recording.createdAt.toUtc();
+      final Duration raw = timestamp.toUtc().difference(base);
+      return _clampDuration(raw);
+    }
+
+    final List<RecordingPart> sortedParts = List<RecordingPart>.from(parts)
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    Duration cumulative = Duration.zero;
+    final DateTime ts = timestamp.toUtc();
+
+    for (final part in sortedParts) {
+      final DateTime ps = part.startTime.toUtc();
+      final DateTime pe = part.endTime.toUtc();
+      final Duration partDuration = pe.difference(ps);
+
+      if (ts.isBefore(ps)) {
+        return _clampDuration(cumulative);
+      }
+
+      if (!ts.isAfter(pe)) {
+        final Duration inside = ts.difference(ps);
+        return _clampDuration(cumulative + inside);
+      }
+
+      cumulative += partDuration;
+    }
+
+    return _clampDuration(cumulative);
+  }
+
+  Duration _clampDuration(Duration value) {
+    if (value.isNegative) {
+      return Duration.zero;
+    }
+    final double? totalSeconds = widget.recording.totalSeconds;
+    if (totalSeconds == null || totalSeconds <= 0) {
+      return value;
+    }
+    final Duration maxDuration =
+        Duration(milliseconds: (totalSeconds * 1000).round());
+    if (value > maxDuration) {
+      return maxDuration;
+    }
+    return value;
+  }
+
   Duration _displayPlaybackPosition() {
     final Duration total = _effectivePlaybackDuration();
     if (_scrubProgress != null && total > Duration.zero) {
