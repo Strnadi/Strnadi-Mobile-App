@@ -1,0 +1,14 @@
+Google Play Console (EN, short version)
+---------------------------------------
+This update improves local recording details and dialect workflows. You can now add manual dialect notes, and recording items show richer dialect details including time ranges and color indicators. We also improved detected dialect data mapping for better consistency in display and upload flows.
+
+
+App Store Connect (EN, detailed version)
+----------------------------------------
+In this release, we focused on better dialect detail handling in local recordings:
+
+- Added manual dialect note input in the recording flow.
+- Included manual dialect notes in recording form detail display and upload payload.
+- Expanded local recording dialect details with per-part time ranges and color indicators.
+- Improved detected dialect data mapping and UI consistency in recording list items.
+- Added stability refinements in the detected dialect model and related rendering logic.
