@@ -32,8 +32,8 @@ import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/dialects/dialect_time_resolver.dart';
 import 'package:strnadi/localRecordings/userBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -321,14 +321,6 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       newPosition = total;
     }
     player.seek(newPosition);
-  }
-
-  String _formatDuration() {
-    int totalSeconds = widget.recording.totalSeconds!.round();
-    int minutes = totalSeconds ~/ 60;
-    int remainingSeconds = totalSeconds % 60;
-    String secondsStr = remainingSeconds.toString().padLeft(2, '0');
-    return '$minutes:$secondsStr';
   }
 
   String _formatPlayerTime(Duration duration) {
@@ -681,66 +673,23 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     return false;
   }
 
+  Iterable<DialectTimeSegment> _dialectTimeSegments() sync* {
+    for (final part in parts) {
+      if (part == null) continue;
+      yield DialectTimeSegment(
+        start: part.startTime,
+        end: part.endTime,
+      );
+    }
+  }
+
   Duration _offsetWithinConcatenated(DateTime timestamp) {
-    // Fallback if parts are not loaded yet
-    if (parts.isEmpty) {
-      final DateTime base = widget.recording.createdAt.toUtc();
-      final Duration raw = timestamp.toUtc().difference(base);
-      return _clampDuration(raw);
-    }
-
-    // Filter to valid times and sort
-    final List<RecordingPart> valid = parts
-        .where((p) => p != null && p!.startTime != null && p!.endTime != null)
-        .cast<RecordingPart>()
-        .toList()
-      ..sort((a, b) => a.startTime!.compareTo(b.startTime!));
-
-    Duration cumulative = Duration.zero; // total concatenated length so far
-    final DateTime ts = timestamp.toUtc();
-
-    for (final p in valid) {
-      final DateTime ps = p.startTime!.toUtc();
-      final DateTime pe = p.endTime!.toUtc();
-      final Duration partDur = pe.difference(ps);
-
-      if (ts.isBefore(ps)) {
-        // ts falls in a GAP before this part → just the length we concatenated so far
-        return _clampDuration(cumulative);
-      }
-
-      if (!ts.isAfter(pe)) {
-        // ps <= ts <= pe → inside this part
-        final Duration inside = ts.difference(ps);
-        return _clampDuration(cumulative + inside);
-      }
-
-      // after this part → accumulate and continue
-      cumulative += partDur;
-    }
-
-    // After the last part → clamp to end
-    return _clampDuration(cumulative);
-  }
-
-  Duration _offsetWithinRecording(DateTime timestamp) {
-    return _offsetWithinConcatenated(timestamp);
-  }
-
-  Duration _clampDuration(Duration value) {
-    if (value.isNegative) {
-      return Duration.zero;
-    }
-    final double? totalSeconds = widget.recording.totalSeconds;
-    if (totalSeconds == null || totalSeconds <= 0) {
-      return value;
-    }
-    final Duration maxDuration =
-        Duration(milliseconds: (totalSeconds * 1000).round());
-    if (value > maxDuration) {
-      return maxDuration;
-    }
-    return value;
+    return resolveDialectOffset(
+      timestamp: timestamp,
+      recordingCreatedAt: widget.recording.createdAt,
+      parts: _dialectTimeSegments(),
+      totalSeconds: widget.recording.totalSeconds,
+    );
   }
 
   Widget _buildDialectsSection() {

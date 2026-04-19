@@ -47,6 +47,7 @@ import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/map/RecordingPage.dart';
+import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
@@ -248,46 +249,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return result;
   }
 
-  List<String> _selectDialectsForMap(DetectedDialect row) {
-    return _selectedDialectsForMap(row)
-        .map((entry) => entry.code)
-        .toList(growable: false);
-  }
-
-  List<({String code, _MapMarkerStatus markerStatus})> _selectedDialectsForMap(
-      DetectedDialect row) {
-    final String? confirmed = row.confirmedDialect?.trim();
-    final String? predicted = row.predictedDialect?.trim();
-    final String? guessed = row.userGuessDialect?.trim();
-    final selected = <({String code, _MapMarkerStatus markerStatus})>[];
-
-    void addIfPresent(String? value, _MapMarkerStatus markerStatus) {
-      if (value == null) return;
-      final trimmed = value.trim();
-      if (trimmed.isEmpty) return;
-      final bool alreadyPresent =
-          selected.any((entry) => entry.code == trimmed);
-      if (!alreadyPresent) {
-        selected.add((code: trimmed, markerStatus: markerStatus));
-      }
-    }
-
-    switch (_dialectVisibilityMode) {
-      case DialectVisibilityMode.all:
-        addIfPresent(confirmed, _MapMarkerStatus.adminConfirmed);
-        addIfPresent(predicted, _MapMarkerStatus.aiAssisted);
-        addIfPresent(guessed, _MapMarkerStatus.none);
-        return selected;
-      case DialectVisibilityMode.aiAdmin:
-        addIfPresent(confirmed, _MapMarkerStatus.adminConfirmed);
-        addIfPresent(predicted, _MapMarkerStatus.aiAssisted);
-        return selected;
-      case DialectVisibilityMode.adminOnly:
-        addIfPresent(confirmed, _MapMarkerStatus.adminConfirmed);
-        return selected;
-    }
-  }
-
   String _dialectVisibilityModeForLog() {
     switch (_dialectVisibilityMode) {
       case DialectVisibilityMode.all:
@@ -296,6 +257,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
         return 'aiAdmin';
       case DialectVisibilityMode.adminOnly:
         return 'adminOnly';
+    }
+  }
+
+  DialectSummaryMode _dialectSummaryMode() {
+    switch (_dialectVisibilityMode) {
+      case DialectVisibilityMode.all:
+        return DialectSummaryMode.all;
+      case DialectVisibilityMode.aiAdmin:
+        return DialectSummaryMode.aiAdmin;
+      case DialectVisibilityMode.adminOnly:
+        return DialectSummaryMode.adminOnly;
     }
   }
 
@@ -716,9 +688,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final reps = recFrps.where((f) => f.isRepresentant).toList();
         final bool hasState6 = reps.any((f) => f.state == 6);
 
-        final codes = <String>{};
-        bool hasConfirmedDialect = false;
-        bool hasPredictedDialect = false;
+        final List<DetectedDialectSnapshot> representativeRows =
+            <DetectedDialectSnapshot>[];
         for (final frp in reps) {
           // Join detected dialects by BE link
           final rows = frp.BEId == null
@@ -726,26 +697,25 @@ class _MapScreenV2State extends State<MapScreenV2> {
               : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
 
           for (final d in rows) {
-            final selections = _selectedDialectsForMap(d);
-            for (final selection in selections) {
-              codes.add(selection.code);
-              switch (selection.markerStatus) {
-                case _MapMarkerStatus.adminConfirmed:
-                  hasConfirmedDialect = true;
-                  break;
-                case _MapMarkerStatus.aiAssisted:
-                  hasPredictedDialect = true;
-                  break;
-                case _MapMarkerStatus.none:
-                  break;
-              }
-            }
+            representativeRows.add(
+              DetectedDialectSnapshot(
+                confirmed: d.confirmedDialect,
+                predicted: d.predictedDialect,
+                guessed: d.userGuessDialect,
+              ),
+            );
           }
         }
 
+        final summary = summarizeRecordingDialects(
+          rows: representativeRows,
+          mode: _dialectSummaryMode(),
+          canonicalize: _canonicalizeDialect,
+        );
+
         // Fallback when no codes collected
         List<String> out;
-        if (codes.isEmpty) {
+        if (!summary.hasAnySelectedDialect) {
           recsWithNoCodes++;
           logger.w('[MapV2] recBE=' +
               beId.toString() +
@@ -754,40 +724,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
               ')');
           out = <String>['Unknown'];
         } else {
-          // Keep insertion order first
-          out = _canonicalizeDialectList(codes);
-
-          // Stabilize order by first-seen across representative FRPs so TL->BR is deterministic
-          final seenOrder = <String>[];
-          for (final frp in reps) {
-            final rows = frp.BEId == null
-                ? const <DetectedDialect>[]
-                : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
-            for (final d in rows) {
-              final List<String> chosen = _selectDialectsForMap(d);
-              for (final selectedDialect in chosen) {
-                final canonical = _canonicalizeDialect(selectedDialect);
-                if (canonical.isNotEmpty && !seenOrder.contains(canonical)) {
-                  seenOrder.add(canonical);
-                }
-              }
-            }
-          }
-          if (seenOrder.isNotEmpty) {
-            out.sort((a, b) {
-              final ia = seenOrder.indexOf(a);
-              final ib = seenOrder.indexOf(b);
-              return (ia < 0 ? 1 << 20 : ia).compareTo(ib < 0 ? 1 << 20 : ib);
-            });
-          }
+          out = List<String>.from(summary.dialects);
 
           logger.i('[MapV2] recBE=' +
               beId.toString() +
               ': codes=[' +
               out.join(',') +
-              '] (ordered=[' +
-              seenOrder.join(',') +
-              '])');
+              '] tier=' +
+              summary.selectedTier.name);
         }
 
         // Clamp to two dialects to enable diagonal split; more than two would fall back to mix otherwise
@@ -800,14 +744,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
         final normalized =
             _canonicalizeDialectList(out.isEmpty ? <String>['Unknown'] : out);
-        final _MapMarkerStatus markerStatus = hasConfirmedDialect
-            ? _MapMarkerStatus.adminConfirmed
-            : (hasPredictedDialect || hasState6)
-                ? _MapMarkerStatus.aiAssisted
-                : _MapMarkerStatus.none;
+        final _MapMarkerStatus markerStatus =
+            summary.selectedTier == SelectedDialectTier.confirmed
+                ? _MapMarkerStatus.adminConfirmed
+                : (summary.selectedTier == SelectedDialectTier.predicted ||
+                        (!summary.hasAnySelectedDialect && hasState6))
+                    ? _MapMarkerStatus.aiAssisted
+                    : _MapMarkerStatus.none;
         byRecording[beId] = _RecordingDialectSelection(
           dialects: normalized,
-          hasAnySelectedDialect: codes.isNotEmpty,
+          hasAnySelectedDialect: summary.hasAnySelectedDialect,
           markerStatus: markerStatus,
         );
       }
