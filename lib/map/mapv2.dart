@@ -89,10 +89,6 @@ enum _MapMarkerStatus {
 /// Default: AI+Admin
 DialectVisibilityMode dialectVisibilityMode = DialectVisibilityMode.aiAdmin;
 
-/// Global switch that decides whether recordings without any selected dialect
-/// after filtering are shown on the map.
-bool showDialectlessRecordings = true;
-
 class _RecordingDialectSelection {
   final List<String> dialects;
   final bool hasAnySelectedDialect;
@@ -202,9 +198,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
   List<String> _legendCodes = DynamicIcon.getDefaultDialectKeys();
   bool _isSatelliteView = false;
   String _recordingAuthorFilter = 'all';
-  RecordingAgeFilter _recordingAgeFilter = RecordingAgeFilter.all;
+  RecordingAgeFilter _recordingAgeFilter = RecordingAgeFilter.newer;
   DialectVisibilityMode _dialectVisibilityMode = dialectVisibilityMode;
-  bool _showDialectlessRecordings = showDialectlessRecordings;
   List<Polyline> _gridLines = [];
   Map<int, _RecordingDialectSelection> _dialectsByRecording = {};
   Set<int> _hiddenRecordingIds = <int>{};
@@ -212,15 +207,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
   final Map<int, int> _recLocalToBE = {};
   final Map<int, Recording> _recordingsByBeId = {};
   static final DateTime _oldRecordingCutoff = DateTime(2024, 1, 1);
-  static const double _autoClusterZoomThreshold = 9.2;
   static const double _ungroupedBoundsPaddingFactor = 0.18;
 
   final secureStorage = const FlutterSecureStorage();
   StreamSubscription? _positionStreamSubscription;
   StreamSubscription<MapEvent>? _mapEventSubscription;
 
-  bool get _shouldUseClusterRendering =>
-      _clusterPoints || _currentZoom <= _autoClusterZoomThreshold;
+  bool get _shouldUseClusterRendering => _clusterPoints;
 
   String _canonicalizeDialect(String? value) {
     if (value == null) return '';
@@ -482,7 +475,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
     final entry = _dialectsByRecording[recordingBEId];
     if (entry == null) return true;
-    return _showDialectlessRecordings || entry.hasAnySelectedDialect;
+    return entry.hasAnySelectedDialect;
   }
 
   Future<void> _rebuildMapMarkers() async {
@@ -595,9 +588,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
           _fullRecordings.length.toString() +
           ', dialectMode=' +
-          _dialectVisibilityModeForLog() +
-          ', showDialectless=' +
-          _showDialectlessRecordings.toString());
+          _dialectVisibilityModeForLog());
 
       // Always fetch all FRPs from BE to keep map filtering fully client-side.
       final List<FilteredRecordingPart> frps;
@@ -1437,7 +1428,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     required String nextRecordingAuthorFilter,
     required RecordingAgeFilter nextRecordingAgeFilter,
     required DialectVisibilityMode nextDialectVisibilityMode,
-    required bool nextShowDialectlessRecordings,
     required bool nextClusterPoints,
   }) {
     final bool shouldReloadRecordings =
@@ -1447,7 +1437,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final bool shouldRebuildMarkers = !shouldReloadRecordings &&
         !shouldRefreshDialects &&
         (nextRecordingAgeFilter != _recordingAgeFilter ||
-            nextShowDialectlessRecordings != _showDialectlessRecordings ||
             nextClusterPoints != _clusterPoints);
     final bool shouldUpdateViewOnly = nextIsSatelliteView != _isSatelliteView;
 
@@ -1463,10 +1452,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
       _recordingAuthorFilter = nextRecordingAuthorFilter;
       _recordingAgeFilter = nextRecordingAgeFilter;
       _dialectVisibilityMode = nextDialectVisibilityMode;
-      _showDialectlessRecordings = nextShowDialectlessRecordings;
       _clusterPoints = nextClusterPoints;
       dialectVisibilityMode = nextDialectVisibilityMode;
-      showDialectlessRecordings = nextShowDialectlessRecordings;
     });
 
     if (shouldReloadRecordings) {
@@ -1487,7 +1474,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     String tempRecordingAuthorFilter = _recordingAuthorFilter;
     RecordingAgeFilter tempRecordingAgeFilter = _recordingAgeFilter;
     DialectVisibilityMode tempDialectVisibilityMode = _dialectVisibilityMode;
-    bool tempShowDialectlessRecordings = _showDialectlessRecordings;
     bool tempClusterPoints = _clusterPoints;
     void applyCurrentSelection() {
       _applyMapFilterSelection(
@@ -1495,7 +1481,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
         nextRecordingAuthorFilter: tempRecordingAuthorFilter,
         nextRecordingAgeFilter: tempRecordingAgeFilter,
         nextDialectVisibilityMode: tempDialectVisibilityMode,
-        nextShowDialectlessRecordings: tempShowDialectlessRecordings,
         nextClusterPoints: tempClusterPoints,
       );
     }
@@ -1855,66 +1840,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(t('Zobrazovat nahrávky bez dialektu:')),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      setModalState(() {
-                                        tempShowDialectlessRecordings = false;
-                                      });
-                                      applyCurrentSelection();
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(
-                                        color: !tempShowDialectlessRecordings
-                                            ? Colors.black
-                                            : Colors.grey,
-                                      ),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(t('Skrýt')),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      setModalState(() {
-                                        tempShowDialectlessRecordings = true;
-                                      });
-                                      applyCurrentSelection();
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(
-                                        color: tempShowDialectlessRecordings
-                                            ? Colors.black
-                                            : Colors.grey,
-                                      ),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(t('Zobrazit')),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
                             Text(t('map.filters.clustering.title')),
                             const SizedBox(height: 8),
                             Row(
@@ -1991,10 +1916,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                               setModalState(() {
                                 tempIsSatelliteView = false;
                                 tempRecordingAuthorFilter = 'all';
-                                tempRecordingAgeFilter = RecordingAgeFilter.all;
+                                tempRecordingAgeFilter =
+                                    RecordingAgeFilter.newer;
                                 tempDialectVisibilityMode =
                                     DialectVisibilityMode.aiAdmin;
-                                tempShowDialectlessRecordings = true;
                                 tempClusterPoints = false;
                               });
                               applyCurrentSelection();

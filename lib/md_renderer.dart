@@ -13,11 +13,89 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/utils/markdown_html_normalizer.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+const FlutterSecureStorage _markdownFileStorage = FlutterSecureStorage();
+const Set<String> _markdownImageExtensions = <String>{
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+  'svg',
+  'heic',
+  'heif',
+};
+const Set<String> _markdownWebPageExtensions = <String>{
+  'htm',
+  'html',
+  'md',
+};
+
+String? _markdownPathExtension(String path) {
+  final List<String> segments =
+      path.split('/').where((segment) => segment.isNotEmpty).toList();
+  if (segments.isEmpty) {
+    return null;
+  }
+
+  final String lastSegment = segments.last;
+  final int dotIndex = lastSegment.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex == lastSegment.length - 1) {
+    return null;
+  }
+
+  return lastSegment.substring(dotIndex + 1).toLowerCase();
+}
+
+bool _markdownPathLooksLikeFile(String path) {
+  return _markdownPathExtension(path) != null;
+}
+
+Future<Map<String, String>> _markdownDownloadHeaders(Uri uri) async {
+  if (uri.host != Config.host) {
+    return const <String, String>{};
+  }
+
+  final String? token = await _markdownFileStorage.read(key: 'token');
+  if (token == null || token.isEmpty) {
+    return const <String, String>{};
+  }
+
+  return <String, String>{
+    'Authorization': 'Bearer $token',
+  };
+}
+
+Future<String?> _downloadMarkdownFilePath(List<Uri> candidates) async {
+  for (final Uri candidate in candidates) {
+    try {
+      final Map<String, String> headers =
+          await _markdownDownloadHeaders(candidate);
+      final file = await DefaultCacheManager().getSingleFile(
+        candidate.toString(),
+        key: candidate.toString(),
+        headers: headers.isEmpty ? null : headers,
+      );
+      return file.path;
+    } catch (_) {
+      // Try the next candidate URI before surfacing a failure.
+    }
+  }
+
+  return null;
+}
 
 /// A widget that renders a Markdown file from the given asset path.
 class MDRender extends StatefulWidget {
@@ -29,16 +107,16 @@ class MDRender extends StatefulWidget {
   final bool showScaffold;
 
   const MDRender({
-    Key? key,
     this.mdPath,
     required this.title,
     this.mdContent,
     this.articleId,
     this.showScaffold = true,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
-  _MDRenderState createState() => _MDRenderState();
+  State<MDRender> createState() => _MDRenderState();
 }
 
 class _MDRenderState extends State<MDRender> {
@@ -52,36 +130,51 @@ class _MDRenderState extends State<MDRender> {
 
   Future<void> _loadMarkdownContent() async {
     if (widget.mdContent != null) {
-      setState(() {
-        _markdownContent = widget.mdContent;
-      });
+      _setMarkdownContent(widget.mdContent!);
       return;
     }
     try {
       final data = await rootBundle.loadString(widget.mdPath!);
-      setState(() {
-        _markdownContent = data;
-      });
+      _setMarkdownContent(data);
     } catch (e) {
-      setState(() {
-        _markdownContent = 'Error loading Markdown file: $e';
-      });
+      _setMarkdownContent('Error loading Markdown file: $e');
     }
   }
 
+  void _setMarkdownContent(String content) {
+    setState(() {
+      _markdownContent = normalizeMarkdownHtml(content);
+    });
+  }
+
   Future<void> _openLink(String href) async {
-    final Uri? url = _resolveMarkdownUri(href);
-    if (url == null) {
+    final List<Uri> candidates =
+        _resolveMarkdownUriCandidates(href, preferFilesEndpoint: true);
+    if (candidates.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not resolve link: $href')),
       );
       return;
     }
-    final bool opened = await launchUrl(
-      url,
-      mode: LaunchMode.externalApplication,
-    );
+
+    final Uri url = candidates.first;
+
+    if (_shouldDownloadBeforeOpening(url)) {
+      final String? localPath = await _downloadMarkdownFilePath(candidates);
+      if (localPath != null) {
+        final bool openedLocal = await launchUrl(
+          Uri.file(localPath),
+          mode: LaunchMode.externalApplication,
+        );
+        if (openedLocal) {
+          return;
+        }
+      }
+    }
+
+    final bool opened =
+        await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open link: $href')),
@@ -89,66 +182,148 @@ class _MDRenderState extends State<MDRender> {
     }
   }
 
-  Uri? _resolveMarkdownUri(String rawHref) {
+  bool _shouldDownloadBeforeOpening(Uri uri) {
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return false;
+    }
+
+    final String? extension = _markdownPathExtension(uri.path);
+    if (extension == null) {
+      return false;
+    }
+
+    return !_markdownImageExtensions.contains(extension) &&
+        !_markdownWebPageExtensions.contains(extension);
+  }
+
+  List<Uri> _resolveMarkdownUriCandidates(
+    String rawHref, {
+    bool preferFilesEndpoint = false,
+  }) {
     final String href = rawHref.trim();
     if (href.isEmpty) {
-      return null;
+      return const <Uri>[];
     }
 
     if (href.startsWith('//')) {
-      return Uri.tryParse('https:$href');
+      final Uri? uri = Uri.tryParse('https:$href');
+      return uri == null ? const <Uri>[] : <Uri>[uri];
     }
 
     final Uri? uri = Uri.tryParse(href);
     if (uri == null) {
-      return null;
+      return const <Uri>[];
     }
 
     if (uri.hasScheme) {
-      return uri;
+      return <Uri>[uri];
     }
 
     if (uri.path.startsWith('/articles/')) {
-      return Uri(
-        scheme: 'https',
-        host: Config.host,
-        path: uri.path,
-        query: uri.hasQuery ? uri.query : null,
-        fragment: uri.fragment.isEmpty ? null : uri.fragment,
-      );
+      return <Uri>[
+        Uri(
+          scheme: 'https',
+          host: Config.host,
+          path: uri.path,
+          query: uri.hasQuery ? uri.query : null,
+          fragment: uri.fragment.isEmpty ? null : uri.fragment,
+        ),
+      ];
     }
 
     final int? articleId = widget.articleId;
-    if (articleId == null) {
-      return null;
-    }
-
     final String path =
         uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
     if (path.isEmpty) {
-      return null;
+      if (uri.path.startsWith('/')) {
+        return <Uri>[
+          Uri(
+            scheme: 'https',
+            host: Config.host,
+            path: uri.path,
+            query: uri.hasQuery ? uri.query : null,
+            fragment: uri.fragment.isEmpty ? null : uri.fragment,
+          ),
+        ];
+      }
+      return const <Uri>[];
     }
 
     final List<String> fileSegments =
         path.split('/').where((segment) => segment.isNotEmpty).toList();
     if (fileSegments.isEmpty) {
-      return null;
+      return const <Uri>[];
     }
 
-    return Uri(
-      scheme: 'https',
-      host: Config.host,
-      pathSegments: <String>[
+    if (articleId == null) {
+      if (uri.path.startsWith('/')) {
+        return <Uri>[
+          Uri(
+            scheme: 'https',
+            host: Config.host,
+            pathSegments: fileSegments,
+            query: uri.hasQuery ? uri.query : null,
+            fragment: uri.fragment.isEmpty ? null : uri.fragment,
+          ),
+        ];
+      }
+      return const <Uri>[];
+    }
+
+    final List<Uri> candidates = <Uri>[];
+
+    void addCandidate(List<String> pathSegments) {
+      final Uri candidate = Uri(
+        scheme: 'https',
+        host: Config.host,
+        pathSegments: pathSegments,
+        query: uri.hasQuery ? uri.query : null,
+        fragment: uri.fragment.isEmpty ? null : uri.fragment,
+      );
+      final String serialized = candidate.toString();
+      if (candidates.any((existing) => existing.toString() == serialized)) {
+        return;
+      }
+      candidates.add(candidate);
+    }
+
+    final bool looksLikeFile = _markdownPathLooksLikeFile(path);
+    if (preferFilesEndpoint && looksLikeFile) {
+      addCandidate(<String>[
         'articles',
         articleId.toString(),
+        'files',
         ...fileSegments,
-      ],
-      query: uri.hasQuery ? uri.query : null,
-      fragment: uri.fragment.isEmpty ? null : uri.fragment,
-    );
+      ]);
+    }
+
+    addCandidate(<String>[
+      'articles',
+      articleId.toString(),
+      ...fileSegments,
+    ]);
+
+    return candidates;
   }
 
-  String? _resolveAssetImagePath(Uri uri) {
+  Uri? _resolveMarkdownUri(String rawHref, {bool preferFilesEndpoint = false}) {
+    final List<Uri> candidates = _resolveMarkdownUriCandidates(
+      rawHref,
+      preferFilesEndpoint: preferFilesEndpoint,
+    );
+    if (candidates.isEmpty) {
+      return null;
+    }
+    return candidates.first;
+  }
+
+  String? _resolveAssetPath(Uri uri) {
+    if (uri.scheme == 'asset') {
+      final String assetPath =
+          uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+      return assetPath.isEmpty ? null : assetPath;
+    }
+
     if (uri.hasScheme) {
       return null;
     }
@@ -177,7 +352,7 @@ class _MDRenderState extends State<MDRender> {
     return '${mdPath.substring(0, separator + 1)}$normalizedPath';
   }
 
-  Widget _buildImageError(String source, String? alt) {
+  Widget _buildMediaError(String source, String? alt) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -188,8 +363,38 @@ class _MDRenderState extends State<MDRender> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Text(
-        alt?.trim().isNotEmpty == true ? alt! : 'Unable to load image: $source',
+        alt?.trim().isNotEmpty == true ? alt! : 'Unable to load media: $source',
         style: const TextStyle(color: Color(0xFF475569)),
+      ),
+    );
+  }
+
+  Widget _buildMarkdownAudio(MarkdownImageConfig config) {
+    final Uri uri = config.uri;
+    final String? assetPath = _resolveAssetPath(uri);
+    if (assetPath != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: _MarkdownAudioPlayer(
+          assetPath: assetPath,
+          label: config.title,
+        ),
+      );
+    }
+
+    final List<Uri> resolvedUris = _resolveMarkdownUriCandidates(
+      uri.toString(),
+      preferFilesEndpoint: true,
+    );
+    if (resolvedUris.isEmpty) {
+      return _buildMediaError(uri.toString(), 'Unable to load audio');
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: _MarkdownAudioPlayer(
+        sourceUris: resolvedUris,
+        label: config.title,
       ),
     );
   }
@@ -199,7 +404,11 @@ class _MDRenderState extends State<MDRender> {
     final String? title = config.title;
     final String? alt = config.alt;
 
-    final String? assetPath = _resolveAssetImagePath(uri);
+    if (_isMarkdownAudioPlaceholder(alt, title)) {
+      return _buildMarkdownAudio(config);
+    }
+
+    final String? assetPath = _resolveAssetPath(uri);
     if (assetPath != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -209,7 +418,7 @@ class _MDRenderState extends State<MDRender> {
           height: config.height,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) =>
-              _buildImageError(assetPath, alt ?? title),
+              _buildMediaError(assetPath, alt ?? title),
         ),
       );
     }
@@ -217,7 +426,7 @@ class _MDRenderState extends State<MDRender> {
     final Uri? resolvedUri = _resolveMarkdownUri(uri.toString());
     if (resolvedUri == null ||
         (resolvedUri.scheme != 'http' && resolvedUri.scheme != 'https')) {
-      return _buildImageError(uri.toString(), alt ?? title);
+      return _buildMediaError(uri.toString(), alt ?? title);
     }
 
     return Padding(
@@ -228,7 +437,7 @@ class _MDRenderState extends State<MDRender> {
         height: config.height,
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) =>
-            _buildImageError(resolvedUri.toString(), alt ?? title),
+            _buildMediaError(resolvedUri.toString(), alt ?? title),
       ),
     );
   }
@@ -365,4 +574,270 @@ class _MDRenderState extends State<MDRender> {
       body: body,
     );
   }
+}
+
+class _MarkdownAudioPlayer extends StatefulWidget {
+  const _MarkdownAudioPlayer({
+    this.assetPath,
+    this.sourceUris,
+    this.label,
+  }) : assert(assetPath != null || sourceUris != null);
+
+  final String? assetPath;
+  final List<Uri>? sourceUris;
+  final String? label;
+
+  @override
+  State<_MarkdownAudioPlayer> createState() => _MarkdownAudioPlayerState();
+}
+
+class _MarkdownAudioPlayerState extends State<_MarkdownAudioPlayer> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final List<StreamSubscription<dynamic>> _subscriptions =
+      <StreamSubscription<dynamic>>[];
+
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  bool _isLoading = true;
+  bool _isPlaying = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _subscriptions.add(
+      _audioPlayer.positionStream.listen((Duration position) {
+        if (!mounted) return;
+        setState(() {
+          _position = position;
+        });
+      }),
+    );
+    _subscriptions.add(
+      _audioPlayer.durationStream.listen((Duration? duration) {
+        if (!mounted) return;
+        setState(() {
+          _duration = duration ?? Duration.zero;
+        });
+      }),
+    );
+    _subscriptions.add(
+      _audioPlayer.playerStateStream.listen((PlayerState state) {
+        if (state.processingState == ProcessingState.completed) {
+          _audioPlayer.seek(Duration.zero);
+          _audioPlayer.pause();
+        }
+        if (!mounted) return;
+        setState(() {
+          _isPlaying = state.playing;
+          _isLoading = state.processingState == ProcessingState.loading ||
+              state.processingState == ProcessingState.buffering;
+        });
+      }),
+    );
+
+    _loadAudio();
+  }
+
+  Future<void> _loadAudio() async {
+    try {
+      if (widget.assetPath != null) {
+        await _audioPlayer.setAsset(widget.assetPath!);
+      } else {
+        final String? filePath =
+            await _downloadMarkdownFilePath(widget.sourceUris!);
+        if (filePath == null) {
+          throw Exception('Unable to download audio file.');
+        }
+        await _audioPlayer.setFilePath(filePath);
+      }
+      if (!mounted) return;
+      setState(() {
+        _duration = _audioPlayer.duration ?? _duration;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Unable to load audio.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _togglePlayback() async {
+    if (_errorMessage != null || _isLoading) {
+      return;
+    }
+
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+      return;
+    }
+
+    await _audioPlayer.play();
+  }
+
+  Future<void> _seekTo(double value) async {
+    await _audioPlayer.seek(Duration(milliseconds: value.round()));
+  }
+
+  String get _displayLabel {
+    final String explicitLabel = widget.label?.trim() ?? '';
+    if (explicitLabel.isNotEmpty) {
+      return explicitLabel;
+    }
+
+    final String? rawSource =
+        widget.assetPath ?? _extractUriLabel(widget.sourceUris?.first);
+    if (rawSource == null || rawSource.isEmpty) {
+      return 'Audio';
+    }
+
+    return Uri.decodeComponent(rawSource.split('/').last);
+  }
+
+  String? _extractUriLabel(Uri? uri) {
+    if (uri == null) {
+      return null;
+    }
+    final List<String> segments =
+        uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+    if (segments.isNotEmpty) {
+      return segments.last;
+    }
+    return uri.host;
+  }
+
+  String _formatDuration(Duration duration) {
+    final int totalSeconds = duration.inSeconds;
+    final int hours = totalSeconds ~/ 3600;
+    final int minutes = (totalSeconds % 3600) ~/ 60;
+    final int seconds = totalSeconds % 60;
+
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+    if (hours > 0) {
+      return '${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}';
+    }
+    return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+
+  @override
+  void dispose() {
+    for (final StreamSubscription<dynamic> subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+    unawaited(_audioPlayer.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    if (_errorMessage != null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Text(
+          _errorMessage!,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF475569),
+          ),
+        ),
+      );
+    }
+
+    final int maxMilliseconds =
+        _duration.inMilliseconds > 0 ? _duration.inMilliseconds : 1;
+    final int currentMilliseconds =
+        _position.inMilliseconds.clamp(0, maxMilliseconds).toInt();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD8E4EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              IconButton(
+                onPressed: () {
+                  unawaited(_togglePlayback());
+                },
+                icon: Icon(
+                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  _displayLabel,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFF1F2937),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (_isLoading)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          Slider(
+            value: currentMilliseconds.toDouble(),
+            max: maxMilliseconds.toDouble(),
+            onChanged: _duration == Duration.zero
+                ? null
+                : (double value) {
+                    unawaited(_seekTo(value));
+                  },
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text(
+                _formatDuration(_position),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              Text(
+                _formatDuration(_duration),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+bool _isMarkdownAudioPlaceholder(String? alt, String? title) {
+  String normalize(String? value) =>
+      (value ?? '').toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+  const Set<String> acceptedTokens = <String>{
+    'strnadiaudio',
+  };
+
+  return acceptedTokens.contains(normalize(alt)) ||
+      acceptedTokens.contains(normalize(title));
 }
