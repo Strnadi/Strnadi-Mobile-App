@@ -1178,6 +1178,24 @@ class DatabaseNew {
       whereArgs: [0],
     );
 
+    await _resendUnsentPartRows(unsent);
+  }
+
+  /// Attempts to resend idle unsent parts for a single local recording.
+  static Future<void> resendUnsentPartsForRecording(int recordingId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> unsent = await db.query(
+      'recordingParts',
+      where:
+          'recordingId = ? AND sent = ? AND (sending IS NULL OR sending = 0)',
+      whereArgs: [recordingId, 0],
+    );
+
+    await _resendUnsentPartRows(unsent);
+  }
+
+  static Future<void> _resendUnsentPartRows(
+      List<Map<String, dynamic>> unsent) async {
     if (unsent.isEmpty) return;
 
     // Group parts by local recordingId to make sure we send the parent recording at most once
@@ -1228,10 +1246,16 @@ class DatabaseNew {
           // Now (whether BEId exists already or has just been created) try sending each idle part at most once.
           for (final m in partRows) {
             final part = RecordingPart.fromJson(m);
-            if (part.sent == true) continue;
-            if (part.sending == true ||
-                (part.id != null && _inflightPartIds.contains(part.id)))
+            if (part.sent == true) {
               continue;
+            }
+            if (part.sending == true ||
+                (part.id != null && _inflightPartIds.contains(part.id))) {
+              continue;
+            }
+            if (part.backendRecordingId == null && recording?.BEId != null) {
+              part.backendRecordingId = recording!.BEId;
+            }
 
             // Persist the sending flag immediately to avoid concurrent retries picking it up again.
             part.sending = true;

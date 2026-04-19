@@ -35,6 +35,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/locationService.dart';
+import 'package:strnadi/utils/location_label.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import 'editRecording.dart';
 import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
@@ -349,9 +350,70 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+  bool get _hasUnsentParts => parts.any((part) => !part.sent);
+
+  bool get _hasIdleUnsentParts =>
+      parts.any((part) => !part.sent && !part.sending);
+
+  Future<void> _refreshRecordingState() async {
+    final int? recordingId = widget.recording.id;
+    if (recordingId == null) return;
+
+    final Recording? refreshed =
+        await DatabaseNew.getRecordingFromDbById(recordingId);
+    if (!mounted || refreshed == null) return;
+
+    setState(() {
+      widget.recording = refreshed;
+    });
+  }
+
   Future<void> _fetchRecordings() async {
+    await _refreshRecordingState();
     await getParts();
     await _loadDialectDetails();
+  }
+
+  Future<void> _resendUnsentPartsForCurrentRecording() async {
+    final int? recordingId = widget.recording.id;
+    if (recordingId == null) return;
+
+    final bool? shouldResend = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t('recListItem.dialogs.unsentParts.title')),
+        content: Text(t('recListItem.dialogs.unsentParts.message')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(t('recListItem.dialogs.unsentParts.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(t('recListItem.dialogs.unsentParts.resend')),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldResend != true) return;
+
+    await _withLoader(() async {
+      try {
+        await DatabaseNew.resendUnsentPartsForRecording(recordingId);
+        await _refreshRecordingState();
+        await getParts();
+      } catch (e, stackTrace) {
+        logger.e('Error resending unsent parts for recording $recordingId: $e',
+            error: e, stackTrace: stackTrace);
+        Sentry.captureException(e, stackTrace: stackTrace);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        }
+      }
+    });
   }
 
   Future<bool> _ensureFileLoaded() async {
@@ -659,15 +721,10 @@ class _RecordingItemState extends State<RecordingItem> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data =
             jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-        final results = data['items'];
-        // covert this back to json object and decode the part into map<String, dynamic> to acces
-        logger.i(results);
-        if (results.isNotEmpty) {
-          logger.i("Reverse geocode result: $results");
-          var mun = data['items']['regionalStructure'];
-          logger.i('municipality: $mun');
+        final String? label = buildLocationLabel(data);
+        if (label != null) {
           setState(() {
-            placeTitle = results[0]['name'];
+            placeTitle = label;
           });
         }
       } else {
@@ -1179,6 +1236,20 @@ class _RecordingItemState extends State<RecordingItem> {
                                   }
                                 });
                               },
+                            ),
+                          ),
+                        ),
+                        Visibility(
+                          visible: widget.recording.sent && _hasUnsentParts,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.refresh),
+                              label: Text(
+                                  t('recListItem.buttons.resendUnsentParts')),
+                              onPressed: _hasIdleUnsentParts
+                                  ? _resendUnsentPartsForCurrentRecording
+                                  : null,
                             ),
                           ),
                         ),

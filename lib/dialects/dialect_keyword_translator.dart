@@ -62,6 +62,7 @@ class DialectKeywordTranslator {
       translationKey: 'dialectKeywords.noDialect',
       synonyms: [
         'No Dialect',
+        'None',
         'Without dialect',
         'Without Dialect',
         'Bez dialektu',
@@ -176,8 +177,7 @@ class DialectKeywordTranslator {
 
   static final Map<String, _DialectKeywordEntry> _synonymIndex = {
     for (final entry in _entries)
-      for (final synonym in entry.synonyms)
-        _normalize(synonym): entry,
+      for (final synonym in entry.synonyms) _normalize(synonym): entry,
   };
 
   static final Map<String, _DialectKeywordEntry> _englishIndex = {

@@ -171,7 +171,7 @@
       "title": "Přehled informací",
       "subtitle": "Přehled informací",
       "check_details": "Zkontrolujte prosím zadané údaje a potvrďte registraci.",
-      "marketing_consent": "Souhlasím se zasíláním marketingových sdělení",
+      "marketing_consent": "Souhlasím se zasíláním informací o projektu",
       "buttons": {
         "register": "Registrovat"
       },
@@ -408,7 +408,17 @@
       "recordingAuthor": {
         "all": "Všichni",
         "me": "Pouze já"
+      },
+      "recordingAge": {
+        "title": "Stáří nahrávek",
+        "older": "Starší",
+        "newer": "Novější",
+        "all": "Vše"
       }
+    },
+    "loading": {
+      "title": "Načítají se nahrávky",
+      "subtitle": "Body se na mapě objeví za okamžik."
     },
     "legend": {
       "title": "Legenda",
@@ -425,6 +435,10 @@
         "unfinished": "Nedokončený",
         "unassessed": "Nevyhodnoceno",
         "unusable": "Nepoužitelný"
+      },
+      "status": {
+        "aiAssisted": "Určeno pomocí AI",
+        "adminConfirmed": "Potvrzeno administrátorem"
       },
       "mapyCz": "Mapy.cz © Seznam.cz, a.s."
     }

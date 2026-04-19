@@ -170,7 +170,7 @@
     "overview": {
       "title": "Information overview",
       "subtitle": "Information overview",
-      "marketing_consent": "I agree to receive marketing communications",
+      "marketing_consent": "I agree to receive information about the project",
       "check_details": "Please check that your details are correct before confirming registration.",
       "buttons": {
         "register": "Register"
@@ -410,7 +410,17 @@
       "recordingAuthor": {
         "all": "All",
         "me": "Me only"
+      },
+      "recordingAge": {
+        "title": "Recording age",
+        "older": "Older",
+        "newer": "Newer",
+        "all": "All"
       }
+    },
+    "loading": {
+      "title": "Loading recordings",
+      "subtitle": "Markers will appear on the map in a moment."
     },
     "legend": {
       "title": "Legend",
@@ -427,6 +437,10 @@
         "unfinished": "Unfinished",
         "unassessed": "Unassessed",
         "unusable": "Unusable"
+      },
+      "status": {
+        "aiAssisted": "Identified with AI assistance",
+        "adminConfirmed": "Confirmed by admin"
       },
       "mapyCz": "Mapy.cz © Seznam.cz, a.s."
     }

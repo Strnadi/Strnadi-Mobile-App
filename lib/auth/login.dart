@@ -24,6 +24,7 @@ import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/email_validator.dart';
 import 'package:strnadi/auth/appleAuth.dart' as apple;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
 import 'package:strnadi/auth/registeration/nameReg.dart';
@@ -155,20 +156,20 @@ class _LoginState extends State<Login> {
   }
 
   void login() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    final String email = _emailController.text.trim();
+    if (email.isEmpty || _passwordController.text.isEmpty) {
       _showMessage(t('login.errors.emptyFieldsError'));
       return;
     }
 
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!emailRegex.hasMatch(_emailController.text)) {
+    if (!EmailValidator.isValid(email)) {
       _showMessage(t('login.errors.invalidEmailError'));
       return;
     }
 
     try {
       final response = await _authController.login(
-        email: _emailController.text,
+        email: email,
         password: _passwordController.text,
       );
 
@@ -202,7 +203,7 @@ class _LoginState extends State<Login> {
             context,
             MaterialPageRoute(
               builder: (_) => EmailNotVerified(
-                userEmail: _emailController.text,
+                userEmail: email,
                 userId: userId!,
               ),
             ),

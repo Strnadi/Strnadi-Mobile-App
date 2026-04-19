@@ -18,9 +18,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:strnadi/database/Models/userData.dart';
 
-import '../database/databaseNew.dart';
-
-
 class UserBadge extends StatefulWidget {
   final UserData user;
 
@@ -36,36 +33,40 @@ class _UserBadgeState extends State<UserBadge> {
   @override
   void initState() {
     super.initState();
-    if (widget.user.ProfilePic != null){
-
+    if (widget.user.ProfilePic != null) {
       profileImageBytes = base64Decode(widget.user.ProfilePic!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final String? nickname = widget.user.NickName?.trim();
+    final bool hasNickname = nickname != null && nickname.isNotEmpty;
+    final String displayName = hasNickname
+        ? nickname
+        : '${widget.user.FirstName} ${widget.user.LastName}'.trim();
+
     return Row(
       children: [
-        if (widget.user.ProfilePic != null ) CircleAvatar(
-          radius: 20,
-          backgroundImage: MemoryImage(profileImageBytes),
-        ) else CircleAvatar(radius: 20, backgroundImage: AssetImage("./assets/images/default.jpg"),),
+        if (widget.user.ProfilePic != null)
+          CircleAvatar(
+            radius: 20,
+            backgroundImage: MemoryImage(profileImageBytes),
+          )
+        else
+          CircleAvatar(
+            radius: 20,
+            backgroundImage: AssetImage("./assets/images/default.jpg"),
+          ),
         const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.user.NickName ?? '${widget.user.FirstName} ${widget.user.LastName}',
+              displayName,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
-              ),
-            ),
-            Text(
-              widget.user.NickName != null ? "${widget.user.FirstName} ${widget.user.LastName}" : "Uzivatel nema prezdivku",
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
               ),
             ),
           ],

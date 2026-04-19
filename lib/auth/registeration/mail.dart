@@ -19,6 +19,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/email_validator.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/auth/authorizator.dart';
@@ -108,8 +109,7 @@ class _RegMailState extends State<RegMail> {
   }
 
   bool isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    return emailRegex.hasMatch(email);
+    return EmailValidator.isValid(email);
   }
 
   void _showMessage(String message) {

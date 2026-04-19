@@ -170,7 +170,7 @@
     "overview": {
       "title": "Informationsübersicht",
       "subtitle": "Informationsübersicht",
-      "marketing_consent": "Ich stimme dem Erhalt von Marketing-Mitteilungen zu",
+      "marketing_consent": "Ich stimme dem Erhalt von Projektinformationen zu",
       "check_details": "Bitte überprüfen Sie die eingegebenen Daten und bestätigen Sie die Registrierung.",
       "buttons": {
         "register": "Registrieren"
@@ -408,7 +408,17 @@
       "recordingAuthor": {
         "all": "Alle",
         "me": "Nur ich"
+      },
+      "recordingAge": {
+        "title": "Alter der Aufnahmen",
+        "older": "Ältere",
+        "newer": "Neuere",
+        "all": "Alle"
       }
+    },
+    "loading": {
+      "title": "Aufnahmen werden geladen",
+      "subtitle": "Die Markierungen erscheinen gleich auf der Karte."
     },
     "legend": {
       "title": "Legende",
@@ -425,6 +435,10 @@
         "unfinished": "Unvollständig",
         "unassessed": "Nicht bewertet",
         "unusable": "Unbrauchbar"
+      },
+      "status": {
+        "aiAssisted": "Mit KI-Unterstützung bestimmt",
+        "adminConfirmed": "Vom Admin bestätigt"
       },
       "mapyCz": "Mapy.cz © Seznam.cz, a.s."
     }

@@ -42,6 +42,7 @@ import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:dio/dio.dart';
 import '../config/config.dart';
 import '../navigation/scaffold_with_bottom_bar.dart'; // Contains MAPY_CZ_API_KEY
+import '../utils/location_label.dart';
 
 final logger = Logger();
 
@@ -943,11 +944,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final results = data['items'];
-        if (results.isNotEmpty) {
-          logger.i("Reverse geocode result: $results");
+        final String? label = buildLocationLabel(data);
+        if (label != null) {
           setState(() {
-            placeTitle = results[0]['name'];
+            placeTitle = label;
           });
         }
       } else {

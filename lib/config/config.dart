@@ -52,6 +52,7 @@ class Config {
   static Map<String, dynamic>? _Fconfig;
 
   static const String _dataUsagePrefKey = 'data_usage_option';
+  static const String _legacyCellularPrefKey = 'CellularData';
   static DataUsageOption? _dataUsageOption;
   static const String _languagePrefKey = 'preferred_language';
   static const Set<String> _supportedLanguageCodes = {'cs', 'en', 'de'};
@@ -98,15 +99,26 @@ class Config {
   static Future<void> loadDataUsageOption() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_dataUsagePrefKey);
+    final bool? legacyCellular = prefs.getBool(_legacyCellularPrefKey);
     if (raw == null) {
-      // First launch: default to Wi-Fi only and save
-      _dataUsageOption = DataUsageOption.wifiOnly;
+      _dataUsageOption = legacyCellular == true
+          ? DataUsageOption.wifiAndMobile
+          : DataUsageOption.wifiOnly;
       await prefs.setString(_dataUsagePrefKey, _dataUsageOption.toString());
     } else {
       _dataUsageOption = DataUsageOption.values.firstWhere(
         (e) => e.toString() == raw,
         orElse: () => DataUsageOption.wifiOnly,
       );
+      if (legacyCellular != null) {
+        final DataUsageOption legacyOption = legacyCellular
+            ? DataUsageOption.wifiAndMobile
+            : DataUsageOption.wifiOnly;
+        if (legacyOption != _dataUsageOption) {
+          _dataUsageOption = legacyOption;
+          await prefs.setString(_dataUsagePrefKey, _dataUsageOption.toString());
+        }
+      }
     }
   }
 

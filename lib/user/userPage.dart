@@ -350,26 +350,38 @@ class _UserPageState extends State<UserPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        GestureDetector(
-                          onTap: !_isLoading ? pickProfileImage : null,
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundImage: profileImagePath != null
-                                ? FileImage(File(profileImagePath!))
-                                : const AssetImage(
-                                        './assets/images/default.jpg')
-                                    as ImageProvider,
-                          ),
-                        ),
-                        Text(
-                          "$userName $lastName",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (nickName.isNotEmpty && nickName != 'null')
-                          Text("($nickName)"),
+                        Builder(builder: (context) {
+                          final String normalizedNick = nickName.trim();
+                          final bool hasNickname = normalizedNick.isNotEmpty &&
+                              normalizedNick != 'null' &&
+                              normalizedNick != 'nickName';
+                          final String displayName = hasNickname
+                              ? normalizedNick
+                              : '$userName $lastName';
+
+                          return Column(
+                            children: [
+                              GestureDetector(
+                                onTap: !_isLoading ? pickProfileImage : null,
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundImage: profileImagePath != null
+                                      ? FileImage(File(profileImagePath!))
+                                      : const AssetImage(
+                                              './assets/images/default.jpg')
+                                          as ImageProvider,
+                                ),
+                              ),
+                              Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
                       ],
                     ),
                   ),

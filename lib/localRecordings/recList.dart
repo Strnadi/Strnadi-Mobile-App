@@ -43,6 +43,7 @@ import '../exceptions.dart';
 import '../navigation/notification_bell_button.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import '../navigation/session_navigation.dart';
+import '../utils/location_label.dart';
 
 final logger = Logger();
 
@@ -816,11 +817,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final results = data['items'];
-        if (results.isNotEmpty) {
-          logger.i("Reverse geocode result: $results");
-          return results[0]['name'];
-        }
+        final String? label = buildLocationLabel(data);
+        if (label != null) return label;
       } else {
         logger.e(
             "Reverse geocode failed with status code ${response.statusCode}");
