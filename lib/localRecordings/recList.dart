@@ -95,8 +95,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
-    Connectivity().checkConnectivity().then((result) {
-      if (result == ConnectivityResult.none) {
+    Connectivity().checkConnectivity().then((results) {
+      final isOffline =
+          results.every((result) => result == ConnectivityResult.none);
+      if (isOffline) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           showDialog(
             context: context,

@@ -43,9 +43,9 @@ import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/map/filtered_parts_api_loader.dart';
 import 'package:strnadi/map/RecordingPage.dart';
 import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
@@ -109,11 +109,11 @@ class MapScreenV2 extends StatefulWidget {
 }
 
 class _MapScreenV2State extends State<MapScreenV2> {
-  static const FilteredRecordingsController _filteredRecordingsController =
-      FilteredRecordingsController();
   static const RecordingsController _recordingsController =
       RecordingsController();
   static const UserController _userController = UserController();
+  final FilteredPartsApiLoader _filteredPartsApiLoader =
+      FilteredPartsApiLoader(logger: logger);
 
   late bool _clusterPoints = false;
 
@@ -124,74 +124,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
   bool _hasCachedDialectData = false;
   bool _isLoadingRecordings = true;
   int _activeRecordingsRequestId = 0;
-
-  /// Loads filtered recording parts from the public BE endpoint instead of the local DB cache.
-  /// When [verified] is true, the BE returns only FRPs with workflow states indicating verification (1 or 2).
-  /// When false, the BE can return also unverified FRPs.
-  Future<({List<FilteredRecordingPart> frps, List<DetectedDialect> dds})>
-      _fetchFilteredPartsFromApi({
-    int? recordingId,
-    required bool verified,
-  }) async {
-    try {
-      logger.i(
-          '[MapV2] GET /recordings/filtered recordingId=$recordingId verified=$verified');
-      final resp = await _filteredRecordingsController.fetchFilteredParts(
-        recordingId: recordingId,
-        verified: verified,
-      );
-
-      if (resp.statusCode == 204) {
-        logger.i('[MapV2] /recordings/filtered returned 204 No Content');
-        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-      }
-      if (resp.statusCode != 200) {
-        logger.e('[MapV2] /recordings/filtered failed: ' +
-            resp.statusCode.toString() +
-            ' body=' +
-            resp.data.toString());
-        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-      }
-
-      final dynamic decoded =
-          resp.data is String ? jsonDecode(resp.data as String) : resp.data;
-      if (decoded is! List) {
-        logger.w('[MapV2] /recordings/filtered returned non-list payload');
-        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-      }
-      final List<dynamic> jsonArr = decoded;
-      final frps = <FilteredRecordingPart>[];
-      final dds = <DetectedDialect>[];
-
-      for (final item in jsonArr) {
-        if (item is! Map<String, dynamic>) continue;
-        final frp = FilteredRecordingPart.fromBEJson(item);
-        frps.add(frp);
-
-        final List<dynamic>? dialects =
-            item['detectedDialects'] as List<dynamic>?;
-        if (dialects != null) {
-          for (final d in dialects) {
-            if (d is! Map<String, dynamic>) continue;
-            final row = DetectedDialect.fromBEJson(d,
-                parentFilteredPartBEID: frp.BEId ?? -1);
-            dds.add(row);
-          }
-        }
-      }
-
-      logger.i('[MapV2] /recordings/filtered parsed: FRPs=' +
-          frps.length.toString() +
-          ', DDs=' +
-          dds.length.toString());
-      return (frps: frps, dds: dds);
-    } catch (e, st) {
-      logger.e('[MapV2] /recordings/filtered exception: ' + e.toString(),
-          error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
-      return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-    }
-  }
 
   final MapController _mapController = MapController();
   // Legend dialect codes (start with local defaults; replace with BE list when available)
@@ -206,7 +138,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
   // Map local recordingId -> BEId (server id) for consistent lookups
   final Map<int, int> _recLocalToBE = {};
   final Map<int, Recording> _recordingsByBeId = {};
-  static final DateTime _oldRecordingCutoff = DateTime(2024, 1, 1);
+  static final DateTime _oldProjectStart = DateTime(2011, 1, 1);
+  static final DateTime _oldProjectEnd = DateTime(2017, 1, 1);
+  static final DateTime _newProjectStart = DateTime(2025, 1, 1);
   static const double _ungroupedBoundsPaddingFactor = 0.18;
 
   final secureStorage = const FlutterSecureStorage();
@@ -302,9 +236,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
       case RecordingAgeFilter.all:
         return true;
       case RecordingAgeFilter.newer:
-        return !recording.createdAt.isBefore(_oldRecordingCutoff);
+        return !recording.createdAt.isBefore(_newProjectStart);
       case RecordingAgeFilter.older:
-        return recording.createdAt.isBefore(_oldRecordingCutoff);
+        return !recording.createdAt.isBefore(_oldProjectStart) &&
+            recording.createdAt.isBefore(_oldProjectEnd);
     }
   }
 
@@ -594,7 +529,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       final List<FilteredRecordingPart> frps;
       final List<DetectedDialect> dds;
       if (refreshFromApi || !_hasCachedDialectData) {
-        final api = await _fetchFilteredPartsFromApi(
+        final api = await _filteredPartsApiLoader.fetch(
           verified: false,
         );
         if (requestId != null && requestId != _activeRecordingsRequestId) {

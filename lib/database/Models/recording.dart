@@ -17,6 +17,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/utils/log_redactor.dart';
 
 class Recording {
   int? id;
@@ -150,7 +151,8 @@ class Recording {
 
   Future<Map<String, Object?>> toBEJson() async {
     final String? deviceId = await FlutterSecureStorage().read(key: 'fcmToken');
-    logger.i('Fetched deviceId for BE JSON: $deviceId');
+    logger.i(
+        'Fetched deviceId for BE JSON: ${deviceId != null && deviceId.isNotEmpty}');
     final Map<String, Object?> body = {
       'id': BEId,
       'createdAt': createdAt.toIso8601String(),
@@ -162,7 +164,7 @@ class Recording {
       'expectedPartsCount': partCount,
       'deviceId': deviceId,
     };
-    logger.i('Generated BE JSON for Recording: $body');
+    logger.i('Generated BE JSON for Recording: ${LogRedactor.redactMap(body)}');
     return body;
   }
 

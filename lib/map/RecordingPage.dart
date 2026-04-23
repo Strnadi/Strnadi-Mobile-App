@@ -104,10 +104,18 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   final MapController _mapController = MapController();
 
-  String placeTitle = 'Mapa';
+  String placeTitle = t('recListItem.placeTitle');
 
   double length = 0;
   int mililen = 0;
+
+  String get _recordingTitle {
+    final String? explicitName = widget.recording.name?.trim();
+    if (explicitName != null && explicitName.isNotEmpty) {
+      return explicitName;
+    }
+    return placeTitle;
+  }
 
   @override
   void initState() {
@@ -918,13 +926,13 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         widget.recording.path!.isNotEmpty) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.list,
-        appBarTitle: widget.recording.name ?? '',
+        appBarTitle: _recordingTitle,
         content: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.recording.name ?? ''),
+        title: Text(_recordingTitle),
         leading: IconButton(
           icon:
               Image.asset('assets/icons/backButton.png', width: 30, height: 30),

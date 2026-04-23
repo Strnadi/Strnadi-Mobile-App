@@ -207,11 +207,12 @@ Future<void> addDevice() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     FirebaseMessaging messaging = FirebaseMessaging.instance;
     String? token = await messaging.getToken();
-    logger.i("Firebase token: $token");
+    logger.i("Firebase token available: ${token != null && token.isNotEmpty}");
 
     DeviceInfo deviceInfo = await getDeviceInfo();
-    final String? jwt = await secureStorage.read(key: 'token');
-    logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+    final bool hasJwt =
+        (await secureStorage.read(key: 'token'))?.isNotEmpty == true;
+    logger.i('JWT token available: $hasJwt; sending device token to server');
     String? userIdS = await secureStorage.read(key: 'userId');
     while (userIdS == null) {
       await Future.delayed(Duration(seconds: 1));
@@ -252,8 +253,10 @@ Future<void> updateDevice(String? oldToken, String? newToken) async {
   }
 
   try {
-    final String? jwt = await const FlutterSecureStorage().read(key: 'token');
-    logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+    final bool hasJwt =
+        (await const FlutterSecureStorage().read(key: 'token'))?.isNotEmpty ==
+            true;
+    logger.i('JWT token available: $hasJwt; updating device token on server');
     final response = await _deviceController
         .updateDevice({'newFCMToken': newToken, 'oldFCMToken': oldToken});
     if (response.statusCode == 200) {
@@ -302,7 +305,8 @@ Future<void> refreshToken() async {
     if (newToken != oldToken) {
       await updateDevice(oldToken, newToken!);
     }
-    logger.i('Firebase token $newToken');
+    logger.i(
+        "Firebase token available: ${newToken != null && newToken.isNotEmpty}");
   }
 }
 
@@ -330,7 +334,7 @@ Future<void> initFirebaseMessaging() async {
 
   // Listen for token refresh.
   messaging.onTokenRefresh.listen((newToken) async {
-    logger.i("Token refreshed: $newToken");
+    logger.i("Firebase token refreshed");
     String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
     if (oldToken != null) {
       await updateDevice(oldToken, newToken);

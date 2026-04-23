@@ -77,3 +77,5 @@ android/pepk.jar
 android/upload_cert.der
 
 delete.sh
+
+build.env.json

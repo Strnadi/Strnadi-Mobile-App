@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:logger/logger.dart';
@@ -22,8 +23,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
-
-import '../main.dart';
 
 /// User preference for mobile data usage
 enum DataUsageOption { wifiOnly, wifiAndMobile }
@@ -58,11 +57,38 @@ class Config {
   static const Set<String> _supportedLanguageCodes = {'cs', 'en', 'de'};
   static const String _hostEnvPrefKey = 'host_environment';
   static HostEnvironment? _hostEnv;
+  static VoidCallback? onHostEnvironmentChanged;
 
-  // Load config.json
+  static const String _defaultHost = String.fromEnvironment(
+    'STRNADI_API_HOST',
+    defaultValue: 'api.strnadi.cz',
+  );
+  static const String _defaultDevHost = String.fromEnvironment(
+    'STRNADI_DEV_API_HOST',
+    defaultValue: '',
+  );
+  static const String _defaultMapyCzKey = String.fromEnvironment(
+    'STRNADI_MAPY_CZ_KEY',
+    defaultValue: '',
+  );
+  static const String _firebaseServiceAccountJson = String.fromEnvironment(
+    'FIREBASE_SERVICE_ACCOUNT_JSON',
+    defaultValue: '',
+  );
+  static const String _firebaseProjectId = String.fromEnvironment(
+    'FIREBASE_PROJECT_ID',
+    defaultValue: '',
+  );
+
+  // Load public config defaults. Sensitive values must come from dart-define.
   static Future<void> loadConfig() async {
-    String jsonString = await rootBundle.loadString('assets/secrets.json');
-    _config = json.decode(jsonString);
+    final assetConfig = await _loadJsonAsset('assets/config.json');
+    _config = <String, dynamic>{
+      'host': _defaultHost,
+      if (_defaultDevHost.isNotEmpty) 'devhost': _defaultDevHost,
+      'mapy.cz-key': _defaultMapyCzKey,
+      ...assetConfig,
+    };
     await loadDataUsageOption();
     await loadHostEnvironment();
   }
@@ -90,9 +116,25 @@ class Config {
   }
 
   static Future<void> loadFirebaseConfig() async {
-    String jsonString =
-        await rootBundle.loadString('assets/firebase-secrets.json');
-    _Fconfig = json.decode(jsonString);
+    if (_firebaseServiceAccountJson.isNotEmpty) {
+      if (kReleaseMode) {
+        logger.w(
+          'Ignoring FIREBASE_SERVICE_ACCOUNT_JSON in release builds. Send push notifications from a backend service instead.',
+        );
+        _Fconfig = <String, dynamic>{
+          if (_firebaseProjectId.isNotEmpty) 'project_id': _firebaseProjectId,
+        };
+        return;
+      }
+      final decoded = json.decode(_firebaseServiceAccountJson);
+      _Fconfig =
+          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      return;
+    }
+
+    _Fconfig = <String, dynamic>{
+      if (_firebaseProjectId.isNotEmpty) 'project_id': _firebaseProjectId,
+    };
   }
 
   /// Loads the user's mobile data preference from SharedPreferences
@@ -152,7 +194,7 @@ class Config {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_hostEnvPrefKey, env.toString());
     _hostEnv = env;
-    myAppKey.currentState?.refreshBadge();
+    onHostEnvironmentChanged?.call();
   }
 
   /// Sets the user's mobile data preference
@@ -195,7 +237,7 @@ class Config {
     if (_config == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    return _config!["mapy.cz-key"];
+    return _config!["mapy.cz-key"] as String? ?? '';
   }
 
   static String get host {
@@ -203,17 +245,18 @@ class Config {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
     final useDev = (hostEnvironment == HostEnvironment.dev);
-    if (useDev && _config!.containsKey("devhost")) {
-      return _config!["devhost"];
+    final devHost = _config!["devhost"] as String?;
+    if (useDev && devHost != null && devHost.isNotEmpty) {
+      return devHost;
     }
-    return _config!["host"];
+    return _config!["host"] as String;
   }
 
   static String get firebaseProjectId {
     if (_Fconfig == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    return _Fconfig!["project_id"];
+    return _Fconfig!["project_id"] as String? ?? '';
   }
 
   static Map<String, dynamic>? get firebaseServiceAccountJson {
@@ -256,8 +299,8 @@ class Config {
 
   /// Checks whether the device has any network connectivity (basic)
   static Future<bool> get hasBasicInternet async {
-    final result = await Connectivity().checkConnectivity();
-    return result != ConnectivityResult.none;
+    final results = await Connectivity().checkConnectivity();
+    return _hasNetworkTransport(results);
   }
 
   /// Checks whether the backend is reachable (via health endpoint)
@@ -273,11 +316,34 @@ class Config {
   /// Determines if upload operations are allowed based on connectivity, backend, and user preference
   static Future<bool> get canUpload async {
     if (!await hasBasicInternet) return false;
-    final conn = await Connectivity().checkConnectivity();
-    if (conn == ConnectivityResult.mobile &&
+    final connections = await Connectivity().checkConnectivity();
+    if (_usesMobileData(connections) &&
         dataUsageOption == DataUsageOption.wifiOnly) {
       return false;
     }
     return await isBackendAvailable;
+  }
+
+  static Future<Map<String, dynamic>> _loadJsonAsset(String path) async {
+    try {
+      final jsonString = await rootBundle.loadString(path);
+      final decoded = json.decode(jsonString);
+      return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    } on FlutterError catch (e) {
+      logger.w('Optional config asset $path is not available: ${e.message}');
+      return <String, dynamic>{};
+    } on FormatException catch (e, stackTrace) {
+      logger.e('Invalid JSON in config asset $path',
+          error: e, stackTrace: stackTrace);
+      return <String, dynamic>{};
+    }
+  }
+
+  static bool _hasNetworkTransport(List<ConnectivityResult> results) {
+    return results.any((result) => result != ConnectivityResult.none);
+  }
+
+  static bool _usesMobileData(List<ConnectivityResult> results) {
+    return results.contains(ConnectivityResult.mobile);
   }
 }

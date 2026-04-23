@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/api_logger.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/utils/log_redactor.dart';
 
 class ApiDioClient {
   ApiDioClient._();
@@ -23,10 +24,6 @@ class ApiDioClient {
 
   static bool _initialized = false;
   static int _requestCounter = 0;
-
-  static const Set<String> _sensitiveQueryKeys = <String>{
-
-  };
 
   static Dio get instance {
     if (!_initialized) {
@@ -66,13 +63,8 @@ class ApiDioClient {
             }
           }
 
-          final Map<String, dynamic> sanitizedHeaders =
-              Map<String, dynamic>.from(options.headers);
-          if (sanitizedHeaders.containsKey('Authorization')) {
-            //sanitizedHeaders['Authorization'] = '***';
-          }
-
-          final Uri sanitizedUri = _sanitizeUri(options.uri);
+          final sanitizedHeaders = LogRedactor.redactMap(options.headers);
+          final Uri sanitizedUri = LogRedactor.redactUri(options.uri);
 
           apiLogger.i(
               '[API][$requestId] ${options.method} $sanitizedUri | headers=$sanitizedHeaders');
@@ -86,7 +78,8 @@ class ApiDioClient {
           final int elapsedMs = startedAt == null
               ? -1
               : DateTime.now().millisecondsSinceEpoch - startedAt;
-          final Uri sanitizedUri = _sanitizeUri(response.requestOptions.uri);
+          final Uri sanitizedUri =
+              LogRedactor.redactUri(response.requestOptions.uri);
 
           apiLogger.i(
               '[API][$requestId] ${response.requestOptions.method} $sanitizedUri '
@@ -101,7 +94,8 @@ class ApiDioClient {
           final int elapsedMs = startedAt == null
               ? -1
               : DateTime.now().millisecondsSinceEpoch - startedAt;
-          final Uri sanitizedUri = _sanitizeUri(error.requestOptions.uri);
+          final Uri sanitizedUri =
+              LogRedactor.redactUri(error.requestOptions.uri);
 
           apiLogger.e(
             '[API][$requestId] ${error.requestOptions.method} $sanitizedUri '
@@ -115,25 +109,5 @@ class ApiDioClient {
     );
 
     _initialized = true;
-  }
-
-  static Uri _sanitizeUri(Uri uri) {
-    if (uri.queryParametersAll.isEmpty) {
-      return uri;
-    }
-
-    final Map<String, List<String>> redacted = <String, List<String>>{};
-    uri.queryParametersAll.forEach((key, values) {
-      final String lowerKey = key.toLowerCase();
-      final bool isSensitive = _sensitiveQueryKeys
-          .any((sensitiveKey) => lowerKey.contains(sensitiveKey.toLowerCase()));
-      redacted[key] = isSensitive ? <String>['***'] : values;
-    });
-
-    return uri.replace(queryParameters: null).replace(
-          queryParameters: redacted.map(
-            (key, values) => MapEntry(key, values.isEmpty ? '' : values.first),
-          ),
-        );
   }
 }

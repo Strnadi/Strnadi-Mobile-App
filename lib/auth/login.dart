@@ -173,7 +173,7 @@ class _LoginState extends State<Login> {
         password: _passwordController.text,
       );
 
-      logger.i('Login response: ${response.statusCode} | ${response.data}');
+      logger.i('Login response status: ${response.statusCode}');
       final String token = response.data.toString();
 
       if (response.statusCode == 200 || response.statusCode == 202) {
@@ -224,7 +224,7 @@ class _LoginState extends State<Login> {
         if (userId != null) {
           _trackLogin(method: 'password', userId: userId, verified: true);
         }
-        logger.i(token);
+        logger.i('Login token stored');
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
         await navigateToSessionLanding(context);
