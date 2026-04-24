@@ -17,37 +17,24 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:strnadi/auth/authorizator.dart';
-import 'package:strnadi/auth/login.dart';
-import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/auth/passReset/newPassword.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:sentry_logging/sentry_logging.dart';
 import 'package:strnadi/auth/unverifiedEmail.dart';
 import 'package:strnadi/updateChecker.dart';
 import 'auth/emailVerificationResult/notSuccessVerify.dart';
 import 'auth/emailVerificationResult/successVerify.dart';
-import 'package:strnadi/localization/localization.dart';
-import 'firebase/firebase.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'package:strnadi/maintanance.dart';
 import 'package:strnadi/config/config.dart'; // ensure Config and ServerHealth are in scope
 import 'package:strnadi/database/databaseNew.dart';
-import 'package:strnadi/callback_dispatcher.dart';
-import 'package:workmanager/workmanager.dart';
 import 'deep_link_handler.dart';
-import 'package:app_links/app_links.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:strnadi/dialects/dynamicIcon.dart';
-
-import 'package:firebase_core/firebase_core.dart';
+import 'package:strnadi/bootstrap/app_bootstrap.dart';
+import 'package:strnadi/localization/localization.dart';
 
 import 'privacy/tracking_consent.dart';
 
@@ -147,47 +134,7 @@ void main() {
     // Register global upload progress bridge so background isolates can report to UI
     UploadProgressBridge.instance.start();
 
-    // 1) Firebase initialization
-    await Firebase.initializeApp();
-    await Config.loadConfig();
-    await Config.loadFirebaseConfig();
-
-    // Warm the dialect-color cache from the server (non-blocking)
-    unawaited(DynamicIcon.refreshAllDialects());
-
-    // 2) Workmanager initialization
-    Workmanager().initialize(
-      callbackDispatcher, // The top-level function
-      isInDebugMode: false,
-    );
-
-    // Load localized strings from JSON.
-    await Localization.load(null);
-
-    await Config.loadConfig();
-    await Config.loadFirebaseConfig();
-    // 3) Foreground‑task setup
-    FlutterForegroundTask.initCommunicationPort();
-    FlutterForegroundTask.init(
-      androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'strnadi_hlavni_sluzba',
-        channelName: 'Strnadi – služba na pozadí',
-        channelDescription:
-            'Trvalá notifikace služby Strnadi, která zajišťuje chod aplikace i při běhu na pozadí.',
-        channelImportance: NotificationChannelImportance.DEFAULT,
-        priority: NotificationPriority.DEFAULT,
-        onlyAlertOnce: true,
-      ),
-      iosNotificationOptions: const IOSNotificationOptions(
-        showNotification: true,
-        playSound: false,
-      ),
-      foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(600000),
-        autoRunOnBoot: true,
-        allowWakeLock: true,
-      ),
-    );
+    await AppBootstrap.initializeBeforeConsent();
 
     // 4) Handle tracking consent before finishing app bootstrap
     final trackingAuthorized =
@@ -241,10 +188,7 @@ class _PermissionGateState extends State<PermissionGate> {
 }
 
 Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
-  // 4) Ostatní inicializace
-  await Config.loadConfig();
-  await Config.loadFirebaseConfig();
-  initFirebase();
+  await AppBootstrap.initializeRuntimeServices();
 
   DeepLinkHandler().setNavigatorKey(navigatorKey);
 
@@ -256,20 +200,8 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
       return;
     }
 
-    // Initialize your database and other services.
-    logger.i('Loading database');
-    try {
-      await DatabaseNew.initDb();
-      await DatabaseNew.enforceMaxRecordings();
-      await DatabaseNew.checkSendingRecordings();
-    } catch (e, stack) {
-      logger.e('Error initializing database: $e', error: e, stackTrace: stack);
-    }
-    logger.i('Loaded Database');
-
-    // Init Firebase messaging + lokální notifikace
-    initFirebaseMessaging();
-    initLocalNotifications();
+    await AppBootstrap.initializeDatabase(logger);
+    AppBootstrap.initializeNotifications();
 
     runApp(MyApp(key: myAppKey));
 
@@ -279,27 +211,11 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
     });
   }
 
-  if (trackingAuthorized) {
-    await SentryFlutter.init(
-      (options) {
-        options
-          ..dsn =
-              'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
-          ..addIntegration(LoggingIntegration())
-          ..profilesSampleRate = 1.0
-          ..tracesSampleRate = 1.0
-          ..replay.sessionSampleRate = 1.0
-          ..replay.onErrorSampleRate = 1.0
-          ..environment = kDebugMode ? 'development' : 'production';
-      },
-      appRunner: () async {
-        await runAppBootstrap();
-      },
-    );
-  } else {
-    logger.i('Tracking consent denied – starting without Sentry telemetry.');
-    await runAppBootstrap();
-  }
+  await AppBootstrap.runWithTelemetry(
+    trackingAuthorized: trackingAuthorized,
+    logger: logger,
+    appRunner: runAppBootstrap,
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -314,6 +230,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Config.onHostEnvironmentChanged = refreshBadge;
     TrackingConsentManager.ensureObserver();
     unawaited(TrackingConsentManager.captureEvent('app_opened', properties: {
       'environment': Config.hostEnvironment.name,
@@ -323,6 +240,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (Config.onHostEnvironmentChanged == refreshBadge) {
+      Config.onHostEnvironmentChanged = null;
+    }
     super.dispose();
   }
 

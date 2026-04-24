@@ -8,19 +8,22 @@ String? buildLocationLabel(dynamic payload) {
   final Map<String, dynamic>? primaryItem =
       items.isNotEmpty ? _asMap(items.first) : null;
 
-  final String? placeName =
-      _extractText(primaryItem?['name']) ?? _extractText(data['name']);
   final String? municipality =
       _extractMunicipality(primaryItem) ?? _extractMunicipality(data);
+  final String? streetOrAddress =
+      _extractStreetOrAddress(primaryItem) ?? _extractStreetOrAddress(data);
+  final String? placeName =
+      _extractText(primaryItem?['name']) ?? _extractText(data['name']);
+  final String? detail = streetOrAddress ?? placeName;
 
-  if (municipality != null && placeName != null) {
-    if (_normalizeForCompare(municipality) == _normalizeForCompare(placeName)) {
+  if (municipality != null && detail != null) {
+    if (_normalizeForCompare(municipality) == _normalizeForCompare(detail)) {
       return municipality;
     }
-    return '$municipality, $placeName';
+    return '$municipality, $detail';
   }
 
-  return municipality ?? placeName;
+  return municipality ?? detail;
 }
 
 List<dynamic> _asList(dynamic value) {
@@ -56,6 +59,39 @@ String? _extractMunicipality(Map<String, dynamic>? source) {
   if (regional != null) return regional;
 
   final String? address = _extractMunicipalityFromStructure(source['address']);
+  if (address != null) return address;
+
+  return null;
+}
+
+String? _extractStreetOrAddress(Map<String, dynamic>? source) {
+  if (source == null) return null;
+
+  final String? direct = _firstNonEmpty(
+    <dynamic>[
+      source['street'],
+      source['streetName'],
+      source['addressLine'],
+      source['streetAndNumber'],
+    ],
+  );
+  if (direct != null) return direct;
+
+  final String type = _extractType(source);
+  if (_isStreetOrAddressType(type)) {
+    final String? typedName = _firstNonEmpty(
+      <dynamic>[source['name'], source['label'], source['title']],
+    );
+    if (typedName != null) return typedName;
+  }
+
+  final String? regional = _extractStreetOrAddressFromStructure(
+    source['regionalStructure'],
+  );
+  if (regional != null) return regional;
+
+  final String? address =
+      _extractStreetOrAddressFromStructure(source['address']);
   if (address != null) return address;
 
   return null;
@@ -117,6 +153,45 @@ String? _extractMunicipalityFromStructure(dynamic value) {
   return fallback;
 }
 
+String? _extractStreetOrAddressFromStructure(dynamic value) {
+  final Map<String, dynamic>? single = _asMap(value);
+  if (single != null) {
+    final String? direct = _firstNonEmpty(
+      <dynamic>[
+        single['street'],
+        single['streetName'],
+        single['addressLine'],
+        single['streetAndNumber'],
+      ],
+    );
+    if (direct != null) return direct;
+
+    final String type = _extractType(single);
+    if (_isStreetOrAddressType(type)) {
+      return _firstNonEmpty(
+        <dynamic>[single['name'], single['label'], single['title']],
+      );
+    }
+  }
+
+  for (final dynamic entry in _asList(value)) {
+    final Map<String, dynamic>? map = _asMap(entry);
+    if (map == null) continue;
+
+    final String? name = _firstNonEmpty(
+      <dynamic>[map['name'], map['label'], map['title'], map['value']],
+    );
+    if (name == null) continue;
+
+    final String type = _extractType(map);
+    if (_isStreetOrAddressType(type)) {
+      return name;
+    }
+  }
+
+  return null;
+}
+
 String? _firstNonEmpty(List<dynamic> values) {
   for (final dynamic value in values) {
     final String? text = _extractText(value);
@@ -141,6 +216,26 @@ String? _extractText(dynamic value) {
   }
 
   return null;
+}
+
+String _extractType(Map<String, dynamic> value) {
+  return _extractText(
+        value['type'],
+      )?.toLowerCase() ??
+      _extractText(
+        value['kind'],
+      )?.toLowerCase() ??
+      _extractText(
+        value['level'],
+      )?.toLowerCase() ??
+      '';
+}
+
+bool _isStreetOrAddressType(String type) {
+  return type.contains('street') ||
+      type.contains('address') ||
+      type.contains('ulice') ||
+      type.contains('adresa');
 }
 
 String _normalizeForCompare(String value) {

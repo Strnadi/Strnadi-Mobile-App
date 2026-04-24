@@ -98,10 +98,10 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
    flutter pub get
    ```
 
-3. **Configure credentials** (for development):
-   - Create `assets/secrets.json` with your API credentials
-   - Create `assets/firebase-secrets.json` with Firebase configuration
-   - See documentation for required configuration keys
+3. **Configure environment values** (for development):
+   - Pass build-time values with `--dart-define`, for example `STRNADI_MAPY_CZ_KEY`, `STRNADI_API_HOST`, `STRNADI_DEV_API_HOST`, or `FIREBASE_PROJECT_ID`.
+   - Do not add secret JSON files to Flutter assets; asset-bundled files are shipped with the app.
+   - Firebase service-account JSON is ignored in release builds. Send push notifications from a backend service instead.
 
 4. **Run the app**:
    ```sh
@@ -246,6 +246,4 @@ Thank you to all citizen scientists who contribute recordings and help advance o
 ---
 
 *Strnad obecný zpívá jednoduše, ale zajímavě. Pojďte nám pomoci zmapovat nářečí českých strnadů!*
-
-
 
