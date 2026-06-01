@@ -125,6 +125,7 @@ platform :ios do
         *xcode_auth_args,
         shell_arg("DEVELOPMENT_TEAM", team_id),
         shell_arg("CODE_SIGN_STYLE", "Automatic"),
+        shell_arg("CODE_SIGN_IDENTITY", "Apple Distribution"),
         shell_arg("CURRENT_PROJECT_VERSION", build_number),
         shell_arg("MARKETING_VERSION", build_name)
       ].join(" "),
