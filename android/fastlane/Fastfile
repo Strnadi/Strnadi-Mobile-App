@@ -25,8 +25,11 @@ def resolved_build_number(options)
   build_number = ENV["BUILD_NUMBER"].to_s.strip if build_number.empty?
   build_number = ENV["GITHUB_RUN_NUMBER"].to_s.strip if build_number.empty?
   UI.user_error!("BUILD_NUMBER must be set for CI deployments") if build_number.empty?
+  Integer(build_number)
 
   build_number
+rescue ArgumentError
+  UI.user_error!("BUILD_NUMBER must be an integer, got #{build_number.inspect}")
 end
 
 def resolved_dart_define_file(options)
@@ -51,11 +54,19 @@ def resolved_release_status(options)
   release_status.empty? ? "completed" : release_status
 end
 
+def google_play_tracks_to_check(target_track)
+  tracks = %w[internal alpha beta production]
+  closed_track = ENV["GOOGLE_PLAY_CLOSED_TRACK"].to_s.strip
+  extra_tracks = ENV["GOOGLE_PLAY_VERSION_CODE_TRACKS"].to_s.split(",").map(&:strip)
+
+  (tracks + [closed_track, target_track] + extra_tracks).reject(&:empty?).uniq
+end
+
 platform :android do
   desc "Build a signed Android App Bundle and upload it to a Google Play track"
   lane :play do |options|
     root = project_root
-    build_number = resolved_build_number(options)
+    requested_build_number = resolved_build_number(options)
     build_name = resolved_build_name(options)
     dart_define_file = resolved_dart_define_file(options)
     track = resolved_play_track(options)
@@ -64,6 +75,33 @@ platform :android do
     json_key = File.join(root, "android/play-store-service-account.json") if json_key.empty?
 
     UI.user_error!("Missing Google Play service account JSON: #{json_key}") unless File.exist?(json_key)
+
+    tracks_to_check = google_play_tracks_to_check(track)
+    track_read_errors = {}
+    play_version_codes = tracks_to_check.flat_map do |play_track|
+      google_play_track_version_codes(
+        package_name: PACKAGE_NAME,
+        track: play_track,
+        json_key: json_key
+      )
+    rescue StandardError => error
+      track_read_errors[play_track] = error.message
+      UI.important("Could not read Google Play version codes for #{play_track}: #{error.message}")
+      []
+    end
+    if play_version_codes.empty? && track_read_errors.length == tracks_to_check.length
+      UI.user_error!("Could not read Google Play version codes from any track: #{track_read_errors}")
+    end
+    highest_play_version_code = play_version_codes.map(&:to_i).max
+    build_number = requested_build_number
+
+    if highest_play_version_code && build_number.to_i <= highest_play_version_code
+      build_number = (highest_play_version_code + 1).to_s
+      UI.important(
+        "Requested build number #{requested_build_number} is not higher than Google Play version code " \
+        "#{highest_play_version_code}; building with #{build_number}."
+      )
+    end
 
     Dir.chdir(root) do
       sh(
