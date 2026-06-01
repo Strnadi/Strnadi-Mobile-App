@@ -32,11 +32,9 @@ iOS:
 
 - `APP_STORE_CONNECT_API_KEY_ID`: App Store Connect API key ID.
 - `APP_STORE_CONNECT_API_ISSUER_ID`: App Store Connect issuer ID.
-- `APP_STORE_CONNECT_API_KEY_BASE64`: Base64-encoded `.p8` API key.
-- `IOS_DISTRIBUTION_CERTIFICATE_BASE64`: Base64-encoded `.p12` Apple Distribution certificate.
-- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`: `.p12` certificate password.
-- `IOS_PROVISIONING_PROFILE_BASE64`: Base64-encoded App Store provisioning profile for `com.delta.strnadi`.
-- `IOS_KEYCHAIN_PASSWORD`: Temporary CI keychain password.
+- `APP_STORE_CONNECT_API_KEY_BASE64`: Base64-encoded `.p8` Team API key. Automatic signing uses this key with Xcode `-allowProvisioningUpdates`.
+
+The App Store Connect key must be a Team key, not an Individual key, because automatic signing needs provisioning access.
 
 ## Optional GitHub Variables
 
@@ -53,8 +51,6 @@ base64 -i build.env.json | pbcopy
 base64 -i android/strnadi-release-key.jks | pbcopy
 base64 -i play-store-service-account.json | pbcopy
 base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
-base64 -i distribution_certificate.p12 | pbcopy
-base64 -i Strnadi_App_Store.mobileprovision | pbcopy
 ```
 
 ## Fastlane Lanes

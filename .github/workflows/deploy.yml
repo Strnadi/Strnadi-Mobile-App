@@ -147,14 +147,6 @@ jobs:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
 
-      - name: Install iOS signing assets
-        env:
-          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
-          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
-        run: bash .github/scripts/install-ios-signing.sh
-
       - name: Deploy iOS build to TestFlight
         working-directory: ios
         env:
