@@ -188,7 +188,20 @@ jobs:
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || '3GPTVJHVFN' }}
-        run: bundle exec fastlane testflight
+        run: bundle exec fastlane testflight --verbose
+
+      - name: Upload iOS failure logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-failure-logs
+          if-no-files-found: ignore
+          path: |
+            build/ios/gym-logs/**
+            build/ios/gym-result.xcresult/**
+            ios/build/ios/gym-logs/**
+            ios/build/ios/gym-result.xcresult/**
+            /Users/runner/Library/Logs/gym/**
 
       - name: Comment Jira deployment
         if: ${{ success() }}

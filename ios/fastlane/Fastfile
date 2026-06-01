@@ -111,11 +111,16 @@ platform :ios do
       export_method: "app-store",
       output_directory: File.dirname(ipa_path),
       output_name: File.basename(ipa_path),
+      buildlog_path: File.join(root, "build/ios/gym-logs"),
+      result_bundle: true,
+      result_bundle_path: File.join(root, "build/ios/gym-result.xcresult"),
       export_options: {
         method: "app-store",
         signingStyle: "automatic",
         teamID: team_id
       },
+      export_team_id: team_id,
+      skip_profile_detection: true,
       xcargs: [
         *xcode_auth_args,
         shell_arg("DEVELOPMENT_TEAM", team_id),
