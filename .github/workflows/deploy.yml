@@ -97,11 +97,34 @@ jobs:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
         run: bash .github/scripts/restore-android-secrets.sh
 
+      - name: Validate Android signing key
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          keytool -list \
+            -keystore android/upload-keystore.jks \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            >/dev/null
+
       - name: Deploy Android App Bundle
         working-directory: android
         env:
           SUPPLY_JSON_KEY: ${{ github.workspace }}/android/play-store-service-account.json
         run: bundle exec fastlane play
+
+      - name: Upload Android failure reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-failure-reports
+          if-no-files-found: ignore
+          path: |
+            build/app/reports/**
+            build/app/outputs/logs/**
+            android/app/build/reports/**
+            android/.gradle/**/problems-report.html
 
       - name: Comment Jira deployment
         if: ${{ success() }}
@@ -147,15 +170,16 @@ jobs:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
 
-      - name: Install CocoaPods
-        run: gem install cocoapods --no-document
+      - name: Verify CocoaPods
+        working-directory: ios
+        run: bundle exec pod --version
 
       - name: Install Flutter dependencies
         run: flutter pub get
 
       - name: Install iOS Pods
         working-directory: ios
-        run: pod install
+        run: bundle exec pod install
 
       - name: Deploy iOS build to TestFlight
         working-directory: ios
