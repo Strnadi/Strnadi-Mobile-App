@@ -171,7 +171,7 @@
       "title": "Přehled informací",
       "subtitle": "Přehled informací",
       "check_details": "Zkontrolujte prosím zadané údaje a potvrďte registraci.",
-      "marketing_consent": "Souhlasím se zasíláním marketingových sdělení",
+      "marketing_consent": "Souhlasím se zasíláním informací o projektu",
       "buttons": {
         "register": "Registrovat"
       },
@@ -351,7 +351,12 @@
     "noRecording": "Nahrávka není dostupná",
     "notePlaceholder": "K tomuto záznamu není poznámka",
     "dateTime": "Datum a čas",
-    "estimatedBirdsCount": "Předpokládaný počet strnadů"
+    "estimatedBirdsCount": "Předpokládaný počet strnadů",
+    "dialectDetails": {
+      "userGuess": "Tip uživatele",
+      "aiPrediction": "Predikce AI modelu",
+      "adminFinal": "Finální určení administrátorem"
+    }
   },
   "user_badge": {
     "no_nickname": "Uzivatel nema prezdivku"
@@ -370,7 +375,8 @@
       },
       "error": {
         "title": "Chyba",
-        "close": "Zavřít"
+        "close": "Zavřít",
+        "recordingNotFound": "Nahrávka nenalezena"
       },
       "confirmDelete": {
         "title": "Potvrdit smazání",
@@ -381,8 +387,8 @@
     },
     "buttons": {
       "info": "Info",
-      "mapSettings": "Map Settings",
-      "reset": "Reset orientation & recenter",
+      "mapSettings": "Nastavení mapy",
+      "reset": "Resetovat orientaci a vycentrovat",
       "close": "Zavřít",
       "set": "Nastavit",
       "resetFilters": "Resetovat"
@@ -397,13 +403,31 @@
         "off": "Vypnuto"
       },
       "mapView": {
+        "title": "Zobrazení mapy",
         "classic": "Klasické",
         "satellite": "Letecké"
       },
       "recordingAuthor": {
+        "title": "Autor nahrávky",
         "all": "Všichni",
         "me": "Pouze já"
+      },
+      "dialectVisibility": {
+        "title": "Viditelnost nářečí",
+        "all": "Zobrazit vše (včetně návrhů uživatelů)",
+        "aiAdmin": "Zobrazit AI+admin",
+        "adminOnly": "Pouze admin"
+      },
+      "recordingAge": {
+        "title": "Stáří nahrávek",
+        "older": "Starší",
+        "newer": "Novější",
+        "all": "Vše"
       }
+    },
+    "loading": {
+      "title": "Načítají se nahrávky",
+      "subtitle": "Body se na mapě objeví za okamžik."
     },
     "legend": {
       "title": "Legenda",
@@ -420,6 +444,10 @@
         "unfinished": "Nedokončený",
         "unassessed": "Nevyhodnoceno",
         "unusable": "Nepoužitelný"
+      },
+      "status": {
+        "aiAssisted": "Určeno pomocí AI",
+        "adminConfirmed": "Potvrzeno administrátorem"
       },
       "mapyCz": "Mapy.cz © Seznam.cz, a.s."
     }
@@ -452,6 +480,11 @@
     "addDialect": {
       "title": "Přidání dialektu",
       "confirm": "Potvrdit",
+      "note": {
+        "label": "Poznámka k manuálnímu označení (volitelné)",
+        "placeholder": "Doplňte poznámku k vybranému dialektu",
+        "appendHeader": "Manuální označení dialektu:"
+      },
       "options": {
         "BC": "BC",
         "BE": "BE",
@@ -626,7 +659,7 @@
       "title": "Nastavení",
       "app": "Aplikace",
       "fields": {
-        "useMobileData": "Použít mobilní data pro nahrávání",
+        "useMobileData": "Použít mobilní data pro odeslání nahrávek",
         "localRecordingsMax": "Maximální počet nahrávek uložených lokálně. Po dosažení tohoto limitu budou nejstarší nahrávky odstraněny.",
         "language": "Jazyk aplikace"
       },
@@ -672,7 +705,7 @@
       "appSettings": {
         "title": "Nastavení",
         "fields": {
-          "useMobileData": "Použít mobilní data pro nahrávání",
+          "useMobileData": "Použít mobilní data pro odeslání nahrávek",
           "localRecordingsMax": "Maximální počet nahrávek uložených lokálně"
         },
         "descriptions": {
@@ -725,9 +758,9 @@
   },
   "notifications": {
     "title": "Notifikace",
-    "uploads_in_progress": "Nahrávání probíhá na pozadí",
+    "uploads_in_progress": "Odesílání nahrávek probíhá na pozadí",
     "no_notifications": "Žádné notifikace",
-    "no_uploads": "Žádná aktivní nahrávání na pozadí",
+    "no_uploads": "Žádné aktivní odesílání nahrávek na pozadí",
     "unknown_recording": "Neznámá nahrávka"
   },
   "logout": {

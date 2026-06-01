@@ -86,11 +86,11 @@ class ArticlesController {
           return response;
         }
         lastResponse = response;
-        if (!_canTryNextLanguage(response.statusCode)) {
-          return response;
+        if (_shouldReturnImmediately(response.statusCode)) {
+          return lastResponse;
         }
       } on DioException catch (error) {
-        if (!_canTryNextLanguage(error.response?.statusCode)) {
+        if (_shouldReturnImmediately(error.response?.statusCode)) {
           rethrow;
         }
         lastError = error;
@@ -126,7 +126,7 @@ class ArticlesController {
     return result;
   }
 
-  bool _canTryNextLanguage(int? statusCode) {
-    return statusCode == 404 || statusCode == null;
+  bool _shouldReturnImmediately(int? statusCode) {
+    return statusCode == 401 || statusCode == 403;
   }
 }

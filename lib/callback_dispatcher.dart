@@ -42,6 +42,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/firebase/local_notifications.dart';
 import '../dialects/ModelHandler.dart';
 
 final logger = Logger();
@@ -115,9 +116,10 @@ void _stopHealthServer(int recordingId) {
 // ----------------------------------------------------------
 
 Future<void> registerPlugins() async {
-  await Config.loadConfig();
-  await Config.loadFirebaseConfig();
   WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+  await Config.loadConfig();
+  await initLocalNotifications();
 }
 
 @pragma('vm:entry-point')

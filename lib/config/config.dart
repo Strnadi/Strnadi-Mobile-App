@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:logger/logger.dart';
@@ -22,8 +23,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
-
-import '../main.dart';
 
 /// User preference for mobile data usage
 enum DataUsageOption { wifiOnly, wifiAndMobile }
@@ -49,21 +48,68 @@ const HealthController _healthController = HealthController();
 
 class Config {
   static Map<String, dynamic>? _config;
-  static Map<String, dynamic>? _Fconfig;
 
   static const String _dataUsagePrefKey = 'data_usage_option';
+  static const String _legacyCellularPrefKey = 'CellularData';
   static DataUsageOption? _dataUsageOption;
   static const String _languagePrefKey = 'preferred_language';
   static const Set<String> _supportedLanguageCodes = {'cs', 'en', 'de'};
   static const String _hostEnvPrefKey = 'host_environment';
   static HostEnvironment? _hostEnv;
+  static VoidCallback? onHostEnvironmentChanged;
 
-  // Load config.json
+  static const String _defaultHost = String.fromEnvironment(
+    'STRNADI_API_HOST',
+    defaultValue: 'api.strnadi.cz',
+  );
+  static const bool _hasDefaultHost = bool.hasEnvironment('STRNADI_API_HOST');
+  static const String _defaultDevHost = String.fromEnvironment(
+    'STRNADI_DEV_API_HOST',
+    defaultValue: '',
+  );
+  static const bool _hasDefaultDevHost =
+      bool.hasEnvironment('STRNADI_DEV_API_HOST');
+  static const String _defaultMapyCzKey = String.fromEnvironment(
+    'STRNADI_MAPY_CZ_KEY',
+    defaultValue: '',
+  );
+  static const bool _hasDefaultMapyCzKey =
+      bool.hasEnvironment('STRNADI_MAPY_CZ_KEY');
+
+  // Load public config defaults. Sensitive values must come from dart-define.
   static Future<void> loadConfig() async {
-    String jsonString = await rootBundle.loadString('assets/secrets.json');
-    _config = json.decode(jsonString);
+    final assetConfig = await _loadJsonAsset('assets/config.json');
+    _config = <String, dynamic>{
+      'host': _defaultHost,
+      if (_defaultDevHost.isNotEmpty) 'devhost': _defaultDevHost,
+      'mapy.cz-key': _defaultMapyCzKey,
+      ...assetConfig,
+    };
+    _applyDartDefineOverrides(_config!);
+    if (mapsApiKey.isEmpty) {
+      logger.w(
+        'Mapy API key is not configured. Pass STRNADI_MAPY_CZ_KEY with '
+        '--dart-define or --dart-define-from-file=build.env.json.',
+      );
+    }
     await loadDataUsageOption();
     await loadHostEnvironment();
+  }
+
+  static void _applyDartDefineOverrides(Map<String, dynamic> config) {
+    if (_hasDefaultHost) {
+      config['host'] = _defaultHost;
+    }
+    if (_hasDefaultDevHost) {
+      if (_defaultDevHost.isEmpty) {
+        config.remove('devhost');
+      } else {
+        config['devhost'] = _defaultDevHost;
+      }
+    }
+    if (_hasDefaultMapyCzKey) {
+      config['mapy.cz-key'] = _defaultMapyCzKey;
+    }
   }
 
   static StringFromLanguagePreference(LanguagePreference lang) {
@@ -88,25 +134,30 @@ class Config {
     }
   }
 
-  static Future<void> loadFirebaseConfig() async {
-    String jsonString =
-        await rootBundle.loadString('assets/firebase-secrets.json');
-    _Fconfig = json.decode(jsonString);
-  }
-
   /// Loads the user's mobile data preference from SharedPreferences
   static Future<void> loadDataUsageOption() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_dataUsagePrefKey);
+    final bool? legacyCellular = prefs.getBool(_legacyCellularPrefKey);
     if (raw == null) {
-      // First launch: default to Wi-Fi only and save
-      _dataUsageOption = DataUsageOption.wifiOnly;
+      _dataUsageOption = legacyCellular == true
+          ? DataUsageOption.wifiAndMobile
+          : DataUsageOption.wifiOnly;
       await prefs.setString(_dataUsagePrefKey, _dataUsageOption.toString());
     } else {
       _dataUsageOption = DataUsageOption.values.firstWhere(
         (e) => e.toString() == raw,
         orElse: () => DataUsageOption.wifiOnly,
       );
+      if (legacyCellular != null) {
+        final DataUsageOption legacyOption = legacyCellular
+            ? DataUsageOption.wifiAndMobile
+            : DataUsageOption.wifiOnly;
+        if (legacyOption != _dataUsageOption) {
+          _dataUsageOption = legacyOption;
+          await prefs.setString(_dataUsagePrefKey, _dataUsageOption.toString());
+        }
+      }
     }
   }
 
@@ -140,7 +191,7 @@ class Config {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_hostEnvPrefKey, env.toString());
     _hostEnv = env;
-    myAppKey.currentState?.refreshBadge();
+    onHostEnvironmentChanged?.call();
   }
 
   /// Sets the user's mobile data preference
@@ -183,7 +234,7 @@ class Config {
     if (_config == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    return _config!["mapy.cz-key"];
+    return _config!["mapy.cz-key"] as String? ?? '';
   }
 
   static String get host {
@@ -191,24 +242,11 @@ class Config {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
     final useDev = (hostEnvironment == HostEnvironment.dev);
-    if (useDev && _config!.containsKey("devhost")) {
-      return _config!["devhost"];
+    final devHost = _config!["devhost"] as String?;
+    if (useDev && devHost != null && devHost.isNotEmpty) {
+      return devHost;
     }
-    return _config!["host"];
-  }
-
-  static String get firebaseProjectId {
-    if (_Fconfig == null) {
-      throw Exception("Config not loaded. Call loadConfig() first.");
-    }
-    return _Fconfig!["project_id"];
-  }
-
-  static Map<String, dynamic>? get firebaseServiceAccountJson {
-    if (_Fconfig == null) {
-      throw Exception("Config not loaded. Call loadConfig() first.");
-    }
-    return _Fconfig;
+    return _config!["host"] as String;
   }
 
   /// Checks the server health via a HEAD request to {host}/utils/health
@@ -244,8 +282,8 @@ class Config {
 
   /// Checks whether the device has any network connectivity (basic)
   static Future<bool> get hasBasicInternet async {
-    final result = await Connectivity().checkConnectivity();
-    return result != ConnectivityResult.none;
+    final results = await Connectivity().checkConnectivity();
+    return _hasNetworkTransport(results);
   }
 
   /// Checks whether the backend is reachable (via health endpoint)
@@ -261,11 +299,34 @@ class Config {
   /// Determines if upload operations are allowed based on connectivity, backend, and user preference
   static Future<bool> get canUpload async {
     if (!await hasBasicInternet) return false;
-    final conn = await Connectivity().checkConnectivity();
-    if (conn == ConnectivityResult.mobile &&
+    final connections = await Connectivity().checkConnectivity();
+    if (_usesMobileData(connections) &&
         dataUsageOption == DataUsageOption.wifiOnly) {
       return false;
     }
     return await isBackendAvailable;
+  }
+
+  static Future<Map<String, dynamic>> _loadJsonAsset(String path) async {
+    try {
+      final jsonString = await rootBundle.loadString(path);
+      final decoded = json.decode(jsonString);
+      return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    } on FlutterError catch (e) {
+      logger.w('Optional config asset $path is not available: ${e.message}');
+      return <String, dynamic>{};
+    } on FormatException catch (e, stackTrace) {
+      logger.e('Invalid JSON in config asset $path',
+          error: e, stackTrace: stackTrace);
+      return <String, dynamic>{};
+    }
+  }
+
+  static bool _hasNetworkTransport(List<ConnectivityResult> results) {
+    return results.any((result) => result != ConnectivityResult.none);
+  }
+
+  static bool _usesMobileData(List<ConnectivityResult> results) {
+    return results.contains(ConnectivityResult.mobile);
   }
 }

@@ -1,0 +1,14 @@
+Google Play Console (CZ, kratka verze)
+--------------------------------------
+Tato aktualizace vylepsuje detaily lokalnich nahravek a praci s dialekty. Nyni lze pridat rucni poznamku k dialektu a polozky nahravek zobrazuji detailnejsi informace vcetne casovych rozsahu a barevnych indikatoru. Zaroven jsme vylepsili mapovani dat detekovanych dialektu pro konzistentnejsi zobrazeni i odesilani.
+
+
+App Store Connect (CZ, detailnejsi verze)
+-----------------------------------------
+V teto verzi jsme se zamerili na lepsi zpracovani detailu dialektu u lokalnich nahravek:
+
+- Pridano rucni zadani poznamky k dialektu ve flow vytvareni nahravky.
+- Rucni poznamky k dialektu se nyni zobrazuji v detailu formulare a odesilaji se v payloadu.
+- Rozsireny detaily dialektu u lokalnich nahravek o casove rozsahy jednotlivych casti a barevne indikatory.
+- Vylepseno mapovani dat detekovanych dialektu a konzistence UI v seznamu nahravek.
+- Drobna stabilizacni vylepseni v modelu detekovanych dialektu a navazujici renderovaci logice.

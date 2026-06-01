@@ -1,0 +1,16 @@
+Google Play Console (EN, short version)
+---------------------------------------
+This update improves map browsing and account flows. The map now supports recording age filters, clearer loading and marker status feedback, and more consistent handling of recordings without dialect results. We also improved place labels, unified email validation across auth screens, and preserved existing mobile-data preferences during settings migration.
+
+
+App Store Connect (EN, detailed version)
+----------------------------------------
+In this release, we focused on map clarity, account polish, and settings consistency:
+
+- Improved map filtering with recording age controls, better handling of dialectless and no-dialect recordings, and automatic clustering at lower zoom levels.
+- Added map loading feedback and marker legend entries that distinguish AI-assisted identifications from admin-confirmed ones.
+- Refined reverse-geocoded place labels across the map and local recording screens to prefer municipality-based names without duplicate text.
+- Unified trimmed email validation across login, registration, and password reset flows.
+- Fixed connected-platform options so only relevant actions are shown.
+- Preserved existing mobile-data preference values when migrating to the newer data-usage setting.
+- Updated profile display and related localizations for clearer names, labels, and status text.

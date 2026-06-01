@@ -38,7 +38,6 @@ import 'package:strnadi/widgets/loader.dart';
 // Removed: import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../config/config.dart';
-import 'launch_warning.dart';
 import 'login.dart' show Login;
 
 Logger logger = Logger();
@@ -176,9 +175,6 @@ class _AuthState extends State<Authorizator> {
     selectedLanguage = languages.first;
     _loadSelectedLanguage();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showWIPwarning();
-    });
     Config.hasBasicInternet.then((online) {
       setState(() {
         _isOnline = online;
@@ -201,13 +197,6 @@ class _AuthState extends State<Authorizator> {
     setState(() {
       selectedLanguage = resolved;
     });
-  }
-
-  void _showWIPwarning() {
-    showDialog(
-      context: context,
-      builder: (context) => WIP_warning(),
-    );
   }
 
   @override

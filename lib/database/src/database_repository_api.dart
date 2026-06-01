@@ -102,7 +102,7 @@ Future<void> _sendRecordingNew(
 
   try {
     final Map<String, Object?> body = await recording.toBEJson();
-    logger.i('Sending recording with body: $body');
+    logger.i('Sending recording with body: ${LogRedactor.redactMap(body)}');
     final response = await _recordingsApi.createRecording(body);
 
     if (response.statusCode == 200) {

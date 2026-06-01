@@ -42,14 +42,16 @@ import 'package:strnadi/database/src/upload_progress_bus.dart';
 import 'package:strnadi/dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/firebase/local_notifications.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
-import 'package:strnadi/notificationPage/notifications.dart';
 import 'package:strnadi/recording/waw.dart';
 import 'package:strnadi/user/settingsManager.dart';
+import 'package:strnadi/utils/log_redactor.dart';
 import 'package:workmanager/workmanager.dart';
 
 part 'database_repository_api.dart';
 part 'database_repository_download.dart';
+part 'database_migrations.dart';
 
 final logger = db_log.logger;
 
@@ -65,6 +67,7 @@ class DatabaseNew {
       ValueNotifier<int>(0);
 
   static bool fetching = false;
+  static bool _durationBackfillNeeded = false;
 
   // Guard sets to ensure every recording/part is sent only once per app lifetime
   static final Set<int> _inflightPartIds = <int>{};
@@ -185,7 +188,7 @@ class DatabaseNew {
       final String? userIdS = await FlutterSecureStorage().read(key: 'userId');
       final int? currentUserId = int.tryParse((userIdS ?? '').trim());
 
-      logger.i("token: $token");
+      logger.i('Token available: ${token != null && token.isNotEmpty}');
 
       if (token == null || token == '') {
         recording.mail ??= '';
@@ -866,103 +869,29 @@ class DatabaseNew {
     ''');
     }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
       if (oldVersion <= 1) {
-        // Add the new backendRecordingId column to recordingParts table
-        await db.execute(
-            'ALTER TABLE recordingParts ADD COLUMN backendRecordingId INTEGER;');
+        await _ensureColumn(
+            db, 'recordingParts', 'backendRecordingId', 'INTEGER');
         await db.setVersion(2);
       }
       if (oldVersion <= 2) {
         logger.w(
-            'Old version detected (<=2). Recreating entire database schema...');
-        // Drop existing tables
-        await db.execute('DROP TABLE IF EXISTS recordings;');
-        await db.execute('DROP TABLE IF EXISTS recordingParts;');
-        await db.execute('DROP TABLE IF EXISTS images;');
-        await db.execute('DROP TABLE IF EXISTS Notifications;');
-        await db.execute('DROP TABLE IF EXISTS Dialects;');
-
-        // Recreate tables as defined in the onCreate callback
-        await db.execute('''
-          CREATE TABLE recordings(
-            id INTEGER PRIMARY KEY,
-            BEId INTEGER UNIQUE,
-            mail TEXT,
-            createdAt TEXT,
-            estimatedBirdsCount INTEGER,
-            device TEXT,
-            byApp INTEGER,
-            name TEXT,
-            note TEXT,
-            path TEXT,
-            sent INTEGER,
-            downloaded INTEGER,
-            sending INTEGER
-          )
-        ''');
-        await db.execute('''
-            CREATE TABLE recordingParts(
-            id INTEGER PRIMARY KEY,
-            BEId INTEGER UNIQUE,
-            recordingId INTEGER,
-            backendRecordingId INTEGER,
-            startTime TEXT,
-            endTime TEXT,
-            gpsLatitudeStart REAL,
-            gpsLatitudeEnd REAL,
-            gpsLongitudeStart REAL,
-            gpsLongitudeEnd REAL,
-            path TEXT,
-            square TEXT,
-            sent INTEGER,
-            FOREIGN KEY(recordingId) REFERENCES recordings(id)
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE images(
-            id INTEGER PRIMARY KEY,
-            recordingId INTEGER,
-            path TEXT,
-            sent INTEGER,
-            FOREIGN KEY(recordingId) REFERENCES recordings(id)
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE Notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            body TEXT NOT NULL,
-            receivedAt TEXT NOT NULL,
-            type INTEGER NOT NULL,
-            read INTEGER DEFAULT 0
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE Dialects (
-            RecordingId INTEGER PRIMARY KEY AUTOINCREMENT,
-            BEId INTEGER UNIQUE,
-            dialectCode TEXT NOT NULL,
-            StartDate TEXT NOT NULL,
-            EndDate TEXT NOT NULL,
-            FOREIGN KEY(RecordingId) REFERENCES recordings(id)
-          )
-        ''');
+            'Old version detected (<=2). Ensuring schema without dropping user data...');
+        await _ensureBaseTables(db);
         await db.setVersion(newVersion);
       }
       // Upgrade from v3 → v4: add the 'sending' column to recordingParts
       if (oldVersion <= 3) {
-        await db.execute(
-            'ALTER TABLE recordingParts ADD COLUMN sending INTEGER DEFAULT 0;');
+        await _ensureColumn(
+            db, 'recordingParts', 'sending', 'INTEGER DEFAULT 0');
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 4) {
-        await db.execute(
-            'ALTER TABLE Dialects RENAME COLUMN dialect TO dialectCode;');
+        await _renameColumnIfExists(db, 'Dialects', 'dialect', 'dialectCode');
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 5) {
         try {
-          await db
-              .execute('ALTER TABLE recordingParts ADD COLUMN length INTEGER;');
+          await _ensureColumn(db, 'recordingParts', 'length', 'INTEGER');
         } catch (e, stackTrace) {
           logger.w('Failed to add length column to recordingParts: $e',
               error: e, stackTrace: stackTrace);
@@ -971,19 +900,7 @@ class DatabaseNew {
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 6) {
-        await db.execute('DROP TABLE IF EXISTS Dialects;');
-        await db.execute('''
-          CREATE TABLE Dialects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            BEID INTEGER UNIQUE,
-            recordingId INTEGER,
-            recordingBEID INTEGER,
-            userGuessDialect TEXT,
-            adminDialect TEXT,
-            startDate TEXT,
-            endDate TEXT
-          )
-        ''');
+        await _migrateLegacyDialectsTable(db);
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 7) {
@@ -1018,8 +935,7 @@ class DatabaseNew {
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 8) {
-        await db
-            .execute('ALTER TABLE recordings ADD COLUMN partCount INTEGER;');
+        await _ensureColumn(db, 'recordings', 'partCount', 'INTEGER');
         await db.execute('''UPDATE recordings AS r
             SET partCount = COALESCE((
             SELECT COUNT(*)
@@ -1029,26 +945,35 @@ class DatabaseNew {
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 9) {
-        await db.execute(
-            'ALTER TABLE recordings ADD COLUMN env STRING DEFAULT \'prod\';');
+        await _ensureColumn(db, 'recordings', 'env', 'STRING DEFAULT \'prod\'');
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 10) {
-        await db
-            .execute('ALTER TABLE recordings ADD COLUMN totalSeconds REAL;');
-
-        await fetchAndUpdateDurationsFromBackend(DatabaseNew());
-        await updateAllRecordingsDurations(DatabaseNew());
+        await _ensureColumn(db, 'recordings', 'totalSeconds', 'REAL');
+        _durationBackfillNeeded = true;
         await db.setVersion(newVersion);
       }
       if (oldVersion <= 11) {
-        await db.execute(
-            'ALTER TABLE detectedDialects ADD COLUMN predictedDialectId INTEGER');
-        await db.execute(
-            'ALTER TABLE detectedDialects ADD COLUMN predictedDialect TEXT;');
+        await _ensureColumn(
+            db, 'DetectedDialects', 'predictedDialectId', 'INTEGER');
+        await _ensureColumn(db, 'DetectedDialects', 'predictedDialect', 'TEXT');
         await db.setVersion(newVersion);
       }
     });
+  }
+
+  static Future<void> runPostMigrationBackfills() async {
+    if (!_durationBackfillNeeded) return;
+    try {
+      await fetchAndUpdateDurationsFromBackend(DatabaseNew());
+      await updateAllRecordingsDurations(DatabaseNew());
+    } catch (e, stackTrace) {
+      logger.w('Post-migration duration backfill failed',
+          error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    } finally {
+      _durationBackfillNeeded = false;
+    }
   }
 
   static Future<bool> hasInternetAccess() async {
@@ -1069,13 +994,7 @@ class DatabaseNew {
   // New helper method to insert a custom local notification.
   static Future<void> sendLocalNotification(
       String title, String message) async {
-    final String fcmToken =
-        ((await FlutterSecureStorage().read(key: 'fcmToken'))) ?? '';
-    if (fcmToken == '') {
-      logger.w("Failed to send local notification: FCM token is empty");
-      return;
-    }
-    await sendPushNotificationDirectly(fcmToken, title, message);
+    await showLocalNotification(title, message);
     // final db = await database;
     // await db.insert('Notifications', {
     //   'title': title,
@@ -1178,6 +1097,24 @@ class DatabaseNew {
       whereArgs: [0],
     );
 
+    await _resendUnsentPartRows(unsent);
+  }
+
+  /// Attempts to resend idle unsent parts for a single local recording.
+  static Future<void> resendUnsentPartsForRecording(int recordingId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> unsent = await db.query(
+      'recordingParts',
+      where:
+          'recordingId = ? AND sent = ? AND (sending IS NULL OR sending = 0)',
+      whereArgs: [recordingId, 0],
+    );
+
+    await _resendUnsentPartRows(unsent);
+  }
+
+  static Future<void> _resendUnsentPartRows(
+      List<Map<String, dynamic>> unsent) async {
     if (unsent.isEmpty) return;
 
     // Group parts by local recordingId to make sure we send the parent recording at most once
@@ -1228,10 +1165,16 @@ class DatabaseNew {
           // Now (whether BEId exists already or has just been created) try sending each idle part at most once.
           for (final m in partRows) {
             final part = RecordingPart.fromJson(m);
-            if (part.sent == true) continue;
-            if (part.sending == true ||
-                (part.id != null && _inflightPartIds.contains(part.id)))
+            if (part.sent == true) {
               continue;
+            }
+            if (part.sending == true ||
+                (part.id != null && _inflightPartIds.contains(part.id))) {
+              continue;
+            }
+            if (part.backendRecordingId == null && recording?.BEId != null) {
+              part.backendRecordingId = recording!.BEId;
+            }
 
             // Persist the sending flag immediately to avoid concurrent retries picking it up again.
             part.sending = true;
@@ -1340,6 +1283,20 @@ class DatabaseNew {
     final db = await database;
     await db.update('DetectedDialects', dd.toDbJson(),
         where: 'id = ?', whereArgs: [dd.id]);
+  }
+
+  static Future<List<DetectedDialect>> getDetectedDialectsByRecordingLocalId(
+      int recordingLocalId) async {
+    final db = await database;
+    final List<Map<String, Object?>> rows = await db.rawQuery('''
+    SELECT dd.*, frp.startDate AS filteredPartStartDate, frp.endDate AS filteredPartEndDate
+    FROM FilteredRecordingParts frp
+    JOIN DetectedDialects dd ON dd.filteredPartLocalId = frp.id
+    WHERE frp.recordingLocalId = ?
+    ORDER BY frp.startDate ASC, dd.id ASC
+  ''', [recordingLocalId]);
+
+    return rows.map((row) => DetectedDialect.fromDb(row)).toList();
   }
 
   /// Representative dialects for a local recording (prefers confirmed, else user guess)

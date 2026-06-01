@@ -13,18 +13,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/firebase/local_notifications.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/api/controllers/device_controller.dart';
-import '../config/config.dart';
 import '../firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
 import 'package:logger/logger.dart';
 import 'dart:io';
+import 'dart:ui';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:strnadi/auth/authorizator.dart' as auth;
@@ -33,9 +33,6 @@ final logger = Logger();
 const DeviceController _deviceController = DeviceController();
 
 bool adding = false;
-
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
 
 void initFirebase() async {
   // Initialize Firebase.
@@ -46,111 +43,20 @@ void initFirebase() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 }
 
-void initLocalNotifications() {
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  final DarwinInitializationSettings initializationSettingsIOS =
-      DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
-  );
-
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsIOS,
-  );
-
-  flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) async {
-      final String? payload = response.payload;
-      // Handle notification tap here. For example, navigate to a specific screen:
-      if (payload != null) {
-        // Navigator.push(...);
-      }
-    },
-  );
-}
-
 Future<void> _showLocalNotification(RemoteMessage message) async {
   RemoteNotification? notification = message.notification;
-  AndroidNotification? android = message.notification?.android;
 
-  if (notification != null && android != null) {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'com.delta.strnadi', // Set a unique channel id
-      'Strnadi', // Set a human-readable channel name
-      channelDescription: 'Aplikace Strnadi',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-    );
-
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await flutterLocalNotificationsPlugin.show(
-      notification.hashCode,
-      notification.title,
+  if (notification != null) {
+    await showLocalNotification(
+      notification.title ?? '',
       notification.body,
-      platformChannelSpecifics,
-      //payload: 'your_payload_data', // Optional payload to handle taps.
+      id: notification.hashCode,
     );
   }
 }
 
 Future<void> _showLocalNotificationFromData(Map<String, dynamic> data) async {
-  try {
-    final String? langPref = (await Config.getLanguagePreference()).toString();
-    final String lang =
-        (langPref == null || langPref.isEmpty) ? 'en' : langPref;
-    final Map<String, dynamic> lower = _toLowercaseKeys(data);
-
-    final String? title = lower['title$lang']?.toString();
-    final String? body = lower['body$lang']?.toString();
-    logger.i('Got notification with data: $lower');
-    if (title == null && body == null) {
-      logger.w("No title/body for lang $lang in data; skipping");
-      return;
-    }
-
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'com.delta.strnadi',
-      'Strnadi',
-      channelDescription: 'Aplikace Strnadi',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-    );
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      platformChannelSpecifics,
-    );
-  } catch (e, st) {
-    logger.e("Failed to show local notification from data",
-        error: e, stackTrace: st);
-  }
-}
-
-Map<String, dynamic> _toLowercaseKeys(Map<String, dynamic> data) {
-  final Map<String, dynamic> lowercased = {};
-  data.forEach((key, value) {
-    if (value is Map<String, dynamic>) {
-      lowercased[key.toLowerCase()] = _toLowercaseKeys(value);
-    } else {
-      lowercased[key.toLowerCase()] = value;
-    }
-  });
-  return lowercased;
+  await showLocalNotificationFromData(data);
 }
 
 Future<DeviceInfo> getDeviceInfo() async {
@@ -175,8 +81,10 @@ Future<DeviceInfo> getDeviceInfo() async {
 }
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  DartPluginRegistrant.ensureInitialized();
   // Initialize Firebase if necessary.
   await Firebase.initializeApp();
+  await initLocalNotifications();
   logger.i("Handling a background message: ${message.messageId}");
   if (message.data.isNotEmpty) {
     final hasLocalizedKeys = message.data.containsKey('titleEn') ||
@@ -207,11 +115,12 @@ Future<void> addDevice() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
     FirebaseMessaging messaging = FirebaseMessaging.instance;
     String? token = await messaging.getToken();
-    logger.i("Firebase token: $token");
+    logger.i("Firebase token available: ${token != null && token.isNotEmpty}");
 
     DeviceInfo deviceInfo = await getDeviceInfo();
-    final String? jwt = await secureStorage.read(key: 'token');
-    logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+    final bool hasJwt =
+        (await secureStorage.read(key: 'token'))?.isNotEmpty == true;
+    logger.i('JWT token available: $hasJwt; sending device token to server');
     String? userIdS = await secureStorage.read(key: 'userId');
     while (userIdS == null) {
       await Future.delayed(Duration(seconds: 1));
@@ -252,8 +161,10 @@ Future<void> updateDevice(String? oldToken, String? newToken) async {
   }
 
   try {
-    final String? jwt = await const FlutterSecureStorage().read(key: 'token');
-    logger.i('JWT Token: $jwt SENDING NEW TOKEN TO SERVER');
+    final bool hasJwt =
+        (await const FlutterSecureStorage().read(key: 'token'))?.isNotEmpty ==
+            true;
+    logger.i('JWT token available: $hasJwt; updating device token on server');
     final response = await _deviceController
         .updateDevice({'newFCMToken': newToken, 'oldFCMToken': oldToken});
     if (response.statusCode == 200) {
@@ -302,7 +213,8 @@ Future<void> refreshToken() async {
     if (newToken != oldToken) {
       await updateDevice(oldToken, newToken!);
     }
-    logger.i('Firebase token $newToken');
+    logger.i(
+        "Firebase token available: ${newToken != null && newToken.isNotEmpty}");
   }
 }
 
@@ -330,7 +242,7 @@ Future<void> initFirebaseMessaging() async {
 
   // Listen for token refresh.
   messaging.onTokenRefresh.listen((newToken) async {
-    logger.i("Token refreshed: $newToken");
+    logger.i("Firebase token refreshed");
     String? oldToken = await FlutterSecureStorage().read(key: 'fcmToken');
     if (oldToken != null) {
       await updateDevice(oldToken, newToken);

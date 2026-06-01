@@ -32,8 +32,8 @@ import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/dialects/dialect_time_resolver.dart';
 import 'package:strnadi/localRecordings/userBadge.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -42,6 +42,7 @@ import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:dio/dio.dart';
 import '../config/config.dart';
 import '../navigation/scaffold_with_bottom_bar.dart'; // Contains MAPY_CZ_API_KEY
+import '../utils/location_label.dart';
 
 final logger = Logger();
 
@@ -103,10 +104,18 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   final MapController _mapController = MapController();
 
-  String placeTitle = 'Mapa';
+  String placeTitle = t('recListItem.placeTitle');
 
   double length = 0;
   int mililen = 0;
+
+  String get _recordingTitle {
+    final String? explicitName = widget.recording.name?.trim();
+    if (explicitName != null && explicitName.isNotEmpty) {
+      return explicitName;
+    }
+    return placeTitle;
+  }
 
   @override
   void initState() {
@@ -322,14 +331,6 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     player.seek(newPosition);
   }
 
-  String _formatDuration() {
-    int totalSeconds = widget.recording.totalSeconds!.round();
-    int minutes = totalSeconds ~/ 60;
-    int remainingSeconds = totalSeconds % 60;
-    String secondsStr = remainingSeconds.toString().padLeft(2, '0');
-    return '$minutes:$secondsStr';
-  }
-
   String _formatPlayerTime(Duration duration) {
     final int totalSeconds = duration.inSeconds;
     final int minutes = totalSeconds ~/ 60;
@@ -534,11 +535,23 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
           _DialectConfidence confidence,
         })> drafts = [];
     final Set<String> codes = <String>{};
+    final bool hasAdminConfirmedRepresentant = decoded.any((item) {
+      if (item is! Map<String, dynamic>) return false;
+      if (!_parseBool(item['representantFlag'])) return false;
+      return _hasConfirmedDialect(item['detectedDialects']);
+    });
 
     for (final item in decoded) {
       if (item is! Map<String, dynamic>) continue;
       final map = item;
       final bool isRepresentant = _parseBool(map['representantFlag']);
+      final bool isAdminConfirmedRepresentant =
+          isRepresentant && _hasConfirmedDialect(map['detectedDialects']);
+      if (hasAdminConfirmedRepresentant &&
+          isRepresentant &&
+          !isAdminConfirmedRepresentant) {
+        continue;
+      }
 
       final String? startStr = map['startDate'] as String?;
       final String? endStr = map['endDate'] as String?;
@@ -640,34 +653,45 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   ({String? code, _DialectConfidence confidence}) _selectDialect(
       Map<String, dynamic> row) {
-    String? pick(String key) {
-      final value = row[key];
-      if (value == null) return null;
-      final trimmed = value.toString().trim();
-      return trimmed.isEmpty ? null : trimmed;
-    }
-
-    final confirmed = pick('confirmedDialect');
+    final confirmed = _pickDialectValue(row, 'confirmedDialect');
     if (confirmed != null) {
       return (code: confirmed, confidence: _DialectConfidence.confirmed);
     }
 
-    final predicted = pick('predictedDialect');
+    final predicted = _pickDialectValue(row, 'predictedDialect');
     if (predicted != null) {
       return (code: predicted, confidence: _DialectConfidence.predicted);
     }
 
-    final guessed = pick('userGuessDialect');
+    final guessed = _pickDialectValue(row, 'userGuessDialect');
     if (guessed != null) {
       return (code: guessed, confidence: _DialectConfidence.userGuess);
     }
 
-    final fallback = pick('dialectCode');
+    final fallback = _pickDialectValue(row, 'dialectCode');
     if (fallback != null) {
       return (code: fallback, confidence: _DialectConfidence.userGuess);
     }
 
     return (code: null, confidence: _DialectConfidence.userGuess);
+  }
+
+  bool _hasConfirmedDialect(dynamic rawDialects) {
+    if (rawDialects is! List) return false;
+    for (final row in rawDialects) {
+      if (row is! Map<String, dynamic>) continue;
+      if (_pickDialectValue(row, 'confirmedDialect') != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String? _pickDialectValue(Map<String, dynamic> row, String key) {
+    final value = row[key];
+    if (value == null) return null;
+    final trimmed = value.toString().trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   bool _parseBool(dynamic value) {
@@ -680,66 +704,23 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     return false;
   }
 
+  Iterable<DialectTimeSegment> _dialectTimeSegments() sync* {
+    for (final part in parts) {
+      if (part == null) continue;
+      yield DialectTimeSegment(
+        start: part.startTime,
+        end: part.endTime,
+      );
+    }
+  }
+
   Duration _offsetWithinConcatenated(DateTime timestamp) {
-    // Fallback if parts are not loaded yet
-    if (parts.isEmpty) {
-      final DateTime base = widget.recording.createdAt.toUtc();
-      final Duration raw = timestamp.toUtc().difference(base);
-      return _clampDuration(raw);
-    }
-
-    // Filter to valid times and sort
-    final List<RecordingPart> valid = parts
-        .where((p) => p != null && p!.startTime != null && p!.endTime != null)
-        .cast<RecordingPart>()
-        .toList()
-      ..sort((a, b) => a.startTime!.compareTo(b.startTime!));
-
-    Duration cumulative = Duration.zero; // total concatenated length so far
-    final DateTime ts = timestamp.toUtc();
-
-    for (final p in valid) {
-      final DateTime ps = p.startTime!.toUtc();
-      final DateTime pe = p.endTime!.toUtc();
-      final Duration partDur = pe.difference(ps);
-
-      if (ts.isBefore(ps)) {
-        // ts falls in a GAP before this part → just the length we concatenated so far
-        return _clampDuration(cumulative);
-      }
-
-      if (!ts.isAfter(pe)) {
-        // ps <= ts <= pe → inside this part
-        final Duration inside = ts.difference(ps);
-        return _clampDuration(cumulative + inside);
-      }
-
-      // after this part → accumulate and continue
-      cumulative += partDur;
-    }
-
-    // After the last part → clamp to end
-    return _clampDuration(cumulative);
-  }
-
-  Duration _offsetWithinRecording(DateTime timestamp) {
-    return _offsetWithinConcatenated(timestamp);
-  }
-
-  Duration _clampDuration(Duration value) {
-    if (value.isNegative) {
-      return Duration.zero;
-    }
-    final double? totalSeconds = widget.recording.totalSeconds;
-    if (totalSeconds == null || totalSeconds <= 0) {
-      return value;
-    }
-    final Duration maxDuration =
-        Duration(milliseconds: (totalSeconds * 1000).round());
-    if (value > maxDuration) {
-      return maxDuration;
-    }
-    return value;
+    return resolveDialectOffset(
+      timestamp: timestamp,
+      recordingCreatedAt: widget.recording.createdAt,
+      parts: _dialectTimeSegments(),
+      totalSeconds: widget.recording.totalSeconds,
+    );
   }
 
   Widget _buildDialectsSection() {
@@ -943,11 +924,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final results = data['items'];
-        if (results.isNotEmpty) {
-          logger.i("Reverse geocode result: $results");
+        final String? label = buildLocationLabel(data);
+        if (label != null) {
           setState(() {
-            placeTitle = results[0]['name'];
+            placeTitle = label;
           });
         }
       } else {
@@ -969,13 +949,13 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         widget.recording.path!.isNotEmpty) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.list,
-        appBarTitle: widget.recording.name ?? '',
+        appBarTitle: _recordingTitle,
         content: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.recording.name ?? ''),
+        title: Text(_recordingTitle),
         leading: IconButton(
           icon:
               Image.asset('assets/icons/backButton.png', width: 30, height: 30),

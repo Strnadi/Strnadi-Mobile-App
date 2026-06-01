@@ -94,25 +94,155 @@ class _BlogExplorerContentState extends State<BlogExplorerContent> {
     return text.trim();
   }
 
-  List<_ArticleItem> _parseArticles(dynamic responseData) {
+  String _normalizeLanguageCode(String value) {
+    return value.trim().replaceAll('_', '-').toLowerCase();
+  }
+
+  List<String> _articleLanguageCandidates(String languageTag) {
+    final String normalized = _normalizeLanguageCode(languageTag);
+    final String languageOnly = normalized.split('-').first;
+    final List<String> candidates = <String>[];
+    final Set<String> seen = <String>{};
+
+    void add(String value) {
+      final String normalizedValue = _normalizeLanguageCode(value);
+      if (normalizedValue.isEmpty || !seen.add(normalizedValue)) return;
+      candidates.add(normalizedValue);
+    }
+
+    add(normalized);
+    switch (languageOnly) {
+      case 'cs':
+        add('cs-CZ');
+        break;
+      case 'de':
+        add('de-DE');
+        break;
+      case 'en':
+        add('en-US');
+        break;
+    }
+    add(languageOnly);
+    add('en-US');
+    add('cs-CZ');
+
+    return candidates;
+  }
+
+  String? _translationValue(
+    Map<dynamic, dynamic> translation,
+    String fieldName, {
+    required bool allowEmpty,
+  }) {
+    if (!translation.containsKey(fieldName)) return null;
+    final String value = _toStringValue(translation[fieldName]);
+    return value.isNotEmpty || allowEmpty ? value : null;
+  }
+
+  String? _findTranslationValue(
+    Map<dynamic, dynamic> article,
+    String fieldName,
+    Iterable<String> languageCandidates, {
+    required bool allowEmpty,
+  }) {
+    final dynamic rawTranslations = article['translations'];
+    if (rawTranslations is! Iterable) return null;
+
+    for (final String candidate in languageCandidates) {
+      for (final dynamic rawTranslation in rawTranslations) {
+        if (rawTranslation is! Map) continue;
+        final String languageCode = _normalizeLanguageCode(
+            rawTranslation['languageCode']?.toString() ?? '');
+        if (languageCode != candidate) continue;
+        final String? value = _translationValue(
+          rawTranslation,
+          fieldName,
+          allowEmpty: allowEmpty,
+        );
+        if (value != null) return value;
+      }
+    }
+
+    return null;
+  }
+
+  String? _findAnyTranslationValue(
+    Map<dynamic, dynamic> article,
+    String fieldName,
+  ) {
+    final dynamic rawTranslations = article['translations'];
+    if (rawTranslations is! Iterable) return null;
+
+    for (final dynamic rawTranslation in rawTranslations) {
+      if (rawTranslation is! Map) continue;
+      final String? value = _translationValue(
+        rawTranslation,
+        fieldName,
+        allowEmpty: false,
+      );
+      if (value != null) return value;
+    }
+
+    return null;
+  }
+
+  String _localizedArticleValue(
+    Map<dynamic, dynamic> article,
+    String languageTag, {
+    required String fallbackField,
+    required String translationField,
+    required bool allowEmpty,
+  }) {
+    final String? translated = _findTranslationValue(
+      article,
+      translationField,
+      _articleLanguageCandidates(languageTag),
+      allowEmpty: allowEmpty,
+    );
+    if (translated != null) return translated;
+
+    if (article.containsKey(fallbackField)) {
+      final String fallback = _toStringValue(article[fallbackField]);
+      if (fallback.isNotEmpty || allowEmpty) return fallback;
+    }
+
+    return _findAnyTranslationValue(article, translationField) ?? '';
+  }
+
+  List<_ArticleItem> _parseArticles(dynamic responseData, String languageTag) {
     final List<_ArticleItem> items = <_ArticleItem>[];
     for (final dynamic raw in _decodeResponseList(responseData)) {
       if (raw is! Map) continue;
       final int id = _toInt(raw['id']);
-      final String name = _toStringValue(raw['name']);
+      final String name = _localizedArticleValue(
+        raw,
+        languageTag,
+        fallbackField: 'name',
+        translationField: 'nameValue',
+        allowEmpty: false,
+      );
       if (id <= 0 || name.isEmpty) continue;
       items.add(
         _ArticleItem(
           id: id,
           name: name,
-          description: _toStringValue(raw['description']),
+          description: _localizedArticleValue(
+            raw,
+            languageTag,
+            fallbackField: 'description',
+            translationField: 'descriptionValue',
+            allowEmpty: true,
+          ),
         ),
       );
     }
     return items;
   }
 
-  List<_ArticleCategory> _parseCategories(dynamic responseData) {
+  List<_ArticleCategory> _parseCategories(
+    dynamic responseData,
+    String languageTag,
+  ) {
     final List<_ArticleCategory> categories = <_ArticleCategory>[];
     for (final dynamic raw in _decodeResponseList(responseData)) {
       if (raw is! Map) continue;
@@ -123,7 +253,7 @@ class _BlogExplorerContentState extends State<BlogExplorerContent> {
           id: id,
           label: _toStringValue(raw['label']),
           name: _toStringValue(raw['name']),
-          articles: _parseArticles(raw['articles']),
+          articles: _parseArticles(raw['articles'], languageTag),
         ),
       );
     }
@@ -137,6 +267,7 @@ class _BlogExplorerContentState extends State<BlogExplorerContent> {
     });
 
     try {
+      final String languageTag = await _readLanguageTag();
       final responses = await Future.wait([
         _articlesController.fetchArticleCategories(includeArticles: true),
         _articlesController.fetchArticles(),
@@ -153,10 +284,10 @@ class _BlogExplorerContentState extends State<BlogExplorerContent> {
       final List<_ArticleCategory> parsedCategories =
           categoriesResponse.statusCode == 204
               ? <_ArticleCategory>[]
-              : _parseCategories(categoriesResponse.data);
+              : _parseCategories(categoriesResponse.data, languageTag);
       final List<_ArticleItem> allArticles = articlesResponse.statusCode == 204
           ? <_ArticleItem>[]
-          : _parseArticles(articlesResponse.data);
+          : _parseArticles(articlesResponse.data, languageTag);
 
       final Set<int> assignedIds = <int>{};
       for (final category in parsedCategories) {

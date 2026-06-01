@@ -170,7 +170,7 @@
     "overview": {
       "title": "Informationsübersicht",
       "subtitle": "Informationsübersicht",
-      "marketing_consent": "Ich stimme dem Erhalt von Marketing-Mitteilungen zu",
+      "marketing_consent": "Ich stimme dem Erhalt von Projektinformationen zu",
       "check_details": "Bitte überprüfen Sie die eingegebenen Daten und bestätigen Sie die Registrierung.",
       "buttons": {
         "register": "Registrieren"
@@ -351,7 +351,12 @@
     "noRecording": "Aufnahme ist nicht verfügbar",
     "notePlaceholder": "Keine Notiz zu dieser Aufnahme",
     "dateTime": "Datum und Uhrzeit",
-    "estimatedBirdsCount": "Geschätzte Anzahl der Goldammern"
+    "estimatedBirdsCount": "Geschätzte Anzahl der Goldammern",
+    "dialectDetails": {
+      "userGuess": "Tipp des Benutzers",
+      "aiPrediction": "Vorhersage des KI-Modells",
+      "adminFinal": "Finale Bestimmung durch Admin"
+    }
   },
   "user_badge": {
     "no_nickname": "Benutzer hat keinen Spitznamen"
@@ -370,7 +375,8 @@
       },
       "error": {
         "title": "Fehler",
-        "close": "Schließen"
+        "close": "Schließen",
+        "recordingNotFound": "Aufnahme nicht gefunden"
       },
       "confirmDelete": {
         "title": "Löschen bestätigen",
@@ -397,13 +403,31 @@
         "off": "Clustering deaktivieren"
       },
       "mapView": {
+        "title": "Kartenansicht",
         "classic": "Klassisch",
         "satellite": "Satellit"
       },
       "recordingAuthor": {
+        "title": "Autor der Aufnahme",
         "all": "Alle",
         "me": "Nur ich"
+      },
+      "dialectVisibility": {
+        "title": "Dialektsichtbarkeit",
+        "all": "Alle anzeigen (inkl. Nutzervorschläge)",
+        "aiAdmin": "KI+Admin anzeigen",
+        "adminOnly": "Nur Admin"
+      },
+      "recordingAge": {
+        "title": "Alter der Aufnahmen",
+        "older": "Ältere",
+        "newer": "Neuere",
+        "all": "Alle"
       }
+    },
+    "loading": {
+      "title": "Aufnahmen werden geladen",
+      "subtitle": "Die Markierungen erscheinen gleich auf der Karte."
     },
     "legend": {
       "title": "Legende",
@@ -420,6 +444,10 @@
         "unfinished": "Unvollständig",
         "unassessed": "Nicht bewertet",
         "unusable": "Unbrauchbar"
+      },
+      "status": {
+        "aiAssisted": "Mit KI-Unterstützung bestimmt",
+        "adminConfirmed": "Vom Admin bestätigt"
       },
       "mapyCz": "Mapy.cz © Seznam.cz, a.s."
     }
@@ -451,6 +479,11 @@
     "addDialect": {
       "title": "Dialekt hinzufügen",
       "confirm": "Bestätigen",
+      "note": {
+        "label": "Notiz zur manuellen Markierung (optional)",
+        "placeholder": "Notiz zum ausgewählten Dialekt hinzufügen",
+        "appendHeader": "Manuelle Dialektmarkierung:"
+      },
       "options": {
         "BC": "BC",
         "BE": "BE",
@@ -625,7 +658,7 @@
       "title": "Einstellungen",
       "app": "App",
       "fields": {
-        "useMobileData": "Mobile Daten für Uploads verwenden",
+        "useMobileData": "Mobile Daten zum Hochladen von Aufnahmen verwenden",
         "localRecordingsMax": "Maximale Anzahl lokal gespeicherter Aufnahmen. Nach Erreichen dieses Limits werden die ältesten Aufnahmen gelöscht.",
         "language": "App-Sprache"
       },
@@ -670,7 +703,7 @@
       "appSettings": {
         "title": "Einstellungen",
         "fields": {
-          "useMobileData": "Mobile Daten für Uploads verwenden",
+          "useMobileData": "Mobile Daten zum Hochladen von Aufnahmen verwenden",
           "localRecordingsMax": "Maximale Anzahl lokal gespeicherter Aufnahmen"
         },
         "descriptions": {
@@ -723,9 +756,9 @@
   },
   "notifications": {
     "title": "Benachrichtigungen",
-    "uploads_in_progress": "Uploads laufen im Hintergrund",
+    "uploads_in_progress": "Das Hochladen von Aufnahmen läuft im Hintergrund",
     "no_notifications": "Keine Benachrichtigungen",
-    "no_uploads": "Keine aktiven Uploads im Hintergrund",
+    "no_uploads": "Keine aktiven Uploads von Aufnahmen im Hintergrund",
     "unknown_recording": "Unbekannte Aufnahme"
   },
   "logout": {

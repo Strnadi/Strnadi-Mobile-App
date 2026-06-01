@@ -24,6 +24,8 @@ import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/email_input_formatter.dart';
+import 'package:strnadi/auth/email_validator.dart';
 import 'package:strnadi/auth/appleAuth.dart' as apple;
 import 'package:strnadi/auth/google_sign_in_service.dart' as google;
 import 'package:strnadi/auth/registeration/nameReg.dart';
@@ -82,7 +84,8 @@ class _LoginState extends State<Login> {
   }
 
   void _finishCredentialAutofill() {
-    // Triggers iOS/Android password managers to offer saving credentials.
+    // Triggers iCloud Keychain and Android password managers to offer saving
+    // the username/password after the backend accepts the credential login.
     TextInput.finishAutofillContext(shouldSave: true);
   }
 
@@ -154,29 +157,39 @@ class _LoginState extends State<Login> {
     }
   }
 
+  String _normalizeEmailInput() {
+    final email = EmailValidator.normalize(_emailController.text);
+    if (_emailController.text != email) {
+      _emailController.value = TextEditingValue(
+        text: email,
+        selection: TextSelection.collapsed(offset: email.length),
+      );
+    }
+    return email;
+  }
+
   void login() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    final String email = _normalizeEmailInput();
+    if (email.isEmpty || _passwordController.text.isEmpty) {
       _showMessage(t('login.errors.emptyFieldsError'));
       return;
     }
 
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!emailRegex.hasMatch(_emailController.text)) {
+    if (!EmailValidator.isValid(email)) {
       _showMessage(t('login.errors.invalidEmailError'));
       return;
     }
 
     try {
       final response = await _authController.login(
-        email: _emailController.text,
+        email: email,
         password: _passwordController.text,
       );
 
-      logger.i('Login response: ${response.statusCode} | ${response.data}');
+      logger.i('Login response status: ${response.statusCode}');
       final String token = response.data.toString();
 
       if (response.statusCode == 200 || response.statusCode == 202) {
-        _finishCredentialAutofill();
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
         if (await secureStorage.read(key: 'token') != null) {
@@ -198,11 +211,12 @@ class _LoginState extends State<Login> {
           await secureStorage.write(key: 'userId', value: userId.toString());
           await cacheUserData(userId);
           _trackLogin(method: 'password', userId: userId, verified: false);
+          _finishCredentialAutofill();
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => EmailNotVerified(
-                userEmail: _emailController.text,
+                userEmail: email,
                 userId: userId!,
               ),
             ),
@@ -223,12 +237,12 @@ class _LoginState extends State<Login> {
         if (userId != null) {
           _trackLogin(method: 'password', userId: userId, verified: true);
         }
-        logger.i(token);
+        _finishCredentialAutofill();
+        logger.i('Login token stored');
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
         await navigateToSessionLanding(context);
       } else if (response.statusCode == 403) {
-        _finishCredentialAutofill();
         FlutterSecureStorage secureStorage = FlutterSecureStorage();
         await secureStorage.write(key: 'token', value: token);
         final idResponse = await _userController.getUserIdFromToken();
@@ -240,11 +254,12 @@ class _LoginState extends State<Login> {
         await secureStorage.write(key: 'userId', value: userId.toString());
         await cacheUserData(userId);
         _trackLogin(method: 'password', userId: userId, verified: false);
+        _finishCredentialAutofill();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EmailNotVerified(
-              userEmail: _emailController.text,
+              userEmail: email,
               userId: userId,
             ),
           ),
@@ -306,6 +321,7 @@ class _LoginState extends State<Login> {
             const SizedBox(height: 40),
 
             AutofillGroup(
+              onDisposeAction: AutofillContextAction.cancel,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -322,8 +338,10 @@ class _LoginState extends State<Login> {
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    textCapitalization: TextCapitalization.none,
                     autocorrect: false,
                     textInputAction: TextInputAction.next,
+                    inputFormatters: const [LowerCaseEmailInputFormatter()],
                     autofillHints: const [
                       AutofillHints.username,
                       AutofillHints.email,
@@ -358,7 +376,10 @@ class _LoginState extends State<Login> {
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    keyboardType: TextInputType.visiblePassword,
                     textInputAction: TextInputAction.done,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     autofillHints: const [AutofillHints.password],
                     onSubmitted: (_) => login(),
                     decoration: InputDecoration(

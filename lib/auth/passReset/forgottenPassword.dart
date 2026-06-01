@@ -17,6 +17,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
+import 'package:strnadi/auth/email_validator.dart';
 import 'package:strnadi/auth/passReset/resetEmailSent.dart';
 
 Logger logger = Logger();
@@ -118,13 +119,11 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return t(
                           'signup.passwordReset.request.errors.emptyEmail');
                     }
-                    if (!RegExp(
-                      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
-                    ).hasMatch(value)) {
+                    if (!EmailValidator.isValid(value)) {
                       return t('login.errors.invalidEmailFormat');
                     }
                     return null;
@@ -181,7 +180,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
 
   Future<void> requestPasswordReset(String email) async {
     try {
-      final response = await _authController.requestPasswordReset(email);
+      final response = await _authController.requestPasswordReset(email.trim());
 
       if (response.statusCode == 200) {
         _showMessage(t('signup.passwordReset.request.messages.sent'));

@@ -31,31 +31,26 @@
 import 'dart:convert';
 
 import 'package:strnadi/database/Models/recording.dart';
-import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'dart:math' as math;
 import 'package:scidart/numdart.dart' as numdart;
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/bottomBar.dart';
-import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
-import 'package:strnadi/localRecordings/recListItem.dart';
+import 'package:strnadi/map/filtered_parts_api_loader.dart';
 import 'package:strnadi/map/RecordingPage.dart';
+import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
-import 'package:strnadi/user/userPage.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import '../config/config.dart';
 import 'dart:async';
@@ -64,7 +59,6 @@ import 'package:strnadi/locationService.dart'; // Use the location service
 import '../database/Models/detectedDialect.dart';
 import '../database/Models/filteredRecordingPart.dart';
 import '../database/databaseNew.dart';
-import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 
 import '../navigation/scaffold_with_bottom_bar.dart';
@@ -72,9 +66,40 @@ import '../navigation/scaffold_with_bottom_bar.dart';
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
-/// Global switch that decides whether recordings whose dialect is still
-/// unconfirmed (“Unassessed”) are shown on the map.
-bool showUnconfirmedDialects = false;
+enum DialectVisibilityMode {
+  all,
+  aiAdmin,
+  adminOnly,
+}
+
+enum RecordingAgeFilter {
+  all,
+  newer,
+  older,
+}
+
+enum _MapMarkerStatus {
+  none,
+  aiAssisted,
+  adminConfirmed,
+}
+
+/// Global mode deciding which dialect source is used on the map.
+///
+/// Default: AI+Admin
+DialectVisibilityMode dialectVisibilityMode = DialectVisibilityMode.aiAdmin;
+
+class _RecordingDialectSelection {
+  final List<String> dialects;
+  final bool hasAnySelectedDialect;
+  final _MapMarkerStatus markerStatus;
+
+  const _RecordingDialectSelection({
+    required this.dialects,
+    required this.hasAnySelectedDialect,
+    required this.markerStatus,
+  });
+}
 
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
@@ -84,103 +109,45 @@ class MapScreenV2 extends StatefulWidget {
 }
 
 class _MapScreenV2State extends State<MapScreenV2> {
-  static const FilteredRecordingsController _filteredRecordingsController =
-      FilteredRecordingsController();
   static const RecordingsController _recordingsController =
       RecordingsController();
   static const UserController _userController = UserController();
+  final FilteredPartsApiLoader _filteredPartsApiLoader =
+      FilteredPartsApiLoader(logger: logger);
 
-  late bool _clusterPoints = true;
-
-  Map<String, List<Marker>> _dialectSeparatedMarkers = {};
-
-  List<String> keys = ['rest'];
+  late bool _clusterPoints = false;
 
   List<Widget> markersWidgets = [];
-
-  /// Loads filtered recording parts from the public BE endpoint instead of the local DB cache.
-  /// When [verified] is true, the BE returns only FRPs with workflow states indicating verification (1 or 2).
-  /// When false, the BE can return also unverified FRPs.
-  Future<({List<FilteredRecordingPart> frps, List<DetectedDialect> dds})>
-      _fetchFilteredPartsFromApi({
-    int? recordingId,
-    required bool verified,
-  }) async {
-    try {
-      logger.i(
-          '[MapV2] GET /recordings/filtered recordingId=$recordingId verified=$verified');
-      final resp = await _filteredRecordingsController.fetchFilteredParts(
-        recordingId: recordingId,
-        verified: verified,
-      );
-
-      if (resp.statusCode == 204) {
-        logger.i('[MapV2] /recordings/filtered returned 204 No Content');
-        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-      }
-      if (resp.statusCode != 200) {
-        logger.e('[MapV2] /recordings/filtered failed: ' +
-            resp.statusCode.toString() +
-            ' body=' +
-            resp.data.toString());
-        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-      }
-
-      final dynamic decoded =
-          resp.data is String ? jsonDecode(resp.data as String) : resp.data;
-      if (decoded is! List) {
-        logger.w('[MapV2] /recordings/filtered returned non-list payload');
-        return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-      }
-      final List<dynamic> jsonArr = decoded;
-      final frps = <FilteredRecordingPart>[];
-      final dds = <DetectedDialect>[];
-
-      for (final item in jsonArr) {
-        if (item is! Map<String, dynamic>) continue;
-        final frp = FilteredRecordingPart.fromBEJson(item);
-        frps.add(frp);
-
-        final List<dynamic>? dialects =
-            item['detectedDialects'] as List<dynamic>?;
-        if (dialects != null) {
-          for (final d in dialects) {
-            if (d is! Map<String, dynamic>) continue;
-            final row = DetectedDialect.fromBEJson(d,
-                parentFilteredPartBEID: frp.BEId ?? -1);
-            dds.add(row);
-          }
-        }
-      }
-
-      logger.i('[MapV2] /recordings/filtered parsed: FRPs=' +
-          frps.length.toString() +
-          ', DDs=' +
-          dds.length.toString());
-      return (frps: frps, dds: dds);
-    } catch (e, st) {
-      logger.e('[MapV2] /recordings/filtered exception: ' + e.toString(),
-          error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
-      return (frps: <FilteredRecordingPart>[], dds: <DetectedDialect>[]);
-    }
-  }
+  List<Marker> _visibleMarkers = [];
+  List<FilteredRecordingPart> _cachedFilteredParts = [];
+  List<DetectedDialect> _cachedDetectedDialects = [];
+  bool _hasCachedDialectData = false;
+  bool _isLoadingRecordings = true;
+  int _activeRecordingsRequestId = 0;
 
   final MapController _mapController = MapController();
   // Legend dialect codes (start with local defaults; replace with BE list when available)
   List<String> _legendCodes = DynamicIcon.getDefaultDialectKeys();
   bool _isSatelliteView = false;
   String _recordingAuthorFilter = 'all';
-  String _dataFilter = 'new';
-  bool _showConqueredSectors = true;
-  bool _showUnconfirmedDialects = showUnconfirmedDialects;
+  RecordingAgeFilter _recordingAgeFilter = RecordingAgeFilter.newer;
+  DialectVisibilityMode _dialectVisibilityMode = dialectVisibilityMode;
   List<Polyline> _gridLines = [];
-  // Now stores: Map<int, (List<String>, bool)>
-  Map<int, (List<String>, bool)> _dialectsByRecording = {};
+  Map<int, _RecordingDialectSelection> _dialectsByRecording = {};
+  Set<int> _hiddenRecordingIds = <int>{};
   // Map local recordingId -> BEId (server id) for consistent lookups
   final Map<int, int> _recLocalToBE = {};
+  final Map<int, Recording> _recordingsByBeId = {};
+  static final DateTime _oldProjectStart = DateTime(2011, 1, 1);
+  static final DateTime _oldProjectEnd = DateTime(2017, 1, 1);
+  static final DateTime _newProjectStart = DateTime(2025, 1, 1);
+  static const double _ungroupedBoundsPaddingFactor = 0.18;
 
   final secureStorage = const FlutterSecureStorage();
+  StreamSubscription? _positionStreamSubscription;
+  StreamSubscription<MapEvent>? _mapEventSubscription;
+
+  bool get _shouldUseClusterRendering => _clusterPoints;
 
   String _canonicalizeDialect(String? value) {
     if (value == null) return '';
@@ -209,6 +176,28 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return result;
   }
 
+  String _dialectVisibilityModeForLog() {
+    switch (_dialectVisibilityMode) {
+      case DialectVisibilityMode.all:
+        return 'all';
+      case DialectVisibilityMode.aiAdmin:
+        return 'aiAdmin';
+      case DialectVisibilityMode.adminOnly:
+        return 'adminOnly';
+    }
+  }
+
+  DialectSummaryMode _dialectSummaryMode() {
+    switch (_dialectVisibilityMode) {
+      case DialectVisibilityMode.all:
+        return DialectSummaryMode.all;
+      case DialectVisibilityMode.aiAdmin:
+        return DialectSummaryMode.aiAdmin;
+      case DialectVisibilityMode.adminOnly:
+        return DialectSummaryMode.adminOnly;
+    }
+  }
+
   // Store the current camera values.
   LatLng _currentCenter = LatLng(50.0755, 14.4378);
   LatLng _currentPosition = LatLng(50.0755, 14.4378);
@@ -224,9 +213,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   late bool _isGuestUser = false;
 
-  // Subscribe to location updates via the centralized service.
-  StreamSubscription? _positionStreamSubscription;
-
   Future<void> _loadGuestStatus() async {
     final storage = const FlutterSecureStorage();
     final userId = await storage.read(key: 'userId');
@@ -236,18 +222,34 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
+  void _setRecordingsLoading(bool value) {
+    if (!mounted || _isLoadingRecordings == value) {
+      return;
+    }
+    setState(() {
+      _isLoadingRecordings = value;
+    });
+  }
+
+  bool _matchesRecordingAge(Recording recording) {
+    switch (_recordingAgeFilter) {
+      case RecordingAgeFilter.all:
+        return true;
+      case RecordingAgeFilter.newer:
+        return !recording.createdAt.isBefore(_newProjectStart);
+      case RecordingAgeFilter.older:
+        return !recording.createdAt.isBefore(_oldProjectStart) &&
+            recording.createdAt.isBefore(_oldProjectEnd);
+    }
+  }
+
   Future<void> _refreshLegendCodes() async {
     try {
-      final beCodes = await DynamicIcon.fetchAllDialectCodesFromServer();
+      final beCodes =
+          await DynamicIcon.fetchVisibleDialectHintCodesFromServer();
       if (!mounted) return;
       if (beCodes.isNotEmpty) {
         final canonicalCodes = _canonicalizeDialectList(beCodes);
-        // Sort with 'Unknown' last to keep UI neat
-        canonicalCodes.sort((a, b) {
-          if (a == 'Unknown') return 1;
-          if (b == 'Unknown') return -1;
-          return a.toLowerCase().compareTo(b.toLowerCase());
-        });
         setState(() {
           _legendCodes = canonicalCodes;
         });
@@ -334,7 +336,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     _getCurrentLocation();
 
-    getRecordings().then((_) => {_fetchDialects(), fetchClusters()});
+    unawaited(getRecordings());
 
     // Subscribe to the centralized location stream.
     _positionStreamSubscription =
@@ -344,13 +346,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
       });
     });
 
-    _mapController.mapEventStream.listen((event) {
+    _mapEventSubscription = _mapController.mapEventStream.listen((event) {
       if (event is MapEventMoveEnd) {
-        setState(() {
-          _currentCenter = event.camera.center;
-          _currentZoom = event.camera.zoom;
-        });
+        final bool wasUsingClusterRendering = _shouldUseClusterRendering;
+        _currentCenter = event.camera.center;
+        _currentZoom = event.camera.zoom;
         _updateGrid();
+        final bool isUsingClusterRendering = _shouldUseClusterRendering;
+        if (isUsingClusterRendering != wasUsingClusterRendering ||
+            !isUsingClusterRendering) {
+          unawaited(_rebuildMapMarkers());
+        }
       }
     });
 
@@ -359,27 +365,74 @@ class _MapScreenV2State extends State<MapScreenV2> {
     unawaited(_refreshLegendCodes());
   }
 
-  void fetchClusters() {
-    var markers = getDialectSeparatedRecordings();
-    logger.i(
-        '[MapV2] initState(): dialectSeparatedMarkers building clusters $markers');
-    for (var d in markers.keys) {
-      createClusterOfDialect(markers[d]!, d).then((widget) {
-        setState(() {
-          markersWidgets.add(widget);
-        });
-      });
+  Future<void> fetchClusters() async {
+    final markers = getDialectSeparatedRecordings();
+    final entries = markers.entries.toList();
+    final dialectKeys =
+        entries.map((entry) => entry.key).toList(growable: false);
+    final colors = dialectKeys.isEmpty
+        ? const <Color>[]
+        : await DialectColorCache.getColors(dialectKeys);
+    final fallbackColors = await DialectColorCache.getColors(['Unknown']);
+    final fallbackColor =
+        fallbackColors.isNotEmpty ? fallbackColors.first : Colors.grey;
+    final Map<String, Color> colorByDialect = <String, Color>{};
+    for (int i = 0; i < dialectKeys.length && i < colors.length; i++) {
+      colorByDialect[dialectKeys[i]] = colors[i];
+    }
+    final builtWidgets = entries
+        .map((entry) => _createClusterLayer(
+              entry.value,
+              colorByDialect[entry.key] ?? fallbackColor,
+            ))
+        .toList(growable: false);
+
+    if (!mounted || !_shouldUseClusterRendering) return;
+    setState(() {
+      markersWidgets = builtWidgets;
+    });
+
+    logger.i('[MapV2] clusters rebuilt: buckets=' + markers.length.toString());
+  }
+
+  bool _shouldShowRecordingOnMap(int recordingBEId) {
+    final Recording? recording = _recordingsByBeId[recordingBEId];
+    if (recording != null && !_matchesRecordingAge(recording)) {
+      return false;
+    }
+    if (_hiddenRecordingIds.contains(recordingBEId)) {
+      return false;
+    }
+    final entry = _dialectsByRecording[recordingBEId];
+    if (entry == null) return true;
+    return entry.hasAnySelectedDialect;
+  }
+
+  Future<void> _rebuildMapMarkers() async {
+    final bool shouldUseClusterRendering = _shouldUseClusterRendering;
+    final markers = shouldUseClusterRendering
+        ? const <Marker>[]
+        : _buildRecordingMarkers(
+            visibleBounds: _expandedVisibleBoundsForUngrouped(),
+          );
+    if (!mounted) return;
+    setState(() {
+      _visibleMarkers = markers;
+      if (!shouldUseClusterRendering) {
+        markersWidgets = const <Widget>[];
+      }
+    });
+
+    if (!shouldUseClusterRendering) {
+      return;
     }
 
-    logger.i('[MapV2] initState(): dialectSeparatedMarkers count=' +
-        markers.length.toString());
-    setState(() {
-      _dialectSeparatedMarkers = markers;
-      keys = markers.keys.toList();
-    });
+    await fetchClusters();
   }
 
   Future<void> getRecordings() async {
+    final int requestId = ++_activeRecordingsRequestId;
+    _setRecordingsLoading(true);
     try {
       int? userId;
       //String? email;
@@ -406,32 +459,42 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final String responseBody = response.data is String
             ? response.data as String
             : jsonEncode(data);
-        List<Part> parts = getParts(jsonEncode(data));
+        final List<Part> parts = getParts(jsonEncode(data));
+        final List<Recording> recordings = await GetRecordings(responseBody);
 
+        length = 0;
         for (int i = 0; i < parts.length; i++) {
           length += parts[i].length ?? 0;
         }
-        setState(() {
-          _recordings = parts;
-        });
-        logger.i(
-            '[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
-        List<Recording> recordings = await GetRecordings(responseBody);
-        setState(() {
-          _fullRecordings = recordings;
-        });
+        if (!mounted || requestId != _activeRecordingsRequestId) {
+          return;
+        }
+        _recordingsByBeId
+          ..clear()
+          ..addEntries(
+            recordings
+                .where((recording) => recording.BEId != null)
+                .map((recording) => MapEntry(recording.BEId!, recording)),
+          );
         // Build local->BE id map for consistent lookups
         _recLocalToBE.clear();
-        for (final r in _fullRecordings) {
+        for (final r in recordings) {
           if (r.id != null && r.BEId != null) {
             _recLocalToBE[r.id!] = r.BEId!;
           }
         }
+        setState(() {
+          _recordings = parts;
+          _fullRecordings = recordings;
+          _visibleMarkers = const <Marker>[];
+        });
+        logger.i(
+            '[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
         logger.i('[MapV2] getRecordings(): local->BE map size=' +
             _recLocalToBE.length.toString());
         logger
             .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
-        await _fetchDialects();
+        await _fetchDialects(refreshFromApi: true, requestId: requestId);
       } else {
         logger.e(
             'Failed to fetch recordings ${response.statusCode} | ${response.data}');
@@ -439,26 +502,44 @@ class _MapScreenV2State extends State<MapScreenV2> {
     } catch (error, stackTrace) {
       logger.e("Error generariong map $error",
           error: error, stackTrace: stackTrace);
+    } finally {
+      if (requestId == _activeRecordingsRequestId) {
+        _setRecordingsLoading(false);
+      }
     }
   }
 
-  Future<void> _fetchDialects() async {
+  Future<void> _fetchDialects({
+    bool refreshFromApi = true,
+    int? requestId,
+  }) async {
     try {
       // Snapshot sizes for quick diagnosis
       logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
           _fullRecordings.length.toString() +
-          ', showUnconfirmed=' +
-          _showUnconfirmedDialects.toString());
+          ', dialectMode=' +
+          _dialectVisibilityModeForLog());
 
-      // Always fetch all FRPs from BE so we don't miss state=7 (predicted) rows.
-      // We then treat predicted as confirmed in client-side selection logic.
-      final bool verifiedOnly = false;
-      final api = await _fetchFilteredPartsFromApi(
-        // We call once globally to avoid N calls per recording. If needed, we can later scope by recordingId.
-        verified: verifiedOnly,
-      );
-      final frps = api.frps; // List<FilteredRecordingPart>
-      final dds = api.dds; // List<DetectedDialect>
+      // Always fetch all FRPs from BE to keep map filtering fully client-side.
+      final List<FilteredRecordingPart> frps;
+      final List<DetectedDialect> dds;
+      if (refreshFromApi || !_hasCachedDialectData) {
+        final api = await _filteredPartsApiLoader.fetch(
+          verified: false,
+        );
+        if (requestId != null && requestId != _activeRecordingsRequestId) {
+          return;
+        }
+        frps = api.frps;
+        dds = api.dds;
+        _cachedFilteredParts = frps;
+        _cachedDetectedDialects = dds;
+        _hasCachedDialectData = true;
+      } else {
+        frps = _cachedFilteredParts;
+        dds = _cachedDetectedDialects;
+        logger.i('[MapV2] _fetchDialects(): using cached filtered data');
+      }
       if (frps.isNotEmpty) {
         logger.d('[MapV2] example FRP beId/state: ' +
             (frps.first.BEId?.toString() ?? 'null') +
@@ -471,7 +552,28 @@ class _MapScreenV2State extends State<MapScreenV2> {
           ', DDs=' +
           dds.length.toString());
 
-      final Map<int, (List<String>, bool)> byRecording = {};
+      final Map<int, List<FilteredRecordingPart>> frpsByRecording =
+          <int, List<FilteredRecordingPart>>{};
+      for (final frp in frps) {
+        final int? recordingBeId = frp.recordingBEID;
+        if (recordingBeId == null) continue;
+        frpsByRecording
+            .putIfAbsent(recordingBeId, () => <FilteredRecordingPart>[])
+            .add(frp);
+      }
+
+      final Map<int, List<DetectedDialect>> ddsByFilteredPart =
+          <int, List<DetectedDialect>>{};
+      for (final row in dds) {
+        final int? filteredPartBeId = row.filteredPartBEID;
+        if (filteredPartBeId == null) continue;
+        ddsByFilteredPart
+            .putIfAbsent(filteredPartBeId, () => <DetectedDialect>[])
+            .add(row);
+      }
+
+      final Map<int, _RecordingDialectSelection> byRecording = {};
+      final Set<int> hiddenRecordingIds = <int>{};
       int recsWithNoCodes = 0;
 
       for (final rec in _fullRecordings) {
@@ -481,107 +583,110 @@ class _MapScreenV2State extends State<MapScreenV2> {
           continue;
         }
 
-        // Only representative filtered parts for this recording (by BE id)
-        final reps = frps
-            .where((f) => f.recordingBEID == beId && f.isRepresentant)
-            .toList();
-        // Add the state==7 flag
-        bool hasState6 = reps.any((f) => f.state == 6);
-        logger.d('[MapV2] recBE=' +
-            beId.toString() +
-            ': representative FRPs=' +
-            reps.length.toString());
+        final recFrps =
+            frpsByRecording[beId] ?? const <FilteredRecordingPart>[];
+        if (recFrps.isEmpty) {
+          hiddenRecordingIds.add(beId);
+          continue;
+        }
 
-        final codes = <String>{};
-        for (final frp in reps) {
-          final frpDesc = 'FRP be=' +
-              (frp.BEId?.toString() ?? 'null') +
-              ' state=' +
-              frp.state.toString();
-
-          // Join detected dialects by BE link
-          final rows = dds
-              .where(
-                  (d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId))
-              .toList();
-          logger.d('[MapV2]   ' +
-              frpDesc +
-              ' -> dialectRows=' +
-              rows.length.toString());
-
+        final Set<String> allDialectCodes = <String>{};
+        for (final frp in recFrps) {
+          final rows = frp.BEId == null
+              ? const <DetectedDialect>[]
+              : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
           for (final d in rows) {
-            final String? confirmed = d.confirmedDialect;
-            final String? predicted = d.predictedDialect; // treat as confirmed
-            final String? guessed = d.userGuessDialect;
-            // When unconfirmed are shown: confirmed -> predicted -> guessed
-            // When hidden: confirmed -> predicted (predicted is treated as confirmed)
-            final String? chosen = _showUnconfirmedDialects
-                ? (confirmed ?? predicted ?? guessed)
-                : (confirmed ?? predicted);
-            logger.v('[MapV2]     dialectRow be=' +
-                (d.BEId?.toString() ?? 'null') +
-                ' confirmed=' +
-                (confirmed ?? '-') +
-                ' predicted=' +
-                (predicted ?? '-') +
-                ' guessed=' +
-                (guessed ?? '-') +
-                ' chosen=' +
-                (chosen ?? '-'));
-            if (chosen != null && chosen.trim().isNotEmpty) {
-              codes.add(chosen.trim());
-            }
+            allDialectCodes.addAll(_allDialectCodesForRecording(d));
+          }
+        }
+        if (allDialectCodes.isNotEmpty &&
+            allDialectCodes.every(_isNoDialectCode)) {
+          hiddenRecordingIds.add(beId);
+          continue;
+        }
+
+        // Prefer representative filtered parts for this recording (by BE id).
+        // If none exists, fall back to all filtered parts so the recording
+        // still gets a marker from available model/admin data.
+        // If an admin-confirmed representative exists, model-only
+        // source parts must not influence the badge.
+        final reps = recFrps.where((f) => f.isRepresentant).toList();
+        final sourceParts = selectDialectSourceParts<FilteredRecordingPart>(
+          parts: recFrps,
+          isRepresentant: (part) => part.isRepresentant,
+        );
+        final bool usedSourcePartsFallback = reps.isEmpty;
+        final bool hasState6 = sourceParts.any((f) => f.state == 6);
+        final Map<int, List<DetectedDialect>> rowsBySourcePart =
+            <int, List<DetectedDialect>>{};
+        bool hasAdminConfirmedSourcePart = false;
+
+        for (final frp in sourceParts) {
+          final rows = frp.BEId == null
+              ? const <DetectedDialect>[]
+              : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
+          if (frp.BEId != null) {
+            rowsBySourcePart[frp.BEId!] = rows;
+          }
+          if (rows.any(_hasAdminConfirmedDialect)) {
+            hasAdminConfirmedSourcePart = true;
           }
         }
 
+        final List<DetectedDialectSnapshot> sourceRows =
+            <DetectedDialectSnapshot>[];
+        for (final frp in sourceParts) {
+          // Join detected dialects by BE link
+          final rows = frp.BEId == null
+              ? const <DetectedDialect>[]
+              : (rowsBySourcePart[frp.BEId!] ?? const <DetectedDialect>[]);
+          final bool isAdminConfirmedSourcePart =
+              rows.any(_hasAdminConfirmedDialect);
+          if (hasAdminConfirmedSourcePart && !isAdminConfirmedSourcePart) {
+            continue;
+          }
+
+          for (final d in rows) {
+            sourceRows.add(
+              DetectedDialectSnapshot(
+                confirmed: d.confirmedDialect,
+                predicted: d.predictedDialect,
+                guessed: d.userGuessDialect,
+                adminConfirmedRepresentant: isAdminConfirmedSourcePart,
+              ),
+            );
+          }
+        }
+
+        final summary = summarizeRecordingDialects(
+          rows: sourceRows,
+          mode: _dialectSummaryMode(),
+          canonicalize: _canonicalizeDialect,
+        );
+
         // Fallback when no codes collected
         List<String> out;
-        if (codes.isEmpty) {
+        if (!summary.hasAnySelectedDialect) {
           recsWithNoCodes++;
-          logger.w('[MapV2] recBE=' +
-              beId.toString() +
-              ': no dialect codes collected; fallback=Unknown (repFRPs=' +
-              reps.length.toString() +
-              ')');
+          logger.w(
+            '[MapV2] recBE=$beId: no dialect codes collected; '
+            'fallback=Unknown (sourceFRPs=${sourceParts.length}, '
+            'repFRPs=${reps.length})',
+          );
           out = <String>['Unknown'];
         } else {
-          // Keep insertion order first
-          out = _canonicalizeDialectList(codes);
-
-          // Stabilize order by first-seen across representative FRPs so TL->BR is deterministic
-          final seenOrder = <String>[];
-          for (final frp in reps) {
-            final rows = dds.where(
-                (d) => (frp.BEId != null && d.filteredPartBEID == frp.BEId));
-            for (final d in rows) {
-              final String? confirmed = d.confirmedDialect;
-              final String? predicted =
-                  d.predictedDialect; // treat as confirmed
-              final String? guessed = d.userGuessDialect;
-              final String? chosen = _showUnconfirmedDialects
-                  ? (confirmed ?? predicted ?? guessed)
-                  : (confirmed ?? predicted);
-              final canonical = _canonicalizeDialect(chosen);
-              if (canonical.isNotEmpty && !seenOrder.contains(canonical)) {
-                seenOrder.add(canonical);
-              }
-            }
-          }
-          if (seenOrder.isNotEmpty) {
-            out.sort((a, b) {
-              final ia = seenOrder.indexOf(a);
-              final ib = seenOrder.indexOf(b);
-              return (ia < 0 ? 1 << 20 : ia).compareTo(ib < 0 ? 1 << 20 : ib);
-            });
-          }
+          out = List<String>.from(summary.dialects);
+          out = limitFailsafeDialects(
+            dialects: out,
+            usedFailsafe: usedSourcePartsFallback,
+          );
 
           logger.i('[MapV2] recBE=' +
               beId.toString() +
               ': codes=[' +
               out.join(',') +
-              '] (ordered=[' +
-              seenOrder.join(',') +
-              '])');
+              '] tier=' +
+              summary.selectedTier.name);
         }
 
         // Clamp to two dialects to enable diagonal split; more than two would fall back to mix otherwise
@@ -594,16 +699,37 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
         final normalized =
             _canonicalizeDialectList(out.isEmpty ? <String>['Unknown'] : out);
-        byRecording[beId] = (normalized, hasState6);
+        final _MapMarkerStatus markerStatus =
+            summary.selectedTier == SelectedDialectTier.confirmed
+                ? _MapMarkerStatus.adminConfirmed
+                : (summary.selectedTier == SelectedDialectTier.predicted ||
+                        (!summary.hasAnySelectedDialect && hasState6))
+                    ? _MapMarkerStatus.aiAssisted
+                    : _MapMarkerStatus.none;
+        byRecording[beId] = _RecordingDialectSelection(
+          dialects: normalized,
+          hasAnySelectedDialect: summary.hasAnySelectedDialect,
+          markerStatus: markerStatus,
+        );
       }
 
+      if (!mounted ||
+          (requestId != null && requestId != _activeRecordingsRequestId)) {
+        return;
+      }
       setState(() {
         _dialectsByRecording = byRecording;
+        _hiddenRecordingIds = hiddenRecordingIds;
       });
       logger.i('[MapV2] _fetchDialects(): done; records=' +
           byRecording.length.toString() +
+          ', hidden=' +
+          hiddenRecordingIds.length.toString() +
+          ', visible=' +
+          (_fullRecordings.length - hiddenRecordingIds.length).toString() +
           ', emptyOrUnknown=' +
           recsWithNoCodes.toString());
+      await _rebuildMapMarkers();
     } catch (e, stackTrace) {
       logger.e('Failed to fetch representative dialects: ' + e.toString(),
           error: e, stackTrace: stackTrace);
@@ -613,38 +739,80 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   List<String> _dialectsForRecordingId(int recordingBEId) {
     final entry = _dialectsByRecording[recordingBEId];
-    if (entry == null || entry.$1.isEmpty) return const ['Unknown'];
-    return _canonicalizeDialectList(entry.$1);
+    if (entry == null || entry.dialects.isEmpty) return const ['Unknown'];
+    return _canonicalizeDialectList(entry.dialects);
   }
 
-  bool _hasState6ForRecording(int beId) =>
-      _dialectsByRecording[beId]?.$2 ?? false;
+  _MapMarkerStatus _markerStatusForRecording(int beId) =>
+      _dialectsByRecording[beId]?.markerStatus ?? _MapMarkerStatus.none;
+
+  bool _hasAdminConfirmedDialect(DetectedDialect row) {
+    return _canonicalizeDialect(row.confirmedDialect).isNotEmpty;
+  }
+
+  List<String> _allDialectCodesForRecording(DetectedDialect row) {
+    final List<String> codes = <String>[];
+
+    void addIfPresent(String? value) {
+      final String canonical = _canonicalizeDialect(value);
+      if (canonical.isNotEmpty) {
+        codes.add(canonical);
+      }
+    }
+
+    addIfPresent(row.confirmedDialect);
+    addIfPresent(row.predictedDialect);
+    addIfPresent(row.userGuessDialect);
+
+    return codes;
+  }
+
+  bool _isNoDialectCode(String value) {
+    return _canonicalizeDialect(value) == 'No Dialect';
+  }
+
+  LatLngBounds? _expandedVisibleBoundsForUngrouped() {
+    if (_mapSize == null) {
+      return null;
+    }
+    final bounds = calculateBounds();
+    final double latPadding =
+        (bounds.north - bounds.south) * _ungroupedBoundsPaddingFactor;
+    final double lonPadding =
+        (bounds.east - bounds.west) * _ungroupedBoundsPaddingFactor;
+    return LatLngBounds.unsafe(
+      north: math.min(LatLngBounds.maxLatitude, bounds.north + latPadding),
+      south: math.max(LatLngBounds.minLatitude, bounds.south - latPadding),
+      east: math.min(LatLngBounds.maxLongitude, bounds.east + lonPadding),
+      west: math.max(LatLngBounds.minLongitude, bounds.west - lonPadding),
+    );
+  }
 
   Map<int, Part> _latestPartPerRecording() {
     // Keep only the last part we saw for each recordingId (assuming parts arrive in chronological order)
-    final Map<int, Part> lastPartByRecording = {};
+    final Map<int, Part> lastPartByRecording = <int, Part>{};
     for (final p in _recordings) {
       lastPartByRecording[p.recordingId] = p; // last wins
     }
-    logger
-        .i('[MapV2] unique recordings captured=${lastPartByRecording.length}');
     return lastPartByRecording;
   }
 
-  List<Marker> _buildRecordingMarkers() {
-    logger.i('[MapV2] _buildRecordingMarkers(): parts=${_recordings.length}');
+  List<Marker> _buildRecordingMarkers({
+    LatLngBounds? visibleBounds,
+  }) {
     final lastPartByRecording = _latestPartPerRecording();
 
     final markers = <Marker>[];
     lastPartByRecording.forEach((recId, part) {
       final point = LatLng(part.gpsLatitudeStart, part.gpsLongitudeStart);
+      if (visibleBounds != null && !visibleBounds.contains(point)) {
+        return;
+      }
       final beId =
           _recLocalToBE[recId] ?? recId; // fall back if equal in some datasets
+      if (!_shouldShowRecordingOnMap(beId)) return;
       final dList = _dialectsForRecordingId(beId);
-      logger.i(
-          '[MapV2] marker localId=$recId beId=$beId lat=${part.gpsLatitudeStart} lon=${part.gpsLongitudeStart} dialects=${dList.join(',')}');
-      logger.d(
-          '[MapV2] marker beId=$beId dialects(${dList.length})=${dList.join('+')}');
+      final markerStatus = _markerStatusForRecording(beId);
       final dialects = dList;
       markers.add(
         Marker(
@@ -673,7 +841,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         beId.toString() +
                         ';dialects:' +
                         dialects.join('+'),
-                    showCenterDot: _hasState6ForRecording(beId),
+                    showCenterDot: markerStatus == _MapMarkerStatus.aiAssisted,
                     dotColor: Colors.black,
                   ),
                 ),
@@ -684,21 +852,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
       );
     });
 
+    logger.i('[MapV2] visible markers rebuilt=' + markers.length.toString());
     return markers;
   }
 
   Map<String, List<Marker>> getDialectSeparatedRecordings() {
-    Map<String, List<Marker>> dialectMarkers = {};
+    final Map<String, List<Marker>> dialectMarkers = <String, List<Marker>>{};
 
     final lastPartByRecording = _latestPartPerRecording();
 
     lastPartByRecording.forEach((localId, rec) {
-      logger.i(
-          '[MapV2] processing recId=${rec.recordingId} for dialect-separated markers');
       final beId = _recLocalToBE[localId] ?? localId;
+      if (!_shouldShowRecordingOnMap(beId)) {
+        return;
+      }
       var dialects = _dialectsForRecordingId(beId);
-      logger.d(
-          '[MapV2] sep localId=$localId beId=$beId dialects(${dialects.length})=${dialects.join('+')}');
+      final markerStatus = _markerStatusForRecording(beId);
       final point = LatLng(rec.gpsLatitudeStart, rec.gpsLongitudeStart);
 
       var marker = Marker(
@@ -727,7 +896,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       beId.toString() +
                       ';dialects:' +
                       dialects.join('+'),
-                  showCenterDot: _hasState6ForRecording(beId),
+                  showCenterDot: markerStatus == _MapMarkerStatus.aiAssisted,
                   dotColor: Colors.black,
                 ),
               ),
@@ -751,6 +920,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
         }
       }
     });
+    logger.i(
+        '[MapV2] cluster buckets rebuilt=' + dialectMarkers.length.toString());
     return dialectMarkers;
   }
 
@@ -781,16 +952,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<UserData?> getUser(Recording rec) async {
-    for (int i = 0; i < _fullRecordings.length; i++) {
-      logger.i(
-          "rec: ${_fullRecordings[i].mail} ${_fullRecordings[i].name} ${_fullRecordings[i].id}");
-    }
     final int? userId = rec.userId;
     if (userId == null) {
       return null;
     }
-
-    logger.i("mail: $userId");
 
     try {
       final userResponse = await _userController.getUserById(userId);
@@ -810,8 +975,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       final resp = UserData.fromJson(payload.cast<String, dynamic>());
-      (String?, String?)? profilePicData = await getProfilePic(userId);
-      logger.i(resp);
+      await getProfilePic(userId);
       return resp;
       // if (profilePicData!.$1 == null || profilePicData.$2 == null){
       //   logger.i(resp);
@@ -832,19 +996,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
     for (int rec = 0; rec < _fullRecordings.length; rec++) {
       if (_fullRecordings[rec].BEId == id) {
         UserData? user = await getUser(_fullRecordings[rec]);
-        logger.i("user is $user");
-        List<RecordingPart?> parts = List.empty(growable: true);
-        parts.add(await DatabaseNew.getRecordingPartByBEID(
-            _fullRecordings[rec].BEId!));
+        await DatabaseNew.getRecordingPartByBEID(_fullRecordings[rec].BEId!);
 
-        logger.i(parts[0]);
-
+        if (!mounted) return;
         showCupertinoSheet(
-            context: context,
-            pageBuilder: (context) => RecordingFromMap(
-                  recording: _fullRecordings[rec],
-                  user: user,
-                ));
+          context: context,
+          builder: (context) => RecordingFromMap(
+            recording: _fullRecordings[rec],
+            user: user,
+          ),
+        );
         return;
       }
     }
@@ -853,7 +1014,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         context: context,
         builder: (context) => AlertDialog(
               title: Text(t('map.dialogs.error.title')),
-              content: Text('${t('Nahrávka nenalezena')} $id'),
+              content: Text('${t('map.dialogs.error.recordingNotFound')} $id'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -863,20 +1024,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
             ));
   }
 
-  Future<Widget> createClusterOfDialect(
-      List<Marker> markers, String dialect) async {
-    final colors = await DialectColorCache.getColors([dialect]);
-    Color color;
-
-    if (colors.isNotEmpty) {
-      color = colors.first;
-    } else {
-      // Fall back to a neutral color for synthetic buckets like "rest" or
-      // any dialect code that does not have a configured color yet.
-      final fallback = await DialectColorCache.getColors(['Unknown']);
-      color = fallback.isNotEmpty ? fallback.first : Colors.grey;
-    }
-
+  Widget _createClusterLayer(List<Marker> markers, Color color) {
     return MarkerClusterLayerWidget(
       options: MarkerClusterLayerOptions(
         maxClusterRadius: 45,
@@ -903,6 +1051,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   @override
   void dispose() {
+    _mapEventSubscription?.cancel();
     _positionStreamSubscription?.cancel();
     super.dispose();
   }
@@ -969,14 +1118,76 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                     ],
                   ),
-                  if (_clusterPoints == true)
+                  if (_shouldUseClusterRendering)
                     for (var widget in markersWidgets) widget,
-                  if (_clusterPoints == false)
+                  if (!_shouldUseClusterRendering)
                     MarkerLayer(
-                      markers: _buildRecordingMarkers(),
+                      markers: _visibleMarkers,
                     ),
                 ],
               ),
+              if (_isLoadingRecordings)
+                Positioned(
+                  top: 140,
+                  left: 16,
+                  right: 16,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 360),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x22000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    t('map.loading.title'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    t('map.loading.subtitle'),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: 80,
                 left: 16,
@@ -997,7 +1208,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                             ),
                             backgroundColor: Colors.white,
                             onPressed: _showLegendDialog,
-                            tooltip: 'Info',
+                            tooltip: t('map.buttons.info'),
                             child: Image.asset('assets/icons/info.png',
                                 width: 30, height: 30),
                           ),
@@ -1032,7 +1243,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         ),
                         backgroundColor: Colors.white,
                         onPressed: _openMapFilter,
-                        tooltip: 'Map Settings',
+                        tooltip: t('map.buttons.mapSettings'),
                         child: Image.asset('assets/icons/sort.png',
                             width: 24, height: 24),
                       ),
@@ -1047,7 +1258,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        tooltip: 'Reset orientation & recenter',
+                        tooltip: t('map.buttons.reset'),
                         onPressed: () async {
                           await _getCurrentLocation();
                           _mapController.move(_currentPosition, _currentZoom);
@@ -1121,6 +1332,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   void _updateGrid() {
     if (_currentZoom < 7) {
+      if (_gridLines.isEmpty || !mounted) {
+        return;
+      }
       setState(() {
         _gridLines = [];
       });
@@ -1168,7 +1382,77 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
+  Future<void> _refreshDialectSelectionFromCache() async {
+    _setRecordingsLoading(true);
+    try {
+      await _fetchDialects(refreshFromApi: false);
+    } finally {
+      _setRecordingsLoading(false);
+    }
+  }
+
+  void _applyMapFilterSelection({
+    required bool nextIsSatelliteView,
+    required String nextRecordingAuthorFilter,
+    required RecordingAgeFilter nextRecordingAgeFilter,
+    required DialectVisibilityMode nextDialectVisibilityMode,
+    required bool nextClusterPoints,
+  }) {
+    final bool shouldReloadRecordings =
+        nextRecordingAuthorFilter != _recordingAuthorFilter;
+    final bool shouldRefreshDialects = !shouldReloadRecordings &&
+        nextDialectVisibilityMode != _dialectVisibilityMode;
+    final bool shouldRebuildMarkers = !shouldReloadRecordings &&
+        !shouldRefreshDialects &&
+        (nextRecordingAgeFilter != _recordingAgeFilter ||
+            nextClusterPoints != _clusterPoints);
+    final bool shouldUpdateViewOnly = nextIsSatelliteView != _isSatelliteView;
+
+    if (!shouldReloadRecordings &&
+        !shouldRefreshDialects &&
+        !shouldRebuildMarkers &&
+        !shouldUpdateViewOnly) {
+      return;
+    }
+
+    setState(() {
+      _isSatelliteView = nextIsSatelliteView;
+      _recordingAuthorFilter = nextRecordingAuthorFilter;
+      _recordingAgeFilter = nextRecordingAgeFilter;
+      _dialectVisibilityMode = nextDialectVisibilityMode;
+      _clusterPoints = nextClusterPoints;
+      dialectVisibilityMode = nextDialectVisibilityMode;
+    });
+
+    if (shouldReloadRecordings) {
+      unawaited(getRecordings());
+      return;
+    }
+    if (shouldRefreshDialects) {
+      unawaited(_refreshDialectSelectionFromCache());
+      return;
+    }
+    if (shouldRebuildMarkers) {
+      unawaited(_rebuildMapMarkers());
+    }
+  }
+
   void _openMapFilter() {
+    bool tempIsSatelliteView = _isSatelliteView;
+    String tempRecordingAuthorFilter = _recordingAuthorFilter;
+    RecordingAgeFilter tempRecordingAgeFilter = _recordingAgeFilter;
+    DialectVisibilityMode tempDialectVisibilityMode = _dialectVisibilityMode;
+    bool tempClusterPoints = _clusterPoints;
+    void applyCurrentSelection() {
+      _applyMapFilterSelection(
+        nextIsSatelliteView: tempIsSatelliteView,
+        nextRecordingAuthorFilter: tempRecordingAuthorFilter,
+        nextRecordingAgeFilter: tempRecordingAgeFilter,
+        nextDialectVisibilityMode: tempDialectVisibilityMode,
+        nextClusterPoints: tempClusterPoints,
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1190,424 +1474,436 @@ class _MapScreenV2State extends State<MapScreenV2> {
               ),
               child: StatefulBuilder(
                 builder: (BuildContext context, StateSetter setModalState) {
-                  return ListView(
+                  return Scrollbar(
                     controller: controller,
-                    children: [
-                      Container(
-                        alignment: Alignment.center,
-                        child: Container(
-                          width: 80,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(2),
+                    thumbVisibility: true,
+                    child: ListView(
+                      controller: controller,
+                      children: [
+                        Container(
+                          alignment: Alignment.center,
+                          child: Container(
+                            width: 80,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          t('Nastavení mapy'),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Icon(
+                            Icons.unfold_more_rounded,
+                            color: Colors.grey.shade500,
+                            size: 20,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t('Zobrazení mapy:')),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    setModalState(() {
-                                      _isSatelliteView = false;
-                                    });
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    side: BorderSide(
-                                        color: !_isSatelliteView
+                        const SizedBox(height: 4),
+                        Center(
+                          child: Text(
+                            t('map.buttons.mapSettings'),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('map.filters.mapView.title')),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        tempIsSatelliteView = false;
+                                      });
+                                      applyCurrentSelection();
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color: !tempIsSatelliteView
                                             ? Colors.black
-                                            : Colors.grey.shade200),
-                                    foregroundColor: Colors.black,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                            : Colors.grey.shade200,
+                                      ),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                     ),
+                                    child:
+                                        Text(t('map.filters.mapView.classic')),
                                   ),
-                                  child: Text(t('map.filters.mapView.classic')),
                                 ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        tempIsSatelliteView = true;
+                                      });
+                                      applyCurrentSelection();
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color: tempIsSatelliteView
+                                            ? Colors.black
+                                            : Colors.grey.shade200,
+                                      ),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                        t('map.filters.mapView.satellite')),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('map.filters.recordingAge.title')),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton(
                                   onPressed: () {
                                     setModalState(() {
-                                      _isSatelliteView = true;
+                                      tempRecordingAgeFilter =
+                                          RecordingAgeFilter.older;
                                     });
+                                    applyCurrentSelection();
                                   },
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                        color: _isSatelliteView
-                                            ? Colors.black
-                                            : Colors.grey.shade200),
+                                      color: tempRecordingAgeFilter ==
+                                              RecordingAgeFilter.older
+                                          ? Colors.black
+                                          : Colors.grey.shade200,
+                                    ),
                                     foregroundColor: Colors.black,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                   child:
-                                      Text(t('map.filters.mapView.satellite')),
+                                      Text(t('map.filters.recordingAge.older')),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t('Autor nahrávky:')),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
+                                OutlinedButton(
                                   onPressed: () {
                                     setModalState(() {
-                                      _recordingAuthorFilter = 'all';
+                                      tempRecordingAgeFilter =
+                                          RecordingAgeFilter.newer;
                                     });
-                                    setState(() {
-                                      _recordings.clear();
-                                      _fullRecordings.clear();
-                                    });
-                                    getRecordings();
+                                    applyCurrentSelection();
                                   },
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                        color: _recordingAuthorFilter == 'all'
+                                      color: tempRecordingAgeFilter ==
+                                              RecordingAgeFilter.newer
+                                          ? Colors.black
+                                          : Colors.grey.shade200,
+                                    ),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child:
+                                      Text(t('map.filters.recordingAge.newer')),
+                                ),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      tempRecordingAgeFilter =
+                                          RecordingAgeFilter.all;
+                                    });
+                                    applyCurrentSelection();
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                      color: tempRecordingAgeFilter ==
+                                              RecordingAgeFilter.all
+                                          ? Colors.black
+                                          : Colors.grey.shade200,
+                                    ),
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child:
+                                      Text(t('map.filters.recordingAge.all')),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('map.filters.recordingAuthor.title')),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        tempRecordingAuthorFilter = 'all';
+                                      });
+                                      applyCurrentSelection();
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color:
+                                            tempRecordingAuthorFilter == 'all'
+                                                ? Colors.black
+                                                : Colors.grey.shade200,
+                                      ),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      t('map.filters.recordingAuthor.all'),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        tempRecordingAuthorFilter = 'me';
+                                      });
+                                      applyCurrentSelection();
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color: tempRecordingAuthorFilter == 'me'
                                             ? Colors.black
-                                            : Colors.grey.shade200),
+                                            : Colors.grey.shade200,
+                                      ),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                        t('map.filters.recordingAuthor.me')),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('map.filters.dialectVisibility.title')),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      tempDialectVisibilityMode =
+                                          DialectVisibilityMode.all;
+                                    });
+                                    applyCurrentSelection();
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    side: BorderSide(
+                                      color: tempDialectVisibilityMode ==
+                                              DialectVisibilityMode.all
+                                          ? Colors.black
+                                          : Colors.grey,
+                                    ),
                                     foregroundColor: Colors.black,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                   child: Text(
-                                      t('map.filters.recordingAuthor.all')),
+                                    t('map.filters.dialectVisibility.all'),
+                                  ),
                                 ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
+                                OutlinedButton(
                                   onPressed: () {
                                     setModalState(() {
-                                      _recordingAuthorFilter = 'me';
+                                      tempDialectVisibilityMode =
+                                          DialectVisibilityMode.aiAdmin;
                                     });
-                                    setState(() {
-                                      _recordings.clear();
-                                      _fullRecordings.clear();
-                                    });
-                                    getRecordings();
+                                    applyCurrentSelection();
                                   },
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                        color: _recordingAuthorFilter == 'me'
-                                            ? Colors.black
-                                            : Colors.grey.shade200),
+                                      color: tempDialectVisibilityMode ==
+                                              DialectVisibilityMode.aiAdmin
+                                          ? Colors.black
+                                          : Colors.grey,
+                                    ),
                                     foregroundColor: Colors.black,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child:
-                                      Text(t('map.filters.recordingAuthor.me')),
+                                  child: Text(
+                                    t('map.filters.dialectVisibility.aiAdmin'),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t('Zobrazovat i nepotvrzené dialekty:')),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
+                                OutlinedButton(
                                   onPressed: () {
                                     setModalState(() {
-                                      _showUnconfirmedDialects = false;
+                                      tempDialectVisibilityMode =
+                                          DialectVisibilityMode.adminOnly;
                                     });
+                                    applyCurrentSelection();
                                   },
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                        color: !_showUnconfirmedDialects
-                                            ? Colors.black
-                                            : Colors.grey),
+                                      color: tempDialectVisibilityMode ==
+                                              DialectVisibilityMode.adminOnly
+                                          ? Colors.black
+                                          : Colors.grey,
+                                    ),
                                     foregroundColor: Colors.black,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: Text(t('Skrýt')),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    setModalState(() {
-                                      _showUnconfirmedDialects = true;
-                                    });
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    side: BorderSide(
-                                        color: _showUnconfirmedDialects
-                                            ? Colors.black
-                                            : Colors.grey),
-                                    foregroundColor: Colors.black,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                  child: Text(
+                                    t(
+                                      'map.filters.dialectVisibility.adminOnly',
                                     ),
                                   ),
-                                  child: Text(t('Zobrazit')),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t('map.filters.clustering.title')),
-                          const SizedBox(height: 8),
-                          // TODO: add clustering on/off buttons
-                          Row(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    setModalState(() {
-                                      _clusterPoints = true;
-                                    });
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    side: BorderSide(
-                                        color: _clusterPoints == true
-                                            ? Colors.black
-                                            : Colors.grey.shade200),
-                                    foregroundColor: Colors.black,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Text(t('map.filters.clustering.on')),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    setModalState(() {
-                                      _clusterPoints = false;
-                                    });
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    side: BorderSide(
-                                        color: _clusterPoints == false
-                                            ? Colors.black
-                                            : Colors.grey.shade200),
-                                    foregroundColor: Colors.black,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Text(t('map.filters.clustering.off')),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      // const SizedBox(height: 8),
-                      // Column(
-                      //   crossAxisAlignment: CrossAxisAlignment.start,
-                      //   children: [
-                      //     Text(t('Data:')),
-                      //     const SizedBox(height: 8),
-                      //     Row(
-                      //       children: [
-                      //         Padding(
-                      //           padding: EdgeInsets.only(right: 8),
-                      //           child: OutlinedButton(
-                      //             onPressed: () {
-                      //               setModalState(() {
-                      //                 _dataFilter = 'new';
-                      //               });
-                      //             },
-                      //             style: OutlinedButton.styleFrom(
-                      //                 backgroundColor: Colors.transparent,
-                      //                 side: BorderSide(color: _dataFilter == 'new' ? Colors.black : Colors.grey.shade200),
-                      //                 foregroundColor: Colors.black,
-                      //                 shape: RoundedRectangleBorder(
-                      //                   borderRadius: BorderRadius.circular(12),
-                      //                 ),
-                      //             ),
-                      //             child: Text(t('Nová')),
-                      //           ),
-                      //         ),
-                      //         Padding(
-                      //           padding: EdgeInsets.only(right: 8),
-                      //           child: OutlinedButton(
-                      //             onPressed: () {
-                      //               setModalState(() {
-                      //                 _dataFilter = '2017';
-                      //               });
-                      //             },
-                      //             style: OutlinedButton.styleFrom(
-                      //                 backgroundColor: Colors.transparent,
-                      //                 side: BorderSide(color: _dataFilter == '2017' ? Colors.black : Colors.grey.shade200),
-                      //                 foregroundColor: Colors.black,
-                      //                 shape: RoundedRectangleBorder(
-                      //                   borderRadius: BorderRadius.circular(12),
-                      //                 ),
-                      //             ),
-                      //             child: Text(t('2017')),
-                      //           ),
-                      //         ),
-                      //       ],
-                      //     ),
-                      //   ],
-                      // ),
-                      // Column(
-                      //   crossAxisAlignment: CrossAxisAlignment.start,
-                      //   children: [
-                      //     Text(t('Dobyté sektory:')),
-                      //     const SizedBox(height: 8),
-                      //     Row(
-                      //       children: [
-                      //         Padding(
-                      //           padding: EdgeInsets.only(right: 8),
-                      //           child: OutlinedButton(
-                      //             onPressed: () {
-                      //               setModalState(() {
-                      //                 _showConqueredSectors = true;
-                      //               });
-                      //             },
-                      //             style: OutlinedButton.styleFrom(
-                      //                 backgroundColor: Colors.transparent,
-                      //                 side: BorderSide(color: _showConqueredSectors == true ? Colors.black : Colors.grey.shade200),
-                      //                 foregroundColor: Colors.black,
-                      //                 shape: RoundedRectangleBorder(
-                      //                   borderRadius: BorderRadius.circular(12),
-                      //                 ),
-                      //             ),
-                      //             child: Text(t('Zobrazit')),
-                      //           ),
-                      //         ),
-                      //         Padding(
-                      //           padding: EdgeInsets.only(right: 8),
-                      //           child: OutlinedButton(
-                      //             onPressed: () {
-                      //               setModalState(() {
-                      //                 _showConqueredSectors = false;
-                      //               });
-                      //             },
-                      //             style: OutlinedButton.styleFrom(
-                      //                 backgroundColor: Colors.transparent,
-                      //                 side: BorderSide(color: _showConqueredSectors == false ? Colors.black : Colors.grey.shade200),
-                      //                 foregroundColor: Colors.black,
-                      //                 shape: RoundedRectangleBorder(
-                      //                   borderRadius: BorderRadius.circular(12),
-                      //                 ),
-                      //             ),
-                      //             child: Text(t('Skrýt')),
-                      //           ),
-                      //         ),
-                      //       ],
-                      //     ),
-                      //   ],
-                      // ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                elevation: 0,
-                                shadowColor: Colors.transparent,
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                side: BorderSide(color: Colors.grey[300]!),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                              ),
-                              onPressed: () {
-                                setModalState(() {
-                                  _isSatelliteView = false;
-                                  _recordingAuthorFilter = 'all';
-                                  _showUnconfirmedDialects = false;
-                                });
-                              },
-                              child: Text(t('map.buttons.resetFilters')),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                elevation: 0,
-                                shadowColor: Colors.transparent,
-                                backgroundColor: const Color(0xFFFFD641),
-                                foregroundColor: const Color(0xFF2D2B18),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                textStyle: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t('map.filters.clustering.title')),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        tempClusterPoints = true;
+                                      });
+                                      applyCurrentSelection();
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color: tempClusterPoints
+                                            ? Colors.black
+                                            : Colors.grey.shade200,
+                                      ),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(t('map.filters.clustering.on')),
+                                  ),
                                 ),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  // Apply filters if needed.
-                                  showUnconfirmedDialects =
-                                      _showUnconfirmedDialects;
-                                });
-                                _fetchDialects(); // refetch dialect data after the setting changes
-                                Navigator.pop(context);
-                              },
-                              child: Text(t('map.buttons.set')),
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        tempClusterPoints = false;
+                                      });
+                                      applyCurrentSelection();
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      side: BorderSide(
+                                        color: !tempClusterPoints
+                                            ? Colors.black
+                                            : Colors.grey.shade200,
+                                      ),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child:
+                                        Text(t('map.filters.clustering.off')),
+                                  ),
+                                ),
+                              ],
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              side: BorderSide(color: Colors.grey[300]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            onPressed: () {
+                              setModalState(() {
+                                tempIsSatelliteView = false;
+                                tempRecordingAuthorFilter = 'all';
+                                tempRecordingAgeFilter =
+                                    RecordingAgeFilter.newer;
+                                tempDialectVisibilityMode =
+                                    DialectVisibilityMode.aiAdmin;
+                                tempClusterPoints = false;
+                              });
+                              applyCurrentSelection();
+                            },
+                            child: Text(t('map.buttons.resetFilters')),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -1616,23 +1912,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
         );
       },
     );
-  }
-
-  int _latToTileY(double lat, int zoom) {
-    double latRad = lat * math.pi / 180;
-    double nTiles = math.pow(2, zoom).toDouble();
-    double y =
-        (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
-            2 *
-            nTiles;
-    return y.floor();
-  }
-
-  double _tileYToLat(int y, int zoom) {
-    double nTiles = math.pow(2, zoom).toDouble();
-    double n = math.pi * (1 - 2 * y / nTiles);
-    double latRad = math.atan(numdart.sinh(n));
-    return latRad * 180 / math.pi;
   }
 
   void _showLegendDialog() {
@@ -1686,6 +1965,24 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _buildMarkerStatusLegendItem(
+                        _MapMarkerStatus.aiAssisted,
+                        t('map.legend.status.aiAssisted'),
+                      ),
+                      _buildMarkerStatusLegendItem(
+                        _MapMarkerStatus.adminConfirmed,
+                        t('map.legend.status.adminConfirmed'),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1717,61 +2014,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
     );
   }
 
-  Widget _buildLegendItem(IconData icon, String description) {
-    return Row(
-      children: [
-        Icon(icon, size: 24),
-        const SizedBox(width: 8),
-        Text(description),
-      ],
-    );
-  }
-
-  Widget _buildColoredLegendItem(Color color, String label) {
-    return Row(
-      children: [
-        Container(
-          width: 20,
-          height: 20,
-          margin: const EdgeInsets.only(right: 8, bottom: 8),
-          decoration: BoxDecoration(
-            color: color,
-            border: Border.all(color: Colors.black), // Added black border
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        Text(label),
-      ],
-    );
-  }
-
-  Widget _buildSymbolLegendItem(String assetName, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            "assets/dialects/$assetName.png",
-            width: 24,
-            height: 24,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 6),
-          Text(label),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAutoDialectLegend() {
     final codes = List<String>.from(_legendCodes);
-    // Ensure 'Unknown' appears last
-    codes.sort((a, b) {
-      if (a == 'Unknown') return 1;
-      if (b == 'Unknown') return -1;
-      return a.toLowerCase().compareTo(b.toLowerCase());
-    });
 
     final items = <Widget>[];
     for (final code in codes) {
@@ -1809,21 +2053,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
     );
   }
 
-  Widget _buildCircleLegendItem(Color color, String label) {
+  Widget _buildMarkerStatusLegendItem(_MapMarkerStatus status, String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            margin: const EdgeInsets.only(right: 6),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+          DynamicIcon(
+            icon: Icons.circle,
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            backgroundColor: Colors.white,
+            border: Border.all(color: Colors.black54),
+            showCenterDot: status == _MapMarkerStatus.aiAssisted,
+            dotColor: Colors.black,
           ),
+          const SizedBox(width: 6),
           Text(label),
         ],
       ),

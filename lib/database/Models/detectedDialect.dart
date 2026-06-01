@@ -20,6 +20,8 @@ class DetectedDialect {
   int? BEId; // backend dialect id
   int? filteredPartLocalId; // FK -> FilteredRecordingParts.id
   int? filteredPartBEID; // parent FRP backend id
+  DateTime? filteredPartStartDate;
+  DateTime? filteredPartEndDate;
   int? userGuessDialectId;
   String? userGuessDialect;
   int? confirmedDialectId;
@@ -32,18 +34,17 @@ class DetectedDialect {
     this.BEId,
     this.filteredPartLocalId,
     this.filteredPartBEID,
+    this.filteredPartStartDate,
+    this.filteredPartEndDate,
     this.userGuessDialectId,
     String? userGuessDialect,
     this.confirmedDialectId,
     String? confirmedDialect,
     this.predictedDialectId,
     String? predictedDialect,
-  })  : userGuessDialect =
-            DialectKeywordTranslator.toEnglish(userGuessDialect),
-        confirmedDialect =
-            DialectKeywordTranslator.toEnglish(confirmedDialect),
-        predictedDialect =
-            DialectKeywordTranslator.toEnglish(predictedDialect);
+  })  : userGuessDialect = DialectKeywordTranslator.toEnglish(userGuessDialect),
+        confirmedDialect = DialectKeywordTranslator.toEnglish(confirmedDialect),
+        predictedDialect = DialectKeywordTranslator.toEnglish(predictedDialect);
 
   factory DetectedDialect.fromDb(Map<String, Object?> row) {
     return DetectedDialect(
@@ -51,6 +52,12 @@ class DetectedDialect {
       BEId: row['BEId'] as int?,
       filteredPartLocalId: row['filteredPartLocalId'] as int?,
       filteredPartBEID: row['filteredPartBEID'] as int?,
+      filteredPartStartDate: row['filteredPartStartDate'] is String
+          ? DateTime.tryParse(row['filteredPartStartDate'] as String)
+          : null,
+      filteredPartEndDate: row['filteredPartEndDate'] is String
+          ? DateTime.tryParse(row['filteredPartEndDate'] as String)
+          : null,
       userGuessDialectId: row['userGuessDialectId'] as int?,
       userGuessDialect: row['userGuessDialect'] as String?,
       confirmedDialectId: row['confirmedDialectId'] as int?,
@@ -61,23 +68,22 @@ class DetectedDialect {
   }
 
   factory DetectedDialect.fromBEJson(
-      Map<String, Object?> json, {
-        required int parentFilteredPartBEID,
-      }) {
+    Map<String, Object?> json, {
+    required int parentFilteredPartBEID,
+  }) {
     final beidDyn = json['id'];
     final beid = (beidDyn is int)
         ? beidDyn
         : (beidDyn is String ? int.tryParse(beidDyn) : null);
     return DetectedDialect(
-      BEId: beid,
-      filteredPartBEID: parentFilteredPartBEID,
-      userGuessDialectId: (json['userGuessDialectId'] as num?)?.toInt(),
-      userGuessDialect: json['userGuessDialect'] as String?,
-      confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
-      confirmedDialect: json['confirmedDialect'] as String?,
-      predictedDialectId: (json['predictedDialectId'] as num?)?.toInt(),
-      predictedDialect: json['predictedDialect'] as String?
-    );
+        BEId: beid,
+        filteredPartBEID: parentFilteredPartBEID,
+        userGuessDialectId: (json['userGuessDialectId'] as num?)?.toInt(),
+        userGuessDialect: json['userGuessDialect'] as String?,
+        confirmedDialectId: (json['confirmedDialectId'] as num?)?.toInt(),
+        confirmedDialect: json['confirmedDialect'] as String?,
+        predictedDialectId: (json['predictedDialectId'] as num?)?.toInt(),
+        predictedDialect: json['predictedDialect'] as String?);
   }
 
   Map<String, Object?> toDbJson() {
@@ -95,18 +101,15 @@ class DetectedDialect {
     };
   }
 
-  String? get confirmedDialectLocalized =>
-      confirmedDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(confirmedDialect!);
+  String? get confirmedDialectLocalized => confirmedDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(confirmedDialect!);
 
-  String? get userGuessDialectLocalized =>
-      userGuessDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(userGuessDialect!);
+  String? get userGuessDialectLocalized => userGuessDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(userGuessDialect!);
 
-  String? get predictedDialectLocalized =>
-      predictedDialect == null
-          ? null
-          : DialectKeywordTranslator.toLocalized(predictedDialect!);
+  String? get predictedDialectLocalized => predictedDialect == null
+      ? null
+      : DialectKeywordTranslator.toLocalized(predictedDialect!);
 }

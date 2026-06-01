@@ -69,6 +69,8 @@ android/client_secret_287278255232-g74egvqtv3tiossgvs0dru49bht0h9un.apps.googleu
 android/encryption_public_key.pem
 
 android/key.properties.new
+android/play-store-service-account.json
+android/upload-keystore.jks
 
 android/output.zip
 
@@ -77,3 +79,5 @@ android/pepk.jar
 android/upload_cert.der
 
 delete.sh
+
+build.env.json

@@ -1,0 +1,107 @@
+default_platform(:android)
+
+PACKAGE_NAME = "com.delta.strnadi"
+
+def project_root
+  File.expand_path("../..", __dir__)
+end
+
+def pubspec_build_name
+  pubspec_path = File.join(project_root, "pubspec.yaml")
+  version_line = File.readlines(pubspec_path).find { |line| line.match?(/^\s*version:/) }
+  UI.user_error!("Could not find version in #{pubspec_path}") unless version_line
+
+  version_line.split(":", 2).last.strip.split("+").first
+end
+
+def resolved_build_name(options)
+  build_name = options[:build_name].to_s.strip
+  build_name = ENV["BUILD_NAME"].to_s.strip if build_name.empty?
+  build_name.empty? ? pubspec_build_name : build_name
+end
+
+def resolved_build_number(options)
+  build_number = options[:build_number].to_s.strip
+  build_number = ENV["BUILD_NUMBER"].to_s.strip if build_number.empty?
+  build_number = ENV["GITHUB_RUN_NUMBER"].to_s.strip if build_number.empty?
+  UI.user_error!("BUILD_NUMBER must be set for CI deployments") if build_number.empty?
+
+  build_number
+end
+
+def resolved_dart_define_file(options)
+  dart_define_file = options[:dart_define_file].to_s.strip
+  dart_define_file = ENV["DART_DEFINE_FILE"].to_s.strip if dart_define_file.empty?
+  dart_define_file = File.join(project_root, "build.env.json") if dart_define_file.empty?
+  dart_define_file = File.expand_path(dart_define_file, project_root)
+
+  UI.user_error!("Missing dart define file: #{dart_define_file}") unless File.exist?(dart_define_file)
+  dart_define_file
+end
+
+def resolved_play_track(options)
+  track = options[:track].to_s.strip
+  track = ENV["GOOGLE_PLAY_TRACK"].to_s.strip if track.empty?
+  track.empty? ? "internal" : track
+end
+
+def resolved_release_status(options)
+  release_status = options[:release_status].to_s.strip
+  release_status = ENV["GOOGLE_PLAY_RELEASE_STATUS"].to_s.strip if release_status.empty?
+  release_status.empty? ? "completed" : release_status
+end
+
+platform :android do
+  desc "Build a signed Android App Bundle and upload it to a Google Play track"
+  lane :play do |options|
+    root = project_root
+    build_number = resolved_build_number(options)
+    build_name = resolved_build_name(options)
+    dart_define_file = resolved_dart_define_file(options)
+    track = resolved_play_track(options)
+    release_status = resolved_release_status(options)
+    json_key = ENV["SUPPLY_JSON_KEY"].to_s.strip
+    json_key = File.join(root, "android/play-store-service-account.json") if json_key.empty?
+
+    UI.user_error!("Missing Google Play service account JSON: #{json_key}") unless File.exist?(json_key)
+
+    Dir.chdir(root) do
+      sh(
+        "flutter",
+        "build",
+        "appbundle",
+        "--release",
+        "--build-number=#{build_number}",
+        "--build-name=#{build_name}",
+        "--dart-define-from-file=#{dart_define_file}"
+      )
+    end
+
+    aab_path = File.join(root, "build/app/outputs/bundle/release/app-release.aab")
+    UI.user_error!("Android App Bundle was not created: #{aab_path}") unless File.exist?(aab_path)
+
+    upload_to_play_store(
+      package_name: PACKAGE_NAME,
+      track: track,
+      release_status: release_status,
+      aab: aab_path,
+      json_key: json_key,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy to the Google Play internal testing track"
+  lane :internal do |options|
+    play(options.merge(track: "internal"))
+  end
+
+  desc "Deploy to a Google Play closed testing track"
+  lane :closed_beta do |options|
+    track = ENV["GOOGLE_PLAY_CLOSED_TRACK"].to_s.strip
+    track = "alpha" if track.empty?
+    play(options.merge(track: track))
+  end
+end

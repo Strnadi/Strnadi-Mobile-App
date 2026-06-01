@@ -38,8 +38,8 @@ class SettingsService {
   }
 
   Future<bool> isCellular() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_cellular) ?? true; // Default: cellular data is enabled
+    await Config.loadDataUsageOption();
+    return Config.dataUsageOption == DataUsageOption.wifiAndMobile;
   }
 
   Future<bool> setLocalRecordingsMax(int localRecodingsMax) async {

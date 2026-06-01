@@ -1,0 +1,16 @@
+Google Play Console (CZ, kratka verze)
+--------------------------------------
+Tato aktualizace vylepsuje praci s mapou a ucetnimi flow. Mapa nyni podporuje filtr stari nahravek, prehlednejsi nacitani a rozliseni stavu markeru i konzistentnejsi praci s nahravkami bez vysledku dialektu. Zaroven jsme zpresnili nazvy lokaci, sjednotili validaci e-mailu napric auth obrazovkami a zachovali stavajici preference mobilnich dat pri migraci nastaveni.
+
+
+App Store Connect (CZ, detailnejsi verze)
+-----------------------------------------
+V teto verzi jsme se zamerili na prehlednost mapy, doladeni uctu a konzistenci nastaveni:
+
+- Vylepseno filtrovani mapy o prepinani stari nahravek, lepsi praci s nahravkami bez dialektu a automaticke clustering pri nizsim zoomu.
+- Pridano nacitaci upozorneni na mape a legenda markeru, ktera rozlisuje AI asistovana urceni od administratorem potvrzenych.
+- Zpresneny nazvy lokaci z reverzni geokodace v mape i lokalnich nahravkach tak, aby uprednostnovaly obec a neopakovaly stejny nazev.
+- Sjednocena validace orezanych e-mailu v prihlaseni, registraci a resetu hesla.
+- Opravene moznosti propojenych platforem tak, aby se zobrazovaly jen relevantni akce.
+- Zachovana stavajici preference mobilnich dat pri migraci na novejsi nastaveni vyuziti dat.
+- Upraveno zobrazeni profilu a navazujicich lokalizaci pro jasnejsi jmena, popisky a stavove texty.
