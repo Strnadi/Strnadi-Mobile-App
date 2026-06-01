@@ -59,7 +59,7 @@ dependencies:
   device_info_plus: ^12.2.0
   intl: ^0.20.2
   sqflite: any
-  connectivity_plus: ^7.0.0
+  connectivity_plus: 7.0.0
   logger: ^2.0.0
   sentry_flutter: ^9.8.0
   sentry_logging: ^9.8.0
