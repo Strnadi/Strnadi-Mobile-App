@@ -79,6 +79,7 @@ jobs:
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.3'
           working-directory: android
           bundler-cache: true
 
@@ -137,6 +138,7 @@ jobs:
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.3'
           working-directory: ios
           bundler-cache: true
 
