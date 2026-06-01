@@ -99,13 +99,13 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
    ```
 
 3. **Configure environment values** (for development):
-   - Pass build-time values with `--dart-define`, for example `STRNADI_MAPY_CZ_KEY`, `STRNADI_API_HOST`, `STRNADI_DEV_API_HOST`, or `FIREBASE_PROJECT_ID`.
+   - Pass build-time values with `--dart-define-from-file=build.env.json`, or with individual `--dart-define` flags such as `STRNADI_MAPY_CZ_KEY`, `STRNADI_API_HOST`, or `STRNADI_DEV_API_HOST`.
    - Do not add secret JSON files to Flutter assets; asset-bundled files are shipped with the app.
-   - Firebase service-account JSON is ignored in release builds. Send push notifications from a backend service instead.
+   - Do not put Firebase service-account JSON in the app. Send push notifications from a backend service instead.
 
 4. **Run the app**:
    ```sh
-   flutter run
+   flutter run --dart-define-from-file=build.env.json
    ```
 
 ### Build for Production
@@ -246,4 +246,3 @@ Thank you to all citizen scientists who contribute recordings and help advance o
 ---
 
 *Strnad obecný zpívá jednoduše, ale zajímavě. Pojďte nám pomoci zmapovat nářečí českých strnadů!*
-

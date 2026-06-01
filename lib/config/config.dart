@@ -48,7 +48,6 @@ const HealthController _healthController = HealthController();
 
 class Config {
   static Map<String, dynamic>? _config;
-  static Map<String, dynamic>? _Fconfig;
 
   static const String _dataUsagePrefKey = 'data_usage_option';
   static const String _legacyCellularPrefKey = 'CellularData';
@@ -63,22 +62,19 @@ class Config {
     'STRNADI_API_HOST',
     defaultValue: 'api.strnadi.cz',
   );
+  static const bool _hasDefaultHost = bool.hasEnvironment('STRNADI_API_HOST');
   static const String _defaultDevHost = String.fromEnvironment(
     'STRNADI_DEV_API_HOST',
     defaultValue: '',
   );
+  static const bool _hasDefaultDevHost =
+      bool.hasEnvironment('STRNADI_DEV_API_HOST');
   static const String _defaultMapyCzKey = String.fromEnvironment(
     'STRNADI_MAPY_CZ_KEY',
     defaultValue: '',
   );
-  static const String _firebaseServiceAccountJson = String.fromEnvironment(
-    'FIREBASE_SERVICE_ACCOUNT_JSON',
-    defaultValue: '',
-  );
-  static const String _firebaseProjectId = String.fromEnvironment(
-    'FIREBASE_PROJECT_ID',
-    defaultValue: '',
-  );
+  static const bool _hasDefaultMapyCzKey =
+      bool.hasEnvironment('STRNADI_MAPY_CZ_KEY');
 
   // Load public config defaults. Sensitive values must come from dart-define.
   static Future<void> loadConfig() async {
@@ -89,8 +85,31 @@ class Config {
       'mapy.cz-key': _defaultMapyCzKey,
       ...assetConfig,
     };
+    _applyDartDefineOverrides(_config!);
+    if (mapsApiKey.isEmpty) {
+      logger.w(
+        'Mapy API key is not configured. Pass STRNADI_MAPY_CZ_KEY with '
+        '--dart-define or --dart-define-from-file=build.env.json.',
+      );
+    }
     await loadDataUsageOption();
     await loadHostEnvironment();
+  }
+
+  static void _applyDartDefineOverrides(Map<String, dynamic> config) {
+    if (_hasDefaultHost) {
+      config['host'] = _defaultHost;
+    }
+    if (_hasDefaultDevHost) {
+      if (_defaultDevHost.isEmpty) {
+        config.remove('devhost');
+      } else {
+        config['devhost'] = _defaultDevHost;
+      }
+    }
+    if (_hasDefaultMapyCzKey) {
+      config['mapy.cz-key'] = _defaultMapyCzKey;
+    }
   }
 
   static StringFromLanguagePreference(LanguagePreference lang) {
@@ -113,28 +132,6 @@ class Config {
       case 'de':
         return LanguagePreference.de;
     }
-  }
-
-  static Future<void> loadFirebaseConfig() async {
-    if (_firebaseServiceAccountJson.isNotEmpty) {
-      if (kReleaseMode) {
-        logger.w(
-          'Ignoring FIREBASE_SERVICE_ACCOUNT_JSON in release builds. Send push notifications from a backend service instead.',
-        );
-        _Fconfig = <String, dynamic>{
-          if (_firebaseProjectId.isNotEmpty) 'project_id': _firebaseProjectId,
-        };
-        return;
-      }
-      final decoded = json.decode(_firebaseServiceAccountJson);
-      _Fconfig =
-          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
-      return;
-    }
-
-    _Fconfig = <String, dynamic>{
-      if (_firebaseProjectId.isNotEmpty) 'project_id': _firebaseProjectId,
-    };
   }
 
   /// Loads the user's mobile data preference from SharedPreferences
@@ -250,20 +247,6 @@ class Config {
       return devHost;
     }
     return _config!["host"] as String;
-  }
-
-  static String get firebaseProjectId {
-    if (_Fconfig == null) {
-      throw Exception("Config not loaded. Call loadConfig() first.");
-    }
-    return _Fconfig!["project_id"] as String? ?? '';
-  }
-
-  static Map<String, dynamic>? get firebaseServiceAccountJson {
-    if (_Fconfig == null) {
-      throw Exception("Config not loaded. Call loadConfig() first.");
-    }
-    return _Fconfig;
   }
 
   /// Checks the server health via a HEAD request to {host}/utils/health

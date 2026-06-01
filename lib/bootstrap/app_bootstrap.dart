@@ -11,6 +11,7 @@ import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/firebase/firebase.dart';
+import 'package:strnadi/firebase/local_notifications.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -49,8 +50,8 @@ class AppBootstrap {
   }
 
   static void initializeNotifications() {
-    initFirebaseMessaging();
-    initLocalNotifications();
+    unawaited(initFirebaseMessaging());
+    unawaited(initLocalNotifications());
   }
 
   static Future<void> runWithTelemetry({
@@ -83,7 +84,6 @@ class AppBootstrap {
   static Future<void> ensureConfigLoaded() async {
     if (_configLoaded) return;
     await Config.loadConfig();
-    await Config.loadFirebaseConfig();
     _configLoaded = true;
   }
 
