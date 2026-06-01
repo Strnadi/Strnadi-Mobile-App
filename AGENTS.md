@@ -19,6 +19,11 @@
 - Prefer `PascalCase` for widgets/classes, `camelCase` for members, and `snake_case.dart` for files. Asset files stay lowercase with hyphens (e.g., `assets/images/map-layer.png`).
 - Keep widgets small and composable; extract shared UI into `lib/components/` when multiple features depend on it.
 
+## Localization
+- Use `t()` only with stable dotted translation keys such as `map.filters.mapView.title`; never pass user-facing Czech, English, or German copy as the key.
+- Add every new translation key to all files under `assets/lang/` in the same nested structure, even when the temporary text matches another language.
+- Keep feature strings under the feature namespace (for example `map.buttons.*`, `map.filters.*`, and `user.settings.*`) so missing keys are easy to find and do not fall back to raw display text.
+
 ## Testing Guidelines
 - Place tests in `test/` mirroring the `lib/` directory structure, with filenames ending in `_test.dart`.
 - Use `flutter test --coverage` when assessing new features; maintain or improve overall coverage before merging.
