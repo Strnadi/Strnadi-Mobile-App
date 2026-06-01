@@ -1,0 +1,5 @@
+play_service_account_json = ENV["SUPPLY_JSON_KEY"].to_s.strip
+play_service_account_json = "play-store-service-account.json" if play_service_account_json.empty?
+
+json_key_file(play_service_account_json)
+package_name("com.delta.strnadi")

@@ -1,26 +1,24 @@
 # Pull Request
 
-Thank you for your contribution! 🚀
-
 ## Description
 
 Please describe the changes in this PR:
 - What feature or bug does it address?
 - Any relevant context?
 
-## Related Issue
+## Jira
 
-Closes #[issue-number]  
-(If this PR fixes an open issue, please link it)
+- Jira issue: APP-000
+- Branch: feature/APP-000-short-description
 
 ## Type of Change
 
-- [ ] 🐛 Bug fix  
-- [ ] ✨ New feature  
-- [ ] 🛠️ Refactor  
-- [ ] 🧪 Tests  
-- [ ] 📝 Documentation  
-- [ ] 🔧 Other (please describe):
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Refactor
+- [ ] Tests
+- [ ] Documentation
+- [ ] Other:
 
 ## Checklist
 
@@ -30,4 +28,3 @@ Closes #[issue-number]
 - [ ] I’ve linted and formatted the code
 - [ ] I’ve reviewed my own code
 - [ ] I’ve added comments where necessary
-

@@ -1,25 +1,124 @@
-# This file contains the fastlane.tools configuration
-# You can find the documentation at https://docs.fastlane.tools
-#
-# For a list of all available actions, check out
-#
-#     https://docs.fastlane.tools/actions
-#
-# For a list of all available plugins, check out
-#
-#     https://docs.fastlane.tools/plugins/available-plugins
-#
-
-# Uncomment the line if you want fastlane to automatically update itself
-# update_fastlane
+require "shellwords"
 
 default_platform(:ios)
 
+def project_root
+  File.expand_path("../..", __dir__)
+end
+
+def pubspec_build_name
+  pubspec_path = File.join(project_root, "pubspec.yaml")
+  version_line = File.readlines(pubspec_path).find { |line| line.match?(/^\s*version:/) }
+  UI.user_error!("Could not find version in #{pubspec_path}") unless version_line
+
+  version_line.split(":", 2).last.strip.split("+").first
+end
+
+def resolved_build_name(options)
+  build_name = options[:build_name].to_s.strip
+  build_name = ENV["BUILD_NAME"].to_s.strip if build_name.empty?
+  build_name.empty? ? pubspec_build_name : build_name
+end
+
+def resolved_build_number(options)
+  build_number = options[:build_number].to_s.strip
+  build_number = ENV["BUILD_NUMBER"].to_s.strip if build_number.empty?
+  build_number = ENV["GITHUB_RUN_NUMBER"].to_s.strip if build_number.empty?
+  UI.user_error!("BUILD_NUMBER must be set for CI deployments") if build_number.empty?
+
+  build_number
+end
+
+def resolved_dart_define_file(options)
+  dart_define_file = options[:dart_define_file].to_s.strip
+  dart_define_file = ENV["DART_DEFINE_FILE"].to_s.strip if dart_define_file.empty?
+  dart_define_file = File.join(project_root, "build.env.json") if dart_define_file.empty?
+  dart_define_file = File.expand_path(dart_define_file, project_root)
+
+  UI.user_error!("Missing dart define file: #{dart_define_file}") unless File.exist?(dart_define_file)
+  dart_define_file
+end
+
+def required_env(name)
+  value = ENV[name].to_s.strip
+  UI.user_error!("Missing required environment variable: #{name}") if value.empty?
+  value
+end
+
+def shell_arg(key, value)
+  "#{key}=#{Shellwords.escape(value.to_s)}"
+end
+
 platform :ios do
   desc "Push a new beta build to TestFlight"
-  lane :beta do
-    increment_build_number(xcodeproj: "Runner.xcodeproj")
-    build_app(workspace: "Runner.xcworkspace", scheme: "Runner")
-    upload_to_testflight
+  lane :testflight do |options|
+    root = project_root
+    build_number = resolved_build_number(options)
+    build_name = resolved_build_name(options)
+    dart_define_file = resolved_dart_define_file(options)
+    team_id = ENV["IOS_TEAM_ID"].to_s.strip
+    team_id = "3GPTVJHVFN" if team_id.empty?
+    profile_name = ENV["IOS_PROVISIONING_PROFILE_NAME"].to_s.strip
+
+    UI.user_error!("IOS_PROVISIONING_PROFILE_NAME was not exported by install-ios-signing.sh") if profile_name.empty?
+
+    api_key = app_store_connect_api_key(
+      key_id: required_env("APP_STORE_CONNECT_API_KEY_ID"),
+      issuer_id: required_env("APP_STORE_CONNECT_API_ISSUER_ID"),
+      key_content: required_env("APP_STORE_CONNECT_API_KEY_BASE64"),
+      is_key_content_base64: true,
+      duration: 1200
+    )
+
+    Dir.chdir(root) do
+      sh(
+        "flutter",
+        "build",
+        "ios",
+        "--release",
+        "--no-codesign",
+        "--build-number=#{build_number}",
+        "--build-name=#{build_name}",
+        "--dart-define-from-file=#{dart_define_file}"
+      )
+    end
+
+    ipa_path = File.join(root, "build/ios/ipa/Strnadi.ipa")
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Release",
+      clean: true,
+      export_method: "app-store",
+      output_directory: File.dirname(ipa_path),
+      output_name: File.basename(ipa_path),
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: team_id,
+        provisioningProfiles: {
+          "com.delta.strnadi" => profile_name
+        }
+      },
+      xcargs: [
+        shell_arg("DEVELOPMENT_TEAM", team_id),
+        shell_arg("CODE_SIGN_STYLE", "Manual"),
+        shell_arg("CODE_SIGN_IDENTITY", "Apple Distribution"),
+        shell_arg("PROVISIONING_PROFILE_SPECIFIER", profile_name),
+        shell_arg("CURRENT_PROJECT_VERSION", build_number),
+        shell_arg("MARKETING_VERSION", build_name)
+      ].join(" ")
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  lane :beta do |options|
+    testflight(options)
   end
 end

@@ -1,0 +1,64 @@
+name: Branch and Jira Policy
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - feature/**
+      - release/**
+
+permissions:
+  contents: read
+
+jobs:
+  validate_branch:
+    name: Validate branch naming
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Jira branch convention
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          JIRA_PROJECT_KEYS: ${{ vars.JIRA_PROJECT_KEYS || 'APP' }}
+          JIRA_BASE_URL: ${{ vars.JIRA_BASE_URL || 'https://strnadi-status.atlassian.net' }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: bash .github/scripts/validate-branch-name.sh
+
+  comment_jira:
+    name: Comment Jira issue
+    if: ${{ github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') }}
+    runs-on: ubuntu-latest
+    needs: validate_branch
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Add GitHub PR link to Jira
+        env:
+          JIRA_BASE_URL: ${{ vars.JIRA_BASE_URL || 'https://strnadi-status.atlassian.net' }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEYS: ${{ vars.JIRA_PROJECT_KEYS || 'APP' }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          JIRA_COMMENT_BODY: |
+            GitHub PR opened for Strnadi-Mobile-App.
+
+            PR: ${{ github.event.pull_request.html_url }}
+            Branch: ${{ github.head_ref }}
+            Target: ${{ github.base_ref }}
+        run: bash .github/scripts/comment-jira.sh
