@@ -19,15 +19,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/email_input_formatter.dart';
 import 'package:strnadi/auth/email_validator.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 import 'package:strnadi/auth/appleAuth.dart' as apple;
@@ -145,7 +142,8 @@ class _RegMailState extends State<RegMail> {
   }
 
   Future<bool> _checkEmail(String email) async {
-    final response = await _userController.checkEmailExists(email);
+    final normalizedEmail = EmailValidator.normalize(email);
+    final response = await _userController.checkEmailExists(normalizedEmail);
     if ([200, 404].contains(response.statusCode)) {
       return false; // Email exists (or JWT received)
     } else if (response.statusCode == 409) {
@@ -156,6 +154,17 @@ class _RegMailState extends State<RegMail> {
           'Failed to check email: ${response.statusCode} | ${response.data}');
       return true;
     }
+  }
+
+  String _normalizeEmailInput() {
+    final email = EmailValidator.normalize(_emailController.text);
+    if (_emailController.text != email) {
+      _emailController.value = TextEditingValue(
+        text: email,
+        selection: TextSelection.collapsed(offset: email.length),
+      );
+    }
+    return email;
   }
 
   @override
@@ -216,22 +225,25 @@ class _RegMailState extends State<RegMail> {
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        textCapitalization: TextCapitalization.none,
                         autocorrect: false,
                         textInputAction: TextInputAction.done,
+                        inputFormatters: const [LowerCaseEmailInputFormatter()],
                         autofillHints: const [
                           AutofillHints.newUsername,
                           AutofillHints.email,
                         ],
                         onChanged: (value) {
+                          final email = EmailValidator.normalize(value);
                           setState(() {
                             // Validate email format
-                            if (!isValidEmail(value)) {
+                            if (!isValidEmail(email)) {
                               _emailErrorMessage =
                                   'Email není v platném formátu';
                             } else {
                               // Clear the format error and check if email exists
                               _emailErrorMessage = null;
-                              _checkEmail(value).then((emailExists) {
+                              _checkEmail(email).then((emailExists) {
                                 setState(() {
                                   _emailErrorMessage =
                                       emailExists ? 'Email již existuje' : null;
@@ -348,11 +360,11 @@ class _RegMailState extends State<RegMail> {
                           onPressed: !_isLoading
                               ? () {
                                   _withLoader(() async {
-                                    await _checkEmail(_emailController.text)
+                                    final email = _normalizeEmailInput();
+                                    await _checkEmail(email)
                                         .then((emailExists) {
                                       setState(() {
-                                        if (!isValidEmail(
-                                            _emailController.text)) {
+                                        if (!isValidEmail(email)) {
                                           _emailErrorMessage = t(
                                               'signup.mail.errors.mail_format_err');
                                         } else if (emailExists) {
@@ -363,14 +375,14 @@ class _RegMailState extends State<RegMail> {
                                         }
                                         _termsError = !_isChecked;
                                       });
-                                      if (isValidEmail(_emailController.text) &&
+                                      if (isValidEmail(email) &&
                                           _isChecked &&
                                           !emailExists) {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => RegPassword(
-                                              email: _emailController.text,
+                                              email: email,
                                               jwt: '',
                                               consent: true,
                                             ),

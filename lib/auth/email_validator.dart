@@ -4,8 +4,12 @@ class EmailValidator {
     caseSensitive: false,
   );
 
+  static String normalize(String email) {
+    return email.trim().toLowerCase();
+  }
+
   static bool isValid(String email) {
-    final String normalized = email.trim();
+    final String normalized = normalize(email);
     return normalized.isNotEmpty && _emailPattern.hasMatch(normalized);
   }
 }
