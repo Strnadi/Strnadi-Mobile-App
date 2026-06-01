@@ -147,6 +147,16 @@ jobs:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
 
+      - name: Install CocoaPods
+        run: gem install cocoapods --no-document
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Install iOS Pods
+        working-directory: ios
+        run: pod install
+
       - name: Deploy iOS build to TestFlight
         working-directory: ios
         env:

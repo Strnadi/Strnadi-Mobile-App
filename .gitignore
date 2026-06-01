@@ -81,3 +81,5 @@ android/upload_cert.der
 delete.sh
 
 build.env.json
+
+*.p8
