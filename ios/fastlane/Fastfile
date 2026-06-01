@@ -1,4 +1,6 @@
+require "base64"
 require "shellwords"
+require "tmpdir"
 
 default_platform(:ios)
 
@@ -49,6 +51,18 @@ def shell_arg(key, value)
   "#{key}=#{Shellwords.escape(value.to_s)}"
 end
 
+def app_store_connect_api_key_path
+  key_id = required_env("APP_STORE_CONNECT_API_KEY_ID")
+  key_base64 = required_env("APP_STORE_CONNECT_API_KEY_BASE64")
+  key_dir = ENV["RUNNER_TEMP"].to_s.strip
+  key_dir = Dir.tmpdir if key_dir.empty?
+  key_path = File.join(key_dir, "AuthKey_#{key_id}.p8")
+
+  File.write(key_path, Base64.decode64(key_base64))
+  File.chmod(0o600, key_path)
+  key_path
+end
+
 platform :ios do
   desc "Push a new beta build to TestFlight"
   lane :testflight do |options|
@@ -58,9 +72,7 @@ platform :ios do
     dart_define_file = resolved_dart_define_file(options)
     team_id = ENV["IOS_TEAM_ID"].to_s.strip
     team_id = "3GPTVJHVFN" if team_id.empty?
-    profile_name = ENV["IOS_PROVISIONING_PROFILE_NAME"].to_s.strip
-
-    UI.user_error!("IOS_PROVISIONING_PROFILE_NAME was not exported by install-ios-signing.sh") if profile_name.empty?
+    api_key_path = app_store_connect_api_key_path
 
     api_key = app_store_connect_api_key(
       key_id: required_env("APP_STORE_CONNECT_API_KEY_ID"),
@@ -84,6 +96,12 @@ platform :ios do
     end
 
     ipa_path = File.join(root, "build/ios/ipa/Strnadi.ipa")
+    xcode_auth_args = [
+      "-allowProvisioningUpdates",
+      "-authenticationKeyID #{Shellwords.escape(required_env("APP_STORE_CONNECT_API_KEY_ID"))}",
+      "-authenticationKeyIssuerID #{Shellwords.escape(required_env("APP_STORE_CONNECT_API_ISSUER_ID"))}",
+      "-authenticationKeyPath #{Shellwords.escape(api_key_path)}"
+    ]
 
     build_app(
       workspace: "Runner.xcworkspace",
@@ -95,20 +113,18 @@ platform :ios do
       output_name: File.basename(ipa_path),
       export_options: {
         method: "app-store",
-        signingStyle: "manual",
-        teamID: team_id,
-        provisioningProfiles: {
-          "com.delta.strnadi" => profile_name
-        }
+        signingStyle: "automatic",
+        teamID: team_id
       },
       xcargs: [
+        *xcode_auth_args,
         shell_arg("DEVELOPMENT_TEAM", team_id),
-        shell_arg("CODE_SIGN_STYLE", "Manual"),
+        shell_arg("CODE_SIGN_STYLE", "Automatic"),
         shell_arg("CODE_SIGN_IDENTITY", "Apple Distribution"),
-        shell_arg("PROVISIONING_PROFILE_SPECIFIER", profile_name),
         shell_arg("CURRENT_PROJECT_VERSION", build_number),
         shell_arg("MARKETING_VERSION", build_name)
-      ].join(" ")
+      ].join(" "),
+      export_xcargs: xcode_auth_args.join(" ")
     )
 
     upload_to_testflight(
