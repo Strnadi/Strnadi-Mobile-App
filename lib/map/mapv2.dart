@@ -245,16 +245,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Future<void> _refreshLegendCodes() async {
     try {
-      final beCodes = await DynamicIcon.fetchAllDialectCodesFromServer();
+      final beCodes =
+          await DynamicIcon.fetchVisibleDialectHintCodesFromServer();
       if (!mounted) return;
       if (beCodes.isNotEmpty) {
         final canonicalCodes = _canonicalizeDialectList(beCodes);
-        // Sort with 'Unknown' last to keep UI neat
-        canonicalCodes.sort((a, b) {
-          if (a == 'Unknown') return 1;
-          if (b == 'Unknown') return -1;
-          return a.toLowerCase().compareTo(b.toLowerCase());
-        });
         setState(() {
           _legendCodes = canonicalCodes;
         });
@@ -610,31 +605,61 @@ class _MapScreenV2State extends State<MapScreenV2> {
           continue;
         }
 
-        // Only representative filtered parts for this recording (by BE id)
+        // Prefer representative filtered parts for this recording (by BE id).
+        // If none exists, fall back to all filtered parts so the recording
+        // still gets a marker from available model/admin data.
+        // If an admin-confirmed representative exists, model-only
+        // source parts must not influence the badge.
         final reps = recFrps.where((f) => f.isRepresentant).toList();
-        final bool hasState6 = reps.any((f) => f.state == 6);
+        final sourceParts = selectDialectSourceParts<FilteredRecordingPart>(
+          parts: recFrps,
+          isRepresentant: (part) => part.isRepresentant,
+        );
+        final bool usedSourcePartsFallback = reps.isEmpty;
+        final bool hasState6 = sourceParts.any((f) => f.state == 6);
+        final Map<int, List<DetectedDialect>> rowsBySourcePart =
+            <int, List<DetectedDialect>>{};
+        bool hasAdminConfirmedSourcePart = false;
 
-        final List<DetectedDialectSnapshot> representativeRows =
-            <DetectedDialectSnapshot>[];
-        for (final frp in reps) {
-          // Join detected dialects by BE link
+        for (final frp in sourceParts) {
           final rows = frp.BEId == null
               ? const <DetectedDialect>[]
               : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
+          if (frp.BEId != null) {
+            rowsBySourcePart[frp.BEId!] = rows;
+          }
+          if (rows.any(_hasAdminConfirmedDialect)) {
+            hasAdminConfirmedSourcePart = true;
+          }
+        }
+
+        final List<DetectedDialectSnapshot> sourceRows =
+            <DetectedDialectSnapshot>[];
+        for (final frp in sourceParts) {
+          // Join detected dialects by BE link
+          final rows = frp.BEId == null
+              ? const <DetectedDialect>[]
+              : (rowsBySourcePart[frp.BEId!] ?? const <DetectedDialect>[]);
+          final bool isAdminConfirmedSourcePart =
+              rows.any(_hasAdminConfirmedDialect);
+          if (hasAdminConfirmedSourcePart && !isAdminConfirmedSourcePart) {
+            continue;
+          }
 
           for (final d in rows) {
-            representativeRows.add(
+            sourceRows.add(
               DetectedDialectSnapshot(
                 confirmed: d.confirmedDialect,
                 predicted: d.predictedDialect,
                 guessed: d.userGuessDialect,
+                adminConfirmedRepresentant: isAdminConfirmedSourcePart,
               ),
             );
           }
         }
 
         final summary = summarizeRecordingDialects(
-          rows: representativeRows,
+          rows: sourceRows,
           mode: _dialectSummaryMode(),
           canonicalize: _canonicalizeDialect,
         );
@@ -643,14 +668,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
         List<String> out;
         if (!summary.hasAnySelectedDialect) {
           recsWithNoCodes++;
-          logger.w('[MapV2] recBE=' +
-              beId.toString() +
-              ': no dialect codes collected; fallback=Unknown (repFRPs=' +
-              reps.length.toString() +
-              ')');
+          logger.w(
+            '[MapV2] recBE=$beId: no dialect codes collected; '
+            'fallback=Unknown (sourceFRPs=${sourceParts.length}, '
+            'repFRPs=${reps.length})',
+          );
           out = <String>['Unknown'];
         } else {
           out = List<String>.from(summary.dialects);
+          out = limitFailsafeDialects(
+            dialects: out,
+            usedFailsafe: usedSourcePartsFallback,
+          );
 
           logger.i('[MapV2] recBE=' +
               beId.toString() +
@@ -716,6 +745,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   _MapMarkerStatus _markerStatusForRecording(int beId) =>
       _dialectsByRecording[beId]?.markerStatus ?? _MapMarkerStatus.none;
+
+  bool _hasAdminConfirmedDialect(DetectedDialect row) {
+    return _canonicalizeDialect(row.confirmedDialect).isNotEmpty;
+  }
 
   List<String> _allDialectCodesForRecording(DetectedDialect row) {
     final List<String> codes = <String>[];
@@ -981,7 +1014,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         context: context,
         builder: (context) => AlertDialog(
               title: Text(t('map.dialogs.error.title')),
-              content: Text('${t('Nahrávka nenalezena')} $id'),
+              content: Text('${t('map.dialogs.error.recordingNotFound')} $id'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -1175,7 +1208,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                             ),
                             backgroundColor: Colors.white,
                             onPressed: _showLegendDialog,
-                            tooltip: 'Info',
+                            tooltip: t('map.buttons.info'),
                             child: Image.asset('assets/icons/info.png',
                                 width: 30, height: 30),
                           ),
@@ -1210,7 +1243,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         ),
                         backgroundColor: Colors.white,
                         onPressed: _openMapFilter,
-                        tooltip: 'Map Settings',
+                        tooltip: t('map.buttons.mapSettings'),
                         child: Image.asset('assets/icons/sort.png',
                             width: 24, height: 24),
                       ),
@@ -1225,7 +1258,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        tooltip: 'Reset orientation & recenter',
+                        tooltip: t('map.buttons.reset'),
                         onPressed: () async {
                           await _getCurrentLocation();
                           _mapController.move(_currentPosition, _currentZoom);
@@ -1469,7 +1502,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         const SizedBox(height: 4),
                         Center(
                           child: Text(
-                            t('Nastavení mapy'),
+                            t('map.buttons.mapSettings'),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -1480,7 +1513,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(t('Zobrazení mapy:')),
+                            Text(t('map.filters.mapView.title')),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -1628,7 +1661,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(t('Autor nahrávky:')),
+                            Text(t('map.filters.recordingAuthor.title')),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -1691,7 +1724,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Dialect visibility:'),
+                            Text(t('map.filters.dialectVisibility.title')),
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
@@ -1718,8 +1751,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text(
-                                      'Show all (incl. user suggestions)'),
+                                  child: Text(
+                                    t('map.filters.dialectVisibility.all'),
+                                  ),
                                 ),
                                 OutlinedButton(
                                   onPressed: () {
@@ -1742,7 +1776,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Show AI+Admin'),
+                                  child: Text(
+                                    t('map.filters.dialectVisibility.aiAdmin'),
+                                  ),
                                 ),
                                 OutlinedButton(
                                   onPressed: () {
@@ -1765,7 +1801,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Admin only'),
+                                  child: Text(
+                                    t(
+                                      'map.filters.dialectVisibility.adminOnly',
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -1976,12 +2016,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   Widget _buildAutoDialectLegend() {
     final codes = List<String>.from(_legendCodes);
-    // Ensure 'Unknown' appears last
-    codes.sort((a, b) {
-      if (a == 'Unknown') return 1;
-      if (b == 'Unknown') return -1;
-      return a.toLowerCase().compareTo(b.toLowerCase());
-    });
 
     final items = <Widget>[];
     for (final code in codes) {

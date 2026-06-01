@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:strnadi/dialects/dialect_definition.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 
@@ -59,7 +60,16 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   String? selectedDialect;
   late double startTime;
   late double endTime;
+  late final Future<List<String>> _dialectHintCodesFuture;
   final TextEditingController _noteController = TextEditingController();
+
+  static const Set<String> _spectrogramDialectTypes = {
+    'BC',
+    'BE',
+    'BlBh',
+    'BhBl',
+    'XB',
+  };
 
   // Fallback colors for non-dialect options, dialects resolved from cache/defaults.
   final Map<String, Color> specialTypeColors = {
@@ -114,6 +124,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   @override
   void initState() {
     super.initState();
+    _dialectHintCodesFuture =
+        DynamicIcon.fetchVisibleDialectHintCodesFromServer();
     if (widget.currentPosition == null) {
       startTime = 0.0;
       endTime = 3.0;
@@ -196,32 +208,27 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         ],
                       ),
                       SizedBox(height: 16),
-                      // Dialect options arranged in a grid
-                      GridView.count(
-                        shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 2.5,
-                        children: [
-                          _dialectOption('BC'),
-                          _dialectOption('BE'),
-                          _dialectOption('BlBh'),
-                          _dialectOption('BhBl'),
-                          _dialectOption('XB'),
-                          _dialectOption('Other'),
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: _dialectOption('No Dialect'),
-                      ),
-                      SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: _dialectOption("I don't know"),
+                      FutureBuilder<List<String>>(
+                        future: _dialectHintCodesFuture,
+                        builder: (context, snapshot) {
+                          final dialectOptions =
+                              snapshot.hasData && snapshot.data!.isNotEmpty
+                                  ? snapshot.data!
+                                  : fallbackDialectHintCodes;
+
+                          return GridView.count(
+                            shrinkWrap: true,
+                            physics: NeverScrollableScrollPhysics(),
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 2.5,
+                            children: [
+                              for (final type in dialectOptions)
+                                _dialectOption(type),
+                            ],
+                          );
+                        },
                       ),
                       SizedBox(height: 16),
                       Text(
@@ -317,16 +324,15 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
   }
 
   Widget _dialectOption(String type) {
-    bool isSelected = selectedDialect == type;
-    // Only these are real dialects with icon assets
-    const List<String> dialectTypes = ['BC', 'BE', 'BlBh', 'BhBl', 'XB'];
-    bool isDialect = dialectTypes.contains(type);
-    final displayLabel = _displayLabelForType(type);
+    final canonical = DialectKeywordTranslator.toEnglish(type) ?? type;
+    bool isSelected = selectedDialect == canonical;
+    bool hasSpectrogramAsset = _spectrogramDialectTypes.contains(canonical);
+    final displayLabel = _displayLabelForType(canonical);
 
     return InkWell(
       onTap: () {
         setState(() {
-          selectedDialect = type;
+          selectedDialect = canonical;
         });
       },
       child: Container(
@@ -339,57 +345,41 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
           borderRadius: BorderRadius.circular(24),
         ),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        child: isDialect
-            ? LayoutBuilder(
-                builder: (context, constraints) {
-                  // Show the dialect logo only when the tile is wide enough.
-                  const double minWidthForLogo = 100;
-                  final bool showLogo = constraints.maxWidth >= minWidthForLogo;
-
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      if (showLogo) ...[
-                        DynamicIcon(
-                          icon: Icons.circle,
-                          iconSize: 18,
-                          padding: EdgeInsets.zero,
-                          backgroundColor: Colors.transparent,
-                          dialects: [type],
-                        ),
-                        SizedBox(width: 6),
-                      ],
-                      Expanded(
-                        child: Text(
-                          displayLabel,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Image.asset(
-                        'assets/dialects/spect/$type.png',
-                        width: 35,
-                        height: 15,
-                        fit: BoxFit.contain,
-                      ),
-                    ],
-                  );
-                },
-              )
-            : Center(
-                child: Text(
-                  displayLabel,
-                  overflow: TextOverflow.ellipsis,
-                ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            DynamicIcon(
+              icon: Icons.circle,
+              iconSize: 18,
+              padding: EdgeInsets.zero,
+              backgroundColor: Colors.transparent,
+              dialects: [canonical],
+            ),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                displayLabel,
+                overflow: TextOverflow.ellipsis,
               ),
+            ),
+            if (hasSpectrogramAsset) ...[
+              SizedBox(width: 4),
+              Image.asset(
+                'assets/dialects/spect/$canonical.png',
+                width: 35,
+                height: 15,
+                fit: BoxFit.contain,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
   String _displayLabelForType(String type) {
-    const List<String> dialectTypes = ['BC', 'BE', 'BlBh', 'BhBl', 'XB'];
     final canonical = DialectKeywordTranslator.toEnglish(type) ?? type;
-    if (dialectTypes.contains(canonical)) return canonical;
+    if (_spectrogramDialectTypes.contains(canonical)) return canonical;
     return DialectKeywordTranslator.toLocalized(canonical);
   }
 }

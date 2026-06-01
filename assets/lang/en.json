@@ -377,7 +377,8 @@
       },
       "error": {
         "title": "Error",
-        "close": "Close"
+        "close": "Close",
+        "recordingNotFound": "Recording not found"
       },
       "confirmDelete": {
         "title": "Confirm deletion",
@@ -404,12 +405,20 @@
         "off": "Disabled"
       },
       "mapView": {
+        "title": "Map view",
         "classic": "Classic",
         "satellite": "Aerial"
       },
       "recordingAuthor": {
+        "title": "Recording author",
         "all": "All",
         "me": "Me only"
+      },
+      "dialectVisibility": {
+        "title": "Dialect visibility",
+        "all": "Show all (incl. user suggestions)",
+        "aiAdmin": "Show AI+Admin",
+        "adminOnly": "Admin only"
       },
       "recordingAge": {
         "title": "Recording age",

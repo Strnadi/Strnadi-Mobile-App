@@ -375,7 +375,8 @@
       },
       "error": {
         "title": "Chyba",
-        "close": "Zavřít"
+        "close": "Zavřít",
+        "recordingNotFound": "Nahrávka nenalezena"
       },
       "confirmDelete": {
         "title": "Potvrdit smazání",
@@ -386,8 +387,8 @@
     },
     "buttons": {
       "info": "Info",
-      "mapSettings": "Map Settings",
-      "reset": "Reset orientation & recenter",
+      "mapSettings": "Nastavení mapy",
+      "reset": "Resetovat orientaci a vycentrovat",
       "close": "Zavřít",
       "set": "Nastavit",
       "resetFilters": "Resetovat"
@@ -402,12 +403,20 @@
         "off": "Vypnuto"
       },
       "mapView": {
+        "title": "Zobrazení mapy",
         "classic": "Klasické",
         "satellite": "Letecké"
       },
       "recordingAuthor": {
+        "title": "Autor nahrávky",
         "all": "Všichni",
         "me": "Pouze já"
+      },
+      "dialectVisibility": {
+        "title": "Viditelnost nářečí",
+        "all": "Zobrazit vše (včetně návrhů uživatelů)",
+        "aiAdmin": "Zobrazit AI+admin",
+        "adminOnly": "Pouze admin"
       },
       "recordingAge": {
         "title": "Stáří nahrávek",

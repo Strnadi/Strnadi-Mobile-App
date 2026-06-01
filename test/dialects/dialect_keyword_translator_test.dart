@@ -5,4 +5,12 @@ void main() {
   test('maps backend None dialect to canonical No Dialect', () {
     expect(DialectKeywordTranslator.toEnglish('None'), 'No Dialect');
   });
+
+  test('maps localized backend other dialect to canonical Other', () {
+    expect(DialectKeywordTranslator.toEnglish('Jiné'), 'Other');
+  });
+
+  test('keeps unknown dialect codes unchanged', () {
+    expect(DialectKeywordTranslator.toEnglish('BBe'), 'BBe');
+  });
 }

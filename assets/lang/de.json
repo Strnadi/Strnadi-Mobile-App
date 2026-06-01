@@ -375,7 +375,8 @@
       },
       "error": {
         "title": "Fehler",
-        "close": "Schließen"
+        "close": "Schließen",
+        "recordingNotFound": "Aufnahme nicht gefunden"
       },
       "confirmDelete": {
         "title": "Löschen bestätigen",
@@ -402,12 +403,20 @@
         "off": "Clustering deaktivieren"
       },
       "mapView": {
+        "title": "Kartenansicht",
         "classic": "Klassisch",
         "satellite": "Satellit"
       },
       "recordingAuthor": {
+        "title": "Autor der Aufnahme",
         "all": "Alle",
         "me": "Nur ich"
+      },
+      "dialectVisibility": {
+        "title": "Dialektsichtbarkeit",
+        "all": "Alle anzeigen (inkl. Nutzervorschläge)",
+        "aiAdmin": "KI+Admin anzeigen",
+        "adminOnly": "Nur Admin"
       },
       "recordingAge": {
         "title": "Alter der Aufnahmen",

@@ -535,11 +535,23 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
           _DialectConfidence confidence,
         })> drafts = [];
     final Set<String> codes = <String>{};
+    final bool hasAdminConfirmedRepresentant = decoded.any((item) {
+      if (item is! Map<String, dynamic>) return false;
+      if (!_parseBool(item['representantFlag'])) return false;
+      return _hasConfirmedDialect(item['detectedDialects']);
+    });
 
     for (final item in decoded) {
       if (item is! Map<String, dynamic>) continue;
       final map = item;
       final bool isRepresentant = _parseBool(map['representantFlag']);
+      final bool isAdminConfirmedRepresentant =
+          isRepresentant && _hasConfirmedDialect(map['detectedDialects']);
+      if (hasAdminConfirmedRepresentant &&
+          isRepresentant &&
+          !isAdminConfirmedRepresentant) {
+        continue;
+      }
 
       final String? startStr = map['startDate'] as String?;
       final String? endStr = map['endDate'] as String?;
@@ -641,34 +653,45 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   ({String? code, _DialectConfidence confidence}) _selectDialect(
       Map<String, dynamic> row) {
-    String? pick(String key) {
-      final value = row[key];
-      if (value == null) return null;
-      final trimmed = value.toString().trim();
-      return trimmed.isEmpty ? null : trimmed;
-    }
-
-    final confirmed = pick('confirmedDialect');
+    final confirmed = _pickDialectValue(row, 'confirmedDialect');
     if (confirmed != null) {
       return (code: confirmed, confidence: _DialectConfidence.confirmed);
     }
 
-    final predicted = pick('predictedDialect');
+    final predicted = _pickDialectValue(row, 'predictedDialect');
     if (predicted != null) {
       return (code: predicted, confidence: _DialectConfidence.predicted);
     }
 
-    final guessed = pick('userGuessDialect');
+    final guessed = _pickDialectValue(row, 'userGuessDialect');
     if (guessed != null) {
       return (code: guessed, confidence: _DialectConfidence.userGuess);
     }
 
-    final fallback = pick('dialectCode');
+    final fallback = _pickDialectValue(row, 'dialectCode');
     if (fallback != null) {
       return (code: fallback, confidence: _DialectConfidence.userGuess);
     }
 
     return (code: null, confidence: _DialectConfidence.userGuess);
+  }
+
+  bool _hasConfirmedDialect(dynamic rawDialects) {
+    if (rawDialects is! List) return false;
+    for (final row in rawDialects) {
+      if (row is! Map<String, dynamic>) continue;
+      if (_pickDialectValue(row, 'confirmedDialect') != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String? _pickDialectValue(Map<String, dynamic> row, String key) {
+    final value = row[key];
+    if (value == null) return null;
+    final trimmed = value.toString().trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   bool _parseBool(dynamic value) {

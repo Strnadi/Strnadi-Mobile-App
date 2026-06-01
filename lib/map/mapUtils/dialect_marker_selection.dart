@@ -16,11 +16,13 @@ class DetectedDialectSnapshot {
     this.confirmed,
     this.predicted,
     this.guessed,
+    this.adminConfirmedRepresentant = false,
   });
 
   final String? confirmed;
   final String? predicted;
   final String? guessed;
+  final bool adminConfirmedRepresentant;
 }
 
 class RecordingDialectSummary {
@@ -35,11 +37,36 @@ class RecordingDialectSummary {
   bool get hasAnySelectedDialect => dialects.isNotEmpty;
 }
 
+List<T> selectDialectSourceParts<T>({
+  required Iterable<T> parts,
+  required bool Function(T part) isRepresentant,
+}) {
+  final allParts = parts.toList(growable: false);
+  final representants = allParts.where(isRepresentant).toList(growable: false);
+  return representants.isNotEmpty ? representants : allParts;
+}
+
+List<String> limitFailsafeDialects({
+  required Iterable<String> dialects,
+  required bool usedFailsafe,
+}) {
+  final values = dialects.toList(growable: false);
+  if (!usedFailsafe || values.length <= 1) return values;
+  return <String>[values.first];
+}
+
 RecordingDialectSummary summarizeRecordingDialects({
   required Iterable<DetectedDialectSnapshot> rows,
   required DialectSummaryMode mode,
   required String Function(String? value) canonicalize,
 }) {
+  final inputRows = rows.toList(growable: false);
+  final hasAdminConfirmedRepresentant =
+      inputRows.any((row) => row.adminConfirmedRepresentant);
+  final effectiveRows = hasAdminConfirmedRepresentant
+      ? inputRows.where((row) => row.adminConfirmedRepresentant)
+      : inputRows;
+
   final List<String> confirmed = <String>[];
   final List<String> predicted = <String>[];
   final List<String> guessed = <String>[];
@@ -59,7 +86,7 @@ RecordingDialectSummary summarizeRecordingDialects({
     output.add(canonical);
   }
 
-  for (final row in rows) {
+  for (final row in effectiveRows) {
     addValue(row.confirmed, confirmed, confirmedSeen);
     addValue(row.predicted, predicted, predictedSeen);
     addValue(row.guessed, guessed, guessedSeen);

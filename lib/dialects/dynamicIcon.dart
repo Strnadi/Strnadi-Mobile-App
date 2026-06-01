@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/dialects_controller.dart';
+import 'package:strnadi/dialects/dialect_definition.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dialect_keyword_translator.dart';
@@ -33,6 +34,7 @@ class DialectColorCache {
     'BhBl': '#8ED0FF',
     'BlBh': '#4E68F0',
     'XB': '#F04D4D',
+    'Other': '#FFFFFF',
     'Unknown': '#aaaaaa',
     'No Dialect': '#000000',
   };
@@ -229,28 +231,21 @@ class DynamicIcon extends StatelessWidget {
       });
     } else if (data is List) {
       // List form: [ {"code":"BC","color":"#FDE441"}, ... ]
-      for (final item in data) {
-        if (item is Map) {
-          final code = (item['code'] ??
-                  item['dialect'] ??
-                  item['dialect_code'] ??
-                  item['dialectCode'])
-              ?.toString();
-          final colorRaw = item['color']?.toString();
-          final hex = _normalizeHex(colorRaw);
-          if (code != null && hex != null) {
-            result[code] = hex;
-            logger.v('[DialectColorCache] fetched ' +
-                code +
-                ' -> ' +
-                hex +
-                ' (server)');
-          } else {
-            logger.v('[DialectColorCache] skipped entry code=' +
-                (code?.toString() ?? 'null') +
-                ' color=' +
-                (colorRaw?.toString() ?? 'null'));
-          }
+      for (final definition in parseDialectDefinitions(data)) {
+        final colorRaw = definition.color;
+        final hex = _normalizeHex(colorRaw);
+        if (hex != null) {
+          result[definition.code] = hex;
+          logger.v('[DialectColorCache] fetched ' +
+              definition.code +
+              ' -> ' +
+              hex +
+              ' (server)');
+        } else {
+          logger.v('[DialectColorCache] skipped entry code=' +
+              definition.code +
+              ' color=' +
+              (colorRaw ?? 'null'));
         }
       }
     } else {
@@ -297,45 +292,26 @@ class DynamicIcon extends StatelessWidget {
     await refreshDialects();
   }
 
-  /// Fetch all dialect codes from server, regardless of whether a color is provided.
-  /// Uses the same /recordings/dialects endpoint but does not filter out empty colors.
-  static Future<List<String>> fetchAllDialectCodesFromServer() async {
+  /// Fetch visible dialect hint codes in backend order.
+  /// Rows with hintOrder <= 0 are intentionally not returned.
+  static Future<List<String>> fetchVisibleDialectHintCodesFromServer() async {
     try {
       final response = await _dialectsController.fetchDialectPalette();
       if (response.statusCode != 200) {
-        logger.w('[DynamicIcon] fetchAllDialectCodesFromServer HTTP ' +
+        logger.w('[DynamicIcon] fetchVisibleDialectHintCodesFromServer HTTP ' +
             response.statusCode.toString());
         return const [];
       }
       final dynamic body = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
-      final codes = <String>{};
-      if (body is List) {
-        for (final item in body) {
-          if (item is Map) {
-            final code = (item['dialectCode'] ??
-                    item['code'] ??
-                    item['dialect'] ??
-                    item['dialect_code'])
-                ?.toString();
-            if (code != null && code.trim().isNotEmpty) codes.add(code.trim());
-          }
-        }
-      } else if (body is Map) {
-        // Map form: keys are codes
-        for (final k in body.keys) {
-          final code = k.toString();
-          if (code.trim().isNotEmpty) codes.add(code.trim());
-        }
-      }
-      final out = codes.toList()..sort();
-      logger.i('[DynamicIcon] fetchAllDialectCodesFromServer: ' +
+      final out = visibleDialectHintCodes(body);
+      logger.i('[DynamicIcon] fetchVisibleDialectHintCodesFromServer: ' +
           out.length.toString() +
           ' codes');
       return out;
     } catch (e) {
-      logger.e('[DynamicIcon] fetchAllDialectCodesFromServer error: ' +
+      logger.e('[DynamicIcon] fetchVisibleDialectHintCodesFromServer error: ' +
           e.toString());
       return const [];
     }
@@ -343,7 +319,7 @@ class DynamicIcon extends StatelessWidget {
 
   /// Return the built-in default dialect keys (for fallback in legends etc.).
   static List<String> getDefaultDialectKeys() {
-    return DialectColorCache._defaults.keys.toList();
+    return List<String>.from(fallbackDialectHintCodes);
   }
 
   /// Returns a map of dialect -> Color for legend display.
