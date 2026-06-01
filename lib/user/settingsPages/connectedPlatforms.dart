@@ -22,7 +22,6 @@ import 'package:strnadi/auth/appleAuth.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' hide logger;
 import 'package:strnadi/localization/localization.dart';
 import '../../HealthCheck/serverHealth.dart' show logger;
-import '../../bottomBar.dart';
 import '../../navigation/scaffold_with_bottom_bar.dart';
 
 class Connectedplatforms extends StatefulWidget {
@@ -34,29 +33,22 @@ class Connectedplatforms extends StatefulWidget {
 
 class _ConnectedPlatformsState extends State<Connectedplatforms> {
   static const AuthController _authController = AuthController();
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  late bool? shouldShowAppleSignIn = null;
-  late bool? ShouldShowGoogleSignIn = null;
+  bool? _shouldShowAppleSignIn;
+  bool? _shouldShowGoogleSignIn;
+  bool _isConnectingApple = false;
+  bool _isConnectingGoogle = false;
 
   @override
   void initState() {
     super.initState();
-    shouldShowGoogle().then((show) {
-      setState(() {
-        ShouldShowGoogleSignIn = show;
-      });
-    });
-    shouldShowApple().then((show) {
-      setState(() {
-        shouldShowAppleSignIn = show;
-      });
-    });
+    _refreshConnectionStatus();
   }
 
   Future<bool> shouldShowGoogle() async {
-    final storage = FlutterSecureStorage();
     final int userId =
-        int.tryParse(await storage.read(key: 'userId') ?? '') ?? -1;
+        int.tryParse(await _storage.read(key: 'userId') ?? '') ?? -1;
     if (userId <= 0) return true;
 
     final response = await _authController.hasGoogleId(userId);
@@ -68,9 +60,8 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
   }
 
   Future<bool> shouldShowApple() async {
-    final storage = FlutterSecureStorage();
     final int userId =
-        int.tryParse(await storage.read(key: 'userId') ?? '') ?? -1;
+        int.tryParse(await _storage.read(key: 'userId') ?? '') ?? -1;
     if (userId <= 0) return true;
 
     final response = await _authController.hasAppleId(userId);
@@ -81,11 +72,141 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
     return true;
   }
 
+  Future<void> _refreshConnectionStatus() async {
+    final results = await Future.wait([
+      shouldShowApple(),
+      shouldShowGoogle(),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      _shouldShowAppleSignIn = results[0];
+      _shouldShowGoogleSignIn = results[1];
+    });
+  }
+
+  Future<void> _connectApple() async {
+    if (kIsWeb) {
+      logger.w("Apple Sign-In is not supported on the web.");
+      return;
+    }
+
+    setState(() {
+      _isConnectingApple = true;
+    });
+
+    try {
+      final jwt = await _storage.read(key: 'token');
+      final resp = await AppleAuth.signInAndGetJwt(jwt);
+      if (resp?['status'] != 200) {
+        logger.w("Apple Sign-In was cancelled or failed.");
+        return;
+      }
+
+      logger.i('Apple Sign-In successful.');
+      if (mounted) {
+        setState(() {
+          _shouldShowAppleSignIn = false;
+        });
+      }
+      await _refreshConnectionStatus();
+    } catch (e) {
+      logger.e("Error during Apple Sign-In: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConnectingApple = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _connectGoogle() async {
+    if (kIsWeb) {
+      logger.w("Google Sign-In is not supported on the web.");
+      return;
+    }
+
+    setState(() {
+      _isConnectingGoogle = true;
+    });
+
+    try {
+      final jwt = await _storage.read(key: 'token');
+      final resp = await GoogleSignInService.googleAuth(jwt: jwt);
+      if (resp?['status'] != 200) {
+        logger.w("Google Sign-In was cancelled or failed.");
+        return;
+      }
+
+      logger.i('Google Sign-In successful.');
+      if (mounted) {
+        setState(() {
+          _shouldShowGoogleSignIn = false;
+        });
+      }
+      await _refreshConnectionStatus();
+    } catch (e) {
+      logger.e("Error during Google Sign-In: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConnectingGoogle = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildPlatformButton({
+    required String iconAsset,
+    required String label,
+    required bool isConnected,
+    required bool isLoading,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: isConnected || isLoading ? null : onPressed,
+          icon: isLoading
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Image.asset(
+                  iconAsset,
+                  height: 24,
+                  width: 24,
+                ),
+          label: Text(
+            label,
+            style: const TextStyle(fontSize: 16),
+          ),
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            backgroundColor: isConnected ? Colors.green : Colors.black,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: isConnected ? Colors.green : Colors.black,
+            disabledForegroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final String appBarTitle = t('user.menu.items.connectedAccounts');
 
-    if (shouldShowAppleSignIn == null) {
+    if (_shouldShowAppleSignIn == null || _shouldShowGoogleSignIn == null) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
         appBarTitle: appBarTitle,
@@ -93,7 +214,7 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
         content: const Center(child: CircularProgressIndicator()),
       );
     }
-    if (shouldShowAppleSignIn == false && ShouldShowGoogleSignIn == false) {
+    if (_shouldShowAppleSignIn == false && _shouldShowGoogleSignIn == false) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
         appBarTitle: appBarTitle,
@@ -124,167 +245,24 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (shouldShowAppleSignIn == true)
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        var storage = FlutterSecureStorage();
-                        var jwt = await storage.read(key: 'token');
-                        if (kIsWeb) {
-                          logger
-                              .w("Apple Sign-In is not supported on the web.");
-                          return;
-                        }
-                        try {
-                          var resp = await AppleAuth.signInAndGetJwt(jwt);
-                          if (resp?['status'] != 200) {
-                            logger.w("Apple Sign-In was cancelled or failed.");
-                            return;
-                          }
-                          logger.i('Apple Sign-In successful.');
-                        } catch (e) {
-                          logger.e("Error during Apple Sign-In: $e");
-                        }
-                      },
-                      icon: Image.asset(
-                        'assets/images/apple.png',
-                        height: 24,
-                        width: 24,
-                      ),
-                      label: const Text(
-                        'Pokračovat přes Apple',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        logger.i('Negger Schwartz');
-                      },
-                      icon: Image.asset(
-                        'assets/images/google.webp',
-                        height: 24,
-                        width: 24,
-                      ),
-                      label: const Text(
-                        'Už propojeno s Google',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          if (ShouldShowGoogleSignIn == true)
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        if (kIsWeb) {
-                          logger
-                              .w("Google Sign-In is not supported on the web.");
-                          return;
-                        }
-                        try {
-                          var resp =
-                              await GoogleSignInService.signInWithGoogle();
-                          if (resp == null) {
-                            logger.w("Google Sign-In was cancelled or failed.");
-                            return;
-                          }
-                          logger.i('Google Sign-In successful.');
-                        } catch (e) {
-                          logger.e("Error during Google Sign-In: $e");
-                        }
-                      },
-                      icon: Image.asset(
-                        'assets/images/google.webp',
-                        height: 24,
-                        width: 24,
-                      ),
-                      label: const Text(
-                        'Pokračovat přes Google',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        logger.i('Schwartz Negger');
-                      },
-                      icon: Image.asset(
-                        'assets/images/apple.png',
-                        height: 24,
-                        width: 24,
-                      ),
-                      label: const Text(
-                        'Již propojeno s Apple',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
+          _buildPlatformButton(
+            iconAsset: 'assets/images/apple.png',
+            label: _shouldShowAppleSignIn == true
+                ? 'Pokračovat přes Apple'
+                : 'Již propojeno s Apple',
+            isConnected: _shouldShowAppleSignIn == false,
+            isLoading: _isConnectingApple,
+            onPressed: _connectApple,
+          ),
+          _buildPlatformButton(
+            iconAsset: 'assets/images/google.webp',
+            label: _shouldShowGoogleSignIn == true
+                ? 'Pokračovat přes Google'
+                : 'Už propojeno s Google',
+            isConnected: _shouldShowGoogleSignIn == false,
+            isLoading: _isConnectingGoogle,
+            onPressed: _connectGoogle,
+          ),
         ],
       )),
     );
