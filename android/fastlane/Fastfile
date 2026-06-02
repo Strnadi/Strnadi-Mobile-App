@@ -54,6 +54,20 @@ def resolved_release_status(options)
   release_status.empty? ? "completed" : release_status
 end
 
+def resolved_promote_from_track(options)
+  track = options[:from_track].to_s.strip
+  track = ENV["GOOGLE_PLAY_PROMOTE_FROM_TRACK"].to_s.strip if track.empty?
+  track = ENV["GOOGLE_PLAY_CLOSED_TRACK"].to_s.strip if track.empty?
+  track.empty? ? "alpha" : track
+end
+
+def resolved_promote_to_track(options)
+  track = options[:to_track].to_s.strip
+  track = ENV["GOOGLE_PLAY_PROMOTE_TO_TRACK"].to_s.strip if track.empty?
+  track = ENV["GOOGLE_PLAY_TRACK"].to_s.strip if track.empty?
+  track.empty? ? "beta" : track
+end
+
 def google_play_tracks_to_check(target_track)
   tracks = %w[internal alpha beta production]
   closed_track = ENV["GOOGLE_PLAY_CLOSED_TRACK"].to_s.strip
@@ -141,5 +155,30 @@ platform :android do
     track = ENV["GOOGLE_PLAY_CLOSED_TRACK"].to_s.strip
     track = "alpha" if track.empty?
     play(options.merge(track: track))
+  end
+
+  desc "Promote the active Google Play release from one track to another"
+  lane :promote do |options|
+    root = project_root
+    from_track = resolved_promote_from_track(options)
+    to_track = resolved_promote_to_track(options)
+    release_status = resolved_release_status(options)
+    json_key = ENV["SUPPLY_JSON_KEY"].to_s.strip
+    json_key = File.join(root, "android/play-store-service-account.json") if json_key.empty?
+
+    UI.user_error!("Missing Google Play service account JSON: #{json_key}") unless File.exist?(json_key)
+    UI.user_error!("Promotion source and target tracks must differ") if from_track == to_track
+
+    upload_to_play_store(
+      package_name: PACKAGE_NAME,
+      track: from_track,
+      track_promote_to: to_track,
+      track_promote_release_status: release_status,
+      json_key: json_key,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
   end
 end
