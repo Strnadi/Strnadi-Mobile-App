@@ -1,0 +1,18 @@
+deployments:
+  environmentMapping:
+    development:
+      - "development"
+      - "dev*"
+    testing:
+      - "android-testing"
+      - "ios-testflight"
+      - "test*"
+    staging:
+      - "staging"
+      - "stage*"
+      - "preprod"
+      - "pre-prod"
+    production:
+      - "android-production"
+      - "production"
+      - "prod*"

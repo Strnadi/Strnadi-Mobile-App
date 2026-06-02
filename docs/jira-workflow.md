@@ -25,7 +25,11 @@ The `Branch and Jira Policy` workflow validates feature and release branch names
 - Push to `release/**`: deploys Android to the closed testing track and iOS to TestFlight.
 - The closed testing track defaults to `alpha`; set the `GOOGLE_PLAY_CLOSED_TRACK` repository variable if your Play Console closed-testing track uses another name.
 - Manual deploys can override the Play track with the `play_track` workflow input.
-- If a deploy branch contains a Jira issue key, the deploy workflow comments on that Jira issue after successful Android and iOS uploads.
+- The deploy workflow creates GitHub deployment events and status updates so Jira can show Android and iOS deployments in the Deployments view.
+- Android deployments use the `android-testing` environment unless the Play track is `production`, in which case they use `android-production`.
+- iOS TestFlight deployments use the `ios-testflight` environment.
+- Custom deployment environments are mapped for Jira in `.jira/config.yml`.
+- If a deploy branch contains a Jira issue key, the deploy workflow also comments on that Jira issue after successful Android and iOS uploads.
 
 ## Required GitHub Variables
 
