@@ -46,10 +46,12 @@ concurrency:
 
 permissions:
   contents: read
+  deployments: write
 
 env:
   BUILD_NAME: ${{ github.event.inputs.build_name }}
   BUILD_NUMBER: ${{ github.event.inputs.build_number || github.run_number }}
+  DEPLOYMENT_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   GOOGLE_PLAY_TRACK: ${{ github.event.inputs.play_track || (startsWith(github.ref_name, 'release/') && (vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || 'internal' }}
   GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status || 'completed' }}
 
@@ -62,6 +64,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Create Android GitHub deployment
+        id: android_deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: ${{ github.token }}
+          ref: ${{ github.sha }}
+          environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
+          task: 'deploy:android'
+          initial-status: in_progress
+          log-url: ${{ env.DEPLOYMENT_LOG_URL }}
+          description: Android deployment to Play Console ${{ env.GOOGLE_PLAY_TRACK }}.
+          production-environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'true' || 'false' }}
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -145,6 +160,28 @@ jobs:
             android/app/build/reports/**
             android/.gradle/**/problems-report.html
 
+      - name: Mark Android deployment failed
+        if: ${{ failure() && steps.android_deployment.outputs.deployment_id != '' }}
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          deployment-id: ${{ steps.android_deployment.outputs.deployment_id }}
+          state: failure
+          environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
+          log-url: ${{ env.DEPLOYMENT_LOG_URL }}
+          description: Android deployment to Play Console ${{ env.GOOGLE_PLAY_TRACK }} failed.
+
+      - name: Mark Android deployment successful
+        if: ${{ success() }}
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          deployment-id: ${{ steps.android_deployment.outputs.deployment_id }}
+          state: success
+          environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
+          log-url: ${{ env.DEPLOYMENT_LOG_URL }}
+          description: Android deployed to Play Console ${{ env.GOOGLE_PLAY_TRACK }}.
+
       - name: Comment Jira deployment
         if: ${{ success() }}
         env:
@@ -169,6 +206,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Create iOS GitHub deployment
+        id: ios_deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: ${{ github.token }}
+          ref: ${{ github.sha }}
+          environment: ios-testflight
+          task: 'deploy:ios'
+          initial-status: in_progress
+          log-url: ${{ env.DEPLOYMENT_LOG_URL }}
+          description: iOS deployment to TestFlight.
+          production-environment: 'false'
 
       - name: Select Xcode 26
         run: |
@@ -268,6 +318,28 @@ jobs:
             ios/build/ios/gym-logs/**
             ios/build/ios/gym-result.xcresult/**
             /Users/runner/Library/Logs/gym/**
+
+      - name: Mark iOS deployment failed
+        if: ${{ failure() && steps.ios_deployment.outputs.deployment_id != '' }}
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          deployment-id: ${{ steps.ios_deployment.outputs.deployment_id }}
+          state: failure
+          environment: ios-testflight
+          log-url: ${{ env.DEPLOYMENT_LOG_URL }}
+          description: iOS deployment to TestFlight failed.
+
+      - name: Mark iOS deployment successful
+        if: ${{ success() }}
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          deployment-id: ${{ steps.ios_deployment.outputs.deployment_id }}
+          state: success
+          environment: ios-testflight
+          log-url: ${{ env.DEPLOYMENT_LOG_URL }}
+          description: iOS deployed to TestFlight.
 
       - name: Comment Jira deployment
         if: ${{ success() }}
