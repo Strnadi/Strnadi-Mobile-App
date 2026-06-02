@@ -70,7 +70,8 @@ jobs:
         uses: chrnorm/deployment-action@v2
         with:
           token: ${{ github.token }}
-          ref: ${{ github.sha }}
+          ref: ${{ github.ref_name }}
+          sha: ${{ github.sha }}
           environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
           task: 'deploy:android'
           initial-status: in_progress
@@ -212,7 +213,8 @@ jobs:
         uses: chrnorm/deployment-action@v2
         with:
           token: ${{ github.token }}
-          ref: ${{ github.sha }}
+          ref: ${{ github.ref_name }}
+          sha: ${{ github.sha }}
           environment: ios-testflight
           task: 'deploy:ios'
           initial-status: in_progress

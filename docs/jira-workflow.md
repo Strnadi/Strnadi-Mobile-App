@@ -15,7 +15,9 @@ The `Branch and Jira Policy` workflow validates feature and release branch names
 ## Pull Requests
 
 - Feature branches should include the Jira key in the branch name and PR template.
-- Jira issue keys are detected from the branch, title, and PR body.
+- Pull request titles must include the Jira key so GitHub for Jira can link the PR natively.
+- At least one feature branch commit subject must include the Jira key so GitHub for Jira can link builds and deployments.
+- Jira issue keys are detected from the branch, title, PR body, and commit subjects.
 - If `JIRA_USER_EMAIL` and `JIRA_API_TOKEN` are configured, the workflow verifies that detected Jira issues exist.
 - On PR open, reopen, or ready-for-review, the workflow adds a Jira comment with the GitHub PR link.
 
@@ -26,6 +28,7 @@ The `Branch and Jira Policy` workflow validates feature and release branch names
 - The closed testing track defaults to `alpha`; set the `GOOGLE_PLAY_CLOSED_TRACK` repository variable if your Play Console closed-testing track uses another name.
 - Manual deploys can override the Play track with the `play_track` workflow input.
 - The deploy workflow creates GitHub deployment events and status updates so Jira can show Android and iOS deployments in the Deployments view.
+- Deployment events use the deployed branch name as the GitHub deployment ref and pin the exact deployed commit SHA.
 - Android deployments use the `android-testing` environment unless the Play track is `production`, in which case they use `android-production`.
 - iOS TestFlight deployments use the `ios-testflight` environment.
 - Custom deployment environments are mapped for Jira in `.jira/config.yml`.
