@@ -3,6 +3,7 @@ set -euo pipefail
 
 branch_name="${BRANCH_NAME:-}"
 jira_project_keys="${JIRA_PROJECT_KEYS:-APP}"
+pr_title="${PR_TITLE:-}"
 
 if [[ -z "$branch_name" ]]; then
   echo "::error::BRANCH_NAME is required."
@@ -35,7 +36,33 @@ case "$branch_name" in
     ;;
 esac
 
-source_text="${branch_name} ${PR_TITLE:-} ${PR_BODY:-}"
+if [[ "$branch_name" == feature/* && -n "$pr_title" && ! "$pr_title" =~ $jira_key_pattern ]]; then
+  echo "::error::Pull request titles must include a Jira issue key, for example APP-24 Fix spacing."
+  exit 1
+fi
+
+commit_subjects=""
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  commit_range="HEAD"
+
+  if [[ -n "${BASE_BRANCH:-}" ]]; then
+    base_ref="origin/${BASE_BRANCH}"
+    if git rev-parse --verify "$base_ref" >/dev/null 2>&1; then
+      commit_range="${base_ref}..HEAD"
+    fi
+  fi
+
+  commit_subjects="$(git log --format='%H%x09%s' "$commit_range" || true)"
+
+  if [[ "$branch_name" == feature/* && -n "$commit_subjects" ]]; then
+    if [[ ! "$commit_subjects" =~ $jira_key_pattern ]]; then
+      echo "::error::At least one feature branch commit subject must include a Jira issue key so Jira can link deployments."
+      exit 1
+    fi
+  fi
+fi
+
+source_text="${branch_name} ${PR_TITLE:-} ${PR_BODY:-} ${commit_subjects}"
 jira_keys="$(printf '%s' "$source_text" | grep -Eo "$jira_key_pattern" | sort -u | tr '\n' ' ' || true)"
 
 if [[ "$branch_name" == feature/* && -z "${jira_keys// /}" ]]; then
