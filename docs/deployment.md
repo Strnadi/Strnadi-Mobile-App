@@ -52,6 +52,8 @@ The workflow caches:
 - CocoaPods downloads and installed pods.
 - iOS Xcode DerivedData for incremental archive builds.
 
+The iOS deploy job uses GitHub's `macos-26` runner so App Store Connect receives an IPA built with the required iOS 26 SDK/Xcode 26 toolchain.
+
 ## Optional GitHub Variables
 
 - `IOS_TEAM_ID`: Apple Developer Team ID. Defaults to `3GPTVJHVFN`.

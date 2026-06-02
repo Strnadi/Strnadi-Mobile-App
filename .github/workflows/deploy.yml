@@ -164,11 +164,20 @@ jobs:
   deploy_ios:
     name: Deploy iOS to TestFlight
     if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          xcode_app="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print | sort | tail -n 1)"
+          if [[ -n "$xcode_app" ]]; then
+            sudo xcode-select -s "$xcode_app/Contents/Developer"
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2

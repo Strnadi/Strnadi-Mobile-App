@@ -64,6 +64,14 @@ code_sign_identity="$(
 )"
 
 if [[ -z "$code_sign_identity" ]]; then
+  imported_identity="$(
+    security find-certificate -a -c "Apple Development" "$keychain_path" -p 2>/dev/null |
+      openssl x509 -noout -subject 2>/dev/null |
+      head -n 1 || true
+  )"
+  if [[ -n "$imported_identity" ]]; then
+    echo "::error::The uploaded IOS_DISTRIBUTION_CERTIFICATE_BASE64 secret contains an Apple Development certificate. TestFlight requires an Apple Distribution .p12."
+  fi
   echo "::error::The imported .p12 does not contain an Apple/iPhone Distribution signing identity."
   security find-identity -v -p codesigning "$keychain_path" || true
   exit 1
