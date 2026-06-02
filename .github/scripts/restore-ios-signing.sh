@@ -11,7 +11,6 @@ if [[ -z "$certificate_base64" && -z "$profile_base64" ]]; then
 fi
 
 : "${IOS_DISTRIBUTION_CERTIFICATE_BASE64:?Set IOS_DISTRIBUTION_CERTIFICATE_BASE64 or remove the partial iOS signing configuration.}"
-: "${IOS_DISTRIBUTION_CERTIFICATE_PASSWORD:?Set IOS_DISTRIBUTION_CERTIFICATE_PASSWORD or remove the partial iOS signing configuration.}"
 : "${IOS_APPSTORE_PROVISIONING_PROFILE_BASE64:?Set IOS_APPSTORE_PROVISIONING_PROFILE_BASE64 or remove the partial iOS signing configuration.}"
 
 base64_decode() {
@@ -58,6 +57,18 @@ security set-key-partition-list \
   -k "$keychain_password" \
   "$keychain_path"
 
+code_sign_identity="$(
+  security find-identity -v -p codesigning "$keychain_path" |
+    sed -nE 's/.*"((Apple|iPhone) Distribution[^"]*)".*/\1/p' |
+    head -n 1
+)"
+
+if [[ -z "$code_sign_identity" ]]; then
+  echo "::error::The imported .p12 does not contain an Apple/iPhone Distribution signing identity."
+  security find-identity -v -p codesigning "$keychain_path" || true
+  exit 1
+fi
+
 security cms -D -i "$profile_path" > "$profile_plist_path"
 profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist_path")"
 profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist_path")"
@@ -68,7 +79,9 @@ cp "$profile_path" "$profiles_dir/$profile_uuid.mobileprovision"
 
 {
   printf 'IOS_PROVISIONING_PROFILE_SPECIFIER=%s\n' "$profile_name"
+  printf 'IOS_CODE_SIGN_IDENTITY=%s\n' "$code_sign_identity"
   printf 'IOS_SIGNING_KEYCHAIN_PATH=%s\n' "$keychain_path"
 } >> "$GITHUB_ENV"
 
 echo "Installed iOS App Store provisioning profile: $profile_name"
+echo "Installed iOS distribution signing identity: $code_sign_identity"

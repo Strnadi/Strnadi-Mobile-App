@@ -241,7 +241,10 @@ jobs:
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || '3GPTVJHVFN' }}
-        run: bundle exec fastlane testflight --verbose
+        run: |
+          mkdir -p ../build/ios
+          set -o pipefail
+          bundle exec fastlane testflight --verbose 2>&1 | tee ../build/ios/fastlane-testflight.log
 
       - name: Upload iOS failure logs
         if: ${{ failure() }}
@@ -250,6 +253,7 @@ jobs:
           name: ios-failure-logs
           if-no-files-found: ignore
           path: |
+            build/ios/fastlane-testflight.log
             build/ios/gym-logs/**
             build/ios/gym-result.xcresult/**
             ios/build/ios/gym-logs/**

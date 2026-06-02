@@ -37,7 +37,7 @@ iOS:
 The App Store Connect key must be a Team key, not an Individual key, because automatic signing needs provisioning access. If cloud signing is not allowed for the key/account, configure manual signing secrets as well:
 
 - `IOS_DISTRIBUTION_CERTIFICATE_BASE64`: Base64-encoded `.p12` Apple Distribution certificate with private key.
-- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`: Password for the `.p12` file.
+- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`: Password for the `.p12` file. Leave this secret unset if the `.p12` was exported with an empty password.
 - `IOS_APPSTORE_PROVISIONING_PROFILE_BASE64`: Base64-encoded App Store provisioning profile for `com.delta.strnadi`.
 
 The `.p8` App Store Connect key cannot be converted into a `.p12`. The `.p12` must come from an Apple Distribution certificate whose private key is available in Keychain Access, or from another secure certificate store already used by the team.
