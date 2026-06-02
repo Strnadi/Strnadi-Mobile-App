@@ -55,7 +55,7 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   commit_subjects="$(git log --format='%H%x09%s' "$commit_range" || true)"
 
   if [[ "$branch_name" == feature/* && -n "$commit_subjects" ]]; then
-    if ! printf '%s' "$commit_subjects" | grep -Eq "$jira_key_pattern"; then
+    if [[ ! "$commit_subjects" =~ $jira_key_pattern ]]; then
       echo "::error::At least one feature branch commit subject must include a Jira issue key so Jira can link deployments."
       exit 1
     fi
