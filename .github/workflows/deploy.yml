@@ -76,6 +76,25 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache Flutter pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
@@ -158,6 +177,14 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache Flutter pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
@@ -165,10 +192,36 @@ jobs:
           working-directory: ios
           bundler-cache: true
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock', 'ios/Podfile', 'pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/ios/DerivedData
+          key: ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-
+            ${{ runner.os }}-xcode-deriveddata-
+
       - name: Restore build environment file
         env:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
+
+      - name: Restore iOS manual signing assets
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_APPSTORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROVISIONING_PROFILE_BASE64 }}
+        run: bash .github/scripts/restore-ios-signing.sh
 
       - name: Verify CocoaPods
         working-directory: ios

@@ -4,6 +4,8 @@ require "tmpdir"
 
 default_platform(:ios)
 
+BUNDLE_IDENTIFIER = "com.delta.strnadi"
+
 def project_root
   File.expand_path("../..", __dir__)
 end
@@ -73,6 +75,8 @@ platform :ios do
     team_id = ENV["IOS_TEAM_ID"].to_s.strip
     team_id = "3GPTVJHVFN" if team_id.empty?
     api_key_path = app_store_connect_api_key_path
+    derived_data_path = File.join(root, "build/ios/DerivedData")
+    profile_specifier = ENV["IOS_PROVISIONING_PROFILE_SPECIFIER"].to_s.strip
 
     api_key = app_store_connect_api_key(
       key_id: required_env("APP_STORE_CONNECT_API_KEY_ID"),
@@ -103,28 +107,42 @@ platform :ios do
       "-authenticationKeyPath #{Shellwords.escape(api_key_path)}"
     ]
 
+    export_options = if profile_specifier.empty?
+                       {
+                         method: "app-store",
+                         signingStyle: "automatic",
+                         teamID: team_id
+                       }
+                     else
+                       {
+                         method: "app-store",
+                         signingStyle: "manual",
+                         signingCertificate: "Apple Distribution",
+                         teamID: team_id,
+                         provisioningProfiles: {
+                           BUNDLE_IDENTIFIER => profile_specifier
+                         }
+                       }
+                     end
+
     build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",
       configuration: "Release",
-      clean: true,
+      clean: false,
+      derived_data_path: derived_data_path,
       export_method: "app-store",
       output_directory: File.dirname(ipa_path),
       output_name: File.basename(ipa_path),
       buildlog_path: File.join(root, "build/ios/gym-logs"),
       result_bundle: true,
       result_bundle_path: File.join(root, "build/ios/gym-result.xcresult"),
-      export_options: {
-        method: "app-store",
-        signingStyle: "automatic",
-        teamID: team_id
-      },
+      export_options: export_options,
       export_team_id: team_id,
       skip_profile_detection: true,
       xcargs: [
         *xcode_auth_args,
         shell_arg("DEVELOPMENT_TEAM", team_id),
-        shell_arg("CODE_SIGN_STYLE", "Automatic"),
         shell_arg("CURRENT_PROJECT_VERSION", build_number),
         shell_arg("MARKETING_VERSION", build_name)
       ].join(" ")
