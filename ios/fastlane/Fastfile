@@ -49,8 +49,16 @@ def required_env(name)
   value
 end
 
+def optional_env(name)
+  ENV[name].to_s.strip
+end
+
 def shell_arg(key, value)
   "#{key}=#{Shellwords.escape(value.to_s)}"
+end
+
+def truthy_env?(name)
+  %w[1 true yes].include?(ENV[name].to_s.strip.downcase)
 end
 
 def app_store_connect_api_key_path
@@ -166,6 +174,81 @@ platform :ios do
       ipa: ipa_path,
       skip_waiting_for_build_processing: true
     )
+
+    if truthy_env?("TESTFLIGHT_DISTRIBUTE_EXTERNAL")
+      groups = ENV["TESTFLIGHT_GROUPS"].to_s.split(",").map(&:strip).reject(&:empty?)
+      UI.user_error!("TESTFLIGHT_GROUPS must name at least one group for external distribution") if groups.empty?
+
+      upload_to_testflight(
+        api_key: api_key,
+        distribute_only: true,
+        distribute_external: true,
+        notify_external_testers: truthy_env?("TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS"),
+        groups: groups,
+        app_version: build_name,
+        build_number: build_number
+      )
+    end
+  end
+
+  desc "Distribute the latest processed TestFlight build to the external tester group"
+  lane :external_beta do |options|
+    api_key = app_store_connect_api_key(
+      key_id: required_env("APP_STORE_CONNECT_API_KEY_ID"),
+      issuer_id: required_env("APP_STORE_CONNECT_API_ISSUER_ID"),
+      key_content: required_env("APP_STORE_CONNECT_API_KEY_BASE64"),
+      is_key_content_base64: true,
+      duration: 1200
+    )
+
+    build_name = resolved_build_name(options)
+    build_number = optional_env("TESTFLIGHT_BUILD_NUMBER")
+    groups = ENV["TESTFLIGHT_GROUPS"].to_s.split(",").map(&:strip).reject(&:empty?)
+    groups = ["External"] if groups.empty?
+
+    pilot_options = {
+      api_key: api_key,
+      distribute_only: true,
+      distribute_external: true,
+      notify_external_testers: truthy_env?("TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS"),
+      groups: groups,
+      app_version: build_name
+    }
+    pilot_options[:build_number] = build_number unless build_number.empty?
+
+    upload_to_testflight(pilot_options)
+  end
+
+  desc "Submit the latest TestFlight build for App Store review and automatic release after approval"
+  lane :app_store do
+    api_key = app_store_connect_api_key(
+      key_id: required_env("APP_STORE_CONNECT_API_KEY_ID"),
+      issuer_id: required_env("APP_STORE_CONNECT_API_ISSUER_ID"),
+      key_content: required_env("APP_STORE_CONNECT_API_KEY_BASE64"),
+      is_key_content_base64: true,
+      duration: 1200
+    )
+
+    deliver_options = {
+      api_key: api_key,
+      app_identifier: BUNDLE_IDENTIFIER,
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      skip_binary_upload: true,
+      submission_information: {
+        export_compliance_uses_encryption: truthy_env?("IOS_USES_NON_EXEMPT_ENCRYPTION")
+      }
+    }
+
+    build_number = optional_env("APP_STORE_BUILD_NUMBER")
+    app_version = optional_env("APP_STORE_APP_VERSION")
+    deliver_options[:build_number] = build_number unless build_number.empty?
+    deliver_options[:app_version] = app_version unless app_version.empty?
+
+    upload_to_app_store(deliver_options)
   end
 
   lane :beta do |options|

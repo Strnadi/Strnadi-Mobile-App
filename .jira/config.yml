@@ -6,6 +6,7 @@ deployments:
     testing:
       - "android-testing"
       - "ios-testflight"
+      - "ios-testflight-external"
       - "test*"
     staging:
       - "staging"
@@ -14,5 +15,6 @@ deployments:
       - "pre-prod"
     production:
       - "android-production"
+      - "ios-app-store"
       - "production"
       - "prod*"

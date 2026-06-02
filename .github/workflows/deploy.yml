@@ -16,11 +16,20 @@ on:
           - all
           - ios
           - android
-      play_track:
-        description: Google Play track, for example internal, alpha, beta, or a custom closed-testing track name.
+      deployment_stage:
+        description: Release stage to run.
         required: true
+        type: choice
+        default: release_candidate
+        options:
+          - internal
+          - release_candidate
+          - external_beta
+          - production
+      play_track:
+        description: Optional Google Play target track override. Leave empty to derive it from the deployment stage.
+        required: false
         type: string
-        default: internal
       release_status:
         description: Google Play release status.
         required: true
@@ -39,9 +48,30 @@ on:
         description: Optional build number override. Defaults to the GitHub run number.
         required: false
         type: string
+      testflight_groups:
+        description: Comma-separated TestFlight external groups for external beta.
+        required: false
+        type: string
+        default: External
+      testflight_build_number:
+        description: Optional existing TestFlight build number to distribute externally.
+        required: false
+        type: string
+      app_store_build_number:
+        description: Optional existing TestFlight build number to submit to App Store review.
+        required: false
+        type: string
+      app_store_app_version:
+        description: Optional App Store version to submit. Defaults to the editable App Store Connect version.
+        required: false
+        type: string
+      jira_release_version:
+        description: Optional Jira fixVersion. Defaults to the release branch version.
+        required: false
+        type: string
 
 concurrency:
-  group: deploy-${{ github.ref }}-${{ github.event.inputs.platform || 'push' }}
+  group: deploy-${{ github.ref }}-${{ github.event.inputs.platform || 'push' }}-${{ github.event.inputs.deployment_stage || 'push' }}
   cancel-in-progress: false
 
 permissions:
@@ -51,9 +81,21 @@ permissions:
 env:
   BUILD_NAME: ${{ github.event.inputs.build_name }}
   BUILD_NUMBER: ${{ github.event.inputs.build_number || github.run_number }}
+  DEPLOYMENT_STAGE: ${{ github.event.inputs.deployment_stage || (startsWith(github.ref_name, 'release/') && 'release_candidate') || 'internal' }}
   DEPLOYMENT_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  GOOGLE_PLAY_TRACK: ${{ github.event.inputs.play_track || (startsWith(github.ref_name, 'release/') && (vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || 'internal' }}
+  GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK: ${{ vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha' }}
+  GOOGLE_PLAY_OPEN_BETA_TRACK: ${{ vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta' }}
+  GOOGLE_PLAY_TRACK: ${{ github.event.inputs.play_track || (github.event.inputs.deployment_stage == 'production' && 'production') || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || (github.event.inputs.deployment_stage == 'release_candidate' && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || (startsWith(github.ref_name, 'release/') && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || 'internal' }}
+  GOOGLE_PLAY_PROMOTE_FROM_TRACK: ${{ (github.event.inputs.deployment_stage == 'production' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || '' }}
+  GOOGLE_PLAY_PROMOTE_TO_TRACK: ${{ github.event.inputs.play_track || (github.event.inputs.deployment_stage == 'production' && 'production') || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || '' }}
   GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status || 'completed' }}
+  ANDROID_PROMOTE_ONLY: ${{ (github.event.inputs.deployment_stage == 'external_beta' || github.event.inputs.deployment_stage == 'production') && 'true' || 'false' }}
+  TESTFLIGHT_GROUPS: ${{ github.event.inputs.testflight_groups || 'External' }}
+  TESTFLIGHT_BUILD_NUMBER: ${{ github.event.inputs.testflight_build_number }}
+  TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS: "true"
+  APP_STORE_BUILD_NUMBER: ${{ github.event.inputs.app_store_build_number }}
+  APP_STORE_APP_VERSION: ${{ github.event.inputs.app_store_app_version }}
+  JIRA_RELEASE_VERSION: ${{ github.event.inputs.jira_release_version }}
 
 jobs:
   deploy_android:
@@ -76,16 +118,18 @@ jobs:
           task: 'deploy:android'
           initial-status: in_progress
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
-          description: Android deployment to Play Console ${{ env.GOOGLE_PLAY_TRACK }}.
+          description: Android ${{ env.DEPLOYMENT_STAGE }} deployment to Play Console ${{ env.GOOGLE_PLAY_TRACK }}.
           production-environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'true' || 'false' }}
 
       - name: Set up Java
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Flutter
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ vars.FLUTTER_VERSION || '3.41.2' }}
@@ -93,6 +137,7 @@ jobs:
           cache: true
 
       - name: Cache Flutter pub packages
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         uses: actions/cache@v4
         with:
           path: ~/.pub-cache
@@ -101,6 +146,7 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Cache Gradle
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -119,11 +165,13 @@ jobs:
           bundler-cache: true
 
       - name: Restore build environment file
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         env:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
 
       - name: Restore Android signing and Play credentials
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -132,7 +180,14 @@ jobs:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
         run: bash .github/scripts/restore-android-secrets.sh
 
+      - name: Restore Google Play credentials
+        if: ${{ env.ANDROID_PROMOTE_ONLY == 'true' }}
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: bash .github/scripts/restore-google-play-service-account.sh
+
       - name: Validate Android signing key
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -144,10 +199,18 @@ jobs:
             >/dev/null
 
       - name: Deploy Android App Bundle
+        if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         working-directory: android
         env:
           SUPPLY_JSON_KEY: ${{ github.workspace }}/android/play-store-service-account.json
         run: bundle exec fastlane play
+
+      - name: Promote Android release
+        if: ${{ env.ANDROID_PROMOTE_ONLY == 'true' }}
+        working-directory: android
+        env:
+          SUPPLY_JSON_KEY: ${{ github.workspace }}/android/play-store-service-account.json
+        run: bundle exec fastlane promote
 
       - name: Upload Android failure reports
         if: ${{ failure() }}
@@ -170,7 +233,7 @@ jobs:
           state: failure
           environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
-          description: Android deployment to Play Console ${{ env.GOOGLE_PLAY_TRACK }} failed.
+          description: Android ${{ env.DEPLOYMENT_STAGE }} deployment to Play Console ${{ env.GOOGLE_PLAY_TRACK }} failed.
 
       - name: Mark Android deployment successful
         if: ${{ success() }}
@@ -181,7 +244,7 @@ jobs:
           state: success
           environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
-          description: Android deployed to Play Console ${{ env.GOOGLE_PLAY_TRACK }}.
+          description: Android ${{ env.DEPLOYMENT_STAGE }} deployed to Play Console ${{ env.GOOGLE_PLAY_TRACK }}.
 
       - name: Comment Jira deployment
         if: ${{ success() }}
@@ -192,7 +255,7 @@ jobs:
           JIRA_PROJECT_KEYS: ${{ vars.JIRA_PROJECT_KEYS || 'APP' }}
           BRANCH_NAME: ${{ github.ref_name }}
           JIRA_COMMENT_BODY: |
-            Android build deployed from Strnadi-Mobile-App.
+            Android ${{ env.DEPLOYMENT_STAGE }} deployment completed from Strnadi-Mobile-App.
 
             Branch: ${{ github.ref_name }}
             Play track: ${{ env.GOOGLE_PLAY_TRACK }}
@@ -215,14 +278,15 @@ jobs:
           token: ${{ github.token }}
           ref: ${{ github.ref_name }}
           sha: ${{ github.sha }}
-          environment: ios-testflight
+          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
           task: 'deploy:ios'
           initial-status: in_progress
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
-          description: iOS deployment to TestFlight.
-          production-environment: 'false'
+          description: iOS ${{ env.DEPLOYMENT_STAGE }} deployment.
+          production-environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'true' || 'false' }}
 
       - name: Select Xcode 26
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         run: |
           xcode_app="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print | sort | tail -n 1)"
           if [[ -n "$xcode_app" ]]; then
@@ -232,6 +296,7 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-version
 
       - name: Set up Flutter
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ vars.FLUTTER_VERSION || '3.41.2' }}
@@ -239,6 +304,7 @@ jobs:
           cache: true
 
       - name: Cache Flutter pub packages
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         uses: actions/cache@v4
         with:
           path: ~/.pub-cache
@@ -254,6 +320,7 @@ jobs:
           bundler-cache: true
 
       - name: Cache CocoaPods
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -264,6 +331,7 @@ jobs:
             ${{ runner.os }}-pods-
 
       - name: Cache Xcode DerivedData
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         uses: actions/cache@v4
         with:
           path: build/ios/DerivedData
@@ -273,11 +341,13 @@ jobs:
             ${{ runner.os }}-xcode-deriveddata-
 
       - name: Restore build environment file
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         env:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
 
       - name: Restore iOS manual signing assets
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         env:
           IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
           IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
@@ -285,17 +355,21 @@ jobs:
         run: bash .github/scripts/restore-ios-signing.sh
 
       - name: Verify CocoaPods
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         working-directory: ios
         run: bundle exec pod --version
 
       - name: Install Flutter dependencies
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         run: flutter pub get
 
       - name: Install iOS Pods
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         working-directory: ios
         run: bundle exec pod install
 
       - name: Deploy iOS build to TestFlight
+        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         working-directory: ios
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -307,6 +381,31 @@ jobs:
           set -o pipefail
           bundle exec fastlane testflight --verbose 2>&1 | tee ../build/ios/fastlane-testflight.log
 
+      - name: Distribute iOS build to external TestFlight group
+        if: ${{ env.DEPLOYMENT_STAGE == 'external_beta' }}
+        working-directory: ios
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          mkdir -p ../build/ios
+          set -o pipefail
+          bundle exec fastlane external_beta --verbose 2>&1 | tee ../build/ios/fastlane-external-beta.log
+
+      - name: Submit iOS build to App Store review
+        if: ${{ env.DEPLOYMENT_STAGE == 'production' }}
+        working-directory: ios
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION || 'false' }}
+        run: |
+          mkdir -p ../build/ios
+          set -o pipefail
+          bundle exec fastlane app_store --verbose 2>&1 | tee ../build/ios/fastlane-app-store.log
+
       - name: Upload iOS failure logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
@@ -315,6 +414,8 @@ jobs:
           if-no-files-found: ignore
           path: |
             build/ios/fastlane-testflight.log
+            build/ios/fastlane-external-beta.log
+            build/ios/fastlane-app-store.log
             build/ios/gym-logs/**
             build/ios/gym-result.xcresult/**
             ios/build/ios/gym-logs/**
@@ -328,9 +429,9 @@ jobs:
           token: ${{ github.token }}
           deployment-id: ${{ steps.ios_deployment.outputs.deployment_id }}
           state: failure
-          environment: ios-testflight
+          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
-          description: iOS deployment to TestFlight failed.
+          description: iOS ${{ env.DEPLOYMENT_STAGE }} deployment failed.
 
       - name: Mark iOS deployment successful
         if: ${{ success() }}
@@ -339,9 +440,9 @@ jobs:
           token: ${{ github.token }}
           deployment-id: ${{ steps.ios_deployment.outputs.deployment_id }}
           state: success
-          environment: ios-testflight
+          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
-          description: iOS deployed to TestFlight.
+          description: iOS ${{ env.DEPLOYMENT_STAGE }} deployment completed.
 
       - name: Comment Jira deployment
         if: ${{ success() }}
@@ -352,8 +453,39 @@ jobs:
           JIRA_PROJECT_KEYS: ${{ vars.JIRA_PROJECT_KEYS || 'APP' }}
           BRANCH_NAME: ${{ github.ref_name }}
           JIRA_COMMENT_BODY: |
-            iOS build deployed to TestFlight from Strnadi-Mobile-App.
+            iOS ${{ env.DEPLOYMENT_STAGE }} deployment completed from Strnadi-Mobile-App.
 
             Branch: ${{ github.ref_name }}
             Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bash .github/scripts/comment-jira.sh
+
+  notify_jira_release_candidate:
+    name: Mark Jira release ready for testing
+    runs-on: ubuntu-latest
+    needs:
+      - deploy_android
+      - deploy_ios
+    if: ${{ always() && needs.deploy_android.result == 'success' && needs.deploy_ios.result == 'success' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Comment and transition release issues
+        env:
+          DEPLOYMENT_STAGE: ${{ env.DEPLOYMENT_STAGE }}
+          DEPLOYMENT_LOG_URL: ${{ env.DEPLOYMENT_LOG_URL }}
+          JIRA_BASE_URL: ${{ vars.JIRA_BASE_URL || 'https://strnadi-status.atlassian.net' }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEYS: ${{ vars.JIRA_PROJECT_KEYS || 'APP' }}
+          JIRA_RELEASE_VERSION: ${{ env.JIRA_RELEASE_VERSION }}
+          JIRA_TARGET_STATUS: ${{ vars.JIRA_TEST_STATUS || 'To Test' }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          JIRA_COMMENT_BODY: |
+            Release candidate ${{ github.ref_name }} was deployed successfully and is ready for QA testing.
+
+            Android track: ${{ env.GOOGLE_PLAY_TRACK }}
+            iOS target: TestFlight
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .github/scripts/release-jira.sh

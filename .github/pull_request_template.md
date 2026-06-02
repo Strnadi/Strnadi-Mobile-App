@@ -9,6 +9,7 @@ Please describe the changes in this PR:
 ## Jira
 
 - Jira issue: APP-000
+- Jira release / fixVersion: 1.6.0
 - Branch: feature/APP-000-short-description
 
 ## Type of Change
