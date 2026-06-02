@@ -32,9 +32,27 @@ iOS:
 
 - `APP_STORE_CONNECT_API_KEY_ID`: App Store Connect API key ID.
 - `APP_STORE_CONNECT_API_ISSUER_ID`: App Store Connect issuer ID.
-- `APP_STORE_CONNECT_API_KEY_BASE64`: Base64-encoded `.p8` Team API key. Automatic signing uses this key with Xcode `-allowProvisioningUpdates`.
+- `APP_STORE_CONNECT_API_KEY_BASE64`: Base64-encoded `.p8` Team API key. This authenticates App Store Connect/Xcode automation, but it is not a signing certificate.
 
-The App Store Connect key must be a Team key, not an Individual key, because automatic signing needs provisioning access.
+The App Store Connect key must be a Team key, not an Individual key, because automatic signing needs provisioning access. If cloud signing is not allowed for the key/account, configure manual signing secrets as well:
+
+- `IOS_DISTRIBUTION_CERTIFICATE_BASE64`: Base64-encoded `.p12` Apple Distribution certificate with private key.
+- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`: Password for the `.p12` file. Leave this secret unset if the `.p12` was exported with an empty password.
+- `IOS_APPSTORE_PROVISIONING_PROFILE_BASE64`: Base64-encoded App Store provisioning profile for `com.delta.strnadi`.
+
+The `.p8` App Store Connect key cannot be converted into a `.p12`. The `.p12` must come from an Apple Distribution certificate whose private key is available in Keychain Access, or from another secure certificate store already used by the team.
+
+## CI Caching
+
+The workflow caches:
+
+- Flutter pub packages.
+- Android Gradle caches.
+- Ruby gems through `ruby/setup-ruby`.
+- CocoaPods downloads and installed pods.
+- iOS Xcode DerivedData for incremental archive builds.
+
+The iOS deploy job uses GitHub's `macos-26` runner so App Store Connect receives an IPA built with the required iOS 26 SDK/Xcode 26 toolchain.
 
 ## Optional GitHub Variables
 
@@ -51,6 +69,8 @@ base64 -i build.env.json | pbcopy
 base64 -i android/strnadi-release-key.jks | pbcopy
 base64 -i play-store-service-account.json | pbcopy
 base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
+base64 -i ios_distribution.p12 | pbcopy
+base64 -i Strnadi_AppStore.mobileprovision | pbcopy
 ```
 
 ## Fastlane Lanes

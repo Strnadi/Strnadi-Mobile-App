@@ -76,6 +76,25 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache Flutter pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
@@ -145,11 +164,20 @@ jobs:
   deploy_ios:
     name: Deploy iOS to TestFlight
     if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          xcode_app="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print | sort | tail -n 1)"
+          if [[ -n "$xcode_app" ]]; then
+            sudo xcode-select -s "$xcode_app/Contents/Developer"
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -158,6 +186,14 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache Flutter pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
@@ -165,10 +201,36 @@ jobs:
           working-directory: ios
           bundler-cache: true
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock', 'ios/Podfile', 'pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/ios/DerivedData
+          key: ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-
+            ${{ runner.os }}-xcode-deriveddata-
+
       - name: Restore build environment file
         env:
           BUILD_ENV_JSON_BASE64: ${{ secrets.BUILD_ENV_JSON_BASE64 }}
         run: bash .github/scripts/restore-build-env.sh
+
+      - name: Restore iOS manual signing assets
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_APPSTORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROVISIONING_PROFILE_BASE64 }}
+        run: bash .github/scripts/restore-ios-signing.sh
 
       - name: Verify CocoaPods
         working-directory: ios
@@ -188,7 +250,24 @@ jobs:
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || '3GPTVJHVFN' }}
-        run: bundle exec fastlane testflight
+        run: |
+          mkdir -p ../build/ios
+          set -o pipefail
+          bundle exec fastlane testflight --verbose 2>&1 | tee ../build/ios/fastlane-testflight.log
+
+      - name: Upload iOS failure logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-failure-logs
+          if-no-files-found: ignore
+          path: |
+            build/ios/fastlane-testflight.log
+            build/ios/gym-logs/**
+            build/ios/gym-result.xcresult/**
+            ios/build/ios/gym-logs/**
+            ios/build/ios/gym-result.xcresult/**
+            /Users/runner/Library/Logs/gym/**
 
       - name: Comment Jira deployment
         if: ${{ success() }}
