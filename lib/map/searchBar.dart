@@ -26,13 +26,24 @@ class SearchBarWidget extends StatefulWidget {
   const SearchBarWidget({required this.onLocationSelected, super.key});
 
   @override
-  State<SearchBarWidget> createState() => _SearchBarWidgetState();
+  State<SearchBarWidget> createState() => SearchBarWidgetState();
 }
 
-class _SearchBarWidgetState extends State<SearchBarWidget> {
+class SearchBarWidgetState extends State<SearchBarWidget> {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
   List<_SearchResult> _results = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        setState(() => _results = []);
+      }
+    });
+  }
 
   /// Determines if a prompt contains coordinates and extracts them
   /// Returns a LatLng object if valid coordinates are found, null otherwise
@@ -168,6 +179,11 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
     return parseCoordinatesFromPrompt(prompt) != null;
   }
 
+  void closeSearch() {
+    setState(() => _results = []);
+    _focusNode.unfocus();
+  }
+
   void _onSearchChanged(String query) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () async {
@@ -215,13 +231,16 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return TapRegion(
+      onTapOutside: (_) => closeSearch(),
+      child: Material(
       elevation: 6,
       borderRadius: BorderRadius.circular(12),
       child: Column(
@@ -229,6 +248,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
         children: [
           TextField(
             controller: _controller,
+            focusNode: _focusNode,
             onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: t('map.search.hint'),
@@ -240,12 +260,10 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
             ),
           ),
           if (_results.isNotEmpty)
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                    BorderRadius.vertical(bottom: Radius.circular(12)),
-              ),
+            Material(
+              color: Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(12)),
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: _results.length,
@@ -265,6 +283,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
               ),
             ),
         ],
+      ),
       ),
     );
   }
