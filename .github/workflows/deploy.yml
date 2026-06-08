@@ -108,10 +108,49 @@ jobs:
       version_changed: ${{ steps.sync.outputs.version_changed }}
 
     steps:
+      - name: Decode release sync app private key
+        id: release_sync_private_key
+        if: ${{ startsWith(github.ref_name, 'release/') && (env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate') }}
+        env:
+          RELEASE_SYNC_APP_CLIENT_ID: ${{ vars.RELEASE_SYNC_APP_CLIENT_ID }}
+          RELEASE_SYNC_APP_PRIVATE_KEY_BASE64: ${{ secrets.RELEASE_SYNC_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$RELEASE_SYNC_APP_CLIENT_ID" ]]; then
+            echo "::error::Missing RELEASE_SYNC_APP_CLIENT_ID repository variable."
+            exit 1
+          fi
+
+          if [[ -z "$RELEASE_SYNC_APP_PRIVATE_KEY_BASE64" ]]; then
+            echo "::error::Missing RELEASE_SYNC_APP_PRIVATE_KEY secret. Store the GitHub App private key as base64."
+            exit 1
+          fi
+
+          private_key="$(
+            printf '%s' "$RELEASE_SYNC_APP_PRIVATE_KEY_BASE64" |
+              base64 -d |
+              awk 'BEGIN { ORS = "\\n" } { print }' |
+              sed 's/\\n$//'
+          )"
+
+          echo "::add-mask::$private_key"
+          printf 'private-key=%s\n' "$private_key" >> "$GITHUB_OUTPUT"
+
+      - name: Create release sync app token
+        id: release_sync_app_token
+        if: ${{ startsWith(github.ref_name, 'release/') && (env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate') }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_SYNC_APP_CLIENT_ID }}
+          private-key: ${{ steps.release_sync_private_key.outputs.private-key }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
+          token: ${{ steps.release_sync_app_token.outputs.token || github.token }}
 
       - name: Sync pubspec.yaml with release branch
         id: sync
