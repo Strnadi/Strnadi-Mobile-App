@@ -4,9 +4,9 @@ GitHub Actions deploys the Flutter app with Fastlane from `.github/workflows/dep
 
 ## Behavior
 
-- Pushes to `main` run the `internal` stage: Android is uploaded to the Google Play `internal` track and iOS is uploaded to TestFlight.
-- Pushes to `release/**` also run the `internal` stage: Android is uploaded to the Google Play `internal` track and iOS is uploaded to TestFlight for tester validation.
-- Manual or Jira `external_beta` runs promote Android from the Google Play `internal` track to the open testing track and distribute the already uploaded TestFlight build to the `External` group.
+- Pushes to `main` run the `internal` stage: Android is uploaded to the Google Play `internal` track and iOS is uploaded to the TestFlight `closed_beta` group.
+- Pushes to `release/**` also run the `internal` stage: Android is uploaded to the Google Play `internal` track and iOS is uploaded to the TestFlight `closed_beta` group for tester validation.
+- Manual or Jira `external_beta` runs promote Android from the Google Play `internal` track to the open testing track and distribute the already uploaded TestFlight build to the `open_beta` group.
 - Manual `production` runs promote Android from open testing to production and submit the latest TestFlight build for App Store review with automatic release after approval.
 - Manual runs support `all`, `ios`, or `android`.
 - Manual Android runs can override `play_track`, but normal release automation derives it from the selected deployment stage.
@@ -25,7 +25,7 @@ The repository currently starts mobile deployment builds automatically in these 
 | Push to `release/**` | `Deploy Mobile Apps` | `internal` stage for Android and iOS | Yes |
 | Manual GitHub workflow dispatch with `deployment_stage = internal` | `Deploy Mobile Apps` | Internal Android/iOS deployment for selected platform(s) | Yes |
 | Manual or Jira workflow dispatch with `deployment_stage = release_candidate` | `Deploy Mobile Apps` | Release-candidate Android/iOS deployment for selected platform(s) | Yes |
-| Manual or Jira workflow dispatch with `deployment_stage = external_beta` | `Deploy Mobile Apps` | Android track promotion and TestFlight External distribution | No, promotes/distributes an existing build |
+| Manual or Jira workflow dispatch with `deployment_stage = external_beta` | `Deploy Mobile Apps` | Android track promotion and TestFlight `open_beta` distribution | No, promotes/distributes an existing build |
 | Manual or Jira workflow dispatch with `deployment_stage = production` | `Deploy Mobile Apps` | Android production promotion and App Store submission | No, promotes/submits an existing build |
 
 Other automatic workflows:
@@ -63,9 +63,9 @@ The Android and iOS deploy jobs then check out that synced commit and set `BUILD
 
 | Stage | Trigger | Android | iOS | Jira effect |
 | --- | --- | --- | --- | --- |
-| `internal` | Push to `main`, push to `release/**`, or manual run | Upload new AAB to `internal` | Upload new build to TestFlight | Comment linked Jira issue keys when present |
-| `release_candidate` | Manual or Jira dispatch only | Upload new AAB to `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK` | Upload new build to TestFlight | Comment all issues in the release `fixVersion` and transition them to `JIRA_TEST_STATUS` |
-| `external_beta` | Jira version release automation or manual run after testers approve the version | Promote from `internal` to `GOOGLE_PLAY_OPEN_BETA_TRACK` | Distribute existing build to TestFlight group `External` | Comment linked Jira issue keys when present |
+| `internal` | Push to `main`, push to `release/**`, or manual run | Upload new AAB to `internal` | Upload new build to TestFlight group `closed_beta` | Comment linked Jira issue keys when present |
+| `release_candidate` | Manual or Jira dispatch only | Upload new AAB to `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK` | Upload new build to TestFlight group `closed_beta` | Comment all issues in the release `fixVersion` and transition them to `JIRA_TEST_STATUS` |
+| `external_beta` | Jira version release automation or manual run after testers approve the version | Promote from `internal` to `GOOGLE_PLAY_OPEN_BETA_TRACK` | Distribute existing build to TestFlight group `open_beta` | Comment linked Jira issue keys when present |
 | `production` | Jira automation after seven days in external beta, or manual run | Promote from `GOOGLE_PLAY_OPEN_BETA_TRACK` to `production` | Submit existing TestFlight build for App Store review and automatic release | Comment linked Jira issue keys when present |
 
 ## Required GitHub Secrets
@@ -117,6 +117,8 @@ The iOS deploy job uses GitHub's `macos-26` runner so App Store Connect receives
 - `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK`: Play Console track for release-candidate builds. Defaults to `GOOGLE_PLAY_CLOSED_TRACK`, then `alpha`.
 - `GOOGLE_PLAY_CLOSED_TRACK`: Legacy fallback for the release-candidate track. Defaults to `alpha`.
 - `GOOGLE_PLAY_OPEN_BETA_TRACK`: Play Console open testing track. Defaults to `beta`.
+- `TESTFLIGHT_CLOSED_BETA_GROUPS`: Comma-separated TestFlight groups for new internal and release-candidate iOS builds. Defaults to `closed_beta`.
+- `TESTFLIGHT_OPEN_BETA_GROUPS`: Comma-separated TestFlight groups for Open Beta distribution. Defaults to `open_beta`; manual workflow input `testflight_groups` can override it for one run.
 - `JIRA_TEST_STATUS`: Jira status used after a release-candidate deploy. Defaults to `To Test`.
 - `IOS_USES_NON_EXEMPT_ENCRYPTION`: Set to `true` only if App Store export compliance requires it. Defaults to `false`.
 
