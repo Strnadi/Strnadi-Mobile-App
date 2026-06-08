@@ -6,7 +6,7 @@ deployments:
     testing:
       - "android-testing"
       - "ios-testflight"
-      - "ios-testflight-external"
+      - "ios-testflight-open-beta"
       - "test*"
     staging:
       - "staging"

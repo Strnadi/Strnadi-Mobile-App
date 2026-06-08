@@ -49,12 +49,12 @@ on:
         required: false
         type: string
       testflight_groups:
-        description: Comma-separated TestFlight external groups for external beta.
+        description: Optional comma-separated TestFlight groups for Open Beta distribution.
         required: false
         type: string
-        default: External
+        default: open_beta
       testflight_build_number:
-        description: Optional existing TestFlight build number to distribute externally.
+        description: Optional existing TestFlight build number to distribute to Open Beta.
         required: false
         type: string
       app_store_build_number:
@@ -90,7 +90,8 @@ env:
   GOOGLE_PLAY_PROMOTE_TO_TRACK: ${{ github.event.inputs.play_track || (github.event.inputs.deployment_stage == 'production' && 'production') || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || '' }}
   GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status || 'completed' }}
   ANDROID_PROMOTE_ONLY: ${{ (github.event.inputs.deployment_stage == 'external_beta' || github.event.inputs.deployment_stage == 'production') && 'true' || 'false' }}
-  TESTFLIGHT_GROUPS: ${{ github.event.inputs.testflight_groups || 'External' }}
+  TESTFLIGHT_CLOSED_BETA_GROUPS: ${{ vars.TESTFLIGHT_CLOSED_BETA_GROUPS || 'closed_beta' }}
+  TESTFLIGHT_OPEN_BETA_GROUPS: ${{ github.event.inputs.testflight_groups || vars.TESTFLIGHT_OPEN_BETA_GROUPS || 'open_beta' }}
   TESTFLIGHT_BUILD_NUMBER: ${{ github.event.inputs.testflight_build_number }}
   TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS: "true"
   APP_STORE_BUILD_NUMBER: ${{ github.event.inputs.app_store_build_number }}
@@ -309,7 +310,7 @@ jobs:
           token: ${{ github.token }}
           ref: ${{ github.ref_name }}
           sha: ${{ needs.sync_release_version.outputs.deploy_sha }}
-          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
+          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-open-beta') || 'ios-testflight' }}
           task: 'deploy:ios'
           initial-status: in_progress
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
@@ -399,7 +400,7 @@ jobs:
         working-directory: ios
         run: bundle exec pod install
 
-      - name: Deploy iOS build to TestFlight
+      - name: Deploy iOS build to closed_beta TestFlight group
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         working-directory: ios
         env:
@@ -407,18 +408,23 @@ jobs:
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || '3GPTVJHVFN' }}
+          TESTFLIGHT_GROUPS: ${{ env.TESTFLIGHT_CLOSED_BETA_GROUPS }}
+          TESTFLIGHT_DISTRIBUTE_EXTERNAL: "true"
+          TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS: ${{ env.TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS }}
         run: |
           mkdir -p ../build/ios
           set -o pipefail
           bundle exec fastlane testflight --verbose 2>&1 | tee ../build/ios/fastlane-testflight.log
 
-      - name: Distribute iOS build to external TestFlight group
+      - name: Distribute iOS build to open_beta TestFlight group
         if: ${{ env.DEPLOYMENT_STAGE == 'external_beta' }}
         working-directory: ios
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          TESTFLIGHT_GROUPS: ${{ env.TESTFLIGHT_OPEN_BETA_GROUPS }}
+          TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS: ${{ env.TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS }}
         run: |
           mkdir -p ../build/ios
           set -o pipefail
@@ -460,7 +466,7 @@ jobs:
           token: ${{ github.token }}
           deployment-id: ${{ steps.ios_deployment.outputs.deployment_id }}
           state: failure
-          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
+          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-open-beta') || 'ios-testflight' }}
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
           description: iOS ${{ env.DEPLOYMENT_STAGE }} deployment failed.
 
@@ -471,7 +477,7 @@ jobs:
           token: ${{ github.token }}
           deployment-id: ${{ steps.ios_deployment.outputs.deployment_id }}
           state: success
-          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
+          environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-open-beta') || 'ios-testflight' }}
           log-url: ${{ env.DEPLOYMENT_LOG_URL }}
           description: iOS ${{ env.DEPLOYMENT_STAGE }} deployment completed.
 

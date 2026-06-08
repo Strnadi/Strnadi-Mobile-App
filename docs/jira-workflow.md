@@ -33,8 +33,8 @@ The `Branch and Jira Policy` workflow validates feature and release branch names
 ## Deployments
 
 - Push to `main`: runs the `internal` deployment stage.
-- Push to `release/**`: runs the `release_candidate` deployment stage.
-- Manual or Jira-triggered `external_beta`: promotes Android to Google Play open testing and distributes iOS to TestFlight group `External`.
+- Push to `release/**`: runs the `internal` deployment stage.
+- Manual or Jira-triggered `external_beta`: promotes Android to Google Play open testing and distributes iOS to TestFlight group `open_beta`.
 - Manual or Jira-triggered `production`: promotes Android to Google Play production and submits the latest TestFlight build for App Store review with automatic release after approval.
 - The release-candidate track defaults to `alpha`; set `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK` if your Play Console track uses another name.
 - The open beta track defaults to `beta`; set `GOOGLE_PLAY_OPEN_BETA_TRACK` if your Play Console open testing track uses another name.
@@ -42,7 +42,7 @@ The `Branch and Jira Policy` workflow validates feature and release branch names
 - Deployment events use the deployed branch name as the GitHub deployment ref and pin the exact deployed commit SHA.
 - Android deployments use the `android-testing` environment unless the Play track is `production`, in which case they use `android-production`.
 - iOS release-candidate TestFlight deployments use `ios-testflight`.
-- iOS external beta distribution uses `ios-testflight-external`.
+- iOS open beta distribution uses `ios-testflight-open-beta`.
 - iOS production submission uses `ios-app-store`.
 - Custom deployment environments are mapped for Jira in `.jira/config.yml`.
 - If a deploy branch contains a Jira issue key, the deploy workflow comments on that Jira issue after a successful platform deploy.
@@ -58,7 +58,7 @@ Create these rules in the `APP` Jira project.
 - Condition: Project is `APP`.
 - Action: Notify the QA/tester group with the issue key, summary, release, and GitHub workflow link from the latest issue comment.
 
-### Release To External Beta
+### Release To Open Beta
 
 - Trigger: Issue transitioned.
 - Condition: The issue has at least one `Fix versions` value.
@@ -103,6 +103,8 @@ The Jira web request needs a GitHub token with permission to dispatch repository
 - `JIRA_TEST_STATUS`: defaults to `To Test`.
 - `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK`: optional Play Console release-candidate testing track. Defaults to `alpha`.
 - `GOOGLE_PLAY_OPEN_BETA_TRACK`: optional Play Console open testing track. Defaults to `beta`.
+- `TESTFLIGHT_CLOSED_BETA_GROUPS`: optional comma-separated TestFlight groups for new internal and release-candidate iOS builds. Defaults to `closed_beta`.
+- `TESTFLIGHT_OPEN_BETA_GROUPS`: optional comma-separated TestFlight groups for Open Beta distribution. Defaults to `open_beta`.
 
 ## Required GitHub Secrets for Jira Comments and Validation
 

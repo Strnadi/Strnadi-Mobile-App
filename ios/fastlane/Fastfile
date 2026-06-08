@@ -61,6 +61,10 @@ def truthy_env?(name)
   %w[1 true yes].include?(ENV[name].to_s.strip.downcase)
 end
 
+def env_list(name)
+  ENV[name].to_s.split(",").map(&:strip).reject(&:empty?)
+end
+
 def app_store_connect_api_key_path
   key_id = required_env("APP_STORE_CONNECT_API_KEY_ID")
   key_base64 = required_env("APP_STORE_CONNECT_API_KEY_BASE64")
@@ -169,29 +173,25 @@ platform :ios do
       ].join(" ")
     )
 
-    upload_to_testflight(
+    groups = env_list("TESTFLIGHT_GROUPS")
+    pilot_options = {
       api_key: api_key,
       ipa: ipa_path,
-      skip_waiting_for_build_processing: true
-    )
+      skip_waiting_for_build_processing: groups.empty?
+    }
 
-    if truthy_env?("TESTFLIGHT_DISTRIBUTE_EXTERNAL")
-      groups = ENV["TESTFLIGHT_GROUPS"].to_s.split(",").map(&:strip).reject(&:empty?)
-      UI.user_error!("TESTFLIGHT_GROUPS must name at least one group for external distribution") if groups.empty?
-
-      upload_to_testflight(
-        api_key: api_key,
-        distribute_only: true,
-        distribute_external: true,
+    unless groups.empty?
+      pilot_options.merge!(
+        distribute_external: truthy_env?("TESTFLIGHT_DISTRIBUTE_EXTERNAL"),
         notify_external_testers: truthy_env?("TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS"),
-        groups: groups,
-        app_version: build_name,
-        build_number: build_number
+        groups: groups
       )
     end
+
+    upload_to_testflight(pilot_options)
   end
 
-  desc "Distribute the latest processed TestFlight build to the external tester group"
+  desc "Distribute the latest processed TestFlight build to the open_beta tester group"
   lane :external_beta do |options|
     api_key = app_store_connect_api_key(
       key_id: required_env("APP_STORE_CONNECT_API_KEY_ID"),
@@ -203,8 +203,8 @@ platform :ios do
 
     build_name = resolved_build_name(options)
     build_number = optional_env("TESTFLIGHT_BUILD_NUMBER")
-    groups = ENV["TESTFLIGHT_GROUPS"].to_s.split(",").map(&:strip).reject(&:empty?)
-    groups = ["External"] if groups.empty?
+    groups = env_list("TESTFLIGHT_GROUPS")
+    groups = ["open_beta"] if groups.empty?
 
     pilot_options = {
       api_key: api_key,
