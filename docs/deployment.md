@@ -59,6 +59,8 @@ Sync pubspec version to 1.7.0 [skip ci]
 
 The Android and iOS deploy jobs then check out that synced commit and set `BUILD_NAME` to the derived release version, so Android `versionName` and iOS `CFBundleShortVersionString` match the release branch. `BUILD_NUMBER` still comes from GitHub Actions run number unless manually overridden.
 
+The release version sync push is done with a GitHub App installation token. The GitHub App must be installed on this repository, have `Contents: Read and write`, and be added to the `release/**` ruleset bypass list with `Always` bypass.
+
 ## Release Stages
 
 | Stage | Trigger | Android | iOS | Jira effect |
@@ -75,6 +77,7 @@ Create these repository secrets before running the workflow.
 Shared:
 
 - `BUILD_ENV_JSON_BASE64`: Base64-encoded `build.env.json`.
+- `RELEASE_SYNC_APP_PRIVATE_KEY`: Base64-encoded private key PEM for the GitHub App allowed to bypass the `release/**` ruleset and commit the synced `pubspec.yaml` version.
 
 Android:
 
@@ -114,6 +117,7 @@ The iOS deploy job uses GitHub's `macos-26` runner so App Store Connect receives
 
 - `IOS_TEAM_ID`: Apple Developer Team ID. Defaults to `3GPTVJHVFN`.
 - `FLUTTER_VERSION`: Flutter SDK version. Defaults to `3.41.2`.
+- `RELEASE_SYNC_APP_CLIENT_ID`: Client ID of the GitHub App used to bypass release branch rulesets for automatic `pubspec.yaml` version sync.
 - `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK`: Play Console track for release-candidate builds. Defaults to `GOOGLE_PLAY_CLOSED_TRACK`, then `alpha`.
 - `GOOGLE_PLAY_CLOSED_TRACK`: Legacy fallback for the release-candidate track. Defaults to `alpha`.
 - `GOOGLE_PLAY_OPEN_BETA_TRACK`: Play Console open testing track. Defaults to `beta`.
@@ -148,6 +152,7 @@ base64 -i build.env.json | pbcopy
 base64 -i android/strnadi-release-key.jks | pbcopy
 base64 -i play-store-service-account.json | pbcopy
 base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
+base64 -i release-sync-app.private-key.pem | pbcopy
 base64 -i ios_distribution.p12 | pbcopy
 base64 -i Strnadi_AppStore.mobileprovision | pbcopy
 ```
