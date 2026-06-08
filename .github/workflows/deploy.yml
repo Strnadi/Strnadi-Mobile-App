@@ -75,18 +75,18 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   deployments: write
 
 env:
   BUILD_NAME: ${{ github.event.inputs.build_name }}
   BUILD_NUMBER: ${{ github.event.inputs.build_number || github.run_number }}
-  DEPLOYMENT_STAGE: ${{ github.event.inputs.deployment_stage || (startsWith(github.ref_name, 'release/') && 'release_candidate') || 'internal' }}
+  DEPLOYMENT_STAGE: ${{ github.event.inputs.deployment_stage || 'internal' }}
   DEPLOYMENT_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK: ${{ vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha' }}
   GOOGLE_PLAY_OPEN_BETA_TRACK: ${{ vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta' }}
-  GOOGLE_PLAY_TRACK: ${{ github.event.inputs.play_track || (github.event.inputs.deployment_stage == 'production' && 'production') || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || (github.event.inputs.deployment_stage == 'release_candidate' && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || (startsWith(github.ref_name, 'release/') && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || 'internal' }}
-  GOOGLE_PLAY_PROMOTE_FROM_TRACK: ${{ (github.event.inputs.deployment_stage == 'production' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || '' }}
+  GOOGLE_PLAY_TRACK: ${{ github.event.inputs.play_track || (github.event.inputs.deployment_stage == 'production' && 'production') || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || (github.event.inputs.deployment_stage == 'release_candidate' && (vars.GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK || vars.GOOGLE_PLAY_CLOSED_TRACK || 'alpha')) || 'internal' }}
+  GOOGLE_PLAY_PROMOTE_FROM_TRACK: ${{ (github.event.inputs.deployment_stage == 'production' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || (github.event.inputs.deployment_stage == 'external_beta' && 'internal') || '' }}
   GOOGLE_PLAY_PROMOTE_TO_TRACK: ${{ github.event.inputs.play_track || (github.event.inputs.deployment_stage == 'production' && 'production') || (github.event.inputs.deployment_stage == 'external_beta' && (vars.GOOGLE_PLAY_OPEN_BETA_TRACK || 'beta')) || '' }}
   GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status || 'completed' }}
   ANDROID_PROMOTE_ONLY: ${{ (github.event.inputs.deployment_stage == 'external_beta' || github.event.inputs.deployment_stage == 'production') && 'true' || 'false' }}
@@ -98,14 +98,40 @@ env:
   JIRA_RELEASE_VERSION: ${{ github.event.inputs.jira_release_version }}
 
 jobs:
-  deploy_android:
-    name: Deploy Android to Play Console
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+  sync_release_version:
+    name: Sync release version
     runs-on: ubuntu-latest
+    outputs:
+      deploy_sha: ${{ steps.sync.outputs.deploy_sha }}
+      release_version: ${{ steps.sync.outputs.release_version }}
+      version_changed: ${{ steps.sync.outputs.version_changed }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Sync pubspec.yaml with release branch
+        id: sync
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+          DEPLOYMENT_STAGE: ${{ env.DEPLOYMENT_STAGE }}
+        run: bash .github/scripts/sync-pubspec-version.sh
+
+  deploy_android:
+    name: Deploy Android to Play Console
+    needs: sync_release_version
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+    runs-on: ubuntu-latest
+    env:
+      BUILD_NAME: ${{ github.event.inputs.build_name || needs.sync_release_version.outputs.release_version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync_release_version.outputs.deploy_sha }}
 
       - name: Create Android GitHub deployment
         id: android_deployment
@@ -113,7 +139,7 @@ jobs:
         with:
           token: ${{ github.token }}
           ref: ${{ github.ref_name }}
-          sha: ${{ github.sha }}
+          sha: ${{ needs.sync_release_version.outputs.deploy_sha }}
           environment: ${{ env.GOOGLE_PLAY_TRACK == 'production' && 'android-production' || 'android-testing' }}
           task: 'deploy:android'
           initial-status: in_progress
@@ -264,12 +290,17 @@ jobs:
 
   deploy_ios:
     name: Deploy iOS to TestFlight
+    needs: sync_release_version
     if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
     runs-on: macos-26
+    env:
+      BUILD_NAME: ${{ github.event.inputs.build_name || needs.sync_release_version.outputs.release_version }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync_release_version.outputs.deploy_sha }}
 
       - name: Create iOS GitHub deployment
         id: ios_deployment
@@ -277,7 +308,7 @@ jobs:
         with:
           token: ${{ github.token }}
           ref: ${{ github.ref_name }}
-          sha: ${{ github.sha }}
+          sha: ${{ needs.sync_release_version.outputs.deploy_sha }}
           environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'ios-app-store' || (env.DEPLOYMENT_STAGE == 'external_beta' && 'ios-testflight-external') || 'ios-testflight' }}
           task: 'deploy:ios'
           initial-status: in_progress
@@ -463,6 +494,7 @@ jobs:
     name: Mark Jira release ready for testing
     runs-on: ubuntu-latest
     needs:
+      - sync_release_version
       - deploy_android
       - deploy_ios
     if: ${{ always() && needs.deploy_android.result == 'success' && needs.deploy_ios.result == 'success' }}

@@ -5,22 +5,67 @@ GitHub Actions deploys the Flutter app with Fastlane from `.github/workflows/dep
 ## Behavior
 
 - Pushes to `main` run the `internal` stage: Android is uploaded to the Google Play `internal` track and iOS is uploaded to TestFlight.
-- Pushes to `release/**` run the `release_candidate` stage: Android is uploaded to the release-candidate Play track and iOS is uploaded to TestFlight.
-- Manual `external_beta` runs promote Android from the release-candidate track to the Google Play open testing track and distribute the already uploaded TestFlight build to the `External` group.
+- Pushes to `release/**` also run the `internal` stage: Android is uploaded to the Google Play `internal` track and iOS is uploaded to TestFlight for tester validation.
+- Manual or Jira `external_beta` runs promote Android from the Google Play `internal` track to the open testing track and distribute the already uploaded TestFlight build to the `External` group.
 - Manual `production` runs promote Android from open testing to production and submit the latest TestFlight build for App Store review with automatic release after approval.
 - Manual runs support `all`, `ios`, or `android`.
 - Manual Android runs can override `play_track`, but normal release automation derives it from the selected deployment stage.
 - `build_number` defaults to the GitHub Actions run number so Android `versionCode` and iOS `CFBundleVersion` stay numeric.
-- `build_name` defaults to the version before `+` in `pubspec.yaml`.
+- On `release/**` internal or release-candidate builds, `build_name` is derived from the release branch name and `pubspec.yaml` is automatically synced and committed before deployment.
+- Outside release-candidate builds, `build_name` defaults to the version before `+` in `pubspec.yaml`.
 - Both platforms build with `--dart-define-from-file=build.env.json`.
+
+## Automatic Build Triggers
+
+The repository currently starts mobile deployment builds automatically in these cases:
+
+| Trigger | Workflow | What runs | Builds a new app binary? |
+| --- | --- | --- | --- |
+| Push to `main` | `Deploy Mobile Apps` | `internal` stage for Android and iOS | Yes |
+| Push to `release/**` | `Deploy Mobile Apps` | `internal` stage for Android and iOS | Yes |
+| Manual GitHub workflow dispatch with `deployment_stage = internal` | `Deploy Mobile Apps` | Internal Android/iOS deployment for selected platform(s) | Yes |
+| Manual or Jira workflow dispatch with `deployment_stage = release_candidate` | `Deploy Mobile Apps` | Release-candidate Android/iOS deployment for selected platform(s) | Yes |
+| Manual or Jira workflow dispatch with `deployment_stage = external_beta` | `Deploy Mobile Apps` | Android track promotion and TestFlight External distribution | No, promotes/distributes an existing build |
+| Manual or Jira workflow dispatch with `deployment_stage = production` | `Deploy Mobile Apps` | Android production promotion and App Store submission | No, promotes/submits an existing build |
+
+Other automatic workflows:
+
+| Trigger | Workflow | Purpose |
+| --- | --- | --- |
+| Pull request opened/edited/synchronized/reopened/ready for review | `Branch and Jira Policy` | Validates branch/Jira naming and comments Jira on PR open/reopen/ready. It does not build the app. |
+| Push to `feature/**` or `release/**` | `Branch and Jira Policy` | Validates branch naming. It does not build the app. |
+| GitHub Release published | `Update JSON on Release` | Updates the external APK download JSON over SSH. It does not build the app. |
+
+## Release Version Sync
+
+Before an `internal` or `release_candidate` deployment from a `release/**` branch, the workflow runs `.github/scripts/sync-pubspec-version.sh`.
+
+The script derives the app version from the branch name:
+
+- `release/1.7.0` -> `1.7.0`
+- `release/APP-123-1.7.0` -> `1.7.0`
+
+It then rewrites `pubspec.yaml` to:
+
+```yaml
+version: 1.7.0+1.7.0
+```
+
+If `pubspec.yaml` changed, the workflow commits the update back to the release branch with a commit like:
+
+```text
+Sync pubspec version to 1.7.0 [skip ci]
+```
+
+The Android and iOS deploy jobs then check out that synced commit and set `BUILD_NAME` to the derived release version, so Android `versionName` and iOS `CFBundleShortVersionString` match the release branch. `BUILD_NUMBER` still comes from GitHub Actions run number unless manually overridden.
 
 ## Release Stages
 
 | Stage | Trigger | Android | iOS | Jira effect |
 | --- | --- | --- | --- | --- |
-| `internal` | Push to `main`, or manual run | Upload new AAB to `internal` | Upload new build to TestFlight | Comment linked Jira issue keys when present |
-| `release_candidate` | Push to `release/**`, or manual run | Upload new AAB to `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK` | Upload new build to TestFlight | Comment all issues in the release `fixVersion` and transition them to `JIRA_TEST_STATUS` |
-| `external_beta` | Jira automation or manual run after all release issues pass QA | Promote from release-candidate track to `GOOGLE_PLAY_OPEN_BETA_TRACK` | Distribute existing build to TestFlight group `External` | Comment linked Jira issue keys when present |
+| `internal` | Push to `main`, push to `release/**`, or manual run | Upload new AAB to `internal` | Upload new build to TestFlight | Comment linked Jira issue keys when present |
+| `release_candidate` | Manual or Jira dispatch only | Upload new AAB to `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK` | Upload new build to TestFlight | Comment all issues in the release `fixVersion` and transition them to `JIRA_TEST_STATUS` |
+| `external_beta` | Jira version release automation or manual run after testers approve the version | Promote from `internal` to `GOOGLE_PLAY_OPEN_BETA_TRACK` | Distribute existing build to TestFlight group `External` | Comment linked Jira issue keys when present |
 | `production` | Jira automation after seven days in external beta, or manual run | Promote from `GOOGLE_PLAY_OPEN_BETA_TRACK` to `production` | Submit existing TestFlight build for App Store review and automatic release | Comment linked Jira issue keys when present |
 
 ## Required GitHub Secrets
