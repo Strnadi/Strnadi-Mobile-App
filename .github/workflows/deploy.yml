@@ -57,6 +57,10 @@ on:
         description: Optional existing TestFlight build number to distribute to Open Beta.
         required: false
         type: string
+      testflight_changelog:
+        description: Optional TestFlight "What to Test" text for external tester distribution.
+        required: false
+        type: string
       app_store_build_number:
         description: Optional existing TestFlight build number to submit to App Store review.
         required: false
@@ -93,6 +97,7 @@ env:
   TESTFLIGHT_CLOSED_BETA_GROUPS: ${{ vars.TESTFLIGHT_CLOSED_BETA_GROUPS || 'closed_beta' }}
   TESTFLIGHT_OPEN_BETA_GROUPS: ${{ github.event.inputs.testflight_groups || vars.TESTFLIGHT_OPEN_BETA_GROUPS || 'open_beta' }}
   TESTFLIGHT_BUILD_NUMBER: ${{ github.event.inputs.testflight_build_number }}
+  TESTFLIGHT_CHANGELOG: ${{ github.event.inputs.testflight_changelog }}
   TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS: "true"
   APP_STORE_BUILD_NUMBER: ${{ github.event.inputs.app_store_build_number }}
   APP_STORE_APP_VERSION: ${{ github.event.inputs.app_store_app_version }}
@@ -229,6 +234,7 @@ jobs:
           ruby-version: '3.3'
           working-directory: android
           bundler-cache: true
+          cache-version: ${{ vars.RUBY_BUNDLER_CACHE_VERSION || '1' }}
 
       - name: Restore build environment file
         if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
@@ -389,6 +395,7 @@ jobs:
           ruby-version: '3.3'
           working-directory: ios
           bundler-cache: true
+          cache-version: ${{ vars.RUBY_BUNDLER_CACHE_VERSION || '1' }}
 
       - name: Cache CocoaPods
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}

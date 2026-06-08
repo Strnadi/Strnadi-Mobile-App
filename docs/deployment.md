@@ -118,6 +118,7 @@ The iOS deploy job uses GitHub's `macos-26` runner so App Store Connect receives
 
 - `IOS_TEAM_ID`: Apple Developer Team ID. Defaults to `3GPTVJHVFN`.
 - `FLUTTER_VERSION`: Flutter SDK version. Defaults to `3.41.2`.
+- `RUBY_BUNDLER_CACHE_VERSION`: Optional cache-buster for Ruby/Fastlane gems cached by `ruby/setup-ruby`. Increase it only when the Bundler cache needs to be rebuilt.
 - `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK`: Play Console track for release-candidate builds. Defaults to `GOOGLE_PLAY_CLOSED_TRACK`, then `alpha`.
 - `GOOGLE_PLAY_CLOSED_TRACK`: Legacy fallback for the release-candidate track. Defaults to `alpha`.
 - `GOOGLE_PLAY_OPEN_BETA_TRACK`: Play Console open testing track. Defaults to `beta`.
@@ -142,6 +143,8 @@ Jira automation can call the deployment workflow with GitHub's workflow dispatch
 ```
 
 For production after a week in external beta, use the same request with `"deployment_stage": "production"`. If App Store Connect should submit a specific processed build, also pass `app_store_build_number`; otherwise Fastlane selects the latest build for the editable app version.
+
+Manual workflow runs can pass `testflight_changelog` to override the default TestFlight "What to Test" text used for external tester groups.
 
 ## Local Encoding Commands
 

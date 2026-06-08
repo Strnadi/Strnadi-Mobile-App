@@ -65,6 +65,11 @@ def env_list(name)
   ENV[name].to_s.split(",").map(&:strip).reject(&:empty?)
 end
 
+def testflight_changelog(default_message)
+  changelog = ENV["TESTFLIGHT_CHANGELOG"].to_s.strip
+  changelog.empty? ? default_message : changelog
+end
+
 def app_store_connect_api_key_path
   key_id = required_env("APP_STORE_CONNECT_API_KEY_ID")
   key_base64 = required_env("APP_STORE_CONNECT_API_KEY_BASE64")
@@ -181,11 +186,17 @@ platform :ios do
     }
 
     unless groups.empty?
+      distribute_external = truthy_env?("TESTFLIGHT_DISTRIBUTE_EXTERNAL")
       pilot_options.merge!(
-        distribute_external: truthy_env?("TESTFLIGHT_DISTRIBUTE_EXTERNAL"),
+        distribute_external: distribute_external,
         notify_external_testers: truthy_env?("TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS"),
         groups: groups
       )
+      if distribute_external
+        pilot_options[:changelog] = testflight_changelog(
+          "Build #{build_name} (#{build_number}) for #{groups.join(", ")} testing."
+        )
+      end
     end
 
     upload_to_testflight(pilot_options)
@@ -212,7 +223,8 @@ platform :ios do
       distribute_external: true,
       notify_external_testers: truthy_env?("TESTFLIGHT_NOTIFY_EXTERNAL_TESTERS"),
       groups: groups,
-      app_version: build_name
+      app_version: build_name,
+      changelog: testflight_changelog("Open beta build #{build_name} for #{groups.join(", ")} testing.")
     }
     pilot_options[:build_number] = build_number unless build_number.empty?
 
