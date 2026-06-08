@@ -77,6 +77,7 @@ Create these repository secrets before running the workflow.
 Shared:
 
 - `BUILD_ENV_JSON_BASE64`: Base64-encoded `build.env.json`.
+- `RELEASE_SYNC_APP_CLIENT_ID`: Client ID of the GitHub App used to bypass release branch rulesets for automatic `pubspec.yaml` version sync. The workflow also accepts this as a repository variable, but reads the secret first.
 - `RELEASE_SYNC_APP_PRIVATE_KEY`: Base64-encoded private key PEM for the GitHub App allowed to bypass the `release/**` ruleset and commit the synced `pubspec.yaml` version.
 
 Android:
@@ -117,7 +118,6 @@ The iOS deploy job uses GitHub's `macos-26` runner so App Store Connect receives
 
 - `IOS_TEAM_ID`: Apple Developer Team ID. Defaults to `3GPTVJHVFN`.
 - `FLUTTER_VERSION`: Flutter SDK version. Defaults to `3.41.2`.
-- `RELEASE_SYNC_APP_CLIENT_ID`: Client ID of the GitHub App used to bypass release branch rulesets for automatic `pubspec.yaml` version sync.
 - `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK`: Play Console track for release-candidate builds. Defaults to `GOOGLE_PLAY_CLOSED_TRACK`, then `alpha`.
 - `GOOGLE_PLAY_CLOSED_TRACK`: Legacy fallback for the release-candidate track. Defaults to `alpha`.
 - `GOOGLE_PLAY_OPEN_BETA_TRACK`: Play Console open testing track. Defaults to `beta`.

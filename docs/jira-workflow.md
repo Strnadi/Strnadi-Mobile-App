@@ -101,7 +101,7 @@ The Jira web request needs a GitHub token with permission to dispatch repository
 - `JIRA_BASE_URL`: defaults to `https://strnadi-status.atlassian.net`.
 - `JIRA_PROJECT_KEYS`: defaults to `APP`. Use comma-separated values like `APP,WEB` if this repo should accept multiple Jira projects.
 - `JIRA_TEST_STATUS`: defaults to `To Test`.
-- `RELEASE_SYNC_APP_CLIENT_ID`: GitHub App Client ID used for release branch version sync bypass.
+- `RELEASE_SYNC_APP_CLIENT_ID`: GitHub App Client ID used for release branch version sync bypass. It can be stored as an Actions secret or repository variable; the workflow reads the secret first.
 - `GOOGLE_PLAY_RELEASE_CANDIDATE_TRACK`: optional Play Console release-candidate testing track. Defaults to `alpha`.
 - `GOOGLE_PLAY_OPEN_BETA_TRACK`: optional Play Console open testing track. Defaults to `beta`.
 - `TESTFLIGHT_CLOSED_BETA_GROUPS`: optional comma-separated TestFlight groups for new internal and release-candidate iOS builds. Defaults to `closed_beta`.

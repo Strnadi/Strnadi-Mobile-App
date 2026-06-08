@@ -112,11 +112,11 @@ jobs:
         id: release_sync_private_key
         if: ${{ startsWith(github.ref_name, 'release/') && (env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate') }}
         env:
-          RELEASE_SYNC_APP_CLIENT_ID: ${{ vars.RELEASE_SYNC_APP_CLIENT_ID }}
+          RELEASE_SYNC_APP_CLIENT_ID: ${{ secrets.RELEASE_SYNC_APP_CLIENT_ID || vars.RELEASE_SYNC_APP_CLIENT_ID }}
           RELEASE_SYNC_APP_PRIVATE_KEY_BASE64: ${{ secrets.RELEASE_SYNC_APP_PRIVATE_KEY }}
         run: |
           if [[ -z "$RELEASE_SYNC_APP_CLIENT_ID" ]]; then
-            echo "::error::Missing RELEASE_SYNC_APP_CLIENT_ID repository variable."
+            echo "::error::Missing RELEASE_SYNC_APP_CLIENT_ID repository secret or variable."
             exit 1
           fi
 
@@ -140,7 +140,7 @@ jobs:
         if: ${{ startsWith(github.ref_name, 'release/') && (env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate') }}
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.RELEASE_SYNC_APP_CLIENT_ID }}
+          client-id: ${{ secrets.RELEASE_SYNC_APP_CLIENT_ID || vars.RELEASE_SYNC_APP_CLIENT_ID }}
           private-key: ${{ steps.release_sync_private_key.outputs.private-key }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
