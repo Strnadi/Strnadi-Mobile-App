@@ -308,6 +308,7 @@
     "emptyListMessage": "Sie haben noch keine Aufnahmen",
     "status": {
       "sending": "Senden …",
+      "sendingParts": "Teile werden gesendet …",
       "checkingParts": "Teile werden geprüft …",
       "unsentParts": "Nicht gesendete Teile",
       "uploaded": "Hochgeladen",

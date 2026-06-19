@@ -308,6 +308,7 @@
     "emptyListMessage": "Zatím nemáte žádné záznamy",
     "status": {
       "sending": "Odesílání...",
+      "sendingParts": "Odesílání částí...",
       "checkingParts": "Kontrola částí...",
       "unsentParts": "Neodeslané části",
       "uploaded": "Nahráno",
