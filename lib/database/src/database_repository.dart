@@ -55,6 +55,45 @@ part 'database_migrations.dart';
 
 final logger = db_log.logger;
 
+class IncompleteRecordingUpload {
+  IncompleteRecordingUpload({
+    required this.recording,
+    required this.expectedPartsCount,
+    required this.uploadedPartsCount,
+    required this.localPartsCount,
+    required this.resendablePartsCount,
+    required this.uploadedBackendPartIds,
+  });
+
+  final Recording recording;
+  final int expectedPartsCount;
+  final int uploadedPartsCount;
+  final int localPartsCount;
+  final int resendablePartsCount;
+  final Set<int>? uploadedBackendPartIds;
+
+  int get missingPartsCount {
+    final int missing = expectedPartsCount - uploadedPartsCount;
+    return missing > 0 ? missing : 0;
+  }
+
+  bool get canResend => resendablePartsCount > 0;
+}
+
+class _BackendIncompleteRecording {
+  _BackendIncompleteRecording({
+    required this.backendRecordingId,
+    this.expectedPartsCount,
+    this.uploadedPartsCount,
+    this.uploadedBackendPartIds,
+  });
+
+  final int backendRecordingId;
+  final int? expectedPartsCount;
+  final int? uploadedPartsCount;
+  final Set<int>? uploadedBackendPartIds;
+}
+
 /// Database helper class
 class DatabaseNew {
   static Database? _database;
@@ -446,7 +485,7 @@ class DatabaseNew {
           }
         } else {
           logger.w(
-              'JWT not available – skipping backend delete for BEId ${recording?.BEId}');
+              'JWT not available – skipping backend delete for BEId ${recording.BEId}');
         }
       }
 
@@ -1069,6 +1108,278 @@ class DatabaseNew {
         whereArgs: [recordingId, Config.hostEnvironment.name.toString()]);
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
+    }
+    return null;
+  }
+
+  static Future<List<IncompleteRecordingUpload>> findIncompleteUploads({
+    int? recordingId,
+    bool includeBackendCheck = true,
+  }) async {
+    final List<Recording> recordings = <Recording>[];
+
+    if (recordingId != null) {
+      final Recording? recording = await getRecordingFromDbByIdNoMail(
+        recordingId,
+      );
+      if (recording != null) {
+        recordings.add(recording);
+      }
+    } else {
+      try {
+        recordings.addAll(await getRecordings());
+      } catch (e, stackTrace) {
+        logger.w('Could not load recordings for incomplete upload check: $e',
+            error: e, stackTrace: stackTrace);
+        return const <IncompleteRecordingUpload>[];
+      }
+    }
+
+    if (recordings.isEmpty) {
+      return const <IncompleteRecordingUpload>[];
+    }
+
+    final Map<int, _BackendIncompleteRecording> backendIncomplete =
+        includeBackendCheck
+            ? await _fetchIncompleteRecordingsFromBE()
+            : <int, _BackendIncompleteRecording>{};
+
+    final List<IncompleteRecordingUpload> result =
+        <IncompleteRecordingUpload>[];
+
+    for (final Recording recording in recordings) {
+      if (recording.id == null || recording.sending) continue;
+
+      final List<RecordingPart> parts = await getPartsByRecordingId(
+        recording.id!,
+      );
+      if (parts.isEmpty) continue;
+
+      final _BackendIncompleteRecording? backend =
+          recording.BEId == null ? null : backendIncomplete[recording.BEId];
+
+      final int localExpected =
+          recording.partCount != null && recording.partCount! > 0
+              ? recording.partCount!
+              : parts.length;
+      final int expectedParts = backend?.expectedPartsCount ?? localExpected;
+      final int localUploadedParts = parts
+          .where((RecordingPart part) => part.sent || part.BEId != null)
+          .length;
+      final int uploadedParts =
+          backend?.uploadedPartsCount ?? localUploadedParts;
+      final bool backendSaysIncomplete =
+          backend != null && expectedParts > uploadedParts;
+      final bool localSaysIncomplete =
+          (recording.sent || recording.BEId != null) &&
+              parts.any((RecordingPart part) => !part.sent);
+
+      if (!backendSaysIncomplete && !localSaysIncomplete) {
+        continue;
+      }
+
+      result.add(
+        IncompleteRecordingUpload(
+          recording: recording,
+          expectedPartsCount: expectedParts,
+          uploadedPartsCount: uploadedParts,
+          localPartsCount: parts.length,
+          resendablePartsCount: _countResendableMissingParts(
+            parts,
+            backend?.uploadedBackendPartIds,
+          ),
+          uploadedBackendPartIds: backend?.uploadedBackendPartIds,
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  static Future<void> resendMissingPartsForRecording(
+    int recordingId, {
+    Set<int>? uploadedBackendPartIds,
+  }) async {
+    final db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      'recordingParts',
+      where: 'recordingId = ?',
+      whereArgs: [recordingId],
+    );
+
+    final List<Map<String, dynamic>> rowsToSend = <Map<String, dynamic>>[];
+
+    for (final Map<String, dynamic> row in rows) {
+      final RecordingPart part = RecordingPart.fromJson(row);
+      if (!_shouldResendMissingPart(part, uploadedBackendPartIds)) {
+        continue;
+      }
+
+      part.sent = false;
+      part.sending = false;
+      if (uploadedBackendPartIds != null &&
+          part.BEId != null &&
+          !uploadedBackendPartIds.contains(part.BEId)) {
+        part.BEId = null;
+      }
+      await updateRecordingPart(part);
+      rowsToSend.add(Map<String, dynamic>.from(part.toJson()));
+    }
+
+    await _resendUnsentPartRows(rowsToSend);
+  }
+
+  static int _countResendableMissingParts(
+    List<RecordingPart> parts,
+    Set<int>? uploadedBackendPartIds,
+  ) {
+    return parts
+        .where((RecordingPart part) =>
+            _shouldResendMissingPart(part, uploadedBackendPartIds))
+        .length;
+  }
+
+  static bool _shouldResendMissingPart(
+    RecordingPart part,
+    Set<int>? uploadedBackendPartIds,
+  ) {
+    if (part.sending) return false;
+    if (part.path == null || part.path!.isEmpty) return false;
+    if (!part.sent || part.BEId == null) return true;
+    return uploadedBackendPartIds != null &&
+        !uploadedBackendPartIds.contains(part.BEId);
+  }
+
+  static Future<Map<int, _BackendIncompleteRecording>>
+      _fetchIncompleteRecordingsFromBE() async {
+    final String? jwt = await FlutterSecureStorage().read(key: 'token');
+    if (jwt == null || jwt.isEmpty) {
+      return <int, _BackendIncompleteRecording>{};
+    }
+    if (!await Config.hasBasicInternet) {
+      return <int, _BackendIncompleteRecording>{};
+    }
+
+    try {
+      final response = await _recordingsApi.fetchIncompleteRecordings();
+      if (response.statusCode != 200) {
+        logger.i(
+            'Incomplete recordings check skipped with status ${response.statusCode}.');
+        return <int, _BackendIncompleteRecording>{};
+      }
+
+      final dynamic decoded = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      final List<_BackendIncompleteRecording> incomplete =
+          _parseIncompleteRecordingsPayload(decoded);
+      return <int, _BackendIncompleteRecording>{
+        for (final item in incomplete) item.backendRecordingId: item,
+      };
+    } catch (e, stackTrace) {
+      logger.w('Failed to fetch incomplete recordings: $e',
+          error: e, stackTrace: stackTrace);
+      return <int, _BackendIncompleteRecording>{};
+    }
+  }
+
+  static List<_BackendIncompleteRecording> _parseIncompleteRecordingsPayload(
+    dynamic decoded,
+  ) {
+    final Iterable<dynamic> items;
+    if (decoded is List) {
+      items = decoded;
+    } else if (decoded is Map) {
+      final dynamic nested = decoded['items'] ??
+          decoded['recordings'] ??
+          decoded['data'] ??
+          decoded['incomplete'];
+      if (nested is List) {
+        items = nested;
+      } else {
+        items = <dynamic>[decoded];
+      }
+    } else {
+      return const <_BackendIncompleteRecording>[];
+    }
+
+    final List<_BackendIncompleteRecording> parsed =
+        <_BackendIncompleteRecording>[];
+    for (final dynamic item in items) {
+      if (item is! Map) continue;
+      final _BackendIncompleteRecording? parsedItem =
+          _parseIncompleteRecording(item.cast<String, dynamic>());
+      if (parsedItem != null) {
+        parsed.add(parsedItem);
+      }
+    }
+    return parsed;
+  }
+
+  static _BackendIncompleteRecording? _parseIncompleteRecording(
+    Map<String, dynamic> item,
+  ) {
+    final int? backendId = _readInt(item, const <String>[
+      'id',
+      'BEId',
+      'beId',
+      'recordingId',
+      'recordingBEID',
+      'backendRecordingId',
+    ]);
+    if (backendId == null) return null;
+
+    final List<dynamic>? parts = _readList(item, const <String>[
+      'parts',
+      'recordingParts',
+      'uploadedParts',
+    ]);
+    final Set<int>? partIds = parts
+        ?.whereType<Map>()
+        .map((dynamic part) => _readInt(
+            part.cast<String, dynamic>(), const <String>['id', 'BEId', 'beId']))
+        .whereType<int>()
+        .toSet();
+    final int? uploadedParts = _readInt(item, const <String>[
+          'actualPartsCount',
+          'uploadedPartsCount',
+          'receivedPartsCount',
+          'partsCount',
+          'uploadedCount',
+        ]) ??
+        parts?.length;
+
+    return _BackendIncompleteRecording(
+      backendRecordingId: backendId,
+      expectedPartsCount: _readInt(item, const <String>[
+        'expectedPartsCount',
+        'expectedPartCount',
+        'partCount',
+        'expectedCount',
+      ]),
+      uploadedPartsCount: uploadedParts,
+      uploadedBackendPartIds: partIds,
+    );
+  }
+
+  static int? _readInt(Map<String, dynamic> map, List<String> keys) {
+    for (final String key in keys) {
+      if (!map.containsKey(key)) continue;
+      final dynamic value = map[key];
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final int? parsed = int.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  static List<dynamic>? _readList(Map<String, dynamic> map, List<String> keys) {
+    for (final String key in keys) {
+      final dynamic value = map[key];
+      if (value is List) return value;
     }
     return null;
   }

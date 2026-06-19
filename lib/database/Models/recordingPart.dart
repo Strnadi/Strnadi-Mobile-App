@@ -46,6 +46,7 @@ class RecordingPart {
     this.id,
     this.BEId,
     required this.recordingId,
+    this.backendRecordingId,
     required this.startTime,
     required this.endTime,
     required this.gpsLatitudeStart,
@@ -65,6 +66,7 @@ class RecordingPart {
         id: json['id'] as int?,
         BEId: json['BEId'] as int?,
         recordingId: json['recordingId'] as int?,
+        backendRecordingId: json['backendRecordingId'] as int?,
         startTime: DateTime.parse(json['startTime'] as String),
         endTime: DateTime.parse(json['endTime'] as String),
         gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
@@ -78,8 +80,8 @@ class RecordingPart {
         length: json['length'] as int?);
   }
 
-  factory RecordingPart.fromBEJson(Map<String, Object?> json,
-      int backendRecordingId) {
+  factory RecordingPart.fromBEJson(
+      Map<String, Object?> json, int backendRecordingId) {
     return RecordingPart(
         BEId: json['id'] as int?,
         recordingId: null,
@@ -99,9 +101,7 @@ class RecordingPart {
 
   Future<void> save() async {
     String newPath = (await getApplicationDocumentsDirectory()).path +
-        "/recording_${DateTime
-            .now()
-            .millisecondsSinceEpoch}.wav";
+        "/recording_${DateTime.now().millisecondsSinceEpoch}.wav";
     File file = await File(newPath).create();
     await file.writeAsBytes(base64Decode(dataBase64Temp!));
     this.path = newPath;
@@ -116,14 +116,7 @@ class RecordingPart {
         unready.gpsLongitudeEnd == null ||
         unready.path == null) {
       logger.i(
-          'Recording part is not ready. Part id: ${unready
-              .id}, recording id: ${unready.recordingId}, start time: ${unready
-              .startTime}, end time: ${unready
-              .endTime}, gpsLatitudeStart: ${unready
-              .gpsLatitudeStart}, gpsLatitudeEnd: ${unready
-              .gpsLatitudeEnd}, gpsLongitudeStart: ${unready
-              .gpsLongitudeStart}, gpsLongitudeEnd: ${unready
-              .gpsLongitudeEnd}, path: ${unready.path}');
+          'Recording part is not ready. Part id: ${unready.id}, recording id: ${unready.recordingId}, start time: ${unready.startTime}, end time: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, path: ${unready.path}');
       throw UnreadyException('Recording part is not ready');
     }
     return RecordingPart(
@@ -212,14 +205,14 @@ class RecordingPartUnready {
 
   RecordingPartUnready(
       {this.id,
-        this.recordingId,
-        this.startTime,
-        this.endTime,
-        this.gpsLatitudeStart,
-        this.gpsLatitudeEnd,
-        this.gpsLongitudeStart,
-        this.gpsLongitudeEnd,
-        this.path
-        //this.dataBase64,
+      this.recordingId,
+      this.startTime,
+      this.endTime,
+      this.gpsLatitudeStart,
+      this.gpsLatitudeEnd,
+      this.gpsLongitudeStart,
+      this.gpsLongitudeEnd,
+      this.path
+      //this.dataBase64,
       });
 }
