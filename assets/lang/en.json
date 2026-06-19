@@ -310,6 +310,7 @@
     "emptyListMessage": "You don’t have any recordings yet",
     "status": {
       "sending": "Sending...",
+      "sendingParts": "Sending parts...",
       "checkingParts": "Checking parts...",
       "unsentParts": "Unsent parts",
       "uploaded": "Uploaded",

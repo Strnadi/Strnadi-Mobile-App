@@ -358,7 +358,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   color = rec.sent ? Colors.green : Colors.orange;
                 } else {
                   final parts = snapshot.data!;
-                  if (rec.sent && parts.any((p) => !p.sent)) {
+                  if (parts.any((p) => p.sending)) {
+                    status = '🔵';
+                    color = Colors.blue;
+                  } else if (rec.sent && parts.any((p) => !p.sent)) {
                     status = '❌';
                     color = Colors.red;
                   } else {
@@ -737,7 +740,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                                     } else {
                                                       final parts =
                                                           snapshot.data!;
-                                                      if (rec.sent &&
+                                                      if (parts.any(
+                                                          (p) => p.sending)) {
+                                                        status = t(
+                                                            'recList.status.sendingParts');
+                                                        color = Colors.blue;
+                                                      } else if (rec.sent &&
                                                           parts.any(
                                                               (p) => !p.sent)) {
                                                         logger.w(
