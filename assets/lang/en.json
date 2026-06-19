@@ -264,6 +264,22 @@
   "dialogs": {
     "message": "Message"
   },
+  "recordingUploadCheck": {
+    "title": "Upload needs attention",
+    "messages": {
+      "single": "This recording is saved on this device, but the online map received only {uploaded} of {expected} audio sections.",
+      "singleNamed": "“{name}” is saved on this device, but the online map received only {uploaded} of {expected} audio sections.",
+      "multiple": "{count} recordings are saved on this device, but the online map received only part of them. Missing audio sections: {missing}.",
+      "canSend": "Until the missing audio is sent, the recording may not appear on the map. Send it now?",
+      "cannotSend": "The app could not find the missing audio on this device. Please keep the recording stored and try again later.",
+      "sent": "Missing audio is being sent.",
+      "sendFailed": "The missing audio could not be sent. Please check your connection and try again."
+    },
+    "actions": {
+      "later": "Later",
+      "send": "Send missing audio"
+    }
+  },
   "recList": {
     "title": "My recordings",
     "offlineMode": {

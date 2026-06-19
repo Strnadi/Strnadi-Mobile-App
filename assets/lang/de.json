@@ -265,6 +265,22 @@
   "dialogs": {
     "message": "Nachricht"
   },
+  "recordingUploadCheck": {
+    "title": "Upload benötigt Aufmerksamkeit",
+    "messages": {
+      "single": "Diese Aufnahme ist auf diesem Gerät gespeichert, aber die Online-Karte hat nur {uploaded} von {expected} Audioteilen erhalten.",
+      "singleNamed": "„{name}” ist auf diesem Gerät gespeichert, aber die Online-Karte hat nur {uploaded} von {expected} Audioteilen erhalten.",
+      "multiple": "{count} Aufnahmen sind auf diesem Gerät gespeichert, aber die Online-Karte hat nur einen Teil davon erhalten. Fehlende Audioteile: {missing}.",
+      "canSend": "Bis der fehlende Ton gesendet ist, erscheint die Aufnahme möglicherweise nicht auf der Karte. Jetzt senden?",
+      "cannotSend": "Die App konnte den fehlenden Ton auf diesem Gerät nicht finden. Bitte behalten Sie die Aufnahme gespeichert und versuchen Sie es später erneut.",
+      "sent": "Der fehlende Ton wird gesendet.",
+      "sendFailed": "Der fehlende Ton konnte nicht gesendet werden. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut."
+    },
+    "actions": {
+      "later": "Später",
+      "send": "Fehlenden Ton senden"
+    }
+  },
   "recList": {
     "title": "Meine Aufnahmen",
     "offlineMode": {

@@ -32,6 +32,7 @@ import 'package:google_api_availability/google_api_availability.dart';
 import 'package:strnadi/maintanance.dart';
 import 'package:strnadi/config/config.dart'; // ensure Config and ServerHealth are in scope
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'deep_link_handler.dart';
 import 'package:strnadi/bootstrap/app_bootstrap.dart';
 import 'package:strnadi/localization/localization.dart';
@@ -250,7 +251,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // When the app returns to foreground, reconcile any stale sending flags
-      DatabaseNew.checkSendingRecordings();
+      unawaited(DatabaseNew.checkSendingRecordings().then((_) async {
+        final BuildContext? context = navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          await IncompleteUploadPrompt.checkAndPrompt(context);
+        }
+      }));
     }
   }
 

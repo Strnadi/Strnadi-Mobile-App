@@ -363,6 +363,7 @@ jobs:
           production-environment: ${{ env.DEPLOYMENT_STAGE == 'production' && 'true' || 'false' }}
 
       - name: Select Xcode 26
+        id: xcode_info
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         run: |
           xcode_app="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print | sort | tail -n 1)"
@@ -371,6 +372,9 @@ jobs:
           fi
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
+          xcode_version="$(xcodebuild -version | tr '\n' '-' | sed 's/-$//; s/[^A-Za-z0-9._-]/-/g')"
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version | sed 's/[^A-Za-z0-9._-]/-/g')"
+          echo "cache_key=${xcode_version}-iphoneos-${sdk_version}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Flutter
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
@@ -408,13 +412,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pods-
 
-      - name: Cache Xcode DerivedData
+      - name: Restore Xcode DerivedData cache
+        id: xcode_deriveddata_cache
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: build/ios/DerivedData
-          key: ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}
           restore-keys: |
+            ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-
             ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-
             ${{ runner.os }}-xcode-deriveddata-
 
@@ -461,6 +467,13 @@ jobs:
           mkdir -p ../build/ios
           set -o pipefail
           bundle exec fastlane testflight --verbose 2>&1 | tee ../build/ios/fastlane-testflight.log
+
+      - name: Save Xcode DerivedData cache
+        if: ${{ always() && (env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate') && steps.xcode_deriveddata_cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: build/ios/DerivedData
+          key: ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}
 
       - name: Distribute iOS build to open_beta TestFlight group
         if: ${{ env.DEPLOYMENT_STAGE == 'external_beta' }}

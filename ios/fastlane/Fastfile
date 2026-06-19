@@ -112,6 +112,7 @@ platform :ios do
         "build",
         "ios",
         "--release",
+        "--config-only",
         "--no-codesign",
         "--build-number=#{build_number}",
         "--build-name=#{build_name}",

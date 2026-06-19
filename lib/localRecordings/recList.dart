@@ -34,12 +34,12 @@ import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
 
 import '../config/config.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../exceptions.dart';
 import '../navigation/notification_bell_button.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import '../navigation/session_navigation.dart';
@@ -117,6 +117,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       }
     });
     getRecordings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      IncompleteUploadPrompt.checkAndPrompt(context);
+    });
     // Periodically refresh to catch sending status updates
     // _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
     //   getRecordings();
@@ -418,36 +421,30 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
   void sendAllUnsent() async {
     for (var rec in list) {
-      if (!rec.sent || rec.sending) {
+      if (rec.sending) continue;
+
+      if (!rec.sent) {
         logger.i(
             "recording: ${rec.id} sent: ${rec.sent} sending: ${rec.sending}");
         try {
+          final incompleteUploads = await DatabaseNew.findIncompleteUploads(
+            recordingId: rec.id,
+          );
+          if (incompleteUploads.isNotEmpty) {
+            if (!mounted) return;
+            await IncompleteUploadPrompt.checkAndPrompt(
+              context,
+              recordingId: rec.id,
+              oncePerSession: false,
+            );
+            continue;
+          }
+
           setState(() {
             rec.sending = true;
           });
-          DatabaseNew.sendRecordingBackground(rec.id!);
+          await DatabaseNew.sendRecordingBackground(rec.id!);
           logger.i("Sending recording: ${rec.id}");
-          await DatabaseNew.checkRecordingPartsSent(rec.id!);
-        } on UnsentPartsException {
-          // prompt to resend unsent parts
-          final shouldResend = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: Text(t('recList.status.unsentParts')),
-              content: Text(t('recListItem.dialogs.unsentParts.message')),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: Text(t('recListItem.dialogs.confirmDelete.cancel'))),
-                TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    child: Text(t('recListItem.buttons.resendUnsentParts'))),
-              ],
-            ),
-          );
-          if (shouldResend == true) {
-            await DatabaseNew.resendUnsentParts();
-          }
         } catch (e, stackTrace) {
           logger.e('Error during send check/resend: $e',
               error: e, stackTrace: stackTrace);

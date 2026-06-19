@@ -265,6 +265,22 @@
   "dialogs": {
     "message": "Zpráva"
   },
+  "recordingUploadCheck": {
+    "title": "Odeslání potřebuje pozornost",
+    "messages": {
+      "single": "Tato nahrávka je uložená v zařízení, ale online mapa přijala jen {uploaded} z {expected} zvukových částí.",
+      "singleNamed": "„{name}” je uložená v zařízení, ale online mapa přijala jen {uploaded} z {expected} zvukových částí.",
+      "multiple": "{count} nahrávek je uložených v zařízení, ale online mapa přijala jen jejich část. Chybějící zvukové části: {missing}.",
+      "canSend": "Dokud se chybějící zvuk neodešle, nahrávka se nemusí v mapě zobrazit. Odeslat ho teď?",
+      "cannotSend": "Aplikace nenašla chybějící zvuk v tomto zařízení. Ponechte prosím nahrávku uloženou a zkuste to znovu později.",
+      "sent": "Chybějící zvuk se odesílá.",
+      "sendFailed": "Chybějící zvuk se nepodařilo odeslat. Zkontrolujte prosím připojení a zkuste to znovu."
+    },
+    "actions": {
+      "later": "Později",
+      "send": "Odeslat chybějící zvuk"
+    }
+  },
   "recList": {
     "title": "Moje nahrávky",
     "offlineMode": {

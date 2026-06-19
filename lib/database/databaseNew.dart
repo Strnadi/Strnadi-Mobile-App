@@ -17,4 +17,5 @@
 export 'package:strnadi/database/src/database_logger.dart' show getPath, logger;
 export 'package:strnadi/database/src/upload_progress_bus.dart'
     show DownloadProgress, UploadProgress, UploadProgressBus;
-export 'package:strnadi/database/src/database_repository.dart' show DatabaseNew;
+export 'package:strnadi/database/src/database_repository.dart'
+    show DatabaseNew, IncompleteRecordingUpload;

@@ -34,6 +34,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dialect_time_resolver.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
+import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/utils/location_label.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
@@ -151,16 +152,18 @@ class _RecordingItemState extends State<RecordingItem> {
         loaded = true;
       });
     } else {
-      List<RecordingPart> parts =
-          await DatabaseNew.getPartsByRecordingId(widget.recording.BEId!);
-      if (parts.isNotEmpty) {
+      final int? recordingId = widget.recording.id;
+      final List<RecordingPart> localParts = recordingId == null
+          ? <RecordingPart>[]
+          : await DatabaseNew.getPartsByRecordingId(recordingId);
+      if (recordingId != null && localParts.isNotEmpty) {
         logger.i(
             "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
-        await DatabaseNew.concatRecordingParts(widget.recording.BEId!);
+        await DatabaseNew.concatRecordingParts(recordingId);
         logger.i(
             "[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
         Recording? updatedRecording =
-            await DatabaseNew.getRecordingFromDbById(widget.recording.BEId!);
+            await DatabaseNew.getRecordingFromDbByIdNoMail(recordingId);
         logger
             .i("[RecordingItem] Fetched updated recording: $updatedRecording");
         logger.i(
@@ -178,6 +181,17 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       }
     }
+
+    final int? recordingIdForPrompt = widget.recording.id;
+    if (!mounted || recordingIdForPrompt == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await IncompleteUploadPrompt.checkAndPrompt(
+        context,
+        recordingId: recordingIdForPrompt,
+        oncePerSession: false,
+      );
+      await _fetchRecordings();
+    });
   }
 
   _DialectDetailValue? _dialectDetailValueOrNull(String? raw) {
@@ -386,42 +400,13 @@ class _RecordingItemState extends State<RecordingItem> {
     final int? recordingId = widget.recording.id;
     if (recordingId == null) return;
 
-    final bool? shouldResend = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(t('recListItem.dialogs.unsentParts.title')),
-        content: Text(t('recListItem.dialogs.unsentParts.message')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(t('recListItem.dialogs.unsentParts.cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t('recListItem.dialogs.unsentParts.resend')),
-          ),
-        ],
-      ),
+    await IncompleteUploadPrompt.checkAndPrompt(
+      context,
+      recordingId: recordingId,
+      oncePerSession: false,
     );
-
-    if (shouldResend != true) return;
-
-    await _withLoader(() async {
-      try {
-        await DatabaseNew.resendUnsentPartsForRecording(recordingId);
-        await _refreshRecordingState();
-        await getParts();
-      } catch (e, stackTrace) {
-        logger.e('Error resending unsent parts for recording $recordingId: $e',
-            error: e, stackTrace: stackTrace);
-        Sentry.captureException(e, stackTrace: stackTrace);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
-          );
-        }
-      }
-    });
+    await _refreshRecordingState();
+    await getParts();
   }
 
   Future<bool> _ensureFileLoaded() async {
@@ -1194,6 +1179,32 @@ class _RecordingItemState extends State<RecordingItem> {
                               icon: const Icon(Icons.send),
                               label: Text(t('recListItem.buttons.send')),
                               onPressed: () async {
+                                try {
+                                  final int? recordingId = widget.recording.id;
+                                  if (recordingId != null) {
+                                    final incompleteUploads =
+                                        await DatabaseNew.findIncompleteUploads(
+                                      recordingId: recordingId,
+                                    );
+                                    if (incompleteUploads.isNotEmpty) {
+                                      if (!context.mounted) return;
+                                      await IncompleteUploadPrompt
+                                          .checkAndPrompt(
+                                        context,
+                                        recordingId: recordingId,
+                                        oncePerSession: false,
+                                      );
+                                      await _fetchRecordings();
+                                      return;
+                                    }
+                                  }
+                                } catch (e, stackTrace) {
+                                  logger.e('Error checking upload state: $e',
+                                      error: e, stackTrace: stackTrace);
+                                  Sentry.captureException(e,
+                                      stackTrace: stackTrace);
+                                }
+
                                 await _withLoader(() async {
                                   try {
                                     setState(() {

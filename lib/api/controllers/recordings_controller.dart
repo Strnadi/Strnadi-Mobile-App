@@ -67,6 +67,13 @@ class RecordingsController {
     );
   }
 
+  Future<Response<dynamic>> fetchIncompleteRecordings() {
+    return _dio.getUri(
+      _uri('/recordings/incomplete'),
+      options: Options(contentType: Headers.jsonContentType),
+    );
+  }
+
   Future<Response<dynamic>> fetchRecordingById(
     int backendRecordingId, {
     bool includeParts = true,

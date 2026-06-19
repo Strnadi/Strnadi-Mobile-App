@@ -43,6 +43,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:strnadi/widgets/GuestUserWarning.dart';
 import '../bottomBar.dart';
+import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/recording/waw.dart'; // Contains createWavHeader & concatWavFiles
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -248,6 +249,9 @@ class _LiveRecState extends State<LiveRec> {
     _loadGuestStatus();
     DatabaseNew.updateRecordingsMail();
     logger.i('updateRecordingsMail called');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      IncompleteUploadPrompt.checkAndPrompt(context);
+    });
     _initAudioSettings();
     _audioRecorder = AudioRecorder();
     _audioRecorder.hasPermission().then((allowed) {
