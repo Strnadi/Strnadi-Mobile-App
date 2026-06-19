@@ -190,6 +190,7 @@ class _RecordingItemState extends State<RecordingItem> {
         recordingId: recordingIdForPrompt,
         oncePerSession: false,
       );
+      if (!mounted) return;
       await _fetchRecordings();
     });
   }
@@ -405,6 +406,7 @@ class _RecordingItemState extends State<RecordingItem> {
       recordingId: recordingId,
       oncePerSession: false,
     );
+    if (!mounted) return;
     await _refreshRecordingState();
     await getParts();
   }
@@ -1194,6 +1196,7 @@ class _RecordingItemState extends State<RecordingItem> {
                                         recordingId: recordingId,
                                         oncePerSession: false,
                                       );
+                                      if (!mounted) return;
                                       await _fetchRecordings();
                                       return;
                                     }

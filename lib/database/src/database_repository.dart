@@ -1471,6 +1471,7 @@ class DatabaseNew {
                 await sendRecordingNew(recording, toSend);
               }
             }
+            return;
           }
 
           // Now (whether BEId exists already or has just been created) try sending each idle part at most once.
@@ -1485,11 +1486,9 @@ class DatabaseNew {
             }
             if (part.backendRecordingId == null && recording?.BEId != null) {
               part.backendRecordingId = recording!.BEId;
+              await updateRecordingPart(part);
             }
 
-            // Persist the sending flag immediately to avoid concurrent retries picking it up again.
-            part.sending = true;
-            await updateRecordingPart(part);
             await sendRecordingPartNew(part);
           }
         } catch (e, st) {
