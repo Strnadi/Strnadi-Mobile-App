@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
 import 'package:strnadi/localization/localization.dart';
 
 class IncompleteUploadPrompt {
@@ -16,21 +17,23 @@ class IncompleteUploadPrompt {
   }) async {
     if (_showing) return;
 
-    final List<IncompleteRecordingUpload> issues =
-        await DatabaseNew.findIncompleteUploads(recordingId: recordingId);
-    if (!context.mounted || issues.isEmpty) return;
-
-    final List<IncompleteRecordingUpload> visibleIssues = oncePerSession
-        ? issues
-            .where((IncompleteRecordingUpload issue) =>
-                issue.recording.id == null ||
-                !_promptedRecordingIds.contains(issue.recording.id))
-            .toList(growable: false)
-        : issues;
-    if (visibleIssues.isEmpty) return;
-
+    // Claim the prompt before the asynchronous lookup. Multiple screens can
+    // request the check in the same frame and must not race into two dialogs.
     _showing = true;
     try {
+      final List<IncompleteRecordingUpload> issues =
+          await DatabaseNew.findIncompleteUploads(recordingId: recordingId);
+      if (!context.mounted || issues.isEmpty) return;
+
+      final List<IncompleteRecordingUpload> visibleIssues = oncePerSession
+          ? issues
+              .where((IncompleteRecordingUpload issue) =>
+                  issue.recording.id == null ||
+                  !_promptedRecordingIds.contains(issue.recording.id))
+              .toList(growable: false)
+          : issues;
+      if (visibleIssues.isEmpty) return;
+
       final bool canSend = visibleIssues.any(
         (IncompleteRecordingUpload issue) => issue.canResend,
       );
@@ -65,6 +68,10 @@ class IncompleteUploadPrompt {
       if (shouldSend == true && context.mounted) {
         await _sendMissingAudio(context, visibleIssues);
       }
+    } catch (error, stackTrace) {
+      // This check runs from post-frame callbacks as well as explicit actions.
+      // A DB inspection failure must not become an unhandled framework error.
+      Sentry.captureException(error, stackTrace: stackTrace);
     } finally {
       _showing = false;
     }
@@ -85,6 +92,17 @@ class IncompleteUploadPrompt {
 
   static String _singleIssueMessage(IncompleteRecordingUpload issue) {
     final String name = issue.recording.name?.trim() ?? '';
+    final bool canShowExactCounts = backendMissingPartCountsAreDisplayable(
+      hasExactBackendPartCounts: issue.hasExactBackendPartCounts,
+      expectedPartsCount: issue.expectedPartsCount,
+      uploadedPartsCount: issue.uploadedPartsCount,
+    );
+    if (!canShowExactCounts) {
+      final String key = name.isEmpty
+          ? 'recordingUploadCheck.messages.singleUnknown'
+          : 'recordingUploadCheck.messages.singleNamedUnknown';
+      return _format(t(key), <String, String>{'name': name});
+    }
     final String key = name.isEmpty
         ? 'recordingUploadCheck.messages.single'
         : 'recordingUploadCheck.messages.singleNamed';
@@ -97,6 +115,20 @@ class IncompleteUploadPrompt {
   }
 
   static String _multipleIssuesMessage(List<IncompleteRecordingUpload> issues) {
+    final bool canShowExactCounts = issues.every(
+      (IncompleteRecordingUpload issue) =>
+          backendMissingPartCountsAreDisplayable(
+        hasExactBackendPartCounts: issue.hasExactBackendPartCounts,
+        expectedPartsCount: issue.expectedPartsCount,
+        uploadedPartsCount: issue.uploadedPartsCount,
+      ),
+    );
+    if (!canShowExactCounts) {
+      return _format(
+        t('recordingUploadCheck.messages.multipleUnknown'),
+        <String, String>{'count': issues.length.toString()},
+      );
+    }
     final int missing = issues.fold<int>(
       0,
       (int sum, IncompleteRecordingUpload issue) =>
@@ -113,25 +145,49 @@ class IncompleteUploadPrompt {
     BuildContext context,
     List<IncompleteRecordingUpload> issues,
   ) async {
-    try {
-      for (final IncompleteRecordingUpload issue in issues) {
-        if (!issue.canResend || issue.recording.id == null) continue;
-        await DatabaseNew.resendMissingPartsForRecording(
-          issue.recording.id!,
-          uploadedBackendPartIds: issue.uploadedBackendPartIds,
-        );
-      }
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('recordingUploadCheck.messages.sent'))),
-      );
-    } catch (e, stackTrace) {
-      Sentry.captureException(e, stackTrace: stackTrace);
+    final List<IncompleteRecordingUpload> resendableIssues = issues
+        .where((IncompleteRecordingUpload issue) =>
+            issue.canResend && issue.recording.id != null)
+        .toList(growable: false);
+    final int skippedCount = issues.length - resendableIssues.length;
+
+    if (resendableIssues.isEmpty) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t('recordingUploadCheck.messages.sendFailed'))),
       );
+      return;
     }
+
+    final BestEffortBatchResult<IncompleteRecordingUpload> result =
+        await runBestEffortBatch<IncompleteRecordingUpload>(
+      resendableIssues,
+      (IncompleteRecordingUpload issue) {
+        return issue.resendMissingParts();
+      },
+    );
+    for (final BestEffortBatchFailure<IncompleteRecordingUpload> failure
+        in result.failures) {
+      Sentry.captureException(
+        failure.error,
+        stackTrace: failure.stackTrace,
+      );
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.succeeded
+              ? skippedCount == 0
+                  ? t('recordingUploadCheck.messages.sent')
+                  : _format(
+                      t('recordingUploadCheck.messages.sentWithSkipped'),
+                      <String, String>{'count': skippedCount.toString()},
+                    )
+              : t('recordingUploadCheck.messages.sendFailed'),
+        ),
+      ),
+    );
   }
 
   static String _format(String value, Map<String, String> replacements) {

@@ -20,6 +20,9 @@ class DetectedDialect {
   int? BEId; // backend dialect id
   int? filteredPartLocalId; // FK -> FilteredRecordingParts.id
   int? filteredPartBEID; // parent FRP backend id
+  // Ephemeral backend recording identity used while resolving fetched rows.
+  // Filtered-part backend ids are only unique within a recording.
+  int? recordingBEID;
   DateTime? filteredPartStartDate;
   DateTime? filteredPartEndDate;
   int? userGuessDialectId;
@@ -34,6 +37,7 @@ class DetectedDialect {
     this.BEId,
     this.filteredPartLocalId,
     this.filteredPartBEID,
+    this.recordingBEID,
     this.filteredPartStartDate,
     this.filteredPartEndDate,
     this.userGuessDialectId,
