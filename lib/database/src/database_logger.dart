@@ -23,6 +23,6 @@ Future<String> getPath() async {
   final dir = await getApplicationDocumentsDirectory();
   final String path =
       dir.path + 'audio_${DateTime.now().millisecondsSinceEpoch}.wav';
-  logger.i('Generated file path: $path');
+  logger.i('Generated a database file path.');
   return path;
 }
