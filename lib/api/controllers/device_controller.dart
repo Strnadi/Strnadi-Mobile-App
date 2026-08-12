@@ -1,40 +1,63 @@
 import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
-import 'package:strnadi/config/config.dart';
 
 class DeviceController {
   const DeviceController();
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(String path) {
+  Uri _uri(String host, String path) {
     return Uri(
       scheme: 'https',
-      host: Config.host,
+      host: host,
       path: path,
     );
   }
 
-  Future<Response<dynamic>> addDevice(Map<String, dynamic> body) {
+  Options _authorizedOptions(String accessToken) {
+    return Options(
+      contentType: Headers.jsonContentType,
+      followRedirects: false,
+      maxRedirects: 0,
+      headers: <String, Object>{
+        'Authorization': 'Bearer $accessToken',
+      },
+      extra: const <String, Object>{'authRequired': false},
+    );
+  }
+
+  Future<Response<dynamic>> addDevice(
+    Map<String, dynamic> body, {
+    required String host,
+    required String accessToken,
+  }) {
     return _dio.postUri(
-      _uri('/devices/add'),
+      _uri(host, '/devices/add'),
       data: body,
-      options: Options(contentType: Headers.jsonContentType),
+      options: _authorizedOptions(accessToken),
     );
   }
 
-  Future<Response<dynamic>> updateDevice(Map<String, dynamic> body) {
+  Future<Response<dynamic>> updateDevice(
+    Map<String, dynamic> body, {
+    required String host,
+    required String accessToken,
+  }) {
     return _dio.patchUri(
-      _uri('/devices/update'),
+      _uri(host, '/devices/update'),
       data: body,
-      options: Options(contentType: Headers.jsonContentType),
+      options: _authorizedOptions(accessToken),
     );
   }
 
-  Future<Response<dynamic>> deleteDeviceToken(String token) {
+  Future<Response<dynamic>> deleteDeviceToken(
+    String token, {
+    required String host,
+    required String accessToken,
+  }) {
     return _dio.deleteUri(
-      _uri('/devices/delete/$token'),
-      options: Options(contentType: Headers.jsonContentType),
+      _uri(host, '/devices/delete/$token'),
+      options: _authorizedOptions(accessToken),
     );
   }
 }

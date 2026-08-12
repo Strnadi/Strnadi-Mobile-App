@@ -84,7 +84,7 @@ Future<void> showLocalNotificationFromData(Map<String, dynamic> data) async {
 
     final String? title = lower['title$lang']?.toString();
     final String? body = lower['body$lang']?.toString();
-    _logger.i('Got notification with data: $lower');
+    _logger.i('Received localized notification data.');
     if (title == null && body == null) {
       _logger.w('No title/body for lang $lang in data; skipping');
       return;

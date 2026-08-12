@@ -16,7 +16,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localization/localization.dart';
