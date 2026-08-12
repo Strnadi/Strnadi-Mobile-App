@@ -27,13 +27,6 @@ func registerPlugins(registry: FlutterPluginRegistry) {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        // Retrieve the link from parameters
-        if let url = AppLinks.shared.getLink(launchOptions: launchOptions) {
-          // We have a link, propagate it to your Flutter app or not
-          AppLinks.shared.handleLink(url: url)
-          return true // Returning true will stop the propagation to other packages
-        }
-
 #if canImport(workmanager_apple)
         // Use the global function so no context is captured.
         WorkmanagerPlugin.setPluginRegistrantCallback(registerPlugins)
@@ -42,7 +35,20 @@ func registerPlugins(registry: FlutterPluginRegistry) {
         WorkmanagerPlugin.registerBGProcessingTask(withIdentifier: "com.delta.strnadi.sendRecording")
 #endif
 
-        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+        // Flutter must always finish registering plugins, even when the app was
+        // launched by a universal link.
+        let didFinishLaunching = super.application(
+            application,
+            didFinishLaunchingWithOptions: launchOptions
+        )
+
+        ColdStartLinkForwarder.forward(
+            AppLinks.shared.getLink(launchOptions: launchOptions)
+        ) { url in
+            AppLinks.shared.handleLink(url: url)
+        }
+
+        return didFinishLaunching
     }
 
     func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

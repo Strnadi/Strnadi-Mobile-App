@@ -14,9 +14,6 @@
     <!-- Povolení pro zobrazování notifikací (API 33 +) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Automatické spuštění služby po bootu -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
     <!-- Nepovinné: sledování polohy i na pozadí mimo foreground service -->
     <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
 
@@ -78,7 +75,7 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
             android:foregroundServiceType="microphone|location"
-            android:stopWithTask="false">
+            android:stopWithTask="true">
         </service>
         <activity
             android:name="com.aboutyou.dart_packages.sign_in_with_apple.SignInWithAppleCallback"

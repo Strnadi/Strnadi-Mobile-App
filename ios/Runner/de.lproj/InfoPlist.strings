@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Strnadi benötigt Kamerazugriff, damit du Vogelfotos zu Aufnahmen und Bestimmungsanfragen hinzufügen kannst.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Strnadi verwendet deinen Standort, um einer Aufnahme einen genauen Ort zuzuordnen, auch wenn die Aufnahme im Hintergrund fortgesetzt wird.";
+"NSLocationWhenInUseUsageDescription" = "Strnadi verwendet deinen Standort, um einer Aufnahme einen genauen Ort zuzuordnen.";
+"NSMicrophoneUsageDescription" = "Strnadi benötigt Mikrofonzugriff, um Vogelgesang zur Bestimmung und Analyse aufzunehmen.";
+"NSPhotoLibraryUsageDescription" = "Strnadi benötigt Zugriff auf deine Fotomediathek, damit du vorhandene Vogelfotos anhängen kannst.";
+"NSUserNotificationUsageDescription" = "Strnadi verwendet Mitteilungen, um über den Fortschritt von Aufnahmen und Uploads zu informieren.";
+"NSUserTrackingUsageDescription" = "Mit deiner Zustimmung verwendet Strnadi Nutzungsdaten, um Analysen und Inhalte zu verbessern. Du kannst diese Auswahl in den Einstellungen ändern.";

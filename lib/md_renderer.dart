@@ -15,18 +15,21 @@
  */
 
 import 'dart:async';
+import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/security/markdown_download_security.dart';
 import 'package:strnadi/utils/markdown_html_normalizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const FlutterSecureStorage _markdownFileStorage = FlutterSecureStorage();
 const Set<String> _markdownImageExtensions = <String>{
   'png',
   'jpg',
@@ -64,30 +67,115 @@ bool _markdownPathLooksLikeFile(String path) {
   return _markdownPathExtension(path) != null;
 }
 
-Future<Map<String, String>> _markdownDownloadHeaders(Uri uri) async {
-  if (uri.host != Config.host) {
-    return const <String, String>{};
-  }
+const int _maximumProtectedMarkdownBytes = 100 * 1024 * 1024;
+final Random _protectedMarkdownRandom = Random.secure();
 
-  final String? token = await _markdownFileStorage.read(key: 'token');
-  if (token == null || token.isEmpty) {
-    return const <String, String>{};
-  }
+Future<String?> _downloadProtectedMarkdownFile(
+  Uri uri,
+  ActivatedAuthSessionSnapshot session,
+) async {
+  if (!await activatedAuthSessions.isCurrent(session)) return null;
 
-  return <String, String>{
-    'Authorization': 'Bearer $token',
-  };
+  final HttpClient client = HttpClient();
+  File? outputFile;
+  RandomAccessFile? output;
+  try {
+    final HttpClientRequest request = await client.getUrl(uri);
+    request
+      ..followRedirects = false
+      ..headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${session.accessToken}',
+      );
+    final HttpClientResponse response = await request.close();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      await response.drain<void>();
+      return null;
+    }
+    final int declaredLength = response.contentLength;
+    if (declaredLength > _maximumProtectedMarkdownBytes) {
+      await response.drain<void>();
+      return null;
+    }
+    if (!await activatedAuthSessions.isCurrent(session)) {
+      await response.drain<void>();
+      return null;
+    }
+
+    final String extension = _markdownPathExtension(uri.path) ?? 'bin';
+    final String safeExtension =
+        RegExp(r'^[a-z0-9]{1,10}$').hasMatch(extension) ? extension : 'bin';
+    final Directory temporaryDirectory = await getTemporaryDirectory();
+    final String entropy = List<String>.generate(
+      16,
+      (_) => _protectedMarkdownRandom
+          .nextInt(256)
+          .toRadixString(16)
+          .padLeft(2, '0'),
+    ).join();
+    outputFile = File(
+      '${temporaryDirectory.path}/protected-markdown-$entropy.$safeExtension',
+    );
+    await outputFile.create(exclusive: true);
+    output = await outputFile.open(mode: FileMode.writeOnly);
+
+    int received = 0;
+    await for (final List<int> chunk in response) {
+      received += chunk.length;
+      if (received > _maximumProtectedMarkdownBytes) {
+        throw const FileSystemException(
+          'Protected Markdown attachment exceeds its size limit.',
+        );
+      }
+      await output.writeFrom(chunk);
+    }
+    await output.flush();
+    await output.close();
+    output = null;
+
+    if (!await activatedAuthSessions.isCurrent(session)) {
+      await outputFile.delete();
+      return null;
+    }
+    return outputFile.path;
+  } catch (_) {
+    try {
+      await output?.close();
+    } catch (_) {
+      // Preserve the primary download or write failure.
+    }
+    try {
+      if (outputFile != null && await outputFile.exists()) {
+        await outputFile.delete();
+      }
+    } catch (_) {
+      // Temporary-file cleanup is best effort.
+    }
+    return null;
+  } finally {
+    client.close(force: true);
+  }
 }
 
 Future<String?> _downloadMarkdownFilePath(List<Uri> candidates) async {
   for (final Uri candidate in candidates) {
     try {
-      final Map<String, String> headers =
-          await _markdownDownloadHeaders(candidate);
+      if (targetsConfiguredBackendHost(candidate, Config.host)) {
+        if (!isApprovedProtectedMarkdownOrigin(candidate, Config.host)) {
+          continue;
+        }
+        final ActivatedAuthSessionSnapshot? session =
+            await activatedAuthSessions.capture();
+        if (session == null || !session.verified) continue;
+        final String? protectedPath =
+            await _downloadProtectedMarkdownFile(candidate, session);
+        if (protectedPath != null) return protectedPath;
+        continue;
+      }
+      if (candidate.scheme.toLowerCase() != 'https') continue;
       final file = await DefaultCacheManager().getSingleFile(
         candidate.toString(),
         key: candidate.toString(),
-        headers: headers.isEmpty ? null : headers,
       );
       return file.path;
     } catch (_) {
@@ -143,6 +231,7 @@ class _MDRenderState extends State<MDRender> {
   }
 
   void _setMarkdownContent(String content) {
+    if (!mounted) return;
     setState(() {
       _markdownContent = normalizeMarkdownHtml(content);
     });

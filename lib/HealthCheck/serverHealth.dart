@@ -15,6 +15,7 @@
  */
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/health_controller.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:logger/logger.dart';
 
 import '../config/config.dart';
@@ -36,14 +37,13 @@ class _ServerHealthState extends State<ServerHealth> {
     try {
       final response =
           await _healthController.checkBackendHealth(host: Config.host);
-      if (response.statusCode == 200) {
+      if (mounted && response.statusCode == 200) {
         setState(() {
           _isServerHealthy = true;
         });
       }
     } catch (e) {
       logger.e(e);
-      print(e);
     }
   }
 
@@ -58,13 +58,13 @@ class _ServerHealthState extends State<ServerHealth> {
     return SizedBox(
       child: Center(
         child: _isServerHealthy
-            ? const Text(
-                'Server is healthy',
-                style: TextStyle(color: Colors.green),
+            ? Text(
+                t('serverHealth.healthy'),
+                style: const TextStyle(color: Colors.green),
               )
-            : const Text(
-                'Server is down',
-                style: TextStyle(color: Colors.red),
+            : Text(
+                t('serverHealth.unavailable'),
+                style: const TextStyle(color: Colors.red),
               ),
       ),
     );

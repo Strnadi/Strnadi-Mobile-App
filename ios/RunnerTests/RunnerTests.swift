@@ -1,12 +1,31 @@
 import Flutter
 import UIKit
 import XCTest
+@testable import Runner
 
 class RunnerTests: XCTestCase {
 
-  func testExample() {
-    // If you add code to the Runner application, consider adding tests here.
-    // See https://developer.apple.com/documentation/xctest for more information about using XCTest.
+  func testColdStartLinkForwarderForwardsExactlyOnce() {
+    let expectedURL = URL(string: "https://strnadi.cz/nahravka/42")!
+    var forwardedURLs: [URL] = []
+
+    let handled = ColdStartLinkForwarder.forward(expectedURL) { url in
+      forwardedURLs.append(url)
+    }
+
+    XCTAssertTrue(handled)
+    XCTAssertEqual(forwardedURLs, [expectedURL])
+  }
+
+  func testColdStartLinkForwarderIgnoresMissingURL() {
+    var callbackCount = 0
+
+    let handled = ColdStartLinkForwarder.forward(nil) { _ in
+      callbackCount += 1
+    }
+
+    XCTAssertFalse(handled)
+    XCTAssertEqual(callbackCount, 0)
   }
 
 }
