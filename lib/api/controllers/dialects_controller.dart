@@ -7,10 +7,14 @@ class DialectsController {
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(String path, {Map<String, dynamic>? queryParameters}) {
+  Uri _uri(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    String? host,
+  }) {
     return Uri(
       scheme: 'https',
-      host: Config.host,
+      host: host ?? Config.host,
       path: path,
       queryParameters: queryParameters?.map(
         (key, value) => MapEntry(key, value?.toString()),
@@ -25,9 +29,9 @@ class DialectsController {
     );
   }
 
-  Future<Response<dynamic>> fetchDialectPalette() {
+  Future<Response<dynamic>> fetchDialectPalette({String? host}) {
     return _dio.getUri(
-      _uri('/recordings/dialects'),
+      _uri('/recordings/dialects', host: host),
       options: Options(contentType: Headers.jsonContentType),
     );
   }

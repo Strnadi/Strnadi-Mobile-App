@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
+import 'package:strnadi/api/post_json_with_redirect.dart';
 import 'package:strnadi/config/config.dart';
 
 class RecordingsController {
@@ -7,10 +8,14 @@ class RecordingsController {
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(String path, {Map<String, dynamic>? queryParameters}) {
+  Uri _uri(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    String? host,
+  }) {
     return Uri(
       scheme: 'https',
-      host: Config.host,
+      host: host ?? Config.host,
       path: path,
       queryParameters: queryParameters?.map(
         (key, value) => MapEntry(key, value?.toString()),
@@ -18,37 +23,88 @@ class RecordingsController {
     );
   }
 
-  Future<Response<dynamic>> createRecording(Map<String, Object?> body) {
-    return _dio.postUri(
-      _uri('/recordings'),
-      data: body,
-      options: Options(contentType: Headers.jsonContentType),
+  Future<Response<dynamic>> createRecording(
+    Map<String, Object?> body, {
+    String? accessToken,
+    String? idempotencyKey,
+    String? host,
+    required Future<void> Function() beforePost,
+  }) {
+    return postJsonWithSameOriginRedirect(
+      dio: _dio,
+      uri: _uri('/recordings', host: host),
+      body: body,
+      headers: <String, Object?>{
+        if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+      },
+      beforePost: beforePost,
     );
   }
 
   Future<Response<dynamic>> updateRecording(
-      int backendRecordingId, Map<String, Object?> body) {
+    int backendRecordingId,
+    Map<String, Object?> body, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.patchUri(
-      _uri('/recordings/$backendRecordingId'),
+      _uri('/recordings/$backendRecordingId', host: host),
       data: body,
-      options: Options(contentType: Headers.jsonContentType),
+      options: Options(
+        contentType: Headers.jsonContentType,
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, Object?>{
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+      ),
     );
   }
 
-  Future<Response<dynamic>> deleteRecording(int backendRecordingId) {
+  Future<Response<dynamic>> deleteRecording(
+    int backendRecordingId, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.deleteUri(
-      _uri('/recordings/$backendRecordingId'),
-      options: Options(contentType: Headers.jsonContentType),
+      _uri('/recordings/$backendRecordingId', host: host),
+      options: Options(
+        contentType: Headers.jsonContentType,
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, Object?>{
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+      ),
     );
   }
 
-  Future<Response<dynamic>> fetchRecordingsForUser(String userId) {
+  Future<Response<dynamic>> fetchRecordingsForUser(
+    String userId, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.getUri(
-      _uri('/recordings', queryParameters: {
-        'parts': 'true',
-        'userId': userId,
-      }),
-      options: Options(contentType: Headers.jsonContentType),
+      _uri(
+        '/recordings',
+        host: host,
+        queryParameters: {
+          'parts': 'true',
+          'userId': userId,
+        },
+      ),
+      options: Options(
+        contentType: Headers.jsonContentType,
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, Object?>{
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+      ),
     );
   }
 
@@ -67,21 +123,46 @@ class RecordingsController {
     );
   }
 
-  Future<Response<dynamic>> fetchIncompleteRecordings() {
+  Future<Response<dynamic>> fetchIncompleteRecordings({
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.getUri(
-      _uri('/recordings/incomplete'),
-      options: Options(contentType: Headers.jsonContentType),
+      _uri('/recordings/incomplete', host: host),
+      options: Options(
+        contentType: Headers.jsonContentType,
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, Object?>{
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+      ),
     );
   }
 
   Future<Response<dynamic>> fetchRecordingById(
     int backendRecordingId, {
     bool includeParts = true,
+    String? accessToken,
+    String? host,
   }) {
     return _dio.getUri(
-      _uri('/recordings/$backendRecordingId', queryParameters: {
-        'parts': includeParts ? 'true' : 'false',
-      }),
+      _uri(
+        '/recordings/$backendRecordingId',
+        host: host,
+        queryParameters: {
+          'parts': includeParts ? 'true' : 'false',
+        },
+      ),
+      options: Options(
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, Object?>{
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+      ),
     );
   }
 

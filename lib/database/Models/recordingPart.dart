@@ -41,6 +41,10 @@ class RecordingPart {
   int? length;
   bool sent;
   bool sending;
+  bool uploadAttempted;
+  String? uploadKey;
+  String? uploadContentSha256;
+  int? uploadContentBytes;
 
   RecordingPart({
     this.id,
@@ -59,6 +63,10 @@ class RecordingPart {
     this.dataBase64Temp,
     this.sent = false,
     this.sending = false,
+    this.uploadAttempted = false,
+    this.uploadKey,
+    this.uploadContentSha256,
+    this.uploadContentBytes,
   });
 
   factory RecordingPart.fromJson(Map<String, Object?> json) {
@@ -76,6 +84,10 @@ class RecordingPart {
         square: json['square'] as String?,
         sent: (json['sent'] as int) == 1,
         sending: (json['sending'] as int) == 1,
+        uploadAttempted: (json['uploadAttempted'] as int? ?? 0) == 1,
+        uploadKey: json['uploadKey'] as String?,
+        uploadContentSha256: json['uploadContentSha256'] as String?,
+        uploadContentBytes: json['uploadContentBytes'] as int?,
         path: json['path'] as String?,
         length: json['length'] as int?);
   }
@@ -116,7 +128,14 @@ class RecordingPart {
         unready.gpsLongitudeEnd == null ||
         unready.path == null) {
       logger.i(
-          'Recording part is not ready. Part id: ${unready.id}, recording id: ${unready.recordingId}, start time: ${unready.startTime}, end time: ${unready.endTime}, gpsLatitudeStart: ${unready.gpsLatitudeStart}, gpsLatitudeEnd: ${unready.gpsLatitudeEnd}, gpsLongitudeStart: ${unready.gpsLongitudeStart}, gpsLongitudeEnd: ${unready.gpsLongitudeEnd}, path: ${unready.path}');
+        'Recording part is not ready '
+        '(id=${unready.id}, recordingId=${unready.recordingId}, '
+        'hasStart=${unready.startTime != null}, '
+        'hasEnd=${unready.endTime != null}, '
+        'hasStartLocation=${unready.gpsLatitudeStart != null && unready.gpsLongitudeStart != null}, '
+        'hasEndLocation=${unready.gpsLatitudeEnd != null && unready.gpsLongitudeEnd != null}, '
+        'hasPath=${unready.path != null && unready.path!.isNotEmpty}).',
+      );
       throw UnreadyException('Recording part is not ready');
     }
     return RecordingPart(
@@ -179,6 +198,10 @@ class RecordingPart {
       'square': square,
       'sent': sent ? 1 : 0,
       'sending': sending ? 1 : 0,
+      'uploadAttempted': uploadAttempted ? 1 : 0,
+      'uploadKey': uploadKey,
+      'uploadContentSha256': uploadContentSha256,
+      'uploadContentBytes': uploadContentBytes,
       'length': length
     };
   }

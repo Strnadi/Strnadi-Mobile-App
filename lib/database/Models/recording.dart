@@ -17,7 +17,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/exceptions.dart';
-import 'package:strnadi/utils/log_redactor.dart';
 
 class Recording {
   int? id;
@@ -34,6 +33,12 @@ class Recording {
   bool downloaded;
   bool sent;
   bool sending;
+  String? uploadKey;
+  String? uploadLease;
+  int? uploadLeaseUpdatedAt;
+  bool parentUploadAttempted;
+  String? uploadDeviceId;
+  bool captureReviewed;
   double? totalSeconds;
   int? partCount;
   String env;
@@ -53,6 +58,12 @@ class Recording {
     this.downloaded = true,
     this.sent = false,
     this.sending = false,
+    this.uploadKey,
+    this.uploadLease,
+    this.uploadLeaseUpdatedAt,
+    this.parentUploadAttempted = false,
+    this.uploadDeviceId,
+    this.captureReviewed = true,
     required this.partCount,
     required this.env,
     this.totalSeconds,
@@ -71,10 +82,18 @@ class Recording {
       note: json['note'] as String?,
       name: json['name'] as String?,
       path: json['path'] as String?,
-      totalSeconds: json['totalSeconds'] as double?,
+      totalSeconds: (json['totalSeconds'] as num?)?.toDouble(),
       sent: (json['sent'] as int) == 1,
       downloaded: (json['downloaded'] as int) == 1,
       sending: (json['sending'] as int) == 1,
+      uploadKey: json['uploadKey'] as String?,
+      uploadLease: json['uploadLease'] as String?,
+      uploadLeaseUpdatedAt: json['uploadLeaseUpdatedAt'] as int?,
+      parentUploadAttempted: json['parentUploadAttempted'] == 1 ||
+          json['parentUploadAttempted'] == true,
+      uploadDeviceId: json['uploadDeviceId'] as String?,
+      captureReviewed:
+          json['captureReviewed'] == 1 || json['captureReviewed'] == true,
       partCount: json['partCount'] as int? ?? 0,
       env: json['env'] as String? ?? 'prod',
     );
@@ -108,7 +127,11 @@ class Recording {
         env: Config.hostEnvironment.name.toString());
   }
 
-  factory Recording.fromBEJson(Map<String, Object?> json, int? userId) {
+  factory Recording.fromBEJson(
+    Map<String, Object?> json,
+    int? userId, {
+    String? environment,
+  }) {
     return Recording(
       BEId: json['id'] as int?,
       userId: userId ?? json['userId'] as int?,
@@ -122,8 +145,10 @@ class Recording {
       downloaded: false,
       path: null,
       sending: false,
+      parentUploadAttempted: true,
+      captureReviewed: true,
       partCount: int.tryParse(json['expectedPartsCount'].toString()),
-      env: Config.hostEnvironment.name.toString(),
+      env: environment ?? Config.hostEnvironment.name.toString(),
       totalSeconds: double.parse(json['totalSeconds'].toString()),
     );
   }
@@ -131,6 +156,7 @@ class Recording {
   Map<String, Object?> toJson() {
     return {
       'id': id,
+      'userId': userId,
       'BEId': BEId,
       'mail': mail,
       'createdAt': createdAt.toString(),
@@ -143,6 +169,12 @@ class Recording {
       'sent': sent ? 1 : 0,
       'downloaded': downloaded ? 1 : 0,
       'sending': sending ? 1 : 0,
+      'uploadKey': uploadKey,
+      'uploadLease': sending ? uploadLease : null,
+      'uploadLeaseUpdatedAt': sending ? uploadLeaseUpdatedAt : null,
+      'parentUploadAttempted': parentUploadAttempted ? 1 : 0,
+      'uploadDeviceId': uploadDeviceId,
+      'captureReviewed': captureReviewed ? 1 : 0,
       'partCount': partCount,
       'totalSeconds': totalSeconds,
       'env': env,
@@ -151,6 +183,10 @@ class Recording {
 
   Future<Map<String, Object?>> toBEJson() async {
     final String? deviceId = await FlutterSecureStorage().read(key: 'fcmToken');
+    return toBEJsonWithDeviceId(deviceId);
+  }
+
+  Map<String, Object?> toBEJsonWithDeviceId(String? deviceId) {
     logger.i(
         'Fetched deviceId for BE JSON: ${deviceId != null && deviceId.isNotEmpty}');
     final Map<String, Object?> body = {
@@ -164,7 +200,6 @@ class Recording {
       'expectedPartsCount': partCount,
       'deviceId': deviceId,
     };
-    logger.i('Generated BE JSON for Recording: ${LogRedactor.redactMap(body)}');
     return body;
   }
 
@@ -172,38 +207,23 @@ class Recording {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! Recording) return false;
-    bool equal = true;
-    if (mail != null && other.mail != null) {
-      equal = equal && mail == other.mail;
-    }
-    if (createdAt != null && other.createdAt != null) {
-      equal = equal && createdAt == other.createdAt;
-    }
-    if (estimatedBirdsCount != null && other.estimatedBirdsCount != null) {
-      equal = equal && estimatedBirdsCount == other.estimatedBirdsCount;
-    }
-    if (device != null && other.device != null) {
-      equal = equal && device == other.device;
-    }
-    if (byApp != null && other.byApp != null) {
-      equal = equal && byApp == other.byApp;
-    }
-    if (note != null && other.note != null) {
-      equal = equal && note == other.note;
-    }
-    return equal;
+    return mail == other.mail &&
+        createdAt == other.createdAt &&
+        estimatedBirdsCount == other.estimatedBirdsCount &&
+        device == other.device &&
+        byApp == other.byApp &&
+        note == other.note;
   }
 
   @override
   int get hashCode {
     return Object.hash(
-      BEId ?? 0,
       mail,
       createdAt,
       estimatedBirdsCount,
-      device ?? '',
+      device,
       byApp,
-      note ?? '',
+      note,
     );
   }
 }

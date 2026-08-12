@@ -32,6 +32,8 @@ class Dialect {
   int? BEID; // Backend identifier for the dialect
   int? recordingId; // Identifier for the associated recording
   int? recordingBEID; // Identifier for the recording in the backend
+  String? uploadKey; // Durable idempotency identity
+  bool uploadAttempted; // Request fields are frozen after first POST
   String? userGuessDialect;
   String? adminDialect;
   DateTime startDate; // Start date of the dialect
@@ -43,6 +45,8 @@ class Dialect {
     this.BEID,
     this.recordingId,
     this.recordingBEID,
+    this.uploadKey,
+    this.uploadAttempted = false,
     String? userGuessDialect,
     String? adminDialect,
     required this.startDate,
@@ -57,6 +61,8 @@ class Dialect {
       BEID: json['BEID'],
       recordingId: json['recordingId'],
       recordingBEID: json['recordingBEID'],
+      uploadKey: json['uploadKey'],
+      uploadAttempted: (json['uploadAttempted'] as int? ?? 0) == 1,
       userGuessDialect: json['userGuessDialect'],
       adminDialect: json['adminDialect'],
       startDate: DateTime.parse(json['startDate']),
@@ -86,6 +92,8 @@ class Dialect {
       'BEID': BEID,
       'recordingId': recordingId,
       'recordingBEID': recordingBEID,
+      'uploadKey': uploadKey,
+      'uploadAttempted': uploadAttempted ? 1 : 0,
       'userGuessDialect': DialectKeywordTranslator.toEnglish(userGuessDialect),
       'adminDialect': DialectKeywordTranslator.toEnglish(adminDialect),
       'startDate': startDate.toIso8601String(),
@@ -166,9 +174,8 @@ Future<List<Dialect>> fetchRecordingDialects(int? recordingBEID) async {
   try {
     if (responseStatus == 200) {
       logger.i('Loaded dialects for recording: $recordingBEID');
-      final dynamic decoded = responseData is String
-          ? json.decode(responseData as String)
-          : responseData;
+      final dynamic decoded =
+          responseData is String ? json.decode(responseData) : responseData;
       if (decoded is List) {
         return dialectsFromBEJson(decoded);
       }
