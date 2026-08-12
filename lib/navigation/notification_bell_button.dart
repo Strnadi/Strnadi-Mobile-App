@@ -21,18 +21,27 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/navigation/guest_user_popup.dart';
+import 'package:strnadi/navigation/recorder_exit_policy.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
 
 Future<void> _openNotificationScreen(
   BuildContext context, {
   required bool isGuestUser,
+  RecorderExitPolicy? recorderExitPolicy,
 }) async {
   const FlutterSecureStorage storage = FlutterSecureStorage();
   final String? userId = await storage.read(key: 'userId');
+  if (!context.mounted) return;
   if (isGuestUser || userId == null || userId.isEmpty) {
-    await showGuestUserPopup(context);
+    await showGuestUserPopup(
+      context,
+      recorderExitPolicy: recorderExitPolicy,
+    );
     return;
   }
+
+  if (!await permitsRecorderExit(recorderExitPolicy)) return;
+  if (!context.mounted) return;
 
   if (ModalRoute.of(context)?.settings.name != '/notification') {
     await Navigator.push(
@@ -51,11 +60,13 @@ Future<void> _openNotificationScreen(
 class NotificationBellButton extends StatefulWidget {
   final bool isGuestUser;
   final bool isSelected;
+  final RecorderExitPolicy? recorderExitPolicy;
 
   const NotificationBellButton({
     super.key,
     this.isGuestUser = false,
     this.isSelected = false,
+    this.recorderExitPolicy,
   });
 
   @override
@@ -86,7 +97,12 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
   }
 
   Future<void> _handlePressed() async {
-    await _openNotificationScreen(context, isGuestUser: widget.isGuestUser);
+    await _openNotificationScreen(
+      context,
+      isGuestUser: widget.isGuestUser,
+      recorderExitPolicy: widget.recorderExitPolicy,
+    );
+    if (!mounted) return;
     _refreshUnreadCount();
   }
 
