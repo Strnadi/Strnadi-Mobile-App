@@ -22,9 +22,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:logger/logger.dart';
-import '../../bottomBar.dart';
 import '../../navigation/scaffold_with_bottom_bar.dart';
 import '../settingsManager.dart';
 import 'package:strnadi/config/config.dart';
@@ -33,7 +33,7 @@ final _logger = Logger();
 
 class SettingsPage extends StatefulWidget {
   SettingsPage({super.key, required this.logout});
-  Function(BuildContext, {bool popUp}) logout;
+  final Future<void> Function(BuildContext, {bool popUp}) logout;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -57,9 +57,13 @@ class _SettingsPageState extends State<SettingsPage> {
   final List<_CachedRecordingItem> _cachedRecordings = [];
 
   Future<void> _loadSettings() async {
-    useMobileData = await _settingsService.isCellular();
-    _localRecodingsMax = await _settingsService.getLocalRecordingsMax();
-    setState(() {});
+    final bool loadedUseMobileData = await _settingsService.isCellular();
+    final int loadedMax = await _settingsService.getLocalRecordingsMax();
+    if (!mounted) return;
+    setState(() {
+      useMobileData = loadedUseMobileData;
+      _localRecodingsMax = loadedMax;
+    });
   }
 
   Future<void> _loadCachedRecordings() async {
@@ -169,7 +173,9 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!confirmed) return;
     if (item.recording.id == null) return;
     try {
-      await DatabaseNew.deleteRecordingFromCache(item.recording.id!);
+      await DatabaseNew.deleteDownloadedRecordingFromCurrentUserCache(
+        item.recording.id!,
+      );
       await _loadCachedRecordings();
     } catch (e, stackTrace) {
       _logger.e('Failed to delete cached recording ${item.recording.id}',
@@ -188,9 +194,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadLanguage() async {
-    var language = await Config.getLanguagePreference();
+    final languagePreference = await Config.getLanguagePreference();
+    if (!mounted) return;
     setState(() {
-      this.language = Config.StringFromLanguagePreference(language) ?? 'cs';
+      language =
+          Config.StringFromLanguagePreference(languagePreference) ?? 'cs';
     });
   }
 
@@ -349,8 +357,10 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
       onChanged: (String? newValue) async {
         if (newValue != null) {
-          Localization.load('assets/lang/$newValue.json').then((_) {
-            setState(() {});
+          await Localization.load('assets/lang/$newValue.json');
+          if (!mounted) return;
+          setState(() {
+            language = newValue;
           });
           final prefs = await SharedPreferences.getInstance();
 
@@ -407,10 +417,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   false;
 
               if (!confirmed) return;
+              if (!mounted) return;
 
               setState(() => _envChanging = true);
               try {
                 await Config.setHostEnvironment(newVal);
+                await DynamicIcon.refreshAllDialects(clearExisting: true);
 
                 // Reload local env + role access (role likely wiped on logout)
                 await _loadEnvAccessAndValue();
@@ -427,7 +439,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 );
 
-                widget.logout(context, popUp: false);
+                await widget.logout(context, popUp: false);
                 // Return to app root so auth guard can redirect to sign-in
                 //Navigator.of(context).popUntil((route) => route.isFirst);
               } finally {

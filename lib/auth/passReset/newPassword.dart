@@ -14,24 +14,34 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+import 'dart:async';
+
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/auth/passReset/password_reset_flow.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'changedPassword.dart';
 
 final logger = Logger();
 const AuthController _authController = AuthController();
 
+typedef PasswordResetSubmitter = Future<int?> Function({
+  required String email,
+  required String token,
+  required String password,
+});
+
 class ChangePassword extends StatefulWidget {
   final String jwt;
+  final PasswordResetSubmitter? submitPasswordReset;
 
   const ChangePassword({
     super.key,
     required this.jwt,
+    this.submitPasswordReset,
   });
 
   @override
@@ -49,6 +59,7 @@ class _RegPasswordState extends State<ChangePassword> {
   // Whether the password fields are hidden
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _resetting = false;
 
   // Colors from your design
   static const Color textColor = Color(0xFF2D2B18);
@@ -88,8 +99,6 @@ class _RegPasswordState extends State<ChangePassword> {
 
   @override
   Widget build(BuildContext context) {
-    bool reseting = false;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
@@ -303,25 +312,10 @@ class _RegPasswordState extends State<ChangePassword> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        if ((_formKey.currentState?.validate() ?? false) &&
-                            !reseting) {
-                          reseting = true;
-                          bool result = await setNewPassword(
-                              widget.jwt, _passwordController.text);
-                          if (result) {
-                            Navigator.replace(
-                              context,
-                              oldRoute: ModalRoute.of(context)!,
-                              newRoute: MaterialPageRoute(
-                                builder: (context) =>
-                                    const PasswordChangedScreen(),
-                              ),
-                            );
-                          }
-                          reseting = false;
-                        }
-                      },
+                      key: const Key('change-password-submit'),
+                      onPressed: _resetting
+                          ? null
+                          : () => unawaited(_submitNewPassword()),
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
                         shadowColor: Colors.transparent,
@@ -371,23 +365,87 @@ class _RegPasswordState extends State<ChangePassword> {
     );
   }
 
-  Future<bool> setNewPassword(String jwt, String password) async {
-    String? email = JwtDecoder.decode(jwt)['sub'];
-    if (email == null) {
-      return false;
-    }
-    final response = await _authController.setResetPassword(
-      email: email,
-      token: jwt,
-      password: password,
-    );
+  Future<void> _submitNewPassword() async {
+    if (_resetting || !mounted) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    if (response.statusCode == 200) {
-      logger.i('Password reset successful');
-      return true;
-    } else {
-      logger.e('Failed to reset password: ${response.data}');
-      return false;
+    setState(() => _resetting = true);
+    try {
+      final String? email = passwordResetEmailFromToken(widget.jwt);
+      if (email == null) {
+        _showMessage(
+          t('signup.passwordReset.change.errors.invalidLink'),
+        );
+        return;
+      }
+
+      final int? status = widget.submitPasswordReset == null
+          ? (await _authController.setResetPassword(
+              email: email,
+              token: widget.jwt,
+              password: _passwordController.text,
+            ))
+              .statusCode
+          : await widget.submitPasswordReset!(
+              email: email,
+              token: widget.jwt,
+              password: _passwordController.text,
+            );
+      if (!mounted) return;
+
+      if (status == 200) {
+        unawaited(
+          Navigator.of(context).pushReplacement<void, void>(
+            MaterialPageRoute<void>(
+              builder: (_) => const PasswordChangedScreen(),
+            ),
+          ),
+        );
+      } else {
+        logger.e('Failed to reset password ($status).');
+        _showMessage(
+          t('signup.passwordReset.change.errors.failed'),
+        );
+      }
+    } catch (error, stackTrace) {
+      logger.e(
+        'Password reset request failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        _showMessage(
+          t('signup.passwordReset.change.errors.connection'),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _resetting = false);
+      }
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: Text(t('signup.passwordReset.request.dialogTitle')),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(t('auth.buttons.ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

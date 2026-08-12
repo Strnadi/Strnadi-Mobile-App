@@ -13,18 +13,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'dart:ffi';
-import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
+import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
-import 'package:strnadi/auth/registeration/passwordReg.dart';
 import 'package:logger/logger.dart';
-import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/navigation/session_navigation.dart';
 
@@ -33,6 +28,7 @@ import 'overview.dart';
 
 Logger logger = Logger();
 const AuthController _authController = AuthController();
+const UserController _userController = UserController();
 
 class RegLocation extends StatefulWidget {
   final String email;
@@ -70,6 +66,7 @@ class _RegLocationState extends State<RegLocation> {
   static const Color yellow = Color(0xFFFFD641);
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -86,7 +83,6 @@ class _RegLocationState extends State<RegLocation> {
   }
 
   Future<void> register() async {
-    final secureStorage = FlutterSecureStorage();
     final requestBody = <String, dynamic>{
       'email': widget.email,
       'password': widget.password,
@@ -100,7 +96,7 @@ class _RegLocationState extends State<RegLocation> {
       'consent': widget.consent,
     };
 
-    logger.i("Sign Up Request Body: ${jsonEncode(requestBody)}");
+    logger.i('Submitting sign-up request from the location step.');
 
     try {
       final response = await _authController.signUp(
@@ -108,15 +104,30 @@ class _RegLocationState extends State<RegLocation> {
         token: widget.jwt,
       );
 
-      logger.i("Sign Up Response: ${response.data}");
+      logger.i('Sign-up response status: ${response.statusCode}');
 
       if ([200, 201, 202].contains(response.statusCode)) {
-        // Store the token if returned
-        await secureStorage.write(
-            key: 'token', value: response.data.toString());
+        final AuthSessionTransition transition = await activatedAuthSessions
+            .beginTokenTransition(response.data.toString());
+        final idResponse = await _userController.getUserIdFromToken();
+        final int? userId = idResponse.statusCode == 200
+            ? int.tryParse(idResponse.data.toString())
+            : null;
+        if (userId == null || userId <= 0) {
+          logger.e(
+              'Failed to resolve signed-up user id; status ${idResponse.statusCode}.');
+          _showMessage(t('login.errors.idGetError'));
+          return;
+        }
+        await activatedAuthSessions.activate(
+          transition,
+          userId,
+          verified: false,
+        );
         await fb.refreshToken();
 
         // Navigate to the login screen (or next step)
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -125,17 +136,17 @@ class _RegLocationState extends State<RegLocation> {
         );
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
-        logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
-        _showMessage(t('signup.errors.user_exists'));
+        logger.w('Sign up failed with status ${response.statusCode}.');
+        _showMessage(t('signup.city.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
-        _showMessage(t('signup.errors.error_ocured'));
-        logger.e("Sign up failed: ${response.statusCode} | ${response.data}");
+        _showMessage(t('signup.city.errors.error_ocured'));
+        logger.e('Sign up failed with status ${response.statusCode}.');
       }
     } catch (error) {
       GoogleSignInService.signOut();
       logger.e("An error occurred: $error");
-      _showMessage(t('signup.errors.error_ocured'));
+      _showMessage(t('signup.city.errors.error_ocured'));
     }
   }
 

@@ -7,10 +7,14 @@ class UserController {
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(String path, {Map<String, dynamic>? queryParameters}) {
+  Uri _uri(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    String? host,
+  }) {
     return Uri(
       scheme: 'https',
-      host: Config.host,
+      host: host ?? Config.host,
       path: path,
       queryParameters: queryParameters?.map(
         (key, value) => MapEntry(key, value?.toString()),
@@ -18,26 +22,55 @@ class UserController {
     );
   }
 
-  Future<Response<dynamic>> getUserById(int userId) {
+  Options _authenticatedOptions({
+    String? accessToken,
+    ResponseType? responseType,
+  }) {
+    return Options(
+      contentType: Headers.jsonContentType,
+      responseType: responseType,
+      followRedirects: false,
+      maxRedirects: 0,
+      validateStatus: (int? status) => status != null && status < 500,
+      headers: <String, Object?>{
+        if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+      },
+      extra: const <String, Object>{'authRequired': true},
+    );
+  }
+
+  Future<Response<dynamic>> getUserById(
+    int userId, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.getUri(
-      _uri('/users/$userId'),
-      options: Options(contentType: Headers.jsonContentType),
+      _uri('/users/$userId', host: host),
+      options: _authenticatedOptions(accessToken: accessToken),
     );
   }
 
   Future<Response<dynamic>> updateUserById(
-      int userId, Map<String, dynamic> body) {
+    int userId,
+    Map<String, dynamic> body, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.patchUri(
-      _uri('/users/$userId'),
+      _uri('/users/$userId', host: host),
       data: body,
-      options: Options(contentType: Headers.jsonContentType),
+      options: _authenticatedOptions(accessToken: accessToken),
     );
   }
 
-  Future<Response<dynamic>> deleteUserById(int userId) {
+  Future<Response<dynamic>> deleteUserById(
+    int userId, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.deleteUri(
-      _uri('/users/$userId'),
-      options: Options(contentType: Headers.jsonContentType),
+      _uri('/users/$userId', host: host),
+      options: _authenticatedOptions(accessToken: accessToken),
     );
   }
 
@@ -48,11 +81,15 @@ class UserController {
     );
   }
 
-  Future<Response<dynamic>> getProfilePhoto(int userId) {
+  Future<Response<dynamic>> getProfilePhoto(
+    int userId, {
+    String? accessToken,
+    String? host,
+  }) {
     return _dio.getUri(
-      _uri('/users/$userId/get-profile-photo'),
-      options: Options(
-        contentType: Headers.jsonContentType,
+      _uri('/users/$userId/get-profile-photo', host: host),
+      options: _authenticatedOptions(
+        accessToken: accessToken,
         responseType: ResponseType.json,
       ),
     );
@@ -62,15 +99,17 @@ class UserController {
     required int userId,
     required String photoBase64,
     required String format,
+    String? accessToken,
+    String? host,
   }) {
     return _dio.postUri(
-      _uri('/users/$userId/upload-profile-photo'),
+      _uri('/users/$userId/upload-profile-photo', host: host),
       data: <String, dynamic>{
         'photoBase64': photoBase64,
         'format': format,
       },
-      options: Options(
-        contentType: Headers.jsonContentType,
+      options: _authenticatedOptions(
+        accessToken: accessToken,
         responseType: ResponseType.json,
       ),
     );

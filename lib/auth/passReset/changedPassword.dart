@@ -41,7 +41,7 @@ class PasswordChangedScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t('passwordReset.changed.title'),
+                  t('signup.passwordReset.changed.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -50,7 +50,7 @@ class PasswordChangedScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  t('passwordReset.changed.message'),
+                  t('signup.passwordReset.changed.message'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey,

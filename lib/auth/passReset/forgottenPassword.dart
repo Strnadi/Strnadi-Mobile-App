@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
+
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -22,8 +24,15 @@ import 'package:strnadi/auth/passReset/resetEmailSent.dart';
 
 Logger logger = Logger();
 
+typedef PasswordResetRequester = Future<int?> Function(String email);
+
 class ForgottenPassword extends StatefulWidget {
-  const ForgottenPassword({Key? key}) : super(key: key);
+  const ForgottenPassword({
+    Key? key,
+    this.requestPasswordReset,
+  }) : super(key: key);
+
+  final PasswordResetRequester? requestPasswordReset;
 
   @override
   _ForgottenPasswordState createState() => _ForgottenPasswordState();
@@ -34,6 +43,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
 
   final TextEditingController _emailController = TextEditingController();
   final _GlobalKey = GlobalKey<FormState>();
+  bool _requestInProgress = false;
 
   // Example color constants (match these to the ones in your Login screen)
   static const Color yellowishBlack = Color(0xFF2D2B18);
@@ -129,8 +139,9 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                     return null;
                   },
                   onFieldSubmitted: (value) {
-                    if (_GlobalKey.currentState?.validate() ?? false) {
-                      requestPasswordReset(_emailController.text);
+                    if (!_requestInProgress &&
+                        (_GlobalKey.currentState?.validate() ?? false)) {
+                      unawaited(requestPasswordReset(_emailController.text));
                     }
                   },
                 ),
@@ -149,14 +160,19 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () {
-              if (_GlobalKey.currentState?.validate() ?? false) {
-                requestPasswordReset(_emailController.text);
-              } else {
-                _showMessage(
-                    t('signup.passwordReset.request.errors.sendBeforeValid'));
-              }
-            },
+            key: const Key('forgotten-password-submit'),
+            onPressed: _requestInProgress
+                ? null
+                : () {
+                    if (_GlobalKey.currentState?.validate() ?? false) {
+                      unawaited(
+                        requestPasswordReset(_emailController.text),
+                      );
+                    } else {
+                      _showMessage(t(
+                          'signup.passwordReset.request.errors.sendBeforeValid'));
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               elevation: 0,
               shadowColor: Colors.transparent,
@@ -179,36 +195,50 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
   }
 
   Future<void> requestPasswordReset(String email) async {
+    if (_requestInProgress || !mounted) return;
+    setState(() => _requestInProgress = true);
     try {
-      final response = await _authController.requestPasswordReset(email.trim());
+      final String normalizedEmail = email.trim();
+      final int? status = widget.requestPasswordReset == null
+          ? (await _authController.requestPasswordReset(normalizedEmail))
+              .statusCode
+          : await widget.requestPasswordReset!(normalizedEmail);
+      if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        _showMessage(t('signup.passwordReset.request.messages.sent'));
-        Navigator.replace(
-          context,
-          newRoute: MaterialPageRoute(
-              builder: (_) => ResetEmailSent(userEmail: email)),
-          oldRoute: ModalRoute.of(context)!,
+      if (status == 200) {
+        unawaited(
+          Navigator.of(context).pushReplacement<void, void>(
+            MaterialPageRoute<void>(
+              builder: (_) => ResetEmailSent(userEmail: normalizedEmail),
+            ),
+          ),
         );
-      } else if (response.statusCode == 401) {
-        logger
-            .w('Unregistred email: ${response.statusCode} | ${response.data}');
+      } else if (status == 401) {
+        logger.w('Password reset rejected ($status).');
         _showMessage(t('signup.passwordReset.request.messages.unregistered'));
-      } else if (response.statusCode == 500) {
-        logger.w('Server error: ${response.statusCode} | ${response.data}');
+      } else if (status == 500) {
+        logger.w('Password reset server error ($status).');
         _showMessage(t('signup.passwordReset.request.messages.serverError'));
       } else {
-        logger.i('Failed to send password reset: ${response.statusCode}');
+        logger.i('Failed to send password reset: $status');
         _showMessage(t('signup.passwordReset.request.messages.genericFail'));
       }
     } catch (e, stackTrace) {
       logger.e('Error sending password reset request: $e',
           error: e, stackTrace: stackTrace);
-      _showMessage(t('signup.passwordReset.request.messages.connectionError'));
+      if (mounted) {
+        _showMessage(
+            t('signup.passwordReset.request.messages.connectionError'));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _requestInProgress = false);
+      }
     }
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -222,5 +252,11 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
   }
 }

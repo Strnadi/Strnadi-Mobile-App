@@ -27,7 +27,6 @@ import '../config/config.dart';
 import '../recording/streamRec.dart';
 import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
-import 'package:strnadi/firebase/firebase.dart' as fb;
 
 final logger = Logger();
 
@@ -106,9 +105,6 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
-    final Color yellowishBlack = Color(0xFF2D2B18);
-    final Color yellow = Color(0xFFFFD641);
-
     final halfScreen = MediaQuery.of(context).size.height * 0.1;
     return Padding(
       padding: EdgeInsets.only(top: halfScreen),

@@ -186,6 +186,12 @@ class Config {
     return _hostEnv ?? HostEnvironment.prod;
   }
 
+  /// Whether the persisted host choice has been loaded in this isolate.
+  ///
+  /// Background isolates must not silently attribute account-owned cache data
+  /// to production merely because their preferences have not loaded yet.
+  static bool get isHostEnvironmentLoaded => _hostEnv != null;
+
   /// Sets the host environment and persists it
   static Future<void> setHostEnvironment(HostEnvironment env) async {
     final prefs = await SharedPreferences.getInstance();

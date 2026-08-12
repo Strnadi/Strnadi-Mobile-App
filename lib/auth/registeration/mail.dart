@@ -13,12 +13,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/email_input_formatter.dart';
 import 'package:strnadi/auth/email_validator.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -49,6 +51,7 @@ class _RegMailState extends State<RegMail> {
 
   late bool _termsError = false;
   String? _emailErrorMessage;
+  int _emailValidationGeneration = 0;
 
   bool _isLoading = false;
 
@@ -93,7 +96,7 @@ class _RegMailState extends State<RegMail> {
         await secureStorage.write(key: 'nick', value: nick);
         await secureStorage.write(key: 'role', value: role);
 
-        logger.i("Fetched user name: $firstName $lastName");
+        logger.i('Fetched user profile metadata.');
       } else {
         logger.w(
             'Failed to fetch user name. Status code: ${response.statusCode}');
@@ -110,6 +113,7 @@ class _RegMailState extends State<RegMail> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -118,24 +122,6 @@ class _RegMailState extends State<RegMail> {
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(t('auth.buttons.ok')))
-        ],
-      ),
-    );
-  }
-
-  void _showUserExistsPopup() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t('signup.mail.errors.user_exists.title')),
-        content: Text(t('signup.mail.errors.user_exists.content')),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text(t('auth.buttons.ok')),
-          ),
         ],
       ),
     );
@@ -150,8 +136,7 @@ class _RegMailState extends State<RegMail> {
       //_showUserExistsPopup();
       return true;
     } else {
-      logger.w(
-          'Failed to check email: ${response.statusCode} | ${response.data}');
+      logger.w('Failed to check email; status ${response.statusCode}.');
       return true;
     }
   }
@@ -165,6 +150,34 @@ class _RegMailState extends State<RegMail> {
       );
     }
     return email;
+  }
+
+  Future<void> _validateEmailAvailability(String value) async {
+    final int generation = ++_emailValidationGeneration;
+    final String email = EmailValidator.normalize(value);
+    if (!isValidEmail(email)) {
+      if (!mounted || generation != _emailValidationGeneration) return;
+      setState(() {
+        _emailErrorMessage = t('signup.mail.errors.mail_format_err');
+      });
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _emailErrorMessage = null;
+      });
+    }
+    final bool emailExists = await _checkEmail(email);
+    if (!mounted ||
+        generation != _emailValidationGeneration ||
+        EmailValidator.normalize(_emailController.text) != email) {
+      return;
+    }
+    setState(() {
+      _emailErrorMessage =
+          emailExists ? t('signup.mail.errors.mail_exists') : null;
+    });
   }
 
   @override
@@ -234,23 +247,7 @@ class _RegMailState extends State<RegMail> {
                           AutofillHints.email,
                         ],
                         onChanged: (value) {
-                          final email = EmailValidator.normalize(value);
-                          setState(() {
-                            // Validate email format
-                            if (!isValidEmail(email)) {
-                              _emailErrorMessage =
-                                  'Email není v platném formátu';
-                            } else {
-                              // Clear the format error and check if email exists
-                              _emailErrorMessage = null;
-                              _checkEmail(email).then((emailExists) {
-                                setState(() {
-                                  _emailErrorMessage =
-                                      emailExists ? 'Email již existuje' : null;
-                                });
-                              });
-                            }
-                          });
+                          unawaited(_validateEmailAvailability(value));
                         },
                         decoration: InputDecoration(
                           fillColor: Colors.grey[200],
@@ -361,8 +358,10 @@ class _RegMailState extends State<RegMail> {
                               ? () {
                                   _withLoader(() async {
                                     final email = _normalizeEmailInput();
-                                    await _checkEmail(email)
-                                        .then((emailExists) {
+                                    try {
+                                      final bool emailExists =
+                                          await _checkEmail(email);
+                                      if (!mounted) return;
                                       setState(() {
                                         if (!isValidEmail(email)) {
                                           _emailErrorMessage = t(
@@ -378,6 +377,7 @@ class _RegMailState extends State<RegMail> {
                                       if (isValidEmail(email) &&
                                           _isChecked &&
                                           !emailExists) {
+                                        if (!context.mounted) return;
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -389,7 +389,10 @@ class _RegMailState extends State<RegMail> {
                                           ),
                                         );
                                       }
-                                    }).catchError((_) {});
+                                    } catch (_) {
+                                      // _checkEmail already exposes the
+                                      // localized request failure.
+                                    }
                                   });
                                 }
                               : null,
@@ -460,11 +463,12 @@ class _RegMailState extends State<RegMail> {
                                       }
                                       if (data['status'] == 200) {
                                         logger.i(
-                                            'Google sign in successful, returned data: ${data.toString()}');
+                                            'Google sign in succeeded; existing=${data['exists']}.');
                                         if (data['exists'] == false) {
                                           // New user, proceed with registration
                                           logger.i(
                                               'Google sign in: new user, proceeding to registration');
+                                          if (!context.mounted) return;
                                           Navigator.pushReplacement(
                                               context,
                                               MaterialPageRoute(
@@ -485,39 +489,48 @@ class _RegMailState extends State<RegMail> {
                                                       )));
                                           return;
                                         }
-                                        String? jwt = data['jwt'] as String?;
-                                        final secureStorage =
-                                            const FlutterSecureStorage();
-                                        // Persist the token locally
-                                        await secureStorage.write(
-                                            key: 'token', value: jwt);
-                                        await secureStorage.write(
-                                            key: 'verified',
-                                            value: true.toString());
-                                        logger.i(
-                                            'Google sign‑in successful, token stored');
+                                        final String? jwt =
+                                            data['jwt'] as String?;
+                                        if (jwt == null || jwt.trim().isEmpty) {
+                                          _showMessage(
+                                              t('login.errors.loginFailed'));
+                                          return;
+                                        }
+                                        final AuthSessionTransition transition =
+                                            await activatedAuthSessions
+                                                .beginTokenTransition(jwt);
 
                                         // Retrieve user‑id from backend
                                         final idResponse = await _userController
                                             .getUserIdFromToken();
                                         if (idResponse.statusCode != 200) {
                                           logger.e(
-                                              'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
+                                              'Failed to retrieve user ID; status ${idResponse.statusCode}.');
                                           _showMessage(
                                               t('login.errors.idGetError'));
                                           return;
                                         }
-                                        final userId = int.parse(
+                                        final int? userId = int.tryParse(
                                             idResponse.data.toString());
-                                        await secureStorage.write(
-                                            key: 'userId',
-                                            value: userId.toString());
+                                        if (userId == null || userId <= 0) {
+                                          _showMessage(
+                                              t('login.errors.idGetError'));
+                                          return;
+                                        }
+                                        await activatedAuthSessions.activate(
+                                          transition,
+                                          userId,
+                                          verified: true,
+                                        );
+                                        logger.i(
+                                            'Google sign-in session activated');
                                         await cacheUserData(userId);
                                         await fb.refreshToken();
+                                        if (!context.mounted) return;
                                         await navigateToSessionLanding(context);
                                       } else {
                                         logger.w(
-                                            'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                                            'Google sign in failed with status ${data['status']}.');
                                         _showMessage(
                                             t('login.errors.loginFailed'));
                                         return;
@@ -603,10 +616,11 @@ class _RegMailState extends State<RegMail> {
                                         return;
                                       } else if (data['status'] == 200) {
                                         logger.i(
-                                            'Apple sign in successful, returned data: ${data.toString()}');
+                                            'Apple sign in succeeded; existing=${data['exists']}.');
                                         if (data['exists'] == false) {
                                           logger.i(
                                               'Apple sign in: new user, proceeding to registration');
+                                          if (!context.mounted) return;
                                           Navigator.pushReplacement(
                                             context,
                                             MaterialPageRoute(
@@ -640,7 +654,7 @@ class _RegMailState extends State<RegMail> {
                                         return;
                                       } else {
                                         logger.w(
-                                            'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                                            'Apple sign in failed with status ${data['status']}.');
                                         _showMessage(
                                             t('auth.apple.error.login_failed'));
                                         return;
@@ -659,6 +673,7 @@ class _RegMailState extends State<RegMail> {
                                           firstName.isEmpty &&
                                           lastName.isEmpty &&
                                           email.isEmpty)) {
+                                        if (!context.mounted) return;
                                         Navigator.pushReplacement(
                                           context,
                                           MaterialPageRoute(
@@ -675,35 +690,39 @@ class _RegMailState extends State<RegMail> {
                                       }
 
                                       final String jwt = data['jwt'] as String;
-                                      final secureStorage =
-                                          const FlutterSecureStorage();
-                                      await secureStorage.write(
-                                          key: 'token', value: jwt);
+                                      final AuthSessionTransition transition =
+                                          await activatedAuthSessions
+                                              .beginTokenTransition(jwt);
                                       logger.i(
-                                          'Apple sign‑in successful, token stored');
+                                          'Apple sign-in token transition started');
 
                                       final idResponse = await _userController
                                           .getUserIdFromToken();
                                       if (idResponse.statusCode != 200) {
                                         logger.w(
-                                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
+                                            'Failed to retrieve user ID; status ${idResponse.statusCode}.');
                                         _showMessage(
                                             t('login.errors.idGetError'));
                                         return;
                                       }
-                                      final userId =
-                                          int.parse(idResponse.data.toString());
-                                      logger.i('User ID retrieved: $userId');
+                                      final int? userId = int.tryParse(
+                                          idResponse.data.toString());
+                                      if (userId == null || userId <= 0) {
+                                        _showMessage(
+                                            t('login.errors.idGetError'));
+                                        return;
+                                      }
+                                      logger.i('Apple login owner resolved.');
 
-                                      await secureStorage.write(
-                                          key: 'userId',
-                                          value: userId.toString());
-                                      await secureStorage.write(
-                                          key: 'verified',
-                                          value: true.toString());
+                                      await activatedAuthSessions.activate(
+                                        transition,
+                                        userId,
+                                        verified: true,
+                                      );
                                       await fb.refreshToken();
                                       await cacheUserData(userId);
 
+                                      if (!context.mounted) return;
                                       await navigateToSessionLanding(context);
                                     } catch (e, stackTrace) {
                                       logger.e('Apple sign in error: $e');

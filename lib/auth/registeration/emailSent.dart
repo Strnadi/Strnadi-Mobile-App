@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
@@ -48,6 +49,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
   static const Color yellow = Color(0xFFFFD641);
 
   int _counter = 30;
+  bool _resendInProgress = false;
   Timer? _timer;
 
   @override
@@ -66,6 +68,10 @@ class _VerifyEmailState extends State<VerifyEmail> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         if (_counter > 0) {
           _counter--;
@@ -82,34 +88,50 @@ class _VerifyEmailState extends State<VerifyEmail> {
   }
 
   Future<void> resendEmail() async {
-    final FlutterSecureStorage secureStorage = FlutterSecureStorage();
-    final String? jwt = await secureStorage.read(key: 'token');
-    if (jwt == null || jwt.isEmpty) {
-      logger.e('Cannot resend verification email: missing JWT.');
-      return;
-    }
-
-    int userId =
-        int.tryParse((await secureStorage.read(key: 'userid')) ?? '') ?? -1;
-    if (userId == -1) {
-      final idResponse = await _userController.getUserIdFromToken();
-      if (idResponse.statusCode == 200) {
-        final dynamic raw = idResponse.data;
-        userId = raw is int ? raw : int.parse(raw.toString());
-      }
-    }
-    if (userId <= 0) {
-      logger.e('Cannot resend verification email: missing userId.');
-      return;
-    }
-    await secureStorage.write(key: 'userId', value: userId.toString());
+    if (_resendInProgress) return;
+    setState(() => _resendInProgress = true);
     try {
+      final FlutterSecureStorage secureStorage = FlutterSecureStorage();
+      final String? jwt = await secureStorage.read(key: 'token');
+      if (jwt == null || jwt.isEmpty) {
+        logger.e('Cannot resend verification email: missing JWT.');
+        return;
+      }
+
+      final ActivatedAuthSessionSnapshot? currentSession =
+          await activatedAuthSessions.capture();
+      int userId = currentSession?.accessToken == jwt
+          ? int.tryParse(currentSession!.userId) ?? -1
+          : -1;
+      if (userId <= 0) {
+        final AuthSessionTransition transition =
+            await activatedAuthSessions.beginTokenTransition(jwt);
+        final idResponse = await _userController.getUserIdFromToken();
+        if (idResponse.statusCode == 200) {
+          final dynamic raw = idResponse.data;
+          userId = raw is int ? raw : int.tryParse(raw.toString()) ?? -1;
+        }
+        if (userId > 0) {
+          await activatedAuthSessions.activate(
+            transition,
+            userId,
+            verified: false,
+          );
+        }
+      }
+      if (userId <= 0) {
+        logger.e('Cannot resend verification email: missing userId.');
+        return;
+      }
       final response = await _authController.resendVerificationEmail(
         userId: userId,
         token: jwt,
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         logger.i('Email sent');
+        setState(() => _counter = 30);
+        _startTimer();
       } else if (response.statusCode == 208) {
         logger.i('Email already verified');
         showDialog(
@@ -126,12 +148,15 @@ class _VerifyEmailState extends State<VerifyEmail> {
                   ],
                 ));
       } else {
-        logger.e(
-            'Failed to send email ${response.statusCode} | ${response.data}');
+        logger.e('Failed to send verification email (${response.statusCode}).');
       }
     } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() => _resendInProgress = false);
+      }
     }
   }
 
@@ -139,16 +164,19 @@ class _VerifyEmailState extends State<VerifyEmail> {
   Future<void> _openEmailApp() async {
     // Add a brief delay to ensure any navigation transitions are complete
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
 
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
       path: widget.userEmail,
     );
-    if (await canLaunchUrl(emailLaunchUri)) {
+    final bool canLaunch = await canLaunchUrl(emailLaunchUri);
+    if (!mounted) return;
+    if (canLaunch) {
       await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('Could not open the email app'))),
+        SnackBar(content: Text(t('auth.alerts.email_app_unavailable'))),
       );
     }
   }
@@ -168,7 +196,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          title: Text(t('')),
+          title: const SizedBox.shrink(),
           leading: IconButton(
             icon: Image.asset(
               'assets/icons/backButton.png',
@@ -191,7 +219,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  t('Ověřte svůj e-mail'),
+                  t('signup.emailVerify.title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -214,7 +242,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _counter > 0 ? null : resendEmail,
+                    onPressed:
+                        _counter > 0 || _resendInProgress ? null : resendEmail,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: yellow,
@@ -259,7 +288,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
-                    child: Text(t('signup.emailVerify.openEmailApp')),
+                    child: Text(t('signup.emailVerify.buttons.openEmailApp')),
                   ),
                 ),
                 const SizedBox(height: 16),

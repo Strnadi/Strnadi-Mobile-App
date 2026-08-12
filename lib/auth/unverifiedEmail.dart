@@ -18,6 +18,7 @@ import 'dart:async';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
@@ -44,6 +45,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   static const Color yellow = Color(0xFFFFD641);
 
   int _counter = 30;
+  bool _resendInProgress = false;
   Timer? _timer;
 
   @override
@@ -62,6 +64,10 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         if (_counter > 0) {
           _counter--;
@@ -80,28 +86,37 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
 
   /// Resend verification email.
   Future<void> resendEmail() async {
-    FlutterSecureStorage secureStorage = FlutterSecureStorage();
-    final String? jwt = await secureStorage.read(key: 'token');
-    if (jwt == null || jwt.isEmpty) {
-      logger.e('Missing JWT while trying to resend verification email.');
-      return;
-    }
+    if (_resendInProgress) return;
+    setState(() => _resendInProgress = true);
     try {
+      FlutterSecureStorage secureStorage = FlutterSecureStorage();
+      final String? jwt = await secureStorage.read(key: 'token');
+      if (jwt == null || jwt.isEmpty) {
+        logger.e('Missing JWT while trying to resend verification email.');
+        return;
+      }
       final response = await _authController.resendVerificationEmail(
         userId: widget.userId,
         token: jwt,
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         logger.i('Verification email sent');
+        setState(() => _counter = 30);
         _startTimer();
       } else if (response.statusCode == 208) {
         logger.i('Email already verified');
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: Text(t('signup.emailSent.dialogs.alreadyVerified.title')),
-            content:
-                Text(t('signup.emailSent.dialogs.alreadyVerified.message')),
+            title: Text(
+              t('signup.emailVerify.emailSent.dialogs.alreadyVerified.title'),
+            ),
+            content: Text(
+              t(
+                'signup.emailVerify.emailSent.dialogs.alreadyVerified.message',
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: alreadyVerified,
@@ -111,12 +126,15 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
         );
       } else {
-        logger.e(
-            'Failed to send email ${response.statusCode} | ${response.data}');
+        logger.e('Failed to send verification email (${response.statusCode}).');
       }
     } catch (e, stackTrace) {
       logger.e(e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() => _resendInProgress = false);
+      }
     }
   }
 
@@ -126,20 +144,22 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       scheme: 'mailto',
       path: widget.userEmail,
     );
-    if (await canLaunchUrl(emailLaunchUri)) {
+    final bool canLaunch = await canLaunchUrl(emailLaunchUri);
+    if (!mounted) return;
+    if (canLaunch) {
       await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('Could not open the email app'))),
+        SnackBar(content: Text(t('auth.alerts.email_app_unavailable'))),
       );
     }
   }
 
   Future<void> _handleBackNavigation() async {
-    final storage = FlutterSecureStorage();
-    final verified = await storage.read(key: 'verified');
-    if (verified != 'true') {
-      await storage.delete(key: 'token');
+    final ActivatedAuthSessionSnapshot? session =
+        await activatedAuthSessions.capture();
+    if (session?.verified != true) {
+      await activatedAuthSessions.invalidate();
     }
     if (!mounted) return;
     await navigateToSessionLanding(context);
@@ -158,7 +178,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          title: Text(t('')),
+          title: const SizedBox.shrink(),
           leading: IconButton(
             icon: Image.asset(
               'assets/icons/backButton.png',
@@ -178,7 +198,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  t('signup.emailSent.notVerified'),
+                  t('signup.emailVerify.emailSent.dialogs.notVerified'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -187,7 +207,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  t('signup.emailSent.info')
+                  t('signup.emailVerify.emailSent.dialogs.info')
                       .replaceFirst('{email}', widget.userEmail),
                   style: TextStyle(
                     fontSize: 14,
@@ -200,7 +220,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _counter > 0 ? null : resendEmail,
+                    onPressed:
+                        _counter > 0 || _resendInProgress ? null : resendEmail,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: yellow,

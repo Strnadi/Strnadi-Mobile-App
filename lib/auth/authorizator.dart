@@ -14,7 +14,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -23,6 +22,8 @@ import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/auth/user_profile_payload.dart';
 //import 'package:strnadi/auth/login.dart';
 import 'package:strnadi/auth/registeration/mail.dart';
 import 'package:strnadi/auth/unverifiedEmail.dart';
@@ -30,6 +31,7 @@ import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/firebase/firebase.dart' as firebase;
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/md_renderer.dart';
+import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/widgets/FlagDropdown.dart';
@@ -64,11 +66,11 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
     try {
       final response = await _authController.verifyJwt(token);
 
-      logger.i('Response: ${response.statusCode} | ${response.data}');
+      logger.i('JWT verification status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        await secureStorage.write(key: 'verified', value: 'true');
-        DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
+        final DateTime? expirationDate = _safeJwtExpiration(token);
+        if (expirationDate == null) return AuthStatus.loggedOut;
         if (expirationDate
             .isAfter(DateTime.now().add(const Duration(days: 7)))) {
           return AuthStatus.loggedIn;
@@ -77,17 +79,34 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
         try {
           final refreshResponse = await _authController.renewJwt(token);
           if (refreshResponse.statusCode == 200) {
-            String newToken = refreshResponse.data.toString();
-            await secureStorage.write(key: 'token', value: newToken);
+            final String newToken = refreshResponse.data.toString();
+            final AuthSessionTransition transition =
+                await activatedAuthSessions.beginTokenTransition(newToken);
+            final idResponse = await _userController.getUserIdFromToken();
+            final int? refreshedUserId = idResponse.statusCode == 200
+                ? int.tryParse(idResponse.data.toString())
+                : null;
+            if (refreshedUserId == null || refreshedUserId <= 0) {
+              logger.e(
+                'Failed to resolve refreshed token owner; '
+                'status ${idResponse.statusCode}.',
+              );
+              return AuthStatus.loggedOut;
+            }
+            await activatedAuthSessions.activate(
+              transition,
+              refreshedUserId,
+              verified: true,
+            );
           }
         } catch (e, stackTrace) {
           Sentry.captureException(e, stackTrace: stackTrace);
           logger.e('Error refreshing token: $e',
               error: e, stackTrace: stackTrace);
+          return AuthStatus.loggedOut;
         }
         return AuthStatus.loggedIn;
       } else if (response.statusCode == 403) {
-        await secureStorage.write(key: 'verified', value: 'false');
         return AuthStatus.notVerified;
       } else {
         return AuthStatus.loggedOut;
@@ -101,38 +120,59 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
 }
 
 Future<AuthStatus> _offlineIsLoggedIn() async {
-  FlutterSecureStorage secureStorage = FlutterSecureStorage();
-  String? token = await secureStorage.read(key: 'token');
-  if (token != null) {
-    DateTime expirationDate = JwtDecoder.getExpirationDate(token)!;
-    if (expirationDate.isAfter(DateTime.now())) {
-      String? verified = await secureStorage.read(key: 'verified');
-      if (verified == 'true') {
-        return AuthStatus.loggedIn;
-      } else {
-        return AuthStatus.notVerified;
-      }
-    } else {
+  final FlutterSecureStorage secureStorage = FlutterSecureStorage();
+  final String? token = await secureStorage.read(key: 'token');
+  final ActivatedAuthSessionSnapshot? snapshot =
+      await activatedAuthSessions.capture();
+  final OfflineActivatedSessionStatus status = evaluateOfflineActivatedSession(
+    snapshot: snapshot,
+    storedAccessToken: token,
+    expiresAt: _safeJwtExpiration(token),
+    now: DateTime.now(),
+  );
+  switch (status) {
+    case OfflineActivatedSessionStatus.loggedIn:
+      return AuthStatus.loggedIn;
+    case OfflineActivatedSessionStatus.notVerified:
+      return AuthStatus.notVerified;
+    case OfflineActivatedSessionStatus.loggedOut:
       return AuthStatus.loggedOut;
-    }
-  } else {
-    return AuthStatus.loggedOut;
+  }
+}
+
+DateTime? _safeJwtExpiration(String? token) {
+  if (token == null || token.trim().isEmpty) return null;
+  try {
+    return JwtDecoder.getExpirationDate(token);
+  } catch (error, stackTrace) {
+    logger.w(
+      'Stored JWT could not be decoded.',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return null;
   }
 }
 
 Future<AuthStatus> isLoggedIn() async {
   // Treat either no connectivity or backend unreachable as offline
+  late final AuthStatus status;
   if (!await Config.hasBasicInternet) {
-    return await _offlineIsLoggedIn();
+    status = await _offlineIsLoggedIn();
+  } else if (!await Config.isBackendAvailable) {
+    status = await _offlineIsLoggedIn();
+  } else {
+    status = await _onlineIsLoggedIn();
   }
-  if (!await Config.isBackendAvailable) {
-    return await _offlineIsLoggedIn();
-  }
-  return await _onlineIsLoggedIn();
+  if (status == AuthStatus.loggedOut) return status;
+  // Background consumers (notably Firebase token registration) must never
+  // treat a legacy or torn token/userId pair as a usable login.
+  return await activatedAuthSessions.capture() == null
+      ? AuthStatus.loggedOut
+      : status;
 }
 
 class _AuthState extends State<Authorizator> {
-  bool _isOnline = true;
   bool _isLoading = false;
 
   void _showLoader() {
@@ -175,14 +215,9 @@ class _AuthState extends State<Authorizator> {
     selectedLanguage = languages.first;
     _loadSelectedLanguage();
 
-    Config.hasBasicInternet.then((online) {
-      setState(() {
-        _isOnline = online;
-      });
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logger.i('Checking logged-in status on app start');
-      checkLoggedIn();
+      unawaited(checkLoggedIn());
     });
   }
 
@@ -398,50 +433,35 @@ class _AuthState extends State<Authorizator> {
   }
 
   Future<void> checkLoggedIn() async {
-    _withLoader(() async {
-      bool online = await Config.hasBasicInternet;
-      bool serverAvailable = await Config.isBackendAvailable;
-      final secureStorage = FlutterSecureStorage();
-      if (!online && !serverAvailable) {
-        String? token = await secureStorage.read(key: 'token');
-        if (token == null) {
-          logger.i("No internet and no token stored.");
-          _showAlert(
-            t('auth.alerts.offline_no_token.title'),
-            t('auth.alerts.offline_no_token.message'),
-          );
-          return;
-        } else {
-          DateTime expirationDate = JwtDecoder.getExpirationDate(token);
-          if (expirationDate.isBefore(DateTime.now())) {
-            logger.i('JWT expired and no internet.');
+    try {
+      await _withLoader(() async {
+        final bool online = await Config.hasBasicInternet;
+        final bool serverAvailable = await Config.isBackendAvailable;
+        final bool backendReachable = online && serverAvailable;
+        final secureStorage = FlutterSecureStorage();
+        if (!backendReachable) {
+          final String? token = await secureStorage.read(key: 'token');
+          if (token == null) {
+            logger.i("No internet and no token stored.");
+            _showAlert(
+              t('auth.alerts.offline_no_token.title'),
+              t('auth.alerts.offline_no_token.message'),
+            );
+            return;
+          }
+          final DateTime? expirationDate = _safeJwtExpiration(token);
+          if (expirationDate == null ||
+              !expirationDate.isAfter(DateTime.now())) {
+            logger.i('JWT is malformed or expired and there is no backend.');
             _showAlert(
               t('auth.alerts.offline_expired_token.title'),
               t('auth.alerts.offline_expired_token.message'),
             );
             return;
-          } else {
-            DateTime expirationDate = JwtDecoder.getExpirationDate(token);
-            if (expirationDate.isBefore(DateTime.now())) {
-              logger.i('JWT expired and no internet.');
-              _showAlert(
-                t('auth.alerts.offline_expired_token.title'),
-                t('auth.alerts.offline_expired_token.message'),
-              );
-              return;
-            }
-            String? verified = await secureStorage.read(key: 'verified');
-            if (verified != 'true') {
-              logger.i('Account not verified and no internet.');
-              _showAlert(
-                t('auth.alerts.offline_not_verified.title'),
-                t('auth.alerts.offline_not_verified.message'),
-              );
-              return;
-            }
           }
-          String? verified = await secureStorage.read(key: 'verified');
-          if (verified != 'true') {
+          final ActivatedAuthSessionSnapshot? offlineSession =
+              await activatedAuthSessions.capture();
+          if (offlineSession?.verified != true) {
             logger.i('Account not verified and no internet.');
             _showAlert(
               t('auth.alerts.offline_not_verified.title'),
@@ -450,103 +470,171 @@ class _AuthState extends State<Authorizator> {
             return;
           }
         }
-      }
-      //final secureStorage = FlutterSecureStorage();
-      final AuthStatus status = await isLoggedIn();
+        final AuthStatus status = backendReachable
+            ? await _onlineIsLoggedIn()
+            : await _offlineIsLoggedIn();
 
-      if (status == AuthStatus.loggedIn) {
-        logger.i('User is logged in, fetching user data');
-        String? token = await secureStorage.read(key: 'token');
-        if (token == null) return;
-        String? userIdS = await secureStorage.read(key: 'userId');
-        int? userId;
-
-        if (userIdS == null) {
-          final idResponse = await _userController.getUserIdFromToken();
-          if (idResponse.statusCode != 200) {
-            logger.e(
-                'Failed to fetch user id: ${idResponse.statusCode} | ${idResponse.data}');
+        if (status == AuthStatus.loggedIn) {
+          logger.i('User is logged in.');
+          final String? token = await secureStorage.read(key: 'token');
+          if (token == null) return;
+          final ActivatedAuthSessionSnapshot? currentSession =
+              await activatedAuthSessions.capture();
+          if (!backendReachable) {
+            final int? offlineUserId =
+                int.tryParse(currentSession?.userId ?? '');
+            if (currentSession == null ||
+                currentSession.accessToken != token ||
+                offlineUserId == null ||
+                offlineUserId <= 0) {
+              logger.w(
+                  'Offline login rejected because no activated session exists.');
+              return;
+            }
+            _trackSession(offlineUserId, verified: true);
+            if (!mounted) return;
+            await navigateToSessionLanding(context);
             return;
           }
-          userId = int.parse(idResponse.data.toString());
-          await secureStorage.write(key: 'userId', value: userId.toString());
-        } else {
-          userId = int.parse(userIdS);
-        }
-        if (userId == null) return;
-        final response = await _userController.getUserById(userId);
-        if (response.statusCode != 200) {
-          logger.e(
-              'Failed to fetch user profile: ${response.statusCode} | ${response.data}');
-          return;
-        }
-        final dynamic raw = response.data is String
-            ? jsonDecode(response.data as String)
-            : response.data;
-        if (raw is! Map) {
-          logger.e('Failed to parse user profile payload: ${raw.runtimeType}');
-          return;
-        }
-        final Map<String, dynamic> data = raw.cast<String, dynamic>();
-        await secureStorage.write(key: 'user', value: data['firstName']);
-        await secureStorage.write(key: 'lastname', value: data['lastName']);
-        await secureStorage.write(key: 'nick', value: data['nickname']);
-        await secureStorage.write(key: 'role', value: data['role']);
+          logger.i('Refreshing user profile from the backend.');
+          final AuthSessionTransition? transition =
+              currentSession?.accessToken == token
+                  ? null
+                  : await activatedAuthSessions.beginTokenTransition(token);
+          final idResponse = await _userController.getUserIdFromToken();
+          final int? userId = idResponse.statusCode == 200
+              ? int.tryParse(idResponse.data.toString())
+              : null;
+          if (userId == null || userId <= 0) {
+            logger
+                .e('Failed to fetch user id; status ${idResponse.statusCode}.');
+            return;
+          }
+          if (transition == null) {
+            await activatedAuthSessions.activateCurrentToken(
+              userId,
+              verified: true,
+            );
+          } else {
+            await activatedAuthSessions.activate(
+              transition,
+              userId,
+              verified: true,
+            );
+          }
+          final response = await _userController.getUserById(userId);
+          if (response.statusCode != 200) {
+            logger.e(
+                'Failed to fetch user profile; status ${response.statusCode}.');
+            return;
+          }
+          final CachedUserProfile? profile =
+              parseCachedUserProfile(response.data);
+          if (profile == null) {
+            logger.e('Failed to parse user profile payload.');
+            return;
+          }
+          await secureStorage.write(
+            key: 'firstName',
+            value: profile.firstName,
+          );
+          await secureStorage.write(
+            key: 'lastName',
+            value: profile.lastName,
+          );
+          // Keep legacy aliases during migration so older screens/builds do not
+          // overwrite a freshly restored canonical profile.
+          await secureStorage.write(key: 'user', value: profile.firstName);
+          await secureStorage.write(key: 'lastname', value: profile.lastName);
+          await secureStorage.write(key: 'nick', value: profile.nickname);
+          await secureStorage.write(key: 'role', value: profile.role);
 
-        if (userId != null) {
           _trackSession(userId, verified: true);
+          logger.i('Syncing recordings on login');
+          await DatabaseNew.syncRecordings();
+          logger.i('Syncing recordings on login done');
+          if (!mounted) return;
+          await navigateToSessionLanding(context);
+        } else if (status == AuthStatus.notVerified) {
+          logger.i('User email not verified, navigating to verification page');
+          final String? token = await secureStorage.read(key: 'token');
+          if (token == null) return;
+          final ActivatedAuthSessionSnapshot? currentSession =
+              await activatedAuthSessions.capture();
+          final AuthSessionTransition? transition =
+              currentSession?.accessToken == token
+                  ? null
+                  : await activatedAuthSessions.beginTokenTransition(token);
+          final idResponse = await _userController.getUserIdFromToken();
+          final int? userId = idResponse.statusCode == 200
+              ? int.tryParse(idResponse.data.toString())
+              : null;
+          if (userId == null || userId <= 0) {
+            logger
+                .e('Failed to fetch user id; status ${idResponse.statusCode}.');
+            return;
+          }
+          if (transition == null) {
+            await activatedAuthSessions.activateCurrentToken(
+              userId,
+              verified: false,
+            );
+          } else {
+            await activatedAuthSessions.activate(
+              transition,
+              userId,
+              verified: false,
+            );
+          }
+          _trackSession(userId, verified: false);
+          final ActivatedAuthSessionSnapshot? activated =
+              await activatedAuthSessions.capture();
+          final String? email = activated?.subject.trim();
+          if (activated == null ||
+              activated.userId != userId.toString() ||
+              email == null ||
+              email.isEmpty) {
+            logger.e('The unverified session has no valid email subject.');
+            return;
+          }
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => EmailNotVerified(
+                      userEmail: email,
+                      userId: userId,
+                    )),
+          );
+        } else {
+          logger.i('User is not logged in');
+          // If there is a token but user is not logged in (invalid token),
+          // remove it and show message.
+          if (await secureStorage.read(key: 'token') != null) {
+            _showMessage(t('auth.alerts.logged_out'));
+            await activatedAuthSessions.invalidate();
+            await secureStorage.delete(key: 'user');
+            await secureStorage.delete(key: 'lastname');
+            await secureStorage.delete(key: 'role');
+            await firebase.deleteToken();
+          }
         }
-        logger.i('Syncing recordings on login');
-        await DatabaseNew.syncRecordings();
-        logger.i('Syncing recordings on login done');
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => LiveRec(),
-            settings: const RouteSettings(name: '/Recorder'),
-            transitionDuration: Duration.zero,
-            reverseTransitionDuration: Duration.zero,
-          ),
-        );
-      } else if (status == AuthStatus.notVerified) {
-        logger.i('User email not verified, navigating to verification page');
-        String? token = await secureStorage.read(key: 'token');
-        if (token == null) return;
-        final idResponse = await _userController.getUserIdFromToken();
-        if (idResponse.statusCode != 200) {
-          logger.e(
-              'Failed to fetch user id: ${idResponse.statusCode} | ${idResponse.data}');
-          return;
-        }
-        int userId = int.parse(idResponse.data.toString());
-        await secureStorage.write(key: 'userId', value: userId.toString());
-        _trackSession(userId, verified: false);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (_) => EmailNotVerified(
-                    userEmail: JwtDecoder.decode(token)['sub'],
-                    userId: userId,
-                  )),
-        );
-      } else {
-        logger.i('User is not logged in');
-        // If there is a token but user is not logged in (invalid token),
-        // remove it and show message.
-        if (await secureStorage.read(key: 'token') != null) {
-          _showMessage(t('auth.alerts.logged_out'));
-          await secureStorage.delete(key: 'token');
-          await secureStorage.delete(key: 'user');
-          await secureStorage.delete(key: 'lastname');
-          await secureStorage.delete(key: 'role');
-          await secureStorage.delete(key: 'userId');
-          await firebase.deleteToken();
-        }
+      });
+    } catch (error, stackTrace) {
+      logger.e(
+        'Session restoration failed safely.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await Sentry.captureException(error, stackTrace: stackTrace);
+      if (mounted) {
+        _showMessage(t('login.errors.connection'));
       }
-    });
+    }
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -563,6 +651,7 @@ class _AuthState extends State<Authorizator> {
   }
 
   void _showAlert(String title, String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -587,6 +676,7 @@ class _AuthState extends State<Authorizator> {
       );
       return;
     }
+    if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 

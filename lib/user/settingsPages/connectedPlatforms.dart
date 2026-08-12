@@ -14,13 +14,17 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/appleAuth.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' hide logger;
+import 'package:strnadi/config/config.dart' hide logger;
 import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/user/connected_platforms_logic.dart';
 import '../../HealthCheck/serverHealth.dart' show logger;
 import '../../navigation/scaffold_with_bottom_bar.dart';
 
@@ -33,61 +37,109 @@ class Connectedplatforms extends StatefulWidget {
 
 class _ConnectedPlatformsState extends State<Connectedplatforms> {
   static const AuthController _authController = AuthController();
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  late final ConnectedPlatformsCoordinator _coordinator;
 
   bool? _shouldShowAppleSignIn;
   bool? _shouldShowGoogleSignIn;
   bool _isConnectingApple = false;
   bool _isConnectingGoogle = false;
+  bool _isRefreshing = false;
+  bool _loadFailed = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshConnectionStatus();
+    _coordinator = ConnectedPlatformsCoordinator(
+      captureSession: _captureSession,
+      isSessionCurrent: _isSessionCurrent,
+    );
+    unawaited(_refreshConnectionStatus());
   }
 
-  Future<bool> shouldShowGoogle() async {
-    final int userId =
-        int.tryParse(await _storage.read(key: 'userId') ?? '') ?? -1;
-    if (userId <= 0) return true;
-
-    final response = await _authController.hasGoogleId(userId);
-    logger.i(response.statusCode);
-    if (response.statusCode == 200) {
-      return false;
+  Future<ConnectedAccountSession?> _captureSession() async {
+    final snapshot = await activatedAuthSessions.capture();
+    final int? userId = int.tryParse(snapshot?.userId ?? '');
+    if (snapshot == null ||
+        !snapshot.verified ||
+        userId == null ||
+        userId <= 0) {
+      return null;
     }
-    return true;
+    return ConnectedAccountSession(
+      userId: userId,
+      accessToken: snapshot.accessToken,
+      sessionId: snapshot.sessionId,
+      host: Config.host,
+      verified: snapshot.verified,
+    );
   }
 
-  Future<bool> shouldShowApple() async {
-    final int userId =
-        int.tryParse(await _storage.read(key: 'userId') ?? '') ?? -1;
-    if (userId <= 0) return true;
-
-    final response = await _authController.hasAppleId(userId);
-    logger.i(response.statusCode);
-    if (response.statusCode == 200) {
-      return false;
-    }
-    return true;
+  Future<bool> _isSessionCurrent(ConnectedAccountSession observed) async {
+    final snapshot = await activatedAuthSessions.capture();
+    return snapshot != null &&
+        snapshot.verified &&
+        snapshot.userId == observed.userId.toString() &&
+        snapshot.accessToken == observed.accessToken &&
+        snapshot.sessionId == observed.sessionId &&
+        Config.host == observed.host;
   }
 
   Future<void> _refreshConnectionStatus() async {
-    final results = await Future.wait([
-      shouldShowApple(),
-      shouldShowGoogle(),
-    ]);
+    if (_isRefreshing) return;
+    if (mounted) {
+      setState(() {
+        _isRefreshing = true;
+        _loadFailed = false;
+      });
+    }
 
-    if (!mounted) return;
-    setState(() {
-      _shouldShowAppleSignIn = results[0];
-      _shouldShowGoogleSignIn = results[1];
-    });
+    try {
+      final ConnectedPlatformsStatus result = await _coordinator.load(
+        checkApple: (ConnectedAccountSession session) async {
+          final response = await _authController.hasAppleId(
+            session.userId,
+            accessToken: session.accessToken,
+            host: session.host,
+          );
+          return response.statusCode;
+        },
+        checkGoogle: (ConnectedAccountSession session) async {
+          final response = await _authController.hasGoogleId(
+            session.userId,
+            accessToken: session.accessToken,
+            host: session.host,
+          );
+          return response.statusCode;
+        },
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _shouldShowAppleSignIn =
+            result.apple == ConnectedProviderState.disconnected;
+        _shouldShowGoogleSignIn =
+            result.google == ConnectedProviderState.disconnected;
+        _loadFailed = false;
+      });
+    } catch (_) {
+      logger.w('Connected-account status could not be loaded.');
+      if (!mounted) return;
+      setState(() {
+        _loadFailed = true;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
   }
 
   Future<void> _connectApple() async {
+    if (_isConnectingApple) return;
     if (kIsWeb) {
-      logger.w("Apple Sign-In is not supported on the web.");
+      _showFailure();
       return;
     }
 
@@ -96,22 +148,21 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
     });
 
     try {
-      final jwt = await _storage.read(key: 'token');
-      final resp = await AppleAuth.signInAndGetJwt(jwt);
-      if (resp?['status'] != 200) {
-        logger.w("Apple Sign-In was cancelled or failed.");
+      final bool connected = await _coordinator.connect(
+        connectProvider: (ConnectedAccountSession session) async {
+          final Map<String, dynamic>? response =
+              await AppleAuth.signInAndGetJwt(session.accessToken);
+          return response?['status'] as int?;
+        },
+      );
+      if (!connected) {
+        _showFailure();
         return;
       }
-
-      logger.i('Apple Sign-In successful.');
-      if (mounted) {
-        setState(() {
-          _shouldShowAppleSignIn = false;
-        });
-      }
       await _refreshConnectionStatus();
-    } catch (e) {
-      logger.e("Error during Apple Sign-In: $e");
+    } catch (_) {
+      logger.w('Apple account connection did not complete.');
+      _showFailure();
     } finally {
       if (mounted) {
         setState(() {
@@ -122,8 +173,9 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
   }
 
   Future<void> _connectGoogle() async {
+    if (_isConnectingGoogle) return;
     if (kIsWeb) {
-      logger.w("Google Sign-In is not supported on the web.");
+      _showFailure();
       return;
     }
 
@@ -132,22 +184,23 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
     });
 
     try {
-      final jwt = await _storage.read(key: 'token');
-      final resp = await GoogleSignInService.googleAuth(jwt: jwt);
-      if (resp?['status'] != 200) {
-        logger.w("Google Sign-In was cancelled or failed.");
+      final bool connected = await _coordinator.connect(
+        connectProvider: (ConnectedAccountSession session) async {
+          final Map<String, dynamic>? response =
+              await GoogleSignInService.googleAuth(
+            jwt: session.accessToken,
+          );
+          return response?['status'] as int?;
+        },
+      );
+      if (!connected) {
+        _showFailure();
         return;
       }
-
-      logger.i('Google Sign-In successful.');
-      if (mounted) {
-        setState(() {
-          _shouldShowGoogleSignIn = false;
-        });
-      }
       await _refreshConnectionStatus();
-    } catch (e) {
-      logger.e("Error during Google Sign-In: $e");
+    } catch (_) {
+      logger.w('Google account connection did not complete.');
+      _showFailure();
     } finally {
       if (mounted) {
         setState(() {
@@ -155,6 +208,13 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
         });
       }
     }
+  }
+
+  void _showFailure() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t('user.connectedAccounts.error'))),
+    );
   }
 
   Widget _buildPlatformButton({
@@ -206,7 +266,35 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
   Widget build(BuildContext context) {
     final String appBarTitle = t('user.menu.items.connectedAccounts');
 
-    if (_shouldShowAppleSignIn == null || _shouldShowGoogleSignIn == null) {
+    if (_loadFailed) {
+      return ScaffoldWithBottomBar(
+        selectedPage: BottomBarItem.user,
+        appBarTitle: appBarTitle,
+        allowArrowBack: true,
+        content: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  t('user.connectedAccounts.loadFailed'),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _isRefreshing ? null : _refreshConnectionStatus,
+                  child: Text(t('user.connectedAccounts.retry')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    if (_isRefreshing ||
+        _shouldShowAppleSignIn == null ||
+        _shouldShowGoogleSignIn == null) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.user,
         appBarTitle: appBarTitle,
@@ -223,12 +311,12 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
             child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
-          children: const [
-            Icon(Icons.check_circle, color: Colors.green, size: 64),
-            SizedBox(height: 16),
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
             Text(
-              'Váš účet je již propojen s Apple i Google.',
-              style: TextStyle(fontSize: 18),
+              t('user.connectedAccounts.allConnected'),
+              style: const TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
           ],
@@ -248,8 +336,8 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
           _buildPlatformButton(
             iconAsset: 'assets/images/apple.png',
             label: _shouldShowAppleSignIn == true
-                ? 'Pokračovat přes Apple'
-                : 'Již propojeno s Apple',
+                ? t('user.connectedAccounts.apple.connect')
+                : t('user.connectedAccounts.apple.connected'),
             isConnected: _shouldShowAppleSignIn == false,
             isLoading: _isConnectingApple,
             onPressed: _connectApple,
@@ -257,8 +345,8 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
           _buildPlatformButton(
             iconAsset: 'assets/images/google.webp',
             label: _shouldShowGoogleSignIn == true
-                ? 'Pokračovat přes Google'
-                : 'Už propojeno s Google',
+                ? t('user.connectedAccounts.google.connect')
+                : t('user.connectedAccounts.google.connected'),
             isConnected: _shouldShowGoogleSignIn == false,
             isLoading: _isConnectingGoogle,
             onPressed: _connectGoogle,
