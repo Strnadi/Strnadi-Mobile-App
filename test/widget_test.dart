@@ -35,8 +35,11 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:strnadi/auth/passReset/newPassword.dart';
 
 import 'package:strnadi/main.dart';
 
@@ -53,5 +56,31 @@ void main() {
 
     expect(find.byType(MaterialApp), findsOneWidget);
     expect(find.byKey(const Key('isolated-test-home')), findsOneWidget);
+  });
+
+  testWidgets('password reset deep link reads token from query parameters',
+      (WidgetTester tester) async {
+    const String token =
+        'eyJhbGciOiJub25lIn0.eyJzdWIiOiJiaXJkQGV4YW1wbGUudGVzdCJ9.signature';
+
+    await tester.pumpWidget(
+      const MyApp(
+        homeOverride: SizedBox(key: Key('isolated-test-home')),
+        enableLifecycleSideEffects: false,
+      ),
+    );
+    await tester.pump();
+
+    unawaited(
+      navigatorKey.currentState!.pushNamed(
+        '/ucet/obnova-hesla?token=$token',
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final ChangePassword page =
+        tester.widget<ChangePassword>(find.byType(ChangePassword));
+    expect(page.jwt, token);
   });
 }
