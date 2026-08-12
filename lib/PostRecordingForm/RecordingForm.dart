@@ -24,24 +24,23 @@ import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/PostRecordingForm/imageUpload.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import '../auth/authorizator.dart';
 import '../config/config.dart';
-import 'package:strnadi/locationService.dart' as loc;
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/database/draft_persistence_reconciliation.dart';
 import 'addDialect.dart';
+import 'recording_draft_handoff.dart';
+import 'recording_form_rendering.dart';
 import 'dart:math' as math;
 import 'package:strnadi/dialects/ModelHandler.dart';
 
@@ -55,6 +54,7 @@ class RecordingForm extends StatefulWidget {
   final DateTime startTime;
   final List<int> recordingPartsTimeList;
   final List<LatLng> route;
+  final RecordingDraftHandoff? persistedDraft;
 
   const RecordingForm({
     Key? key,
@@ -64,6 +64,7 @@ class RecordingForm extends StatefulWidget {
     required this.recordingParts,
     required this.recordingPartsTimeList,
     required this.route,
+    this.persistedDraft,
   }) : super(key: key);
 
   @override
@@ -75,27 +76,31 @@ class _RecordingFormState extends State<RecordingForm> {
   final _commentController = TextEditingController();
   double _strnadiCountController = 1.0;
   double currentPos = 0.0;
-  List<File> _selectedImages = [];
   List<DialectModel> dialectSegments = [];
   final _audioPlayer = AudioPlayer();
+  StreamSubscription<Duration>? _audioPositionSubscription;
+  StreamSubscription<Duration?>? _audioDurationSubscription;
+  StreamSubscription<bool>? _audioPlayingSubscription;
+  StreamSubscription<PlayerState>? _audioStateSubscription;
   Duration currentPositionDuration = Duration.zero;
   Duration totalDuration = Duration.zero;
   bool isPlaying = false;
   late Recording recording;
   int? _recordingId;
+  bool _draftPersistenceMayHaveCommitted = false;
   final List<LatLng> _route = [];
-  late Stream<Position> _positionStream;
-  late loc.LocationService locationService;
-  LatLng? currentLocation;
-  LatLng? markerPosition;
   // This will hold the converted parts.
   List<RecordingPart> recordingParts = [];
+  Object? _recordingPartsConversionError;
+  late final Future<void> _recordingOwnerReady;
+  late final Future<String> _deviceModelFuture;
 
   final MapController _mapController = MapController();
 
   late String placeTitle = " ";
 
   bool _isLoading = false;
+  bool _isDiscarding = false;
 
   void _showLoader() {
     if (mounted) setState(() => _isLoading = true);
@@ -124,22 +129,27 @@ class _RecordingFormState extends State<RecordingForm> {
       placeTitle = " ";
     });
 
-    _audioPlayer.positionStream.listen((position) {
+    _audioPositionSubscription = _audioPlayer.positionStream.listen((position) {
+      if (!mounted) return;
       setState(() {
         currentPositionDuration = position;
       });
     });
-    _audioPlayer.durationStream.listen((duration) {
+    _audioDurationSubscription = _audioPlayer.durationStream.listen((duration) {
+      if (!mounted) return;
       setState(() {
         totalDuration = duration ?? Duration.zero;
       });
     });
-    _audioPlayer.playingStream.listen((playing) {
+    _audioPlayingSubscription = _audioPlayer.playingStream.listen((playing) {
+      if (!mounted) return;
       setState(() {
         isPlaying = playing;
       });
     });
-    _audioPlayer.playerStateStream.listen((playerState) {
+    _audioStateSubscription =
+        _audioPlayer.playerStateStream.listen((playerState) {
+      if (!mounted) return;
       if (playerState.processingState == ProcessingState.completed) {
         _audioPlayer.seek(Duration.zero);
         _audioPlayer.pause();
@@ -147,40 +157,33 @@ class _RecordingFormState extends State<RecordingForm> {
     });
     _audioPlayer.setFilePath(widget.filepath);
 
-    locationService = loc.LocationService();
-    _positionStream = locationService.positionStream;
-    markerPosition = null;
-    _positionStream.listen((Position position) {
-      _onNewPosition(position);
-    });
+    final RecordingDraftHandoff? persistedDraft = widget.persistedDraft;
+    recording = persistedDraft?.recording ??
+        Recording(
+          createdAt: widget.recordingParts.isNotEmpty
+              ? widget.recordingParts.first.startTime ?? widget.startTime
+              : widget.startTime,
+          mail: "",
+          estimatedBirdsCount: _strnadiCountController.toInt(),
+          device: "",
+          byApp: true,
+          note: _commentController.text,
+          path: widget.filepath,
+          partCount: widget.recordingParts.length,
+          env: Config.hostEnvironment.name.toString(),
+          totalSeconds: 0,
+        );
+    _recordingId = persistedDraft?.recording.id;
 
-    final safeStorage = FlutterSecureStorage();
-    // IMPORTANT: assign widget.filepath so that the recording path is not null.
-    recording = Recording(
-      createdAt: widget.recordingParts[0].startTime!,
-      mail: "",
-      estimatedBirdsCount: _strnadiCountController.toInt(),
-      device: "",
-      byApp: true,
-      note: _commentController.text,
-      path: widget.filepath,
-      partCount: widget.recordingParts.length,
-      env: Config.hostEnvironment.name.toString(),
-      totalSeconds: 0,
-    );
+    // The durable insert already captured and validated the owner snapshot.
+    // Loading it again from independently changing secure-storage keys could
+    // accidentally rebind the draft while the form is open.
+    _recordingOwnerReady =
+        persistedDraft == null ? _loadRecordingOwner() : Future<void>.value();
 
-    safeStorage.read(key: 'token').then((token) async {
-      if (token == null) {
-        _showMessage('You are not logged in');
-      }
-      while (recording.mail!.isEmpty) {
-        await Future.delayed(const Duration(seconds: 1));
-      }
-      recording.mail = JwtDecoder.decode(token!)['sub'];
-      logger.i('Mail set to ${recording.mail}');
-    });
-
-    getDeviceModel().then((model) {
+    _deviceModelFuture = getDeviceModel();
+    _deviceModelFuture.then((model) {
+      if (!mounted) return;
       setState(() {
         recording.device = model;
       });
@@ -191,38 +194,66 @@ class _RecordingFormState extends State<RecordingForm> {
     logger.i(
         "RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
 
-    // Convert the passed parts.
-    for (RecordingPartUnready part in widget.recordingParts) {
-      try {
-        RecordingPart newPart = RecordingPart.fromUnready(part);
-        recordingParts.add(newPart);
-      } catch (e, stackTrace) {
-        logger.e("Error converting part: $e", error: e, stackTrace: stackTrace);
+    if (persistedDraft != null) {
+      recordingParts.addAll(persistedDraft.recordingParts);
+    } else {
+      // Convert the passed parts for compatibility with older callers. New
+      // recorder flows persist the aggregate before opening this form.
+      for (RecordingPartUnready part in widget.recordingParts) {
+        try {
+          RecordingPart newPart = RecordingPart.fromUnready(part);
+          recordingParts.add(newPart);
+        } catch (e, stackTrace) {
+          logger.e(
+            "Error converting part: $e",
+            error: e,
+            stackTrace: stackTrace,
+          );
+          _recordingPartsConversionError = e;
+          recordingParts.clear();
+          break;
+        }
       }
-    }
 
-    // Assign the duration (in seconds) to each RecordingPart
-    for (int i = 0;
-        i < recordingParts.length && i < widget.recordingPartsTimeList.length;
-        i++) {
-      recordingParts[i].length = widget.recordingPartsTimeList[i];
+      // Assign the duration (in seconds) to each RecordingPart.
+      for (int i = 0;
+          i < recordingParts.length && i < widget.recordingPartsTimeList.length;
+          i++) {
+        recordingParts[i].length = widget.recordingPartsTimeList[i];
+      }
     }
 
     _route.addAll(widget.route);
 
-    if (recordingParts.isNotEmpty &&
-        recordingParts[0].gpsLatitudeStart != null &&
-        recordingParts[0].gpsLongitudeStart != null) {
+    final RecordingPart? firstRecordingPart =
+        firstRecordingPartOrNull(recordingParts);
+    if (firstRecordingPart != null) {
       reverseGeocode(
-        recordingParts[0].gpsLatitudeStart!,
-        recordingParts[0].gpsLongitudeStart!,
+        firstRecordingPart.gpsLatitudeStart,
+        firstRecordingPart.gpsLongitudeStart,
       );
     }
   }
 
+  Future<void> _loadRecordingOwner() async {
+    final ActivatedAuthSessionSnapshot? session =
+        await activatedAuthSessions.capture();
+    if (session?.verified != true) {
+      if (mounted) {
+        _showMessage(
+          t('postRecordingForm.recordingForm.dialogs.error.login'),
+        );
+      }
+      return;
+    }
+
+    recording.mail = session!.subject;
+    logger.i('Recording owner loaded from the activated session.');
+  }
+
   // Helper method to display a simple message dialog.
-  void _showMessage(String message) {
-    showDialog(
+  Future<void> _showMessage(String message) {
+    return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -245,23 +276,27 @@ class _RecordingFormState extends State<RecordingForm> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
-              t('postRecordingForm.addDialect.dialogs.confirmation.title')),
+            t('postRecordingForm.recordingForm.dialogs.discard.title'),
+          ),
           content: Text(
-              t('postRecordingForm.addDialect.dialogs.confirmation.message')),
+            t('postRecordingForm.recordingForm.dialogs.discard.message'),
+          ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(false);
               },
               child: Text(
-                  t('postRecordingForm.addDialect.dialogs.confirmation.no')),
+                t('postRecordingForm.recordingForm.dialogs.discard.no'),
+              ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
               child: Text(
-                  t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                t('postRecordingForm.recordingForm.dialogs.discard.yes'),
+              ),
             ),
           ],
         );
@@ -269,38 +304,120 @@ class _RecordingFormState extends State<RecordingForm> {
     );
   }
 
-  void _showDiscardDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-              t('postRecordingForm.addDialect.dialogs.confirmation.title')),
-          content: Text(
-              t('postRecordingForm.addDialect.dialogs.confirmation.message')),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                  t('postRecordingForm.addDialect.dialogs.confirmation.no')),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LiveRec()),
-                );
-              },
-              child: Text(
-                  t('postRecordingForm.addDialect.dialogs.confirmation.yes')),
-            ),
-          ],
-        );
-      },
+  Route<void> _recorderRoute() {
+    return PageRouteBuilder<void>(
+      pageBuilder: (context, animation, secondaryAnimation) => const LiveRec(),
+      settings: const RouteSettings(name: '/Recorder'),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
     );
+  }
+
+  void _replaceWithRecorder() {
+    Navigator.of(context).pushReplacement(_recorderRoute());
+  }
+
+  Future<void> _deleteUnpersistedRecordingFiles() async {
+    // Once a draft exists, SQLite owns these paths and retry/offline flows need
+    // them. An ambiguous transaction result also remains DB-owned until a
+    // later reconciliation proves that the aggregate is absent.
+    if (!canDeleteUnpersistedDraftFiles(
+      hasPersistedId: _recordingId != null || recording.id != null,
+      persistenceMayHaveCommitted: _draftPersistenceMayHaveCommitted,
+    )) {
+      return;
+    }
+
+    final Set<String> paths = <String>{
+      if (widget.filepath.isNotEmpty) widget.filepath,
+      ...widget.recordingParts
+          .map((RecordingPartUnready part) => part.path)
+          .whereType<String>()
+          .where((String path) => path.isNotEmpty),
+      ...recordingParts
+          .map((RecordingPart part) => part.path)
+          .whereType<String>()
+          .where((String path) => path.isNotEmpty),
+    };
+
+    for (final String path in paths) {
+      try {
+        final File file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } on FileSystemException catch (error, stackTrace) {
+        logger.e(
+          'Failed to delete a discarded temporary recording file.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        Sentry.captureException(error, stackTrace: stackTrace);
+      }
+    }
+  }
+
+  Future<void> _deleteDraftAndOwnedFiles() async {
+    final RecordingDraftHandoff? persistedDraft = widget.persistedDraft;
+    if (persistedDraft != null) {
+      await persistedDraft.discard();
+      _recordingId = null;
+      recording.id = null;
+      return;
+    }
+
+    final int? recordingId = _recordingId ?? recording.id;
+    if (recordingId != null) {
+      await DatabaseNew.deleteRecordingFromCache(recordingId);
+      _recordingId = null;
+      recording.id = null;
+      return;
+    }
+
+    await _deleteUnpersistedRecordingFiles();
+  }
+
+  Future<void> _discardAndReturnToRecorder() async {
+    if (_isLoading || _isDiscarding || !mounted) return;
+    setState(() => _isDiscarding = true);
+    bool leaving = false;
+    try {
+      final bool shouldDiscard = await _confirmDiscard() ?? false;
+      if (!shouldDiscard) return;
+
+      try {
+        await _audioPlayer.stop();
+      } catch (error, stackTrace) {
+        logger.w(
+          'Failed to stop playback before discarding the recording',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+      try {
+        await _deleteDraftAndOwnedFiles();
+      } catch (error, stackTrace) {
+        logger.e(
+          'Failed to discard recording draft',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        Sentry.captureException(error, stackTrace: stackTrace);
+        if (mounted) {
+          await _showMessage(
+            t('postRecordingForm.recordingForm.dialogs.error.saveFailed'),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      leaving = true;
+      _replaceWithRecorder();
+    } finally {
+      if (!leaving && mounted) {
+        setState(() => _isDiscarding = false);
+      }
+    }
   }
 
   // Helper method to seek the audio player relative to current position.
@@ -309,81 +426,27 @@ class _RecordingFormState extends State<RecordingForm> {
     _audioPlayer.seek(currentPos + Duration(seconds: seconds));
   }
 
-  Future<void> SendDialects() async {
-    var id = _recordingId;
-
-    if (id == null) {
-      logger.e("Recording BEID is null");
-      return;
-    }
-    if (dialectSegments.isNotEmpty) {
-      var dialect = dialectSegments.first;
-      var body = Dialect(
-        id: null, // will be auto‑generated locally
-        BEID: null, // not yet uploaded to BE
-        recordingId: id, // local recording FK
-        recordingBEID: null, // BE ID unknown until sync
-        userGuessDialect: dialect.type, // user‑selected code
-        adminDialect: null,
-        startDate: recording.createdAt
-            .add(Duration(milliseconds: dialect.startTime.toInt())),
-        endDate: recording.createdAt
-            .add(Duration(milliseconds: dialect.endTime.toInt())),
+  List<Dialect> _buildDialects() {
+    return dialectSegments.map((DialectModel dialect) {
+      final Duration startOffset = Duration(
+        microseconds:
+            (dialect.startTime * Duration.microsecondsPerSecond).round(),
       );
-
-      DatabaseNew.insertDialect(body);
-      logger.i("Dialect inserted into database");
-    }
-    // for (DialectModel dialect in dialectSegments) {
-    //   var token = FlutterSecureStorage();
-    //   var jwt = await token.read(key: 'token');
-    //   logger.i("jwt is $jwt");
-    //   logger.i("token is $jwt");
-    //   var body = jsonEncode(<String, dynamic>{
-    //     'recordingId': id,
-    //     'StartDate': recording.createdAt
-    //         .add(
-    //         Duration(milliseconds: dialect.startTime.toInt()))
-    //         .toIso8601String(),
-    //     'endDate': recording.createdAt.add(
-    //         Duration(milliseconds: dialect.endTime.toInt())).toIso8601String(),
-    //     'dialectCode': dialect.label,
-    //   });
-    //   try {
-    //     final url = Uri(scheme: 'https',
-    //         host: Config.host,
-    //         path: '/recordings/filtered/upload');
-    //     await http.post(
-    //       url,
-    //       headers: <String, String>{
-    //         'Content-Type': 'application/json',
-    //         'Authorization': 'Bearer $jwt',
-    //       },
-    //       body: jsonEncode(<String, dynamic>{
-    //         'recordingId': id,
-    //         'StartDate': recording.createdAt
-    //             .add(
-    //             Duration(milliseconds: dialect.startTime.toInt()))
-    //             .toIso8601String(),
-    //         'endDate': recording.createdAt
-    //             .add(
-    //             Duration(milliseconds: dialect.endTime.toInt()))
-    //             .toIso8601String(),
-    //         'dialectCode': dialect.label,
-    //       }),
-    //     ).then((value) {
-    //       if (value.statusCode == 200) {
-    //         logger.i("Dialect sent successfully");
-    //       } else {
-    //         logger.e("Dialect sending failed with status code ${value
-    //             .statusCode} and body $body");
-    //       }
-    //     });
-    //   } catch (e, stackTrace) {
-    //     logger.e(
-    //         "Error inserting dialect: $e", error: e, stackTrace: stackTrace);
-    //   }
-    // }
+      final Duration endOffset = Duration(
+        microseconds:
+            (dialect.endTime * Duration.microsecondsPerSecond).round(),
+      );
+      return Dialect(
+        id: null,
+        BEID: null,
+        recordingId: null,
+        recordingBEID: null,
+        userGuessDialect: dialect.type,
+        adminDialect: null,
+        startDate: recording.createdAt.add(startOffset),
+        endDate: recording.createdAt.add(endOffset),
+      );
+    }).toList(growable: false);
   }
 
   void _showDialectSelectionDialog() {
@@ -490,19 +553,21 @@ class _RecordingFormState extends State<RecordingForm> {
     final url = Uri.parse(
         "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
-    logger.i("reverse geocode url: $url");
+    logger.i('Reverse geocoding the captured recording location.');
     try {
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${Config.mapsApiKey}',
       };
       final response = await http.get(url, headers: headers);
+      if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final results = data['items'];
-        if (results.isNotEmpty) {
-          logger.i("Reverse geocode result: $results");
+        if (results is List && results.isNotEmpty) {
+          logger.i('Reverse geocoding returned a location.');
+          if (!mounted) return;
           setState(() {
             placeTitle = results[0]['name'];
           });
@@ -516,30 +581,6 @@ class _RecordingFormState extends State<RecordingForm> {
     }
   }
 
-  Future<void> insertRecordingWhenReady() async {
-    while (recording.mail!.isEmpty || (recording.device?.isEmpty ?? true)) {
-      await Future.delayed(const Duration(seconds: 1));
-      logger.i('Waiting for recording to be ready');
-    }
-    logger.i('Started inserting recording');
-    recording.downloaded = true;
-    recording.id = await DatabaseNew.insertRecording(recording);
-
-    // Update the recording in the database with the final file path and downloaded flag
-    await DatabaseNew.updateRecording(recording);
-
-    setState(() {
-      _recordingId = recording.id;
-    });
-    logger.i('ID set to $_recordingId, recording file path: ${recording.path}');
-  }
-
-  void _onImagesSelected(List<File> images) {
-    setState(() {
-      _selectedImages = images;
-    });
-  }
-
   Future<String> getDeviceModel() async {
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     try {
@@ -548,7 +589,8 @@ class _RecordingFormState extends State<RecordingForm> {
         return '${android.manufacturer} ${android.model}';
       } else if (Platform.isIOS) {
         final ios = await deviceInfo.iosInfo;
-        return ios.utsname.machine ?? 'iOS';
+        final String machine = ios.utsname.machine;
+        return machine.isEmpty ? 'iOS' : machine;
       }
     } catch (_) {
       // Ignore and fall through to default
@@ -580,51 +622,101 @@ class _RecordingFormState extends State<RecordingForm> {
         : _recordingNameController.text;
     recording.downloaded = true;
     recording.estimatedBirdsCount = _strnadiCountController.toInt();
+    recording.partCount = recordingParts.length;
+    recording.totalSeconds = recordingParts.fold<double>(
+      0,
+      (double total, RecordingPart part) => total + (part.length ?? 0),
+    );
+    await Future.wait<void>(<Future<void>>[
+      _recordingOwnerReady,
+      _deviceModelFuture.then<void>((String model) {
+        recording.device = model;
+      }),
+    ]);
+    if (!mounted) return;
 
-    // Log the recording path before insertion
-    logger.i("Played recording path: ${widget.filepath}");
-    logger.i("Recording before insertion: path=${recording.path}");
-    logger.i(recording.toJson());
-    _recordingId = await DatabaseNew.insertRecording(recording);
-    recording.id = _recordingId;
-    logger.i(
-        "Recording inserted with ID: $_recordingId, file path: ${recording.path}");
-
-    // Log number of parts to insert
-    logger.i("Uploading ${recordingParts.length} recording parts.");
-    for (RecordingPart part in recordingParts) {
-      part.recordingId = _recordingId;
-      int partId = await DatabaseNew.insertRecordingPart(part);
-      logger.i("Inserted part with id: $partId for recording $_recordingId");
-      logger.i(part.toJson());
+    if (_recordingPartsConversionError != null ||
+        recordingParts.isEmpty ||
+        recordingParts.length != widget.recordingParts.length) {
+      _showMessage(
+        t('postRecordingForm.recordingForm.dialogs.error.invalidParts'),
+      );
+      return;
     }
-    logger.i("saving dialects");
-    await SendDialects();
+
+    final List<Dialect> dialects = _buildDialects();
+    try {
+      if (_recordingId == null) {
+        _recordingId = await DatabaseNew.insertRecordingDraft(
+          recording,
+          recordingParts,
+          dialects,
+        );
+        recording.id = _recordingId;
+        _draftPersistenceMayHaveCommitted = false;
+        logger.i(
+          'Recording draft $_recordingId and ${recordingParts.length} parts '
+          'were saved atomically.',
+        );
+      } else {
+        final RecordingDraftHandoff? persistedDraft = widget.persistedDraft;
+        if (persistedDraft != null) {
+          await persistedDraft.updateMetadata(dialects);
+        } else {
+          await DatabaseNew.updateRecordingDraft(recording, dialects);
+        }
+        logger.i(
+          'Recording draft $_recordingId metadata was updated atomically.',
+        );
+      }
+    } catch (error, stackTrace) {
+      if (error is RecordingDraftPersistenceException &&
+          error.mayHaveCommitted) {
+        _draftPersistenceMayHaveCommitted = true;
+      }
+      logger.e(
+        'Failed to save recording draft',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(error, stackTrace: stackTrace);
+      if (mounted) {
+        _showMessage(
+          t('postRecordingForm.recordingForm.dialogs.error.saveFailed'),
+        );
+      }
+      return;
+    }
+
     // Check connectivity and user preference before upload
     if (!await Config.hasBasicInternet) {
+      if (!mounted) return;
       logger.w("No internet connection, saved offline");
-      _showMessage(t(
+      await _showMessage(t(
           "postRecordingForm.recordingForm.dialogs.error.noInternet.message"));
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LiveRec()));
+      if (!mounted) return;
+      _replaceWithRecorder();
       return;
     }
     if (!await Config.canUpload) {
+      if (!mounted) return;
       logger.w("Upload only allowed on Wi-Fi, saved offline");
-      _showMessage(
+      await _showMessage(
           t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LiveRec()));
+      if (!mounted) return;
+      _replaceWithRecorder();
       return;
     }
 
-    var storage = FlutterSecureStorage();
-
-    if (await storage.read(key: 'userId') == null) {
+    final ActivatedAuthSessionSnapshot? uploadSession =
+        await activatedAuthSessions.capture();
+    if (uploadSession?.verified != true) {
+      if (!context.mounted) return;
       logger.w("User is in guest mode");
+      final BuildContext formContext = context;
       Dialogs.showCupertinoDialog(
-        context: context,
-        builder: (BuildContext context) {
+        context: formContext,
+        builder: (BuildContext dialogContext) {
           return Dialogs.CupertinoAlertDialog(
             title: Text(t('bottomBar.errors.guest_user')),
             content: Text(t('bottomBar.errors.guest_user_desc_rec')),
@@ -633,9 +725,10 @@ class _RecordingFormState extends State<RecordingForm> {
                 isDefaultAction: true,
                 onPressed: () {
                   //navigate to login
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
+                  if (!formContext.mounted) return;
                   Navigator.pushReplacement(
-                    context,
+                    formContext,
                     PageRouteBuilder(
                       pageBuilder: (context, animation, secondaryAnimation) =>
                           Authorizator(),
@@ -658,22 +751,26 @@ class _RecordingFormState extends State<RecordingForm> {
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
+      if (mounted) {
+        _showMessage(
+          t('postRecordingForm.recordingForm.dialogs.error.scheduleFailed'),
+        );
+      }
+      return;
     }
-    logger.i("Recording uploaded");
-    Navigator.push(context, MaterialPageRoute(builder: (context) => LiveRec()));
-  }
-
-  void _onNewPosition(Position position) {
-    final newPoint = LatLng(position.latitude, position.longitude);
-    setState(() {
-      markerPosition = newPoint;
-    });
+    logger.i("Recording upload scheduled");
+    if (!mounted) return;
+    _replaceWithRecorder();
   }
 
   @override
   void dispose() {
     _recordingNameController.dispose();
     _commentController.dispose();
+    _audioPositionSubscription?.cancel();
+    _audioDurationSubscription?.cancel();
+    _audioPlayingSubscription?.cancel();
+    _audioStateSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -684,33 +781,15 @@ class _RecordingFormState extends State<RecordingForm> {
     final Color secondaryRed = const Color(0xFFFFEDED);
     final Color yellowishBlack = const Color(0xFF2D2B18);
     final Color yellow = const Color(0xFFFFD641);
-
-    // Update marker pos from last known (if any)
-    markerPosition = locationService.lastKnownPosition != null
-        ? LatLng(
-            locationService.lastKnownPosition!.latitude,
-            locationService.lastKnownPosition!.longitude,
-          )
-        : null;
+    final RecordingPart? firstRecordingPart =
+        firstRecordingPartOrNull(recordingParts);
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (_isLoading) return; // block back while loading
         if (didPop) return;
-        final bool shouldPop = await _confirmDiscard() ?? false;
-        if (shouldPop) {
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  LiveRec(),
-              settings: const RouteSettings(name: '/Recorder'),
-              transitionDuration: Duration.zero,
-              reverseTransitionDuration: Duration.zero,
-            ),
-          );
-        }
+        await _discardAndReturnToRecorder();
       },
       child: Stack(
         children: [
@@ -775,17 +854,7 @@ class _RecordingFormState extends State<RecordingForm> {
               leading: IconButton(
                 icon: Image.asset('assets/icons/backButton.png',
                     width: 30, height: 30),
-                onPressed: !_isLoading
-                    ? () async {
-                        final bool shouldPop = await _confirmDiscard() ?? false;
-                        if (shouldPop) {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => LiveRec()));
-                        }
-                      }
-                    : null,
+                onPressed: !_isLoading ? _discardAndReturnToRecorder : null,
               ),
             ),
             body: SingleChildScrollView(
@@ -903,9 +972,13 @@ class _RecordingFormState extends State<RecordingForm> {
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 5),
                             Text(
-                              _strnadiCountController.toInt() == 3
-                                  ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
-                                  : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
+                              t(
+                                _strnadiCountController.toInt() == 1
+                                    ? 'postRecordingForm.recordingForm.slider.oneBird'
+                                    : _strnadiCountController.toInt() == 2
+                                        ? 'postRecordingForm.recordingForm.slider.twoBirds'
+                                        : 'postRecordingForm.recordingForm.slider.threeOrMoreBirds',
+                              ),
                               style: const TextStyle(fontSize: 14),
                             ),
                             const SizedBox(height: 5),
@@ -962,8 +1035,15 @@ class _RecordingFormState extends State<RecordingForm> {
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold)),
                             Text(placeTitle),
-                            Text(
-                                "${recordingParts[0].gpsLatitudeStart} ${recordingParts[0].gpsLongitudeStart}"),
+                            if (firstRecordingPart != null)
+                              Text(
+                                '${firstRecordingPart.gpsLatitudeStart} '
+                                '${firstRecordingPart.gpsLongitudeStart}',
+                              )
+                            else
+                              Text(
+                                t('postRecordingForm.recordingForm.dialogs.error.invalidParts'),
+                              ),
                             const SizedBox(height: 5),
                             Padding(
                               padding: const EdgeInsets.symmetric(
@@ -1021,12 +1101,13 @@ class _RecordingFormState extends State<RecordingForm> {
                                                 ],
                                               ),
                                             MarkerLayer(
-                                              markers: widget.recordingParts
-                                                  .map((part) {
+                                              markers:
+                                                  recordingParts.map((part) {
                                                 return Marker(
                                                   point: LatLng(
-                                                      part.gpsLatitudeStart!,
-                                                      part.gpsLongitudeStart!),
+                                                    part.gpsLatitudeStart,
+                                                    part.gpsLongitudeStart,
+                                                  ),
                                                   child: const Icon(Icons.place,
                                                       color: Colors.red,
                                                       size: 30),
@@ -1061,43 +1142,7 @@ class _RecordingFormState extends State<RecordingForm> {
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed: !_isLoading
-                                      ? () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (BuildContext context) {
-                                              return AlertDialog(
-                                                title: Text(t(
-                                                    'postRecordingForm.addDialect.dialogs.confirmation.title')),
-                                                content: Text(t(
-                                                    'postRecordingForm.addDialect.dialogs.confirmation.message')),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      Navigator.of(context)
-                                                          .pop();
-                                                    },
-                                                    child: Text(t(
-                                                        'postRecordingForm.addDialect.dialogs.confirmation.no')),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      Navigator.of(context)
-                                                          .pop();
-                                                      Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                              builder:
-                                                                  (context) =>
-                                                                      LiveRec()));
-                                                    },
-                                                    child: Text(t(
-                                                        'postRecordingForm.addDialect.dialogs.confirmation.yes')),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
-                                        }
+                                      ? _discardAndReturnToRecorder
                                       : null,
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,

@@ -14,18 +14,24 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 import 'dart:io';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+typedef SingleImagePicker = Future<XFile?> Function(ImageSource source);
+typedef MultipleImagePicker = Future<List<XFile>> Function();
+
 class MultiPhotoUploadWidget extends StatefulWidget {
   final Function(List<File>) onImagesSelected;
+  final SingleImagePicker? pickImage;
+  final MultipleImagePicker? pickMultipleImages;
 
   const MultiPhotoUploadWidget({
     Key? key,
     required this.onImagesSelected,
+    this.pickImage,
+    this.pickMultipleImages,
   }) : super(key: key);
 
   @override
@@ -35,36 +41,55 @@ class MultiPhotoUploadWidget extends StatefulWidget {
 class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
   final List<File> _images = [];
   final ImagePicker _picker = ImagePicker();
+  bool _isPicking = false;
+
+  void _setPicking(bool value) {
+    if (!mounted || _isPicking == value) return;
+    setState(() => _isPicking = value);
+  }
 
   Future<void> _pickImage(ImageSource source) async {
-    final XFile? pickedFile = await _picker.pickImage(source: source);
+    if (_isPicking) return;
+    _setPicking(true);
+    try {
+      final XFile? pickedFile = await (widget.pickImage?.call(source) ??
+          _picker.pickImage(source: source));
+      if (!mounted || pickedFile == null) return;
 
-    if (pickedFile != null) {
       setState(() {
         _images.add(File(pickedFile.path));
-        widget.onImagesSelected(_images);
       });
+      widget.onImagesSelected(List<File>.unmodifiable(_images));
+    } finally {
+      _setPicking(false);
     }
   }
 
   Future<void> _pickMultipleImages() async {
-    final List<XFile>? pickedFiles = await _picker.pickMultiImage();
+    if (_isPicking) return;
+    _setPicking(true);
+    try {
+      final List<XFile> pickedFiles =
+          await (widget.pickMultipleImages?.call() ?? _picker.pickMultiImage());
+      if (!mounted || pickedFiles.isEmpty) return;
 
-    if (pickedFiles != null && pickedFiles.isNotEmpty) {
       setState(() {
-        for (var file in pickedFiles) {
+        for (final XFile file in pickedFiles) {
           _images.add(File(file.path));
         }
-        widget.onImagesSelected(_images);
       });
+      widget.onImagesSelected(List<File>.unmodifiable(_images));
+    } finally {
+      _setPicking(false);
     }
   }
 
   void _removeImage(int index) {
+    if (index < 0 || index >= _images.length) return;
     setState(() {
       _images.removeAt(index);
-      widget.onImagesSelected(_images);
     });
+    widget.onImagesSelected(List<File>.unmodifiable(_images));
   }
 
   @override
@@ -77,7 +102,8 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(t('postRecordingForm.imageUpload.title'),
+            Text(
+              t('postRecordingForm.imageUpload.title'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -100,9 +126,13 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _pickImage(ImageSource.camera),
+                key: const Key('photo-upload-camera'),
+                onPressed:
+                    _isPicking ? null : () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt, size: 16),
-                label: Text(t('postRecordingForm.imageUpload.buttons.takePhoto'), style: TextStyle(fontSize: 14)),
+                label: Text(
+                    t('postRecordingForm.imageUpload.buttons.takePhoto'),
+                    style: TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -114,9 +144,11 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
             const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _pickMultipleImages,
+                key: const Key('photo-upload-gallery'),
+                onPressed: _isPicking ? null : _pickMultipleImages,
                 icon: const Icon(Icons.photo_library, size: 16),
-                label: Text(t('postRecordingForm.imageUpload.buttons.upload'), style: TextStyle(fontSize: 14)),
+                label: Text(t('postRecordingForm.imageUpload.buttons.upload'),
+                    style: TextStyle(fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -187,7 +219,8 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(t('postRecordingForm.imageUpload.placeholders.noImages'),
+            child: Text(
+              t('postRecordingForm.imageUpload.placeholders.noImages'),
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,

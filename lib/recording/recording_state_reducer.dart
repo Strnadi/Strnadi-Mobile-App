@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
+ * Copyright (C) 2026 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -13,32 +13,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:async';
-import 'dart:io';
 
 import 'package:record/record.dart';
 
-mixin AudioRecorderMixin {
-  Future<String> recordStream(
-      AudioRecorder recorder, RecordConfig config, String filepath) async {
-    final file = File(filepath);
-    final stream = await recorder.startStream(config);
-
-    final completer = Completer<String>();
-
-    stream.listen(
-      (data) {
-        file.writeAsBytes(data, mode: FileMode.append);
-      },
-      onDone: () {
-        print('End of stream. File written to $filepath.');
-        completer.complete(filepath);
-      },
-      onError: (error) {
-        completer.completeError(error);
-      },
-    );
-
-    return completer.future;
+/// Reconciles native recorder events with the app's logical workflow.
+///
+/// Stopping a physical stream is how this app implements a logical pause.
+/// Some platforms publish their STOP event after the pause workflow has
+/// already advanced. While [logicalPauseOwnsState] is true, that late event
+/// must not hide the resume/finish controls.
+RecordState reduceRecorderState({
+  required RecordState currentState,
+  required RecordState physicalState,
+  required bool logicalPauseOwnsState,
+}) {
+  if (logicalPauseOwnsState && physicalState == RecordState.stop) {
+    return RecordState.pause;
   }
+  return physicalState;
 }

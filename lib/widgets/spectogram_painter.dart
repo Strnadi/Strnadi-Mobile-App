@@ -13,8 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'package:strnadi/localization/localization.dart';
-import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -168,9 +166,6 @@ class _LiveSpectogramState extends State<LiveSpectogram> {
     if (spectrogramData == null) {
       return Center(child: CircularProgressIndicator());
     }
-
-    // Calculate total width based on data and zoom
-    final totalWidth = spectrogramData!.length * _defaultColumnWidth * _zoom;
 
     return Column(
       children: [
@@ -358,5 +353,4 @@ class TimeMarkerPainter extends CustomPainter {
     return true;
   }
 }
-
 
