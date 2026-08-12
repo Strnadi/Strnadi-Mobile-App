@@ -16,8 +16,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/dialects/dialect_definition.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
@@ -78,7 +76,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
     'No Dialect': Colors.black,
   };
 
-  static const String _prefsKey = 'dialect_colors_v1';
   static const Map<String, String> _defaults = {
     'BC': '#FDE441',
     'BE': '#52DC4D',
@@ -103,13 +100,10 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
 
     // Dialect color from cache, with defaults fallback
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsKey);
-      if (raw != null && raw.isNotEmpty) {
-        final Map<String, dynamic> parsed = jsonDecode(raw);
-        final String? hex =
-            parsed[canonical] as String? ?? parsed[type] as String?;
-        if (hex != null) return _hexToColor(hex);
+      final List<Color> colors =
+          await DialectColorCache.getColors(<String>[canonical]);
+      if (colors.isNotEmpty) {
+        return colors.first;
       }
     } catch (_) {}
 
@@ -133,12 +127,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
       startTime = widget.currentPosition!;
       endTime = (widget.currentPosition! + 3.0).clamp(0.0, widget.duration);
     }
-  }
-
-  String _formatDuration(double seconds) {
-    int mins = (seconds / 60).floor();
-    int secs = (seconds % 60).floor();
-    return '$mins:${secs.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -284,7 +272,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                                       ? null
                                       : _noteController.text.trim(),
                                 ));
-                                if (mounted) Navigator.pop(context);
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
                               }
                             : null,
                         child: Text(t('postRecordingForm.addDialect.confirm')),
@@ -307,18 +296,6 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMarker(Color color) {
-    return Container(
-      height: 40,
-      width: 16,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: color, width: 2),
-        borderRadius: BorderRadius.circular(8),
       ),
     );
   }
