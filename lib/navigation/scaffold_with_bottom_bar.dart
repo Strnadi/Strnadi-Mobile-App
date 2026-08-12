@@ -23,6 +23,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/map/mapv2.dart';
 import 'package:strnadi/navigation/guest_user_popup.dart';
 import 'package:strnadi/navigation/notification_bell_button.dart';
+import 'package:strnadi/navigation/recorder_exit_policy.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import 'package:strnadi/user/userPage.dart';
@@ -140,7 +141,7 @@ class ScaffoldWithBottomBar extends StatelessWidget {
 class ReusableBottomAppBar extends StatelessWidget {
   final BottomBarItem currentPage;
   final bool isGuestUser;
-  final Future<bool> Function() changeConfirmation;
+  final RecorderExitPolicy changeConfirmation;
 
   const ReusableBottomAppBar({
     super.key,
@@ -181,9 +182,8 @@ class ReusableBottomAppBar extends StatelessWidget {
             ),
             iconSize: 30.0,
             onPressed: () async {
-              if (!await changeConfirmation()) return;
-
               if (!await Config.hasBasicInternet) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(t('bottomBar.errors.noInternetMap')),
@@ -192,6 +192,10 @@ class ReusableBottomAppBar extends StatelessWidget {
                 );
                 return;
               }
+              // Do not destroy an active recording unless the destination is
+              // actually available. Offline map navigation is rejected above.
+              if (!await permitsRecorderExit(changeConfirmation)) return;
+              if (!context.mounted) return;
 
               if (ModalRoute.of(context)?.settings.name != '/map') {
                 Navigator.pushReplacement(
@@ -222,11 +226,16 @@ class ReusableBottomAppBar extends StatelessWidget {
             onPressed: () async {
               const FlutterSecureStorage storage = FlutterSecureStorage();
               final String? userId = await storage.read(key: 'userId');
+              if (!context.mounted) return;
               if (userId == null || userId.isEmpty) {
-                await showGuestUserPopup(context);
+                await showGuestUserPopup(
+                  context,
+                  recorderExitPolicy: changeConfirmation,
+                );
                 return;
               }
-              if (!await changeConfirmation()) return;
+              if (!await permitsRecorderExit(changeConfirmation)) return;
+              if (!context.mounted) return;
 
               if (ModalRoute.of(context)?.settings.name != '/list') {
                 Navigator.pushReplacement(
@@ -254,20 +263,26 @@ class ReusableBottomAppBar extends StatelessWidget {
             ),
             iconSize: 30.0,
             onPressed: () async {
-              if (!await changeConfirmation()) return;
-
-              if (ModalRoute.of(context)?.settings.name != '/Recorder') {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        const LiveRec(),
-                    settings: const RouteSettings(name: '/Recorder'),
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                  ),
-                );
+              // Tapping the selected recorder tab is a no-op. Asking the
+              // recorder exit policy here would discard audio without
+              // navigating anywhere.
+              if (currentPage == BottomBarItem.recorder ||
+                  ModalRoute.of(context)?.settings.name == '/Recorder') {
+                return;
               }
+              if (!await permitsRecorderExit(changeConfirmation)) return;
+              if (!context.mounted) return;
+
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      const LiveRec(),
+                  settings: const RouteSettings(name: '/Recorder'),
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ),
+              );
             },
           ),
           IconButton(
@@ -282,7 +297,8 @@ class ReusableBottomAppBar extends StatelessWidget {
                   : const Color(0xFFADADAD),
             ),
             onPressed: () async {
-              if (!await changeConfirmation()) return;
+              if (!await permitsRecorderExit(changeConfirmation)) return;
+              if (!context.mounted) return;
 
               if (ModalRoute.of(context)?.settings.name != '/blog') {
                 Navigator.pushReplacement(
@@ -317,11 +333,16 @@ class ReusableBottomAppBar extends StatelessWidget {
             onPressed: () async {
               const FlutterSecureStorage storage = FlutterSecureStorage();
               final String? userId = await storage.read(key: 'userId');
+              if (!context.mounted) return;
               if (userId == null || userId.isEmpty) {
-                await showGuestUserPopup(context);
+                await showGuestUserPopup(
+                  context,
+                  recorderExitPolicy: changeConfirmation,
+                );
                 return;
               }
-              if (!await changeConfirmation()) return;
+              if (!await permitsRecorderExit(changeConfirmation)) return;
+              if (!context.mounted) return;
 
               if (ModalRoute.of(context)?.settings.name != '/user') {
                 Navigator.pushReplacement(

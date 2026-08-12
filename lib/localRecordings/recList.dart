@@ -18,24 +18,27 @@
  */
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:strnadi/api/http_adapter.dart';
 import 'package:strnadi/api/http_adapter.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:strnadi/database/Models/recording.dart';
-import '../database/fileSize.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:strnadi/bottomBar.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
+import 'package:strnadi/localRecordings/recording_dialect_summary.dart';
+import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
+import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
+import 'package:strnadi/PostRecordingForm/recording_draft_handoff.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../config/config.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -44,6 +47,7 @@ import '../navigation/notification_bell_button.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import '../navigation/session_navigation.dart';
 import '../utils/location_label.dart';
+import '../utils/async_single_flight.dart';
 
 final logger = Logger();
 
@@ -69,56 +73,51 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   bool compactView = false; // Default to detailed view
 
   Timer? _refreshTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  PageRoute<dynamic>? _subscribedRoute;
+  final AsyncSingleFlight _sendAllSingleFlight = AsyncSingleFlight();
+  bool _isSendingAll = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Ensure that the route is a PageRoute before subscribing.
     final ModalRoute? route = ModalRoute.of(context);
-    if (route is PageRoute) {
+    if (route is PageRoute && route != _subscribedRoute) {
+      if (_subscribedRoute != null) {
+        routeObserver.unsubscribe(this);
+      }
       routeObserver.subscribe(this, route);
+      _subscribedRoute = route;
     }
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
+    unawaited(_connectivitySubscription?.cancel());
     routeObserver.unsubscribe(this);
+    _subscribedRoute = null;
     super.dispose();
   }
 
   @override
   void didPopNext() {
     // Called when the current route has been popped back to.
-    getRecordings();
+    unawaited(getRecordings());
   }
 
   @override
   void initState() {
     super.initState();
-    Connectivity().checkConnectivity().then((results) {
-      final isOffline =
-          results.every((result) => result == ConnectivityResult.none);
-      if (isOffline) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(t('recList.offlineMode.title')),
-              content: Text(t('recList.offlineMode.message')),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(t('auth.buttons.ok')),
-                ),
-              ],
-            ),
-          );
-        });
-      }
-    });
-    getRecordings();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      IncompleteUploadPrompt.checkAndPrompt(context);
+    _connectivitySubscription = Connectivity()
+        .checkConnectivity()
+        .asStream()
+        .listen(_handleInitialConnectivity);
+    unawaited(getRecordings());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await IncompleteUploadPrompt.checkAndPrompt(context);
     });
     // Periodically refresh to catch sending status updates
     // _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -126,36 +125,148 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     // });
   }
 
-  void _showMessage(String message, String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
+  void _handleInitialConnectivity(List<ConnectivityResult> results) {
+    if (!mounted ||
+        !results.every((result) => result == ConnectivityResult.none)) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(t('recList.offlineMode.title')),
+          content: Text(t('recList.offlineMode.message')),
+          actions: [
+            TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(t('auth.buttons.ok'))),
-        ],
-      ),
-    );
+              child: Text(t('auth.buttons.ok')),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> getRecordings() async {
-    List<Recording> recordings = await DatabaseNew.getRecordings();
+    final List<Recording> recordings = await DatabaseNew.getRecordings();
+    if (!mounted) return;
     setState(() {
       list = recordings;
     });
   }
 
-  void openRecording(Recording recording) async {
+  Future<void> openRecording(Recording recording) async {
+    if (!recording.captureReviewed) {
+      await _resumeInterruptedRecordingDraft(recording);
+      if (!mounted) return;
+      await getRecordings();
+      return;
+    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RecordingItem(recording: recording),
       ),
     );
-    getRecordings(); // Refresh the list after returning
+    if (!mounted) return;
+    await getRecordings(); // Refresh the list after returning
+  }
+
+  Future<void> _resumeInterruptedRecordingDraft(Recording recording) async {
+    try {
+      final int? recordingId = recording.id;
+      final String recordingPath = recording.path?.trim() ?? '';
+      if (recordingId == null ||
+          recordingId <= 0 ||
+          recordingPath.isEmpty ||
+          !await File(recordingPath).exists()) {
+        throw StateError('Interrupted recording audio is not readable.');
+      }
+
+      final List<RecordingPart> parts =
+          await DatabaseNew.getPartsByRecordingId(recordingId);
+      parts.sort(
+        (RecordingPart first, RecordingPart second) =>
+            first.startTime.compareTo(second.startTime),
+      );
+      for (final RecordingPart part in parts) {
+        final String partPath = part.path?.trim() ?? '';
+        if (partPath.isEmpty || !await File(partPath).exists()) {
+          throw StateError('Interrupted recording part audio is not readable.');
+        }
+      }
+
+      final RecordingDraftHandoff handoff =
+          RecordingDraftHandoff.restorePersisted(
+        recording: recording,
+        recordingParts: parts,
+      );
+      final List<RecordingPartUnready> unreadyParts = parts
+          .map(
+            (RecordingPart part) => RecordingPartUnready(
+              id: part.id,
+              recordingId: part.recordingId,
+              startTime: part.startTime,
+              endTime: part.endTime,
+              gpsLatitudeStart: part.gpsLatitudeStart,
+              gpsLatitudeEnd: part.gpsLatitudeEnd,
+              gpsLongitudeStart: part.gpsLongitudeStart,
+              gpsLongitudeEnd: part.gpsLongitudeEnd,
+              path: part.path,
+            ),
+          )
+          .toList(growable: false);
+      final List<int> durations = parts
+          .map(
+            (RecordingPart part) =>
+                part.length ??
+                part.endTime.difference(part.startTime).inSeconds,
+          )
+          .toList(growable: false);
+      final List<LatLng> route = <LatLng>[];
+      void addRoutePoint(double latitude, double longitude) {
+        final LatLng point = LatLng(latitude, longitude);
+        if (route.isEmpty ||
+            route.last.latitude != point.latitude ||
+            route.last.longitude != point.longitude) {
+          route.add(point);
+        }
+      }
+
+      for (final RecordingPart part in parts) {
+        addRoutePoint(part.gpsLatitudeStart, part.gpsLongitudeStart);
+        addRoutePoint(part.gpsLatitudeEnd, part.gpsLongitudeEnd);
+      }
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (BuildContext context) => RecordingForm(
+            filepath: recordingPath,
+            startTime: recording.createdAt,
+            currentPosition: route.isEmpty ? null : route.first,
+            recordingParts: unreadyParts,
+            recordingPartsTimeList: durations,
+            route: route,
+            persistedDraft: handoff,
+          ),
+        ),
+      );
+    } catch (error, stackTrace) {
+      logger.e(
+        'Failed to reopen an interrupted recording draft',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(error, stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('recList.errors.reviewRecoveryFailed'))),
+      );
+    }
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -249,7 +360,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                 leading: const Icon(Icons.clear),
                 title: Text(t('recList.buttons.clearFilter')),
                 onTap: () {
-                  getRecordings();
+                  unawaited(getRecordings());
                   setState(() {
                     sortOptions = SortBy.none;
                     isAscending = true; // Reset to default
@@ -335,18 +446,20 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
               },
             ),
             VerticalDivider(width: 8),
-            if (rec.estimatedBirdsCount != null)
-              Text(
-                '${rec.estimatedBirdsCount}',
-                style: TextStyle(fontSize: 12, color: Colors.amber[700]),
-              ),
+            Text(
+              '${rec.estimatedBirdsCount}',
+              style: TextStyle(fontSize: 12, color: Colors.amber[700]),
+            ),
             VerticalDivider(width: 8),
             FutureBuilder<List<RecordingPart>>(
               future: Future.value(DatabaseNew.getPartsByRecordingId(rec.id!)),
               builder: (context, snapshot) {
                 String status;
                 Color color;
-                if (rec.sending) {
+                if (!rec.captureReviewed) {
+                  status = '📝';
+                  color = Colors.orange;
+                } else if (rec.sending) {
                   status = '🔵';
                   color = Colors.blue;
                 } else if (snapshot.connectionState ==
@@ -397,13 +510,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         break;
       case SortBy.date:
         sortedList.sort((a, b) {
-          int result = a.createdAt!.compareTo(b.createdAt!);
+          int result = a.createdAt.compareTo(b.createdAt);
           return isAscending ? result : -result;
         });
         break;
       case SortBy.ebc:
         sortedList.sort((a, b) {
-          int result = a.estimatedBirdsCount!.compareTo(b.estimatedBirdsCount!);
+          int result = a.estimatedBirdsCount.compareTo(b.estimatedBirdsCount);
           return isAscending ? result : -result;
         });
         break;
@@ -419,39 +532,68 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     if (name.length <= maxLength) {
       return name;
     }
-    return name.substring(0, maxLength) + '...';
+    return '${name.substring(0, maxLength)}...';
   }
 
-  void sendAllUnsent() async {
-    for (var rec in list) {
-      if (rec.sending) continue;
+  Future<void> sendAllUnsent() => _sendAllSingleFlight.run(_sendAllUnsentOnce);
 
-      if (!rec.sent) {
-        logger.i(
-            "recording: ${rec.id} sent: ${rec.sent} sending: ${rec.sending}");
-        try {
-          final incompleteUploads = await DatabaseNew.findIncompleteUploads(
-            recordingId: rec.id,
-          );
-          if (incompleteUploads.isNotEmpty) {
-            if (!mounted) return;
-            await IncompleteUploadPrompt.checkAndPrompt(
-              context,
-              recordingId: rec.id,
-              oncePerSession: false,
-            );
-            continue;
-          }
-
-          setState(() {
-            rec.sending = true;
-          });
-          await DatabaseNew.sendRecordingBackground(rec.id!);
-          logger.i("Sending recording: ${rec.id}");
-        } catch (e, stackTrace) {
-          logger.e('Error during send check/resend: $e',
-              error: e, stackTrace: stackTrace);
+  Future<void> _sendAllUnsentOnce() async {
+    if (!mounted) return;
+    setState(() => _isSendingAll = true);
+    try {
+      for (var rec in list) {
+        if (!rec.captureReviewed) {
+          continue;
         }
+        if (recordingUploadIsActive(
+          recordingSending: rec.sending,
+          recordingLease: rec.uploadLease,
+          partSendingStates: const <bool>[],
+        )) {
+          continue;
+        }
+
+        if (!rec.sent) {
+          logger.i(
+              "recording: ${rec.id} sent: ${rec.sent} sending: ${rec.sending}");
+          try {
+            final incompleteUploads = await DatabaseNew.findIncompleteUploads(
+              recordingId: rec.id,
+            );
+            if (!mounted) return;
+            if (incompleteUploads.isNotEmpty) {
+              await IncompleteUploadPrompt.checkAndPrompt(
+                context,
+                recordingId: rec.id,
+                oncePerSession: false,
+              );
+              if (!mounted) return;
+              continue;
+            }
+
+            setState(() {
+              rec.sending = true;
+            });
+            await DatabaseNew.sendRecordingBackground(rec.id!);
+            if (!mounted) return;
+            logger.i("Sending recording: ${rec.id}");
+          } catch (e, stackTrace) {
+            logger.e('Error during send check/resend: $e',
+                error: e, stackTrace: stackTrace);
+            Sentry.captureException(e, stackTrace: stackTrace);
+            rec.sending = false;
+            if (mounted) {
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(t('recList.errors.sendFailed'))),
+              );
+            }
+          }
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingAll = false);
       }
     }
   }
@@ -459,10 +601,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
-    final bool hasUnsentRecordings = records.any((rec) => !rec.sent);
-    records.forEach((rec) => print(
-        'rec id ${rec.id} is ${rec.downloaded ? 'downloaded' : 'Not downloaded'} and is ${rec.sent ? 'sent' : 'not sent'}'));
-
+    final bool hasUnsentRecordings =
+        records.any((rec) => rec.captureReviewed && !rec.sent);
     // Create a title that shows current filter
     String appBarTitle = t('recList.title');
     if (sortOptions != SortBy.none) {
@@ -487,14 +627,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       if (sortName.isNotEmpty) {
         if (sortOptions != SortBy.downloaded) {
           appBarTitle =
-              '${t('recList.sort.myRecBy')} $sortName ${isAscending ? '↑' : '↓'})';
+              '${t('recList.sort.myRecBy')} $sortName ${isAscending ? '↑' : '↓'}';
         } else {
           appBarTitle = t('recList.sort.myRecByDownloaded');
         }
       }
     }
-
-    Color yellow = const Color(0xFFFFD641);
 
     return PopScope(
       canPop: false,
@@ -542,7 +680,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
           child: RefreshIndicator(
             onRefresh: () async {
               await DatabaseNew.syncRecordings();
+              if (!mounted) return;
               await DatabaseNew.checkSendingRecordings();
+              if (!mounted) return;
               await getRecordings();
             },
             child: Column(
@@ -553,7 +693,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => sendAllUnsent(),
+                        onPressed: _isSendingAll
+                            ? null
+                            : () => unawaited(sendAllUnsent()),
                         icon: const Icon(Icons.send),
                         label: Text(t('recList.buttons.sendAllUnsent')),
                       ),
@@ -577,9 +719,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                               const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final rec = records[index];
-                            final dateText = rec.createdAt != null
-                                ? formatDateTime(rec.createdAt!)
-                                : '';
+                            final dateText = formatDateTime(rec.createdAt);
 
                             if (compactView) {
                               return buildCompactRecordingItem(
@@ -718,7 +858,11 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                                   builder: (context, snapshot) {
                                                     String status;
                                                     Color color;
-                                                    if (rec.sending) {
+                                                    if (!rec.captureReviewed) {
+                                                      status = t(
+                                                          'recList.status.finishReview');
+                                                      color = Colors.orange;
+                                                    } else if (rec.sending) {
                                                       status = t(
                                                           'recList.status.sending');
                                                       color = Colors.blue;
@@ -749,15 +893,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                                                           parts.any(
                                                               (p) => !p.sent)) {
                                                         logger.w(
-                                                            'Unsent parts found');
-                                                        String partsS = "";
-                                                        for (var part
-                                                            in parts) {
-                                                          partsS +=
-                                                              '${part.toJson()}\n';
-                                                        }
-                                                        logger.w(
-                                                            'All parts: $partsS');
+                                                          'Recording ${rec.id} '
+                                                          'has ${parts.where((p) => !p.sent).length} '
+                                                          'unsent parts.',
+                                                        );
                                                         status = t(
                                                             'recList.status.unsentParts');
                                                         color = Colors.red;
@@ -814,7 +953,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     final url = Uri.parse(
         "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
-    logger.i("reverse geocode url: $url");
+    logger.i('Reverse geocoding a recording location.');
     try {
       final headers = {
         'Content-Type': 'application/json',
@@ -835,38 +974,38 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
     }
+    return null;
   }
 
   Future<String> getDialectName(int recordingId) async {
     try {
-      // Prefer locally‑stored dialects to avoid an extra API call.
-      final List<Dialect> dialects =
+      final detectedDialects =
+          await DatabaseNew.getDetectedDialectsByRecordingLocalId(recordingId);
+      final List<Dialect> legacyDialects =
           await DatabaseNew.getDialectsByRecordingId(recordingId);
 
-      if (dialects.isEmpty) {
-        return t('recList.dialect.without');
-      }
+      final selection = selectRecordingDialectSummary(
+        detectedRows: detectedDialects.map(
+          (dialect) => RecordingDialectSummaryRow(
+            adminConfirmed: dialect.confirmedDialect,
+            aiPredicted: dialect.predictedDialect,
+            manualGuess: dialect.userGuessDialect,
+          ),
+        ),
+        legacyRows: legacyDialects.map(
+          (dialect) => RecordingDialectSummaryRow(
+            adminConfirmed: dialect.adminDialect,
+            manualGuess: dialect.userGuessDialect,
+          ),
+        ),
+      );
 
-      // Return the first non-empty, non-placeholder dialect we find.
-      for (final d in dialects) {
-        final String? english =
-            DialectKeywordTranslator.toEnglish(d.userGuessDialect);
-        if (english != null && english.isNotEmpty) {
-          if (english == 'Unassessed' || english == 'Undetermined') {
-            continue;
-          }
-          if (english == 'Unknown' || english == 'Unknown dialect') {
-            return t('recList.dialect.unknown');
-          }
-          if (english == 'No Dialect') {
-            return t('recList.dialect.without');
-          }
-          return DialectKeywordTranslator.toLocalized(english);
-        }
-      }
-
-      // If every dialect string is empty or undetermined, fall back.
-      return t('recList.dialect.unknown');
+      return formatRecordingDialectSummary(
+        selection,
+        unknownLabel: t('recList.dialect.unknown'),
+        withoutDialectLabel: t('recList.dialect.without'),
+        localizeDialect: DialectKeywordTranslator.toLocalized,
+      );
     } catch (e, stackTrace) {
       logger.e('Error fetching dialects for recording $recordingId: $e',
           error: e, stackTrace: stackTrace);
@@ -874,7 +1013,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     }
   }
 
-  AssetImage getDialectImage(dialectName) {
+  AssetImage getDialectImage(String dialectName) {
     //TODO load actual image
     return AssetImage('assets/images/dialect.png');
   }

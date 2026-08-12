@@ -75,6 +75,7 @@ class _GuidePageState extends State<GuidePage> {
         articleId: _guideArticleId,
         preferredLanguageTag: await _readLanguageTag(),
       );
+      if (!mounted) return;
       if (response.statusCode != 200) {
         setState(() {
           _error = t('blogExplorer.errors.loadGuide');
@@ -87,6 +88,7 @@ class _GuidePageState extends State<GuidePage> {
         _isLoading = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _error = t('blogExplorer.errors.loadGuide');
         _isLoading = false;

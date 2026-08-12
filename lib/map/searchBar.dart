@@ -33,13 +33,14 @@ class SearchBarWidgetState extends State<SearchBarWidget> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
+  int _searchGeneration = 0;
   List<_SearchResult> _results = [];
 
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(() {
-      if (!_focusNode.hasFocus) {
+      if (mounted && !_focusNode.hasFocus) {
         setState(() => _results = []);
       }
     });
@@ -186,7 +187,14 @@ class SearchBarWidgetState extends State<SearchBarWidget> {
 
   void _onSearchChanged(String query) {
     _debounce?.cancel();
+    final int generation = ++_searchGeneration;
+    if (_results.isNotEmpty) {
+      setState(() => _results = []);
+    }
     _debounce = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted || generation != _searchGeneration) {
+        return;
+      }
       if (query.isEmpty) {
         setState(() => _results = []);
         return;
@@ -195,6 +203,9 @@ class SearchBarWidgetState extends State<SearchBarWidget> {
       if (looksLikeCoordinates(query)) {
         LatLng? coords = parseCoordinatesFromPrompt(query);
         if (coords != null) {
+          if (!mounted || generation != _searchGeneration) {
+            return;
+          }
           setState(() {
             _results = [
               _SearchResult(
@@ -206,30 +217,74 @@ class SearchBarWidgetState extends State<SearchBarWidget> {
         }
       }
 
-      final url =
-          'https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=5&countrycodes=cz';
-      final res = await http.get(Uri.parse(url),
-          headers: {'User-Agent': 'FlutterMapApp/1.0 (marpecqueur@gmail.com)'});
-
-      if (res.statusCode == 200) {
-        final List data = jsonDecode(res.body);
+      final Uri url = Uri.https(
+        'nominatim.openstreetmap.org',
+        '/search',
+        <String, String>{
+          'q': query,
+          'format': 'json',
+          'limit': '5',
+          'countrycodes': 'cz',
+        },
+      );
+      try {
+        final res = await http.get(
+          url,
+          headers: {'User-Agent': 'FlutterMapApp/1.0 (marpecqueur@gmail.com)'},
+        );
+        if (!mounted || generation != _searchGeneration) {
+          return;
+        }
+        if (res.statusCode != 200) {
+          setState(() => _results = []);
+          return;
+        }
+        final dynamic decoded = jsonDecode(res.body);
+        if (decoded is! List) {
+          setState(() => _results = []);
+          return;
+        }
+        final List<_SearchResult> parsed = <_SearchResult>[];
+        for (final dynamic item in decoded) {
+          if (item is! Map) continue;
+          final String? name = item['display_name']?.toString();
+          final double? latitude =
+              double.tryParse(item['lat']?.toString() ?? '');
+          final double? longitude =
+              double.tryParse(item['lon']?.toString() ?? '');
+          if (name == null ||
+              name.isEmpty ||
+              latitude == null ||
+              longitude == null ||
+              !_isValidLatitude(latitude) ||
+              !_isValidLongitude(longitude)) {
+            continue;
+          }
+          parsed.add(
+            _SearchResult(
+              name: name,
+              latLng: LatLng(latitude, longitude),
+            ),
+          );
+        }
+        if (!mounted || generation != _searchGeneration) {
+          return;
+        }
         setState(() {
-          _results = data
-              .map((e) => _SearchResult(
-                    name: e['display_name'],
-                    latLng: LatLng(
-                      double.parse(e['lat']),
-                      double.parse(e['lon']),
-                    ),
-                  ))
-              .toList();
+          _results = parsed;
         });
+      } catch (_) {
+        if (!mounted || generation != _searchGeneration) {
+          return;
+        }
+        setState(() => _results = []);
       }
     });
   }
 
   @override
   void dispose() {
+    _searchGeneration++;
     _controller.dispose();
     _focusNode.dispose();
     _debounce?.cancel();
@@ -241,49 +296,49 @@ class SearchBarWidgetState extends State<SearchBarWidget> {
     return TapRegion(
       onTapOutside: (_) => closeSearch(),
       child: Material(
-      elevation: 6,
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _controller,
-            focusNode: _focusNode,
-            onChanged: _onSearchChanged,
-            decoration: InputDecoration(
-              hintText: t('map.search.hint'),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: const OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(12))),
-            ),
-          ),
-          if (_results.isNotEmpty)
-            Material(
-              color: Colors.white,
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(12)),
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: _results.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final result = _results[index];
-                  return ListTile(
-                    title: Text(result.name),
-                    onTap: () {
-                      widget.onLocationSelected(result.latLng);
-                      _controller.clear();
-                      setState(() => _results = []);
-                      FocusScope.of(context).unfocus();
-                    },
-                  );
-                },
+        elevation: 6,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: t('map.search.hint'),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: const OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(12))),
               ),
             ),
-        ],
-      ),
+            if (_results.isNotEmpty)
+              Material(
+                color: Colors.white,
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(12)),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _results.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final result = _results[index];
+                    return ListTile(
+                      title: Text(result.name),
+                      onTap: () {
+                        widget.onLocationSelected(result.latLng);
+                        _controller.clear();
+                        setState(() => _results = []);
+                        FocusScope.of(context).unfocus();
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

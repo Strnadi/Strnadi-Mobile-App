@@ -17,6 +17,7 @@
  * recListItem.dart
  */
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:strnadi/database/Models/recording.dart';
@@ -39,10 +40,12 @@ import 'package:strnadi/locationService.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
+import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
 import 'package:dio/dio.dart';
 import '../config/config.dart';
 import '../navigation/scaffold_with_bottom_bar.dart'; // Contains MAPY_CZ_API_KEY
 import '../utils/location_label.dart';
+import '../widgets/recording_note_card.dart';
 
 final logger = Logger();
 
@@ -69,7 +72,7 @@ class _DialectDisplayEntry {
 }
 
 class RecordingFromMap extends StatefulWidget {
-  Recording recording;
+  final Recording recording;
 
   final UserData? user;
 
@@ -88,6 +91,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   late List<RecordingPart?> parts = [];
   late LocationService locationService;
   final AudioPlayer player = AudioPlayer();
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
+  StreamSubscription<bool>? _playingSubscription;
   bool isFileLoaded = false;
   bool isPlaying = false;
   Duration currentPosition = Duration.zero;
@@ -99,6 +105,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   String? _dialectsError;
   List<_DialectDisplayEntry> _dialectEntries = const [];
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  late Recording _recording;
   bool _playAccessResolved = false;
   bool _canAccessPlayback = false;
 
@@ -110,7 +117,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   int mililen = 0;
 
   String get _recordingTitle {
-    final String? explicitName = widget.recording.name?.trim();
+    final String? explicitName = _recording.name?.trim();
     if (explicitName != null && explicitName.isNotEmpty) {
       return explicitName;
     }
@@ -120,28 +127,42 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   @override
   void initState() {
     super.initState();
+    _recording = widget.recording;
     locationService = LocationService();
     _resolvePlaybackAccess();
     _initializeRecordingState();
     _loadDialects();
     logger.i(
-        "[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
+      '[RecordingItem] initialized; downloaded: '
+      '${_recording.downloaded}',
+    );
 
-    player.positionStream.listen((position) {
+    _positionSubscription = player.positionStream.listen((position) {
+      if (!mounted) return;
       setState(() {
         currentPosition = position;
       });
     });
-    player.durationStream.listen((duration) {
+    _durationSubscription = player.durationStream.listen((duration) {
+      if (!mounted) return;
       setState(() {
         totalDuration = duration ?? Duration.zero;
       });
     });
-    player.playingStream.listen((playing) {
+    _playingSubscription = player.playingStream.listen((playing) {
+      if (!mounted) return;
       setState(() {
         isPlaying = playing;
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant RecordingFromMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.recording, widget.recording)) {
+      _recording = widget.recording;
+    }
   }
 
   Future<void> _resolvePlaybackAccess() async {
@@ -149,7 +170,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         (await _secureStorage.read(key: 'role') ?? '').toLowerCase();
     final int? currentUserId =
         int.tryParse((await _secureStorage.read(key: 'userId') ?? '').trim());
-    final int? ownerUserId = widget.recording.userId;
+    final int? ownerUserId = _recording.userId;
     final bool isAdmin = role == 'admin';
     final bool isOwner = ownerUserId != null &&
         currentUserId != null &&
@@ -166,7 +187,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     if (localId != null) {
       await getParts(localId: localId);
     }
-    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+    if (!mounted) return;
+    if (_recording.path != null && _recording.path!.isNotEmpty) {
       await getData();
     }
     if (!mounted) return;
@@ -176,21 +198,21 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<int?> _resolveLocalRecordingId({bool allowFetch = true}) async {
-    if (widget.recording.id != null) {
+    if (_recording.id != null) {
       final Recording? byLocalId =
-          await DatabaseNew.getRecordingFromDbByIdNoMail(widget.recording.id!);
+          await DatabaseNew.getRecordingFromDbByIdNoMail(_recording.id!);
       if (byLocalId != null) {
-        widget.recording = byLocalId;
+        _recording = byLocalId;
         return byLocalId.id;
       }
     }
 
-    final int? beId = widget.recording.BEId;
-    if (beId == null) return widget.recording.id;
+    final int? beId = _recording.BEId;
+    if (beId == null) return _recording.id;
 
     final Recording? byBeId = await DatabaseNew.getRecordingFromDbByBEId(beId);
     if (byBeId != null) {
-      widget.recording = byBeId;
+      _recording = byBeId;
       return byBeId.id;
     }
 
@@ -205,15 +227,16 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final Recording? fetchedRecording =
         await DatabaseNew.getRecordingFromDbByIdNoMail(fetchedLocalId);
     if (fetchedRecording != null) {
-      widget.recording = fetchedRecording;
+      _recording = fetchedRecording;
     }
     return fetchedLocalId;
   }
 
   Future<void> getData() async {
-    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+    if (_recording.path != null && _recording.path!.isNotEmpty) {
       try {
-        await player.setFilePath(widget.recording.path!);
+        await player.setFilePath(_recording.path!);
+        if (!mounted) return;
         setState(() {
           isFileLoaded = true;
           currentPosition = Duration.zero;
@@ -230,7 +253,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   Future<bool> _ensureFileLoaded() async {
     if (!_canAccessPlayback) return false;
     if (isFileLoaded) return true;
-    if (widget.recording.path == null || widget.recording.path!.isEmpty) {
+    if (_recording.path == null || _recording.path!.isEmpty) {
       return false;
     }
     await getData();
@@ -248,6 +271,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     }
     final List<RecordingPart> loadedParts =
         await DatabaseNew.getPartsByRecordingId(recLocalId);
+    if (!mounted) return;
 
     // Sort by startTime (DateTime). Nulls go last.
     loadedParts.sort((a, b) {
@@ -266,12 +290,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       parts = updated;
     });
 
-    if (parts.isNotEmpty && parts.first != null) {
+    final RecordingPart? firstPart = updated.isEmpty ? null : updated.first;
+    if (firstPart != null) {
       await reverseGeocode(
-          parts.first!.gpsLatitudeStart, parts.first!.gpsLongitudeStart);
+          firstPart.gpsLatitudeStart, firstPart.gpsLongitudeStart);
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         _mapController.move(
-          LatLng(parts.first!.gpsLatitudeStart, parts.first!.gpsLongitudeStart),
+          LatLng(firstPart.gpsLatitudeStart, firstPart.gpsLongitudeStart),
           13.0,
         );
       });
@@ -342,7 +368,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     if (totalDuration > Duration.zero) {
       return totalDuration;
     }
-    final int fallbackSeconds = widget.recording.totalSeconds?.round() ?? 0;
+    final int fallbackSeconds = _recording.totalSeconds?.round() ?? 0;
     if (fallbackSeconds <= 0) {
       return Duration.zero;
     }
@@ -372,7 +398,16 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   @override
   void dispose() {
     _downloadCancelToken?.cancel('Recording download canceled on dispose.');
-    player.dispose();
+    if (_positionSubscription != null) {
+      unawaited(_positionSubscription!.cancel());
+    }
+    if (_durationSubscription != null) {
+      unawaited(_durationSubscription!.cancel());
+    }
+    if (_playingSubscription != null) {
+      unawaited(_playingSubscription!.cancel());
+    }
+    unawaited(player.dispose());
     super.dispose();
   }
 
@@ -393,13 +428,12 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         // While we download, show the spinner screen even if a path exists
         loaded = false;
       });
-      if (widget.recording.BEId == null) {
+      if (_recording.BEId == null) {
         throw Exception('Recording has no backend id for download');
       }
-      logger
-          .i("Initiating download for recording id: ${widget.recording.BEId}");
-      int? id = await DatabaseNew.downloadRecording(
-        widget.recording.BEId!,
+      logger.i("Initiating download for recording id: ${_recording.BEId}");
+      final int id = await DatabaseNew.downloadRecordingByBackendId(
+        _recording.BEId!,
         cancelToken: _downloadCancelToken,
         onProgress: (progress) {
           if (!mounted) return;
@@ -408,18 +442,18 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
           });
         },
       );
-      if (id == null) throw Exception('Download returned null id');
       Recording? updatedRecording =
           await DatabaseNew.getRecordingFromDbByIdNoMail(id);
+      if (!mounted) return;
       if (updatedRecording != null) {
         setState(() {
-          widget.recording = updatedRecording;
+          _recording = updatedRecording;
         });
         // Initialize audio player with the newly downloaded file
         await getData();
         await getParts(localId: id);
       }
-      logger.i("Downloaded recording updated: ${widget.recording.path}");
+      logger.i('Downloaded recording cache updated.');
       // Mark as fully loaded to exit the spinner state
       if (mounted) {
         setState(() {
@@ -467,7 +501,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<void> _loadDialects() async {
-    final int? beId = widget.recording.BEId;
+    final int? beId = _recording.BEId;
     if (beId == null) {
       if (!mounted) return;
       setState(() {
@@ -525,6 +559,19 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       return const [];
     }
 
+    final List<Map<String, dynamic>> filteredParts =
+        decoded.whereType<Map<String, dynamic>>().toList(growable: false);
+    final List<Map<String, dynamic>> sourceParts =
+        selectDialectSourceParts<Map<String, dynamic>>(
+      parts: filteredParts,
+      isRepresentant: (Map<String, dynamic> item) =>
+          _parseBool(item['representantFlag']),
+      hasSubstantiveConfirmedDialect: (Map<String, dynamic> item) =>
+          _hasConfirmedDialect(item['detectedDialects']),
+      hasAuthoritativeNoDialect: (Map<String, dynamic> item) =>
+          _hasAuthoritativeNoDialect(item['detectedDialects']),
+    );
+
     final List<
         ({
           String code,
@@ -535,21 +582,15 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
           _DialectConfidence confidence,
         })> drafts = [];
     final Set<String> codes = <String>{};
-    final bool hasAdminConfirmedRepresentant = decoded.any((item) {
-      if (item is! Map<String, dynamic>) return false;
-      if (!_parseBool(item['representantFlag'])) return false;
-      return _hasConfirmedDialect(item['detectedDialects']);
-    });
+    final bool hasAdminConfirmedSourcePart = sourceParts.any(
+      (item) => _hasConfirmedDialect(item['detectedDialects']),
+    );
 
-    for (final item in decoded) {
-      if (item is! Map<String, dynamic>) continue;
-      final map = item;
+    for (final map in sourceParts) {
       final bool isRepresentant = _parseBool(map['representantFlag']);
-      final bool isAdminConfirmedRepresentant =
-          isRepresentant && _hasConfirmedDialect(map['detectedDialects']);
-      if (hasAdminConfirmedRepresentant &&
-          isRepresentant &&
-          !isAdminConfirmedRepresentant) {
+      final bool isAdminConfirmedSourcePart =
+          _hasConfirmedDialect(map['detectedDialects']);
+      if (hasAdminConfirmedSourcePart && !isAdminConfirmedSourcePart) {
         continue;
       }
 
@@ -597,7 +638,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         if (rawCode == null) continue;
         final String english =
             DialectKeywordTranslator.toEnglish(rawCode) ?? rawCode.trim();
-        if (english.isEmpty) continue;
+        if (english.isEmpty || isSemanticDialectSentinel(english)) continue;
         final String label = DialectKeywordTranslator.toLocalized(english);
         drafts.add((
           code: english,
@@ -653,24 +694,43 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   ({String? code, _DialectConfidence confidence}) _selectDialect(
       Map<String, dynamic> row) {
-    final confirmed = _pickDialectValue(row, 'confirmedDialect');
-    if (confirmed != null) {
-      return (code: confirmed, confidence: _DialectConfidence.confirmed);
+    final RecordingDialectSummary summary = summarizeRecordingDialects(
+      rows: <DetectedDialectSnapshot>[
+        DetectedDialectSnapshot(
+          confirmed: _pickDialectValue(row, 'confirmedDialect'),
+          predicted: _pickDialectValue(row, 'predictedDialect'),
+          guessed: _pickDialectValue(row, 'userGuessDialect'),
+        ),
+      ],
+      mode: DialectSummaryMode.all,
+      canonicalize: _canonicalizeDialectValue,
+    );
+    if (summary.hasAnySelectedDialect) {
+      final _DialectConfidence confidence;
+      switch (summary.selectedTier) {
+        case SelectedDialectTier.confirmed:
+          confidence = _DialectConfidence.confirmed;
+          break;
+        case SelectedDialectTier.predicted:
+          confidence = _DialectConfidence.predicted;
+          break;
+        case SelectedDialectTier.guessed:
+        case SelectedDialectTier.none:
+          confidence = _DialectConfidence.userGuess;
+          break;
+      }
+      return (code: summary.dialects.first, confidence: confidence);
     }
-
-    final predicted = _pickDialectValue(row, 'predictedDialect');
-    if (predicted != null) {
-      return (code: predicted, confidence: _DialectConfidence.predicted);
-    }
-
-    final guessed = _pickDialectValue(row, 'userGuessDialect');
-    if (guessed != null) {
-      return (code: guessed, confidence: _DialectConfidence.userGuess);
+    if (summary.hasAuthoritativeNoDialect) {
+      return (code: null, confidence: _DialectConfidence.confirmed);
     }
 
     final fallback = _pickDialectValue(row, 'dialectCode');
     if (fallback != null) {
-      return (code: fallback, confidence: _DialectConfidence.userGuess);
+      final String canonical = _canonicalizeDialectValue(fallback);
+      if (canonical.isNotEmpty && !isSemanticDialectSentinel(canonical)) {
+        return (code: canonical, confidence: _DialectConfidence.userGuess);
+      }
     }
 
     return (code: null, confidence: _DialectConfidence.userGuess);
@@ -680,11 +740,33 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     if (rawDialects is! List) return false;
     for (final row in rawDialects) {
       if (row is! Map<String, dynamic>) continue;
-      if (_pickDialectValue(row, 'confirmedDialect') != null) {
+      final String canonical = _canonicalizeDialectValue(
+        _pickDialectValue(row, 'confirmedDialect'),
+      );
+      if (canonical.isNotEmpty && !isSemanticDialectSentinel(canonical)) {
         return true;
       }
     }
     return false;
+  }
+
+  bool _hasAuthoritativeNoDialect(dynamic rawDialects) {
+    if (rawDialects is! List) return false;
+    for (final row in rawDialects) {
+      if (row is! Map<String, dynamic>) continue;
+      final String canonical = _canonicalizeDialectValue(
+        _pickDialectValue(row, 'confirmedDialect'),
+      );
+      if (isAuthoritativeNoDialect(canonical)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _canonicalizeDialectValue(String? value) {
+    if (value == null) return '';
+    return DialectKeywordTranslator.toEnglish(value) ?? value.trim();
   }
 
   String? _pickDialectValue(Map<String, dynamic> row, String key) {
@@ -717,9 +799,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   Duration _offsetWithinConcatenated(DateTime timestamp) {
     return resolveDialectOffset(
       timestamp: timestamp,
-      recordingCreatedAt: widget.recording.createdAt,
+      recordingCreatedAt: _recording.createdAt,
       parts: _dialectTimeSegments(),
-      totalSeconds: widget.recording.totalSeconds,
+      totalSeconds: _recording.totalSeconds,
     );
   }
 
@@ -914,13 +996,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final url = Uri.parse(
         "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
-    logger.i("reverse geocode url: $url");
+    logger.i('Reverse geocoding a recording location.');
     try {
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${Config.mapsApiKey}',
       };
       final response = await http.get(url, headers: headers);
+      if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -945,8 +1028,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final bool canUseAudio = _playAccessResolved && _canAccessPlayback;
     if (!_isDownloading &&
         !loaded &&
-        widget.recording.path != null &&
-        widget.recording.path!.isNotEmpty) {
+        _recording.path != null &&
+        _recording.path!.isNotEmpty) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.list,
         appBarTitle: _recordingTitle,
@@ -1009,7 +1092,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                             ),
                           ),
                         )
-                      : widget.recording.downloaded
+                      : _recording.downloaded
                           ? const SizedBox.shrink()
                           : Padding(
                               padding: const EdgeInsets.symmetric(
@@ -1112,7 +1195,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    if (widget.recording.downloaded && canUseAudio)
+                    if (_recording.downloaded && canUseAudio)
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
@@ -1199,22 +1282,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                       ),
                     if (widget.user != null) UserBadge(user: widget.user!),
                     const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(10.0),
-                      width: double.infinity,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                                widget.recording.note ??
-                                    'K tomuto zaznamu neni poznamka',
-                                style: TextStyle(fontSize: 16))
-                          ]),
+                    RecordingNoteCard(
+                      note: _recording.note?.trim().isNotEmpty == true
+                          ? _recording.note!
+                          : t('recListItem.notePlaceholder'),
                     ),
                     const SizedBox(height: 10),
                     Container(
@@ -1234,7 +1305,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                   children: [Text(t('recListItem.dateTime'))],
                                 ),
                                 Text(
-                                  formatDateTime(widget.recording.createdAt),
+                                  formatDateTime(_recording.createdAt),
                                   style: TextStyle(fontSize: 16),
                                 ),
                               ],
@@ -1256,7 +1327,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text('${t('recListItem.estimatedBirdsCount')}: '),
-                          Text(widget.recording.estimatedBirdsCount.toString()),
+                          Text(_recording.estimatedBirdsCount.toString()),
                         ],
                       ),
                     ),
@@ -1326,6 +1397,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   void fetchRecPart(int id) async {
     final part = await DatabaseNew.fetchPartsFromDbById(id);
+    if (!mounted) return;
     setState(() {
       parts = part;
     });

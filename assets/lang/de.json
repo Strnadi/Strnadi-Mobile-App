@@ -32,7 +32,8 @@
         "title": "Offline",
         "message": "Diese Aktion ist offline nicht verfügbar."
       },
-      "logged_out": "Sie wurden abgemeldet"
+      "logged_out": "Sie wurden abgemeldet",
+      "email_app_unavailable": "Die E-Mail-App konnte nicht geöffnet werden."
     },
     "disclaimer": {
       "back": "Zurück",
@@ -118,6 +119,13 @@
           "connectionError": "Fehler beim Senden der Anfrage. Bitte prüfen Sie Ihre Verbindung."
         }
       },
+      "change": {
+        "errors": {
+          "invalidLink": "Dieser Link zum Zurücksetzen des Passworts ist ungültig oder abgelaufen.",
+          "failed": "Das Passwort konnte nicht geändert werden. Fordern Sie einen neuen Link an und versuchen Sie es erneut.",
+          "connection": "Das Passwort konnte nicht geändert werden, weil der Server nicht erreichbar ist."
+        }
+      },
       "changed": {
         "title": "Passwort erfolgreich geändert",
         "message": "Sie können sich jetzt in Ihr Konto einloggen."
@@ -189,6 +197,7 @@
       }
     },
     "emailVerify": {
+      "title": "E-Mail bestätigen",
       "alreadyVerified": {
         "title": "E-Mail bereits verifiziert",
         "message": "Ihre E-Mail wurde bereits verifiziert. Sie können sich anmelden."
@@ -250,6 +259,10 @@
     },
     "buttons": {
       "saveChanges": "Änderungen speichern"
+    },
+    "messages": {
+      "saveFailed": "Die Änderungen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "syncFailed": "Die Änderungen wurden auf diesem Gerät gespeichert, konnten aber nicht synchronisiert werden. Prüfen Sie die Verbindung und speichern Sie erneut."
     }
   },
   "bottomBar": {
@@ -263,17 +276,23 @@
     }
   },
   "dialogs": {
-    "message": "Nachricht"
+    "message": "Nachricht",
+    "googlePlayServicesRequired": "Google Play-Dienste sind erforderlich, damit diese App ordnungsgemäß funktioniert.",
+    "startupPermissionsRequired": "Die App benötigt Berechtigungen für Mikrofon und Benachrichtigungen.\nBitte aktiviere sie in den Einstellungen und starte Strnadi anschließend neu."
   },
   "recordingUploadCheck": {
     "title": "Upload benötigt Aufmerksamkeit",
     "messages": {
       "single": "Diese Aufnahme ist auf diesem Gerät gespeichert, aber die Online-Karte hat nur {uploaded} von {expected} Audioteilen erhalten.",
       "singleNamed": "„{name}” ist auf diesem Gerät gespeichert, aber die Online-Karte hat nur {uploaded} von {expected} Audioteilen erhalten.",
+      "singleUnknown": "Für diese Aufnahme ist der vollständige Audio-Upload nicht bestätigt. Der genaue Status auf der Online-Karte ist nicht verfügbar.",
+      "singleNamedUnknown": "Für „{name}” ist der vollständige Audio-Upload nicht bestätigt. Der genaue Status auf der Online-Karte ist nicht verfügbar.",
       "multiple": "{count} Aufnahmen sind auf diesem Gerät gespeichert, aber die Online-Karte hat nur einen Teil davon erhalten. Fehlende Audioteile: {missing}.",
+      "multipleUnknown": "Für {count} Aufnahmen ist der vollständige Audio-Upload nicht bestätigt. Der genaue Status auf der Online-Karte ist nicht verfügbar.",
       "canSend": "Bis der fehlende Ton gesendet ist, erscheint die Aufnahme möglicherweise nicht auf der Karte. Jetzt senden?",
       "cannotSend": "Die App konnte den fehlenden Ton auf diesem Gerät nicht finden. Bitte behalten Sie die Aufnahme gespeichert und versuchen Sie es später erneut.",
       "sent": "Der fehlende Ton wird gesendet.",
+      "sentWithSkipped": "Verfügbare fehlende Audiodaten werden gesendet. Übersprungene Aufnahmen ohne verfügbare Audiodaten: {count}.",
       "sendFailed": "Der fehlende Ton konnte nicht gesendet werden. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut."
     },
     "actions": {
@@ -286,6 +305,10 @@
     "offlineMode": {
       "title": "Offlinemodus",
       "message": "Sie sind offline. Es sind nur lokal gespeicherte Aufnahmen verfügbar."
+    },
+    "errors": {
+      "sendFailed": "Eine oder mehrere Aufnahmen konnten nicht zum Hochladen eingeplant werden. Bitte versuchen Sie es erneut.",
+      "reviewRecoveryFailed": "Diese unfertige Aufnahme konnte nicht sicher erneut geöffnet werden. Die Audiodatei wurde beibehalten."
     },
     "sort": {
       "name": "Name",
@@ -312,7 +335,8 @@
       "checkingParts": "Teile werden geprüft …",
       "unsentParts": "Nicht gesendete Teile",
       "uploaded": "Hochgeladen",
-      "waitingForUpload": "Wartet auf Upload"
+      "waitingForUpload": "Wartet auf Upload",
+      "finishReview": "Aufnahmedetails abschließen"
     },
     "dialect": {
       "loading": "Dialekt wird geladen …",
@@ -336,7 +360,8 @@
     "errors": {
       "reverseGeocodeFailed": "Reverse Geocoding fehlgeschlagen",
       "errorDownloading": "Fehler beim Herunterladen der Aufnahme",
-      "errorDeleting": "Fehler beim Löschen der Aufnahme"
+      "errorDeleting": "Fehler beim Löschen der Aufnahme",
+      "errorSending": "Die Aufnahme konnte nicht zum Hochladen eingeplant werden. Bitte versuchen Sie es erneut."
     },
     "buttons": {
       "download": "Aufnahme herunterladen",
@@ -475,7 +500,8 @@
       "downloading": "Aufnahme herunterladen",
       "errorDownloading": "Fehler beim Herunterladen der Aufnahme",
       "notDownloaded": "Noch nicht heruntergeladen",
-      "downloadCanceled": "Download abgebrochen"
+      "downloadCanceled": "Download abgebrochen",
+      "playRestricted": "Nur Administratoren können Aufnahmen anderer Benutzer abspielen."
     },
     "audioPlayer": {
       "replay": "10 s zurückspulen",
@@ -580,7 +606,11 @@
           "wifiOnly": {
             "title": "Verbindungsfehler",
             "message": "Uploads sind nur über WLAN erlaubt"
-          }
+          },
+          "login": "Bitte melden Sie sich an, bevor Sie diese Aufnahme senden.",
+          "invalidParts": "Die Aufnahme ist unvollständig und konnte nicht gespeichert werden. Bitte nehmen Sie sie erneut auf.",
+          "saveFailed": "Die Aufnahme konnte nicht sicher gespeichert werden. Es wurde kein Upload gestartet.",
+          "scheduleFailed": "Die Aufnahme wurde lokal gespeichert, aber das Senden konnte nicht geplant werden. Bitte versuchen Sie es unter Meine Aufnahmen erneut."
         }
       },
       "placeholders": {
@@ -612,7 +642,10 @@
       "locationPermission": "Zum Starten der Aufnahme müssen Standortberechtigungen erlaubt werden",
       "noRecordingFound": "Keine Aufnahme zum Speichern gefunden",
       "concatError": "Fehler beim Zusammenfügen der Dateien",
-      "locationFetchError": "Fehler beim Abrufen des Standorts"
+      "locationFetchError": "Fehler beim Abrufen des Standorts",
+      "segmentFinalizeError": "Der aufgenommene Abschnitt konnte nicht gespeichert werden. Die Aufnahme ist pausiert; bitte versuchen Sie es erneut.",
+      "saveStatusUnknown": "Das Speicherergebnis konnte nicht bestätigt werden. Die Audiodatei wurde zur Wiederherstellung behalten; verlassen Sie diesen Bildschirm und prüfen Sie Lokale Aufnahmen.",
+      "foregroundServiceCleanup": "Die Aufnahmebenachrichtigung konnte nicht sicher beendet werden. Die Aufnahme wurde beibehalten; bitte versuchen Sie es erneut."
     },
     "notifications": {
       "recordingInProgress": "Die Strnadi-App nimmt auf",
@@ -663,12 +696,28 @@
           "title": "Fehler",
           "load": "Benutzer oder Token konnten nicht geladen werden",
           "auth": "Fehler bei der Benutzerverifizierung.",
-          "update": "Benutzerdaten konnten nicht aktualisiert werden."
+          "update": "Benutzerdaten konnten nicht aktualisiert werden.",
+          "profilePhotoUpload": "Das Profilbild konnte nicht hochgeladen werden."
         },
         "success": {
           "update": "Daten wurden erfolgreich aktualisiert",
-          "noChanges": "Es wurden keine Änderungen vorgenommen."
+          "noChanges": "Es wurden keine Änderungen vorgenommen.",
+          "profilePhotoUploaded": "Das Profilbild wurde hochgeladen."
         }
+      }
+    },
+    "connectedAccounts": {
+      "allConnected": "Ihr Konto ist bereits mit Apple und Google verknüpft.",
+      "loadFailed": "Verknüpfte Konten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "error": "Das Konto konnte nicht verknüpft werden. Bitte versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "apple": {
+        "connect": "Mit Apple fortfahren",
+        "connected": "Mit Apple verknüpft"
+      },
+      "google": {
+        "connect": "Mit Google fortfahren",
+        "connected": "Mit Google verknüpft"
       }
     },
     "settings": {
@@ -702,7 +751,8 @@
         "connectedAccounts": "Verknüpfte Konten",
         "guide": "Leitfaden",
         "aboutProject": "Über das Projekt",
-        "aboutApp": "Über die App"
+        "aboutApp": "Über die App",
+        "achievements": "Erfolge"
       },
       "dialogs": {
         "aboutApp": {
@@ -776,7 +826,53 @@
     "uploads_in_progress": "Das Hochladen von Aufnahmen läuft im Hintergrund",
     "no_notifications": "Keine Benachrichtigungen",
     "no_uploads": "Keine aktiven Uploads von Aufnahmen im Hintergrund",
-    "unknown_recording": "Unbekannte Aufnahme"
+    "unknown_recording": "Unbekannte Aufnahme",
+    "recordingUpload": {
+      "failure": {
+        "title": "Hochladen der Aufnahme fehlgeschlagen",
+        "missingId": "Die Aufnahme kann nicht gesendet werden, weil ihre Kennung fehlt.",
+        "databaseRead": "Aufnahme {recordingId} konnte nicht aus der Datenbank gelesen werden.",
+        "upload": "Aufnahme {recordingId} konnte nicht hochgeladen werden. Falls sinnvoll, wird der Versuch wiederholt."
+      },
+      "notFound": {
+        "title": "Aufnahme nicht gefunden",
+        "message": "Aufnahme {recordingId} wurde nicht in der Datenbank gefunden."
+      },
+      "success": {
+        "title": "Aufnahme hochgeladen",
+        "message": "Aufnahme {recordingId} wurde erfolgreich hochgeladen."
+      }
+    }
+  },
+  "updates": {
+    "available": {
+      "title": "Update verfügbar",
+      "message": "Eine neue Version ({version}) ist verfügbar. Bitte aktualisieren Sie die App.",
+      "messageWithoutVersion": "Eine neue Version ist verfügbar. Bitte aktualisieren Sie die App.",
+      "action": "Aktualisieren"
+    }
+  },
+  "bootstrap": {
+    "databaseError": {
+      "title": "Der lokale Speicher ist nicht verfügbar",
+      "message": "Strnadi konnte die Aufnahmedatenbank nicht vorbereiten. Deine Aufnahmen wurden nicht verändert. Prüfe den freien Speicher und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    }
+  },
+  "maintenance": {
+    "title": "Strnadi wird derzeit gewartet.",
+    "details": "Weitere Informationen finden Sie hier:"
+  },
+  "serverHealth": {
+    "healthy": "Der Server ist verfügbar",
+    "unavailable": "Der Server ist nicht verfügbar"
+  },
+  "achievements": {
+    "title": "Erfolge",
+    "unlockedCount": "{unlocked}/{total} freigeschaltet",
+    "unlocked": "✓ Freigeschaltet",
+    "locked": "🔒 Gesperrt",
+    "close": "Schließen"
   },
   "logout": {
     "title": "Abmelden",

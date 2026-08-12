@@ -18,11 +18,18 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/navigation/recorder_exit_policy.dart';
 
-Future<void> showGuestUserPopup(BuildContext context) {
+Widget _buildAuthorizator(BuildContext context) => Authorizator();
+
+Future<void> showGuestUserPopup(
+  BuildContext context, {
+  RecorderExitPolicy? recorderExitPolicy,
+  WidgetBuilder loginPageBuilder = _buildAuthorizator,
+}) {
   return showCupertinoDialog(
     context: context,
-    builder: (BuildContext context) {
+    builder: (BuildContext dialogContext) {
       return CupertinoAlertDialog(
         title: Text(t('bottomBar.errors.guest_user')),
         content: Text(t('bottomBar.errors.guest_user_desc')),
@@ -30,22 +37,33 @@ Future<void> showGuestUserPopup(BuildContext context) {
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
             },
             child: Text(t('bottomBar.errors.close')),
           ),
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () async {
-              Navigator.of(context).pop();
               final SharedPreferences prefs =
                   await SharedPreferences.getInstance();
-              await prefs.setBool('popupShown', false);
-              Navigator.pushReplacement(
-                context,
+              if (!dialogContext.mounted) return;
+              if (!await permitsRecorderExit(recorderExitPolicy)) return;
+              if (!dialogContext.mounted) return;
+
+              try {
+                await prefs.setBool('popupShown', false);
+              } catch (_) {
+                // This preference only controls whether the guest hint repeats;
+                // it must not strand the user after recorder cleanup succeeded.
+              }
+              if (!dialogContext.mounted) return;
+
+              final NavigatorState navigator = Navigator.of(dialogContext);
+              navigator.pop();
+              navigator.pushReplacement(
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) =>
-                      Authorizator(),
+                      loginPageBuilder(context),
                   settings: const RouteSettings(name: '/'),
                   transitionDuration: Duration.zero,
                   reverseTransitionDuration: Duration.zero,

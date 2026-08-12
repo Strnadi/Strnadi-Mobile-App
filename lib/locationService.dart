@@ -17,27 +17,26 @@
  * location_service.dart
  * A singleton service that provides a broadcast stream for location updates.
  */
-import 'dart:async';
-
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/exceptions.dart';
-
-
+import 'package:strnadi/location/active_listener_stream.dart';
+import 'package:strnadi/location/location_resolution.dart';
 
 class LocationService {
-
   Future<void> checkLocationWorking() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.deniedForever) {
-      throw LocationException('Permission denied forever', false, await Geolocator.isLocationServiceEnabled(), null);
+      throw LocationException('Permission denied forever', false,
+          await Geolocator.isLocationServiceEnabled(), null);
     }
     if (permission == LocationPermission.denied) {
-      throw LocationException('Permission denied', false, await Geolocator.isLocationServiceEnabled(), null);
+      throw LocationException('Permission denied', false,
+          await Geolocator.isLocationServiceEnabled(), null);
     }
   }
 
-  Future<bool> isLocationEnabled(){
+  Future<bool> isLocationEnabled() {
     return Geolocator.isLocationServiceEnabled();
   }
 
@@ -45,34 +44,61 @@ class LocationService {
 
   factory LocationService() => _instance;
 
-  LocationService._internal();
-
-  Stream<Position>? _positionStream;
-
-  LatLng? lastKnownPosition;
-
-  Stream<Position> get positionStream {
-    // Create a broadcast stream so multiple listeners can attach.
-    if (_positionStream == null) {
-      _positionStream = Geolocator.getPositionStream(
+  LocationService._internal() {
+    _positions = ActiveListenerStream<Position>(
+      sourceFactory: () => Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.best,
           distanceFilter: 10,
         ),
-      ).asBroadcastStream();
-    }
-    return _positionStream!;
+      ),
+      onValue: (Position position) {
+        final LatLng candidate = LatLng(position.latitude, position.longitude);
+        if (isValidLocation(candidate)) {
+          _rememberLocation(candidate);
+        }
+      },
+    );
   }
 
-  Future<LatLng> getCurrentLocation() async {
-    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-    lastKnownPosition = LatLng(position.latitude, position.longitude);
-    return lastKnownPosition!;
+  LatLng? lastKnownPosition;
+  DateTime? _lastKnownPositionObservedAt;
+  late final ActiveListenerStream<Position> _positions;
+
+  Stream<Position> get positionStream => _positions.stream;
+
+  Future<LatLng> getCurrentLocation({
+    Duration timeout = defaultCurrentLocationTimeout,
+    bool allowLastKnownFallback = true,
+  }) async {
+    final LatLng location = await resolveBoundedCurrentLocation(
+      request: () async {
+        final Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+          ),
+        );
+        final LatLng current = LatLng(position.latitude, position.longitude);
+        if (isValidLocation(current)) {
+          _rememberLocation(current);
+        }
+        return current;
+      },
+      fallback: allowLastKnownFallback &&
+              lastKnownPosition != null &&
+              _lastKnownPositionObservedAt != null
+          ? CachedLocation(
+              location: lastKnownPosition!,
+              observedAt: _lastKnownPositionObservedAt!,
+            )
+          : null,
+      timeout: timeout,
+    );
+    return location;
   }
 
-  void init() {
-    positionStream.listen((Position position) {
-      lastKnownPosition = LatLng(position.latitude, position.longitude);
-    });
+  void _rememberLocation(LatLng location) {
+    lastKnownPosition = location;
+    _lastKnownPositionObservedAt = DateTime.now();
   }
 }

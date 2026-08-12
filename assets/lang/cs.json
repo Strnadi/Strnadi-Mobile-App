@@ -32,7 +32,8 @@
         "title": "Offline",
         "message": "Tato akce není dostupná offline."
       },
-      "logged_out": "Byli jste odhlášeni"
+      "logged_out": "Byli jste odhlášeni",
+      "email_app_unavailable": "E-mailovou aplikaci se nepodařilo otevřít."
     },
     "disclaimer": {
       "back": "Zpět",
@@ -118,6 +119,13 @@
           "connectionError": "Chyba při odesílání požadavku. Zkontrolujte připojení."
         }
       },
+      "change": {
+        "errors": {
+          "invalidLink": "Tento odkaz pro reset hesla je neplatný nebo vypršel.",
+          "failed": "Heslo se nepodařilo změnit. Vyžádejte si nový odkaz a zkuste to znovu.",
+          "connection": "Heslo se nepodařilo změnit, protože server není dostupný."
+        }
+      },
       "changed": {
         "title": "Heslo úspěšně změněno",
         "message": "Nyní se můžete přihlásit do vašeho účtu."
@@ -189,6 +197,7 @@
       }
     },
     "emailVerify": {
+      "title": "Ověřte svůj e-mail",
       "alreadyVerified": {
         "title": "E-mail již ověřen",
         "message": "Váš e-mail byl již ověřen. Můžete se přihlásit."
@@ -250,6 +259,10 @@
     },
     "buttons": {
       "saveChanges": "Uložit změny"
+    },
+    "messages": {
+      "saveFailed": "Změny se nepodařilo uložit. Zkuste to prosím znovu.",
+      "syncFailed": "Změny jsou uložené v tomto zařízení, ale nepodařilo se je synchronizovat. Zkontrolujte připojení a zkuste je uložit znovu."
     }
   },
   "bottomBar": {
@@ -257,23 +270,29 @@
       "noInternetMap": "Chybí připojení k internetu. Mapa není dostupná.",
       "guest_user": "Funkce není dostupná pro uživatele bez účtu.",
       "guest_user_desc": "Pro přístup k této funkci si vytvořte účet nebo se přihlaste.",
-      "guest_user_desc_rec": "Nejdrive se prihlaste prosim, pote svoji nahravku najdete v lokalnich nahravkach",
+      "guest_user_desc_rec": "Nejprve se prosím přihlaste. Poté svou nahrávku najdete v místních nahrávkách.",
       "close": "Zavřít",
       "navigate_to_login": "Jít na přihlášení"
     }
   },
   "dialogs": {
-    "message": "Zpráva"
+    "message": "Zpráva",
+    "googlePlayServicesRequired": "Pro správné fungování aplikace jsou vyžadovány služby Google Play.",
+    "startupPermissionsRequired": "Aplikace potřebuje povolení k mikrofonu a oznámením.\nPovolte je prosím v nastavení a poté spusťte Strnadi znovu."
   },
   "recordingUploadCheck": {
     "title": "Odeslání potřebuje pozornost",
     "messages": {
       "single": "Tato nahrávka je uložená v zařízení, ale online mapa přijala jen {uploaded} z {expected} zvukových částí.",
       "singleNamed": "„{name}” je uložená v zařízení, ale online mapa přijala jen {uploaded} z {expected} zvukových částí.",
+      "singleUnknown": "U této nahrávky není potvrzeno úplné odeslání zvuku. Přesný stav online mapy není dostupný.",
+      "singleNamedUnknown": "U nahrávky „{name}” není potvrzeno úplné odeslání zvuku. Přesný stav online mapy není dostupný.",
       "multiple": "{count} nahrávek je uložených v zařízení, ale online mapa přijala jen jejich část. Chybějící zvukové části: {missing}.",
+      "multipleUnknown": "U {count} nahrávek není potvrzeno úplné odeslání zvuku. Přesný stav online mapy není dostupný.",
       "canSend": "Dokud se chybějící zvuk neodešle, nahrávka se nemusí v mapě zobrazit. Odeslat ho teď?",
       "cannotSend": "Aplikace nenašla chybějící zvuk v tomto zařízení. Ponechte prosím nahrávku uloženou a zkuste to znovu později.",
       "sent": "Chybějící zvuk se odesílá.",
+      "sentWithSkipped": "Dostupný chybějící zvuk se odesílá. Nahrávky přeskočené kvůli nedostupnému zvuku: {count}.",
       "sendFailed": "Chybějící zvuk se nepodařilo odeslat. Zkontrolujte prosím připojení a zkuste to znovu."
     },
     "actions": {
@@ -286,6 +305,10 @@
     "offlineMode": {
       "title": "Offline režim",
       "message": "Jste offline. Budou dostupné pouze lokálně uložené záznamy."
+    },
+    "errors": {
+      "sendFailed": "Jednu nebo více nahrávek se nepodařilo zařadit k odeslání. Zkuste to prosím znovu.",
+      "reviewRecoveryFailed": "Nedokončenou nahrávku se nepodařilo bezpečně znovu otevřít. Zvuk zůstal uložený."
     },
     "sort": {
       "name": "Název",
@@ -312,7 +335,8 @@
       "checkingParts": "Kontrola částí...",
       "unsentParts": "Neodeslané části",
       "uploaded": "Nahráno",
-      "waitingForUpload": "Čeká na nahrání"
+      "waitingForUpload": "Čeká na nahrání",
+      "finishReview": "Dokončit údaje nahrávky"
     },
     "dialect": {
       "loading": "Načítání dialektu...",
@@ -336,7 +360,8 @@
     "errors": {
       "reverseGeocodeFailed": "Reverse geocode selhalo",
       "errorDownloading": "Chyba při stahování nahrávky",
-      "errorDeleting": "Chyba při mazání nahrávky"
+      "errorDeleting": "Chyba při mazání nahrávky",
+      "errorSending": "Nahrávku se nepodařilo zařadit k odeslání. Zkuste to prosím znovu."
     },
     "buttons": {
       "download": "Stáhnout nahrávku",
@@ -581,7 +606,11 @@
           "wifiOnly": {
             "title": "Chyba připojení",
             "message": "Nahrávání je povoleno pouze na Wi-Fi"
-          }
+          },
+          "login": "Před odesláním nahrávky se prosím přihlaste.",
+          "invalidParts": "Nahrávka není úplná a nebylo možné ji uložit. Nahrajte ji prosím znovu.",
+          "saveFailed": "Nahrávku se nepodařilo bezpečně uložit. Odesílání nebylo spuštěno.",
+          "scheduleFailed": "Nahrávka byla uložena místně, ale odesílání se nepodařilo naplánovat. Zkuste to prosím znovu v části Moje nahrávky."
         }
       },
       "placeholders": {
@@ -613,16 +642,19 @@
       "locationPermission": "Pro zahájení nahrávání musíte povolit přístup k poloze",
       "noRecordingFound": "Nenalezena žádná nahrávka k uložení",
       "concatError": "Chyba při spojování souborů",
-      "locationFetchError": "Chyba při získávání polohy"
+      "locationFetchError": "Chyba při získávání polohy",
+      "segmentFinalizeError": "Nahranou část se nepodařilo uložit. Nahrávání je pozastavené; zkuste to prosím znovu.",
+      "saveStatusUnknown": "Výsledek uložení se nepodařilo ověřit. Zvuk jsme ponechali pro obnovení; opusťte tuto obrazovku a zkontrolujte Místní nahrávky.",
+      "foregroundServiceCleanup": "Oznámení o nahrávání se nepodařilo bezpečně ukončit. Nahrávka zůstala zachovaná; zkuste to prosím znovu."
     },
     "notifications": {
       "recordingInProgress": "Aplikace Strnadi nahrává",
       "recordingPaused": "Nahrávání pozastaveno"
     },
     "buttons": {
-      "startRecording": "Start recording",
-      "pauseRecording": "Pause recording",
-      "resumeRecording": "Resume recording",
+      "startRecording": "Zahájit nahrávání",
+      "pauseRecording": "Pozastavit nahrávání",
+      "resumeRecording": "Pokračovat v nahrávání",
       "finishRecording": "Dokončit a pokračovat",
       "discardRecording": "Zahodit nahrávání"
     },
@@ -664,12 +696,28 @@
           "title": "Chyba",
           "load": "Nepodařilo se načíst uživatele nebo token",
           "auth": "Chyba ověření uživatele.",
-          "update": "Nepodařilo se změnit uživatelské údaje."
+          "update": "Nepodařilo se změnit uživatelské údaje.",
+          "profilePhotoUpload": "Profilový obrázek se nepodařilo nahrát."
         },
         "success": {
           "update": "Údaje byly úspěšně aktualizovány",
-          "noChanges": "Nebyly provedeny žádné změny."
+          "noChanges": "Nebyly provedeny žádné změny.",
+          "profilePhotoUploaded": "Profilový obrázek byl nahrán."
         }
+      }
+    },
+    "connectedAccounts": {
+      "allConnected": "Váš účet je již propojený s Apple a Google.",
+      "loadFailed": "Propojené účty se nepodařilo načíst. Zkontrolujte připojení a zkuste to znovu.",
+      "error": "Účet se nepodařilo propojit. Zkuste to prosím znovu.",
+      "retry": "Zkusit znovu",
+      "apple": {
+        "connect": "Pokračovat přes Apple",
+        "connected": "Propojeno s Apple"
+      },
+      "google": {
+        "connect": "Pokračovat přes Google",
+        "connected": "Propojeno s Google"
       }
     },
     "settings": {
@@ -778,7 +826,53 @@
     "uploads_in_progress": "Odesílání nahrávek probíhá na pozadí",
     "no_notifications": "Žádné notifikace",
     "no_uploads": "Žádné aktivní odesílání nahrávek na pozadí",
-    "unknown_recording": "Neznámá nahrávka"
+    "unknown_recording": "Neznámá nahrávka",
+    "recordingUpload": {
+      "failure": {
+        "title": "Odeslání nahrávky selhalo",
+        "missingId": "Nahrávku nelze odeslat, protože chybí její identifikátor.",
+        "databaseRead": "Odesílání nahrávky {recordingId} selhalo při čtení z databáze.",
+        "upload": "Odesílání nahrávky {recordingId} selhalo. Pokud je to vhodné, aplikace pokus zopakuje."
+      },
+      "notFound": {
+        "title": "Nahrávka nebyla nalezena",
+        "message": "Nahrávka {recordingId} nebyla v databázi nalezena."
+      },
+      "success": {
+        "title": "Nahrávka byla odeslána",
+        "message": "Nahrávka {recordingId} byla úspěšně odeslána."
+      }
+    }
+  },
+  "updates": {
+    "available": {
+      "title": "Je dostupná aktualizace",
+      "message": "Je dostupná nová verze ({version}). Aktualizujte prosím aplikaci.",
+      "messageWithoutVersion": "Je dostupná nová verze. Aktualizujte prosím aplikaci.",
+      "action": "Aktualizovat"
+    }
+  },
+  "bootstrap": {
+    "databaseError": {
+      "title": "Místní úložiště není dostupné",
+      "message": "Strnadi nemohli připravit databázi nahrávek. Vaše nahrávky nebyly změněny. Zkontrolujte volné místo a zkuste to znovu.",
+      "retry": "Zkusit znovu"
+    }
+  },
+  "maintenance": {
+    "title": "Aplikace Strnadi je momentálně v údržbě.",
+    "details": "Podrobnější informace najdete zde:"
+  },
+  "serverHealth": {
+    "healthy": "Server je dostupný",
+    "unavailable": "Server není dostupný"
+  },
+  "achievements": {
+    "title": "Úspěchy",
+    "unlockedCount": "Odemčeno {unlocked}/{total}",
+    "unlocked": "✓ Odemčeno",
+    "locked": "🔒 Zamčeno",
+    "close": "Zavřít"
   },
   "logout": {
     "title": "Odhlásit se",

@@ -17,29 +17,50 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/navigation/guide_page.dart';
+import 'package:strnadi/navigation/recorder_exit_policy.dart';
 
-Future<void> _openGuideScreen(BuildContext context) async {
+typedef GuidePageBuilder = Widget Function(BuildContext context);
+
+Future<void> openGuideScreen(
+  BuildContext context, {
+  RecorderExitPolicy? recorderExitPolicy,
+  GuidePageBuilder? guidePageBuilder,
+}) async {
   if (ModalRoute.of(context)?.settings.name == '/guide') {
     return;
   }
+  if (!await permitsRecorderExit(recorderExitPolicy)) return;
+  if (!context.mounted) return;
+
   await Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => const GuidePage(),
+      builder: guidePageBuilder ?? (_) => const GuidePage(),
       settings: const RouteSettings(name: '/guide'),
     ),
   );
 }
 
 class GuideShortcutButton extends StatelessWidget {
-  const GuideShortcutButton({super.key});
+  final RecorderExitPolicy? recorderExitPolicy;
+  final GuidePageBuilder? guidePageBuilder;
+
+  const GuideShortcutButton({
+    super.key,
+    this.recorderExitPolicy,
+    this.guidePageBuilder,
+  });
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: t('user.menu.items.guide'),
       icon: const Icon(Icons.help_outline),
-      onPressed: () => _openGuideScreen(context),
+      onPressed: () => openGuideScreen(
+        context,
+        recorderExitPolicy: recorderExitPolicy,
+        guidePageBuilder: guidePageBuilder,
+      ),
     );
   }
 }

@@ -32,7 +32,8 @@
         "title": "Offline",
         "message": "This action is not available offline."
       },
-      "logged_out": "You have been logged out"
+      "logged_out": "You have been logged out",
+      "email_app_unavailable": "Could not open the email app."
     },
     "disclaimer": {
       "back": "Back",
@@ -118,6 +119,13 @@
           "connectionError": "Error sending the request. Check your connection."
         }
       },
+      "change": {
+        "errors": {
+          "invalidLink": "This password reset link is invalid or has expired.",
+          "failed": "The password could not be changed. Please request a new reset link and try again.",
+          "connection": "The password could not be changed because the server could not be reached."
+        }
+      },
       "changed": {
         "title": "Password changed successfully",
         "message": "You can now sign in to your account."
@@ -189,6 +197,7 @@
       }
     },
     "emailVerify": {
+      "title": "Verify your e-mail",
       "alreadyVerified": {
         "title": "E-mail already verified",
         "message": "Your e-mail has already been verified. You can log in."
@@ -250,6 +259,10 @@
     },
     "buttons": {
       "saveChanges": "Save changes"
+    },
+    "messages": {
+      "saveFailed": "The changes could not be saved. Please try again.",
+      "syncFailed": "The changes were saved on this device, but could not be synchronized. Please check your connection and try saving again."
     }
   },
   "bottomBar": {
@@ -258,21 +271,28 @@
       "close": "Close",
       "navigate_to_login": "Login",
       "guest_user": "This feature is not available for guest users.",
-      "guest_user_desc": "To unlock the full potential of the app, please create an account or log in."
+      "guest_user_desc": "To unlock the full potential of the app, please create an account or log in.",
+      "guest_user_desc_rec": "Please log in first. You will then find your recording under local recordings."
     }
   },
   "dialogs": {
-    "message": "Message"
+    "message": "Message",
+    "googlePlayServicesRequired": "Google Play Services are required for this app to work correctly.",
+    "startupPermissionsRequired": "The app needs microphone and notification permissions.\nPlease enable them in Settings, then restart Strnadi."
   },
   "recordingUploadCheck": {
     "title": "Upload needs attention",
     "messages": {
       "single": "This recording is saved on this device, but the online map received only {uploaded} of {expected} audio sections.",
       "singleNamed": "“{name}” is saved on this device, but the online map received only {uploaded} of {expected} audio sections.",
+      "singleUnknown": "A complete audio upload has not been confirmed for this recording. Its exact online-map status is unavailable.",
+      "singleNamedUnknown": "A complete audio upload has not been confirmed for “{name}”. Its exact online-map status is unavailable.",
       "multiple": "{count} recordings are saved on this device, but the online map received only part of them. Missing audio sections: {missing}.",
+      "multipleUnknown": "A complete audio upload has not been confirmed for {count} recordings. Their exact online-map status is unavailable.",
       "canSend": "Until the missing audio is sent, the recording may not appear on the map. Send it now?",
       "cannotSend": "The app could not find the missing audio on this device. Please keep the recording stored and try again later.",
       "sent": "Missing audio is being sent.",
+      "sentWithSkipped": "Available missing audio is being sent. Recordings skipped because their audio is unavailable: {count}.",
       "sendFailed": "The missing audio could not be sent. Please check your connection and try again."
     },
     "actions": {
@@ -285,6 +305,10 @@
     "offlineMode": {
       "title": "Offline mode",
       "message": "You are offline. Only locally stored recordings will be available."
+    },
+    "errors": {
+      "sendFailed": "One or more recordings could not be queued for upload. Please try again.",
+      "reviewRecoveryFailed": "This unfinished recording could not be reopened safely. Its audio was kept."
     },
     "sort": {
       "name": "Name",
@@ -314,7 +338,8 @@
       "checkingParts": "Checking parts...",
       "unsentParts": "Unsent parts",
       "uploaded": "Uploaded",
-      "waitingForUpload": "Waiting to upload"
+      "waitingForUpload": "Waiting to upload",
+      "finishReview": "Finish recording details"
     },
     "dialect": {
       "loading": "Loading dialect...",
@@ -338,7 +363,8 @@
     "errors": {
       "reverseGeocodeFailed": "Reverse geocoding failed",
       "errorDownloading": "Error downloading recording",
-      "errorDeleting": "Error deleting recording"
+      "errorDeleting": "Error deleting recording",
+      "errorSending": "The recording could not be queued for upload. Please try again."
     },
     "buttons": {
       "download": "Download recording",
@@ -583,7 +609,11 @@
           "wifiOnly": {
             "title": "Connection error",
             "message": "Recording is allowed on Wi-Fi only"
-          }
+          },
+          "login": "Please sign in before sending this recording.",
+          "invalidParts": "The recording is incomplete and could not be saved. Please record it again.",
+          "saveFailed": "The recording could not be saved safely. No upload was started.",
+          "scheduleFailed": "The recording was saved locally, but sending could not be scheduled. Please try again from My recordings."
         }
       },
       "placeholders": {
@@ -615,7 +645,10 @@
       "locationPermission": "You must allow location access to start recording",
       "noRecordingFound": "No recording found to save",
       "concatError": "Error while concatenating files",
-      "locationFetchError": "Error obtaining location"
+      "locationFetchError": "Error obtaining location",
+      "segmentFinalizeError": "The recorded segment could not be saved. Your recording is paused; please try again.",
+      "saveStatusUnknown": "The save result could not be confirmed. The audio has been kept for recovery; leave this screen and check Local recordings.",
+      "foregroundServiceCleanup": "The recording notification could not be stopped safely. Your recording was kept; please try again."
     },
     "notifications": {
       "recordingInProgress": "The Strnadi app is recording",
@@ -666,12 +699,28 @@
           "title": "Error",
           "load": "Failed to load user data.",
           "auth": "Authentication error. Please log in again.",
-          "update" : "Failed to update user data. Please try again later."
+          "update": "Failed to update user data. Please try again later.",
+          "profilePhotoUpload": "Profile picture upload failed."
         },
         "success": {
           "update": "User data were successfully updated.",
-          "noChanges": "No changes were made to the user data."
+          "noChanges": "No changes were made to the user data.",
+          "profilePhotoUploaded": "Profile picture uploaded."
         }
+      }
+    },
+    "connectedAccounts": {
+      "allConnected": "Your account is already connected to Apple and Google.",
+      "loadFailed": "Connected accounts could not be loaded. Check your connection and try again.",
+      "error": "The account could not be connected. Please try again.",
+      "retry": "Try again",
+      "apple": {
+        "connect": "Continue with Apple",
+        "connected": "Connected to Apple"
+      },
+      "google": {
+        "connect": "Continue with Google",
+        "connected": "Connected to Google"
       }
     },
     "settings": {
@@ -780,7 +829,53 @@
     "uploads_in_progress": "Recording uploads are in progress in the background",
     "no_notifications": "No notifications",
     "no_uploads": "No active recording uploads in the background",
-    "unknown_recording": "Unknown recording"
+    "unknown_recording": "Unknown recording",
+    "recordingUpload": {
+      "failure": {
+        "title": "Recording upload failed",
+        "missingId": "The recording cannot be sent because its identifier is missing.",
+        "databaseRead": "Recording {recordingId} could not be read from the database.",
+        "upload": "Recording {recordingId} could not be uploaded. It will be retried when appropriate."
+      },
+      "notFound": {
+        "title": "Recording not found",
+        "message": "Recording {recordingId} was not found in the database."
+      },
+      "success": {
+        "title": "Recording uploaded",
+        "message": "Recording {recordingId} was uploaded successfully."
+      }
+    }
+  },
+  "updates": {
+    "available": {
+      "title": "Update available",
+      "message": "A new version ({version}) is available. Please update your app.",
+      "messageWithoutVersion": "A new version is available. Please update your app.",
+      "action": "Update"
+    }
+  },
+  "bootstrap": {
+    "databaseError": {
+      "title": "Local storage is unavailable",
+      "message": "Strnadi could not prepare the recording database. Your recordings were not changed. Check available storage and try again.",
+      "retry": "Try again"
+    }
+  },
+  "maintenance": {
+    "title": "Strnadi is currently undergoing maintenance.",
+    "details": "More information is available here:"
+  },
+  "serverHealth": {
+    "healthy": "Server is healthy",
+    "unavailable": "Server is unavailable"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "unlockedCount": "{unlocked}/{total} unlocked",
+    "unlocked": "✓ Unlocked",
+    "locked": "🔒 Locked",
+    "close": "Close"
   },
   "logout": {
     "title": "Logout",

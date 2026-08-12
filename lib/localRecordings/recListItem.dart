@@ -17,6 +17,7 @@
  * recListItem.dart
  */
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:strnadi/database/Models/recording.dart';
@@ -35,6 +36,8 @@ import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dialect_time_resolver.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
+import 'package:strnadi/localRecordings/recording_send_coordinator.dart';
+import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/utils/location_label.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
@@ -72,29 +75,35 @@ class _DialectDetailEntry {
 }
 
 class RecordingItem extends StatefulWidget {
-  Recording recording;
+  final Recording recording;
 
-  RecordingItem({Key? key, required this.recording}) : super(key: key);
+  const RecordingItem({super.key, required this.recording});
 
   @override
-  _RecordingItemState createState() => _RecordingItemState();
+  State<RecordingItem> createState() => _RecordingItemState();
 }
 
 class _RecordingItemState extends State<RecordingItem> {
+  late Recording _recording;
   bool loaded = false;
   late LatLng center;
   late List<RecordingPart> parts = [];
   late LocationService locationService;
   final AudioPlayer player = AudioPlayer();
+  late final StreamSubscription<Duration> _positionSubscription;
+  late final StreamSubscription<Duration?> _durationSubscription;
+  late final StreamSubscription<bool> _playingSubscription;
   bool isFileLoaded = false;
   bool isPlaying = false;
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
   bool _isLoading = false;
   bool _isDownloading = false;
+  bool _isStartingUpload = false;
   double _downloadProgress = 0.0;
   CancelToken? _downloadCancelToken;
   double? _scrubProgress;
+  final RecordingSendCoordinator _sendCoordinator = RecordingSendCoordinator();
 
   List<_DialectDetailEntry> _dialectDetails = const [];
   bool _dialectDetailsLoading = false;
@@ -110,7 +119,7 @@ class _RecordingItemState extends State<RecordingItem> {
   int mililen = 0;
 
   String get _recordingTitle {
-    final String? explicitName = widget.recording.name?.trim();
+    final String? explicitName = _recording.name?.trim();
     if (explicitName != null && explicitName.isNotEmpty) {
       return explicitName;
     }
@@ -120,71 +129,91 @@ class _RecordingItemState extends State<RecordingItem> {
   @override
   void initState() {
     super.initState();
+    _recording = widget.recording;
     locationService = LocationService();
-    player.positionStream.listen((position) {
+    _positionSubscription = player.positionStream.listen((position) {
+      if (!mounted) return;
       setState(() {
         currentPosition = position;
       });
     });
-    player.durationStream.listen((duration) {
+    _durationSubscription = player.durationStream.listen((duration) {
+      if (!mounted) return;
       setState(() {
         totalDuration = duration ?? Duration.zero;
       });
     });
-    player.playingStream.listen((playing) {
+    _playingSubscription = player.playingStream.listen((playing) {
+      if (!mounted) return;
       setState(() {
         isPlaying = playing;
       });
     });
-    _initializeRecording();
+    unawaited(_initializeRecording());
+  }
+
+  @override
+  void didUpdateWidget(covariant RecordingItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.recording, widget.recording)) {
+      _recording = widget.recording;
+    }
   }
 
   Future<void> _initializeRecording() async {
     await getParts();
+    if (!mounted) return;
     await _loadDialectDetails();
+    if (!mounted) return;
 
     logger.i(
-        "[RecordingItem] initState: recording path: ${widget.recording.path}, downloaded: ${widget.recording.downloaded}");
+      '[RecordingItem] initializing recording ${_recording.id}; '
+      'downloaded=${_recording.downloaded}',
+    );
 
-    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+    if (_recording.path != null && _recording.path!.isNotEmpty) {
       await getData();
+      if (!mounted) return;
       setState(() {
         loaded = true;
       });
     } else {
-      final int? recordingId = widget.recording.id;
+      final int? recordingId = _recording.id;
       final List<RecordingPart> localParts = recordingId == null
           ? <RecordingPart>[]
           : await DatabaseNew.getPartsByRecordingId(recordingId);
+      if (!mounted) return;
       if (recordingId != null && localParts.isNotEmpty) {
         logger.i(
-            "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${widget.recording.id}");
+            "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${_recording.id}");
         await DatabaseNew.concatRecordingParts(recordingId);
+        if (!mounted) return;
         logger.i(
-            "[RecordingItem] Concatenation complete for recording id: ${widget.recording.id}. Fetching updated recording.");
+            "[RecordingItem] Concatenation complete for recording id: ${_recording.id}. Fetching updated recording.");
         Recording? updatedRecording =
             await DatabaseNew.getRecordingFromDbByIdNoMail(recordingId);
-        logger
-            .i("[RecordingItem] Fetched updated recording: $updatedRecording");
+        if (!mounted) return;
         logger.i(
-            "[RecordingItem] Original recording path: ${widget.recording.path}");
+          '[RecordingItem] refreshed concatenated recording '
+          '${_recording.id}.',
+        );
         setState(() {
-          widget.recording.path =
-              updatedRecording?.path ?? widget.recording.path;
+          _recording.path = updatedRecording?.path ?? _recording.path;
           loaded = true;
         });
       } else {
         logger.w(
-            "[RecordingItem] No recording parts found for recording id: ${widget.recording.id}");
+            "[RecordingItem] No recording parts found for recording id: ${_recording.id}");
         setState(() {
           loaded = true;
         });
       }
     }
 
-    final int? recordingIdForPrompt = widget.recording.id;
+    final int? recordingIdForPrompt = _recording.id;
     if (!mounted || recordingIdForPrompt == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       await IncompleteUploadPrompt.checkAndPrompt(
         context,
         recordingId: recordingIdForPrompt,
@@ -214,7 +243,7 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> _loadDialectDetails() async {
-    final int? recordingId = widget.recording.id;
+    final int? recordingId = _recording.id;
     if (recordingId == null) {
       if (!mounted) return;
       setState(() {
@@ -236,6 +265,7 @@ class _RecordingItemState extends State<RecordingItem> {
     try {
       final detectedDialects =
           await DatabaseNew.getDetectedDialectsByRecordingLocalId(recordingId);
+      if (!mounted) return;
       for (final d in detectedDialects) {
         final Duration? startOffset = d.filteredPartStartDate == null
             ? null
@@ -266,6 +296,7 @@ class _RecordingItemState extends State<RecordingItem> {
       if (entries.isEmpty) {
         final legacyDialects =
             await DatabaseNew.getDialectsByRecordingId(recordingId);
+        if (!mounted) return;
         for (final d in legacyDialects) {
           final Duration startOffset = _offsetWithinConcatenated(d.startDate);
           final Duration rawEndOffset = _offsetWithinConcatenated(d.endDate);
@@ -316,6 +347,7 @@ class _RecordingItemState extends State<RecordingItem> {
       final List<String> codes = requestedCodes.toList();
       try {
         final List<Color> colors = await DialectColorCache.getColors(codes);
+        if (!mounted) return;
         colorMap = <String, Color>{
           for (var i = 0; i < codes.length; i++)
             codes[i]: i < colors.length ? colors[i] : Colors.grey.shade400
@@ -338,9 +370,10 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> getData() async {
-    if (widget.recording.path != null && widget.recording.path!.isNotEmpty) {
+    if (_recording.path != null && _recording.path!.isNotEmpty) {
       try {
-        await player.setFilePath(widget.recording.path!);
+        await player.setFilePath(_recording.path!);
+        if (!mounted) return;
         setState(() {
           isFileLoaded = true;
           currentPosition = Duration.zero;
@@ -355,18 +388,25 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> getParts() async {
-    logger.i('Recording ID: ${widget.recording.id}');
-    var parts = await DatabaseNew.getPartsByRecordingId(widget.recording.id!);
+    logger.i('Recording ID: ${_recording.id}');
+    final List<RecordingPart> loadedParts =
+        await DatabaseNew.getPartsByRecordingId(_recording.id!);
+    if (!mounted) return;
     setState(() {
-      this.parts = parts;
-      if (parts.isNotEmpty) {
-        _pendingCenter =
-            LatLng(parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart);
+      parts = loadedParts;
+      if (loadedParts.isNotEmpty) {
+        _pendingCenter = LatLng(
+          loadedParts[0].gpsLatitudeStart,
+          loadedParts[0].gpsLongitudeStart,
+        );
       }
     });
-    if (parts.isNotEmpty) {
+    if (loadedParts.isNotEmpty) {
       await reverseGeocode(
-          parts[0].gpsLatitudeStart, parts[0].gpsLongitudeStart);
+        loadedParts[0].gpsLatitudeStart,
+        loadedParts[0].gpsLongitudeStart,
+      );
+      if (!mounted) return;
     }
     if (_mapReady && _pendingCenter != null) {
       _mapController.move(_pendingCenter!, 13.0);
@@ -378,8 +418,26 @@ class _RecordingItemState extends State<RecordingItem> {
   bool get _hasIdleUnsentParts =>
       parts.any((part) => !part.sent && !part.sending);
 
+  bool get _uploadIsActive => recordingUploadIsActive(
+        recordingSending: _recording.sending,
+        recordingLease: _recording.uploadLease,
+        partSendingStates: parts.map((RecordingPart part) => part.sending),
+      );
+
+  bool get _canStartUpload => canStartRecordingUpload(
+        captureReviewed: _recording.captureReviewed,
+        recordingSent: _recording.sent,
+        uploadIsActive: _uploadIsActive,
+      );
+
+  bool get _canResendUnsentParts => canResendRecordingParts(
+        captureReviewed: _recording.captureReviewed,
+        uploadIsActive: _uploadIsActive,
+        hasIdleUnsentParts: _hasIdleUnsentParts,
+      );
+
   Future<void> _refreshRecordingState() async {
-    final int? recordingId = widget.recording.id;
+    final int? recordingId = _recording.id;
     if (recordingId == null) return;
 
     final Recording? refreshed =
@@ -387,18 +445,20 @@ class _RecordingItemState extends State<RecordingItem> {
     if (!mounted || refreshed == null) return;
 
     setState(() {
-      widget.recording = refreshed;
+      _recording = refreshed;
     });
   }
 
   Future<void> _fetchRecordings() async {
     await _refreshRecordingState();
+    if (!mounted) return;
     await getParts();
+    if (!mounted) return;
     await _loadDialectDetails();
   }
 
   Future<void> _resendUnsentPartsForCurrentRecording() async {
-    final int? recordingId = widget.recording.id;
+    final int? recordingId = _recording.id;
     if (recordingId == null) return;
 
     await IncompleteUploadPrompt.checkAndPrompt(
@@ -408,28 +468,123 @@ class _RecordingItemState extends State<RecordingItem> {
     );
     if (!mounted) return;
     await _refreshRecordingState();
+    if (!mounted) return;
     await getParts();
+  }
+
+  Future<bool> _hasIncompleteUpload(int recordingId) async {
+    try {
+      final List<IncompleteRecordingUpload> incompleteUploads =
+          await DatabaseNew.findIncompleteUploads(
+        recordingId: recordingId,
+      );
+      return incompleteUploads.isNotEmpty;
+    } catch (error, stackTrace) {
+      logger.e(
+        'Error checking upload state: $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(error, stackTrace: stackTrace);
+      // Preserve the existing behavior: the durable aggregate upload service
+      // remains the final authority when this optional preflight is unavailable.
+      return false;
+    }
+  }
+
+  Future<void> _handleIncompleteUpload(int recordingId) async {
+    if (!mounted) return;
+    await IncompleteUploadPrompt.checkAndPrompt(
+      context,
+      recordingId: recordingId,
+      oncePerSession: false,
+    );
+    if (!mounted) return;
+    await _fetchRecordings();
+  }
+
+  Future<void> _scheduleCurrentRecordingUpload(int recordingId) async {
+    if (!mounted) return;
+    await _withLoader(() async {
+      try {
+        setState(() {
+          _recording.sending = true;
+        });
+        await DatabaseNew.sendRecordingBackground(recordingId);
+        if (!mounted) return;
+        logger.i('Sending recording: $recordingId');
+      } catch (error, stackTrace) {
+        logger.e(
+          'Error during send check/resend: $error',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        Sentry.captureException(error, stackTrace: stackTrace);
+        await _restoreUploadSchedulingState();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t('recListItem.errors.errorSending')),
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> _sendCurrentRecording() async {
+    final int? recordingId = _recording.id;
+    if (recordingId == null || !mounted) return;
+
+    if (!_isStartingUpload) {
+      setState(() => _isStartingUpload = true);
+    }
+    try {
+      await _sendCoordinator.send(
+        hasIncompleteUpload: () => _hasIncompleteUpload(recordingId),
+        handleIncompleteUpload: () => _handleIncompleteUpload(recordingId),
+        scheduleUpload: () => _scheduleCurrentRecordingUpload(recordingId),
+      );
+    } catch (error, stackTrace) {
+      logger.e(
+        'Unexpected recording send failure: $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(error, stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t('recListItem.errors.errorSending')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted && !_sendCoordinator.isRunning) {
+        setState(() => _isStartingUpload = false);
+      }
+    }
   }
 
   Future<bool> _ensureFileLoaded() async {
     if (isFileLoaded) return true;
-    if (widget.recording.path == null || widget.recording.path!.isEmpty) {
+    if (_recording.path == null || _recording.path!.isEmpty) {
       return false;
     }
     await getData();
+    if (!mounted) return false;
     return isFileLoaded;
   }
 
   void togglePlay() async {
     try {
       if (!await _ensureFileLoaded()) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
-          );
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('recordingPage.status.errorDownloading'))),
+        );
         return;
       }
+      if (!mounted) return;
       final Duration total = _effectivePlaybackDuration();
       final bool atEnd = total > Duration.zero &&
           currentPosition >= total - const Duration(milliseconds: 300);
@@ -438,6 +593,7 @@ class _RecordingItemState extends State<RecordingItem> {
       } else {
         if (atEnd) {
           await player.seek(Duration.zero);
+          if (!mounted) return;
         }
         await player.play();
       }
@@ -470,7 +626,7 @@ class _RecordingItemState extends State<RecordingItem> {
     if (totalDuration > Duration.zero) {
       return totalDuration;
     }
-    final int fallbackSeconds = widget.recording.totalSeconds?.round() ?? 0;
+    final int fallbackSeconds = _recording.totalSeconds?.round() ?? 0;
     if (fallbackSeconds <= 0) {
       return Duration.zero;
     }
@@ -489,9 +645,9 @@ class _RecordingItemState extends State<RecordingItem> {
   Duration _offsetWithinConcatenated(DateTime timestamp) {
     return resolveDialectOffset(
       timestamp: timestamp,
-      recordingCreatedAt: widget.recording.createdAt,
+      recordingCreatedAt: _recording.createdAt,
       parts: _dialectTimeSegments(),
-      totalSeconds: widget.recording.totalSeconds,
+      totalSeconds: _recording.totalSeconds,
     );
   }
 
@@ -528,6 +684,7 @@ class _RecordingItemState extends State<RecordingItem> {
     final Duration total = _effectivePlaybackDuration();
     if (total <= Duration.zero) return;
     if (!await _ensureFileLoaded()) return;
+    if (!mounted) return;
     final int seekMs =
         (total.inMilliseconds * progress.clamp(0.0, 1.0)).round();
     await player.seek(Duration(milliseconds: seekMs));
@@ -554,13 +711,17 @@ class _RecordingItemState extends State<RecordingItem> {
   @override
   void dispose() {
     _downloadCancelToken?.cancel('Recording download canceled on dispose.');
-    player.dispose();
+    unawaited(_positionSubscription.cancel());
+    unawaited(_durationSubscription.cancel());
+    unawaited(_playingSubscription.cancel());
+    unawaited(player.dispose());
     super.dispose();
   }
 
   Future<void> _downloadRecording() async {
     if (!await Config.hasBasicInternet) {
-      showDialog(
+      if (!mounted) return;
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(t('recListItem.dialogs.downloadUnavailable.title')),
@@ -575,6 +736,7 @@ class _RecordingItemState extends State<RecordingItem> {
       );
       return;
     }
+    if (!mounted) return;
 
     try {
       setState(() {
@@ -583,9 +745,9 @@ class _RecordingItemState extends State<RecordingItem> {
         _downloadCancelToken = CancelToken();
         loaded = false;
       });
-      logger.i("Initiating download for recording id: ${widget.recording.id}");
-      await DatabaseNew.downloadRecording(
-        widget.recording.id!,
+      logger.i("Initiating download for recording id: ${_recording.id}");
+      await DatabaseNew.downloadRecordingByLocalId(
+        _recording.id!,
         cancelToken: _downloadCancelToken,
         onProgress: (progress) {
           if (!mounted) return;
@@ -594,15 +756,18 @@ class _RecordingItemState extends State<RecordingItem> {
           });
         },
       );
+      if (!mounted) return;
       Recording? updatedRecording =
-          await DatabaseNew.getRecordingFromDbById(widget.recording.id!);
+          await DatabaseNew.getRecordingFromDbById(_recording.id!);
+      if (!mounted) return;
       if (updatedRecording != null) {
         setState(() {
-          widget.recording = updatedRecording;
+          _recording = updatedRecording;
         });
         await getData();
+        if (!mounted) return;
       }
-      logger.i("Downloaded recording updated: ${widget.recording.path}");
+      logger.i('Downloaded recording cache updated.');
       if (mounted) {
         setState(() {
           loaded = true;
@@ -651,13 +816,16 @@ class _RecordingItemState extends State<RecordingItem> {
   /// and locally in the SQLite database.
   Future<void> _deleteRecording() async {
     try {
-      // Always remove it from the local DB.
-      await DatabaseNew.deleteRecording(widget.recording.id!);
+      await _refreshRecordingState();
+      if (!mounted) return;
+      if (_uploadIsActive) {
+        throw StateError('Cannot delete a recording while it is uploading.');
+      }
+      await DatabaseNew.deleteRecording(_recording.id!);
+      if (!mounted) return;
 
       // Return to the previous screen so the list refreshes.
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      Navigator.of(context).pop();
     } catch (e, stackTrace) {
       logger.e('Error deleting recording: $e',
           error: e, stackTrace: stackTrace);
@@ -670,17 +838,104 @@ class _RecordingItemState extends State<RecordingItem> {
     }
   }
 
+  Future<void> _restoreUploadSchedulingState() async {
+    if (mounted) {
+      setState(() {
+        _recording
+          ..sending = false
+          ..uploadLease = null;
+      });
+    }
+
+    try {
+      final int? recordingId = _recording.id;
+      if (recordingId == null) return;
+
+      final db = await DatabaseNew.database;
+      final int changed = await db.rawUpdate(
+        'UPDATE recordings '
+        'SET sending = 0, uploadLease = NULL '
+        'WHERE id = ? AND uploadLease IS NULL',
+        <Object?>[recordingId],
+      );
+
+      // A scheduler call can fail after the task has already become runnable.
+      // Do not overwrite a lease acquired by that worker; mirror its state in
+      // the UI so destructive cache actions remain disabled while it uploads.
+      if (changed == 0) {
+        final List<Map<String, Object?>> rows = await db.query(
+          'recordings',
+          columns: <String>['sending', 'uploadLease'],
+          where: 'id = ?',
+          whereArgs: <Object?>[recordingId],
+          limit: 1,
+        );
+        if (!mounted) return;
+        if (rows.isNotEmpty) {
+          final Object? persistedSending = rows.first['sending'];
+          final String? persistedLease = rows.first['uploadLease'] as String?;
+          if (persistedLease != null) {
+            setState(() {
+              _recording
+                ..sending = persistedSending == true || persistedSending == 1
+                ..uploadLease = persistedLease;
+            });
+          }
+        }
+      }
+    } catch (e, stackTrace) {
+      logger.e(
+        'Failed to reset recording after upload scheduling failed: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(e, stackTrace: stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  Future<void> _deleteRecordingFromCache() async {
+    try {
+      await _refreshRecordingState();
+      if (!mounted) return;
+      if (_uploadIsActive) {
+        throw StateError(
+          'Cannot delete recording cache while it is uploading.',
+        );
+      }
+      await DatabaseNew.deleteRecordingFromCache(_recording.id!);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (e, stackTrace) {
+      logger.e(
+        'Error deleting recording from local cache: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(e, stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('recListItem.errors.errorDeleting'))),
+        );
+      }
+    }
+  }
+
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse(
         "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
 
-    logger.i("reverse geocode url: $url");
+    logger.i('Reverse geocoding a recording location.');
     try {
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${Config.mapsApiKey}',
       };
       final response = await http.get(url, headers: headers);
+      if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data =
@@ -843,8 +1098,8 @@ class _RecordingItemState extends State<RecordingItem> {
   Widget build(BuildContext context) {
     if (!_isDownloading &&
         !loaded &&
-        widget.recording.path != null &&
-        widget.recording.path!.isNotEmpty) {
+        _recording.path != null &&
+        _recording.path!.isNotEmpty) {
       return ScaffoldWithBottomBar(
         selectedPage: BottomBarItem.list,
         appBarTitle: _recordingTitle,
@@ -867,17 +1122,18 @@ class _RecordingItemState extends State<RecordingItem> {
               IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: () async {
-                  final updatedRecording = await Navigator.push(
+                  final Recording? updatedRecording =
+                      await Navigator.push<Recording>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          EditRecordingPage(recording: widget.recording),
+                      builder: (_) => EditRecordingPage(recording: _recording),
                     ),
                   );
-                  // If the user saved changes, rebuild to show the latest data
-                  if (updatedRecording != null && mounted) {
-                    setState(() {});
-                  }
+                  if (!mounted || updatedRecording == null) return;
+                  setState(() {
+                    _recording = updatedRecording;
+                  });
+                  await getParts();
                 },
               ),
             ],
@@ -889,7 +1145,7 @@ class _RecordingItemState extends State<RecordingItem> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  widget.recording.downloaded
+                  _recording.downloaded
                       ? const SizedBox.shrink()
                       : Padding(
                           padding: const EdgeInsets.symmetric(
@@ -989,7 +1245,7 @@ class _RecordingItemState extends State<RecordingItem> {
                         horizontal: 16.0, vertical: 8.0),
                     child: Column(
                       children: [
-                        if (widget.recording.downloaded)
+                        if (_recording.downloaded)
                           Container(
                             padding: const EdgeInsets.all(12.0),
                             decoration: BoxDecoration(
@@ -1116,8 +1372,7 @@ class _RecordingItemState extends State<RecordingItem> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            widget.recording.note ??
-                                t('recListItem.notePlaceholder'),
+                            _recording.note ?? t('recListItem.notePlaceholder'),
                             style: TextStyle(fontSize: 16),
                           ),
                         ),
@@ -1142,8 +1397,7 @@ class _RecordingItemState extends State<RecordingItem> {
                                       ],
                                     ),
                                     Text(
-                                      formatDateTime(
-                                          widget.recording.createdAt),
+                                      formatDateTime(_recording.createdAt),
                                       style: TextStyle(fontSize: 16),
                                     ),
                                   ],
@@ -1167,78 +1421,34 @@ class _RecordingItemState extends State<RecordingItem> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text('${t('recListItem.estimatedBirdsCount')}: '),
-                              Text(widget.recording.estimatedBirdsCount
-                                  .toString()),
+                              Text(_recording.estimatedBirdsCount.toString()),
                             ],
                           ),
                         ),
                         Visibility(
-                          visible: widget.recording.sent == false &&
-                              widget.recording.sending == false,
+                          visible: _canStartUpload,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.send),
                               label: Text(t('recListItem.buttons.send')),
-                              onPressed: () async {
-                                try {
-                                  final int? recordingId = widget.recording.id;
-                                  if (recordingId != null) {
-                                    final incompleteUploads =
-                                        await DatabaseNew.findIncompleteUploads(
-                                      recordingId: recordingId,
-                                    );
-                                    if (incompleteUploads.isNotEmpty) {
-                                      if (!context.mounted) return;
-                                      await IncompleteUploadPrompt
-                                          .checkAndPrompt(
-                                        context,
-                                        recordingId: recordingId,
-                                        oncePerSession: false,
-                                      );
-                                      if (!mounted) return;
-                                      await _fetchRecordings();
-                                      return;
-                                    }
-                                  }
-                                } catch (e, stackTrace) {
-                                  logger.e('Error checking upload state: $e',
-                                      error: e, stackTrace: stackTrace);
-                                  Sentry.captureException(e,
-                                      stackTrace: stackTrace);
-                                }
-
-                                await _withLoader(() async {
-                                  try {
-                                    setState(() {
-                                      widget.recording.sending = true;
-                                    });
-                                    await DatabaseNew.sendRecordingBackground(
-                                        widget.recording.id!);
-                                    logger.i(
-                                        "Sending recording: ${widget.recording.id}");
-                                  } catch (e, stackTrace) {
-                                    logger.e(
-                                        'Error during send check/resend: $e',
-                                        error: e,
-                                        stackTrace: stackTrace);
-                                    Sentry.captureException(e,
-                                        stackTrace: stackTrace);
-                                  }
-                                });
-                              },
+                              onPressed: _isStartingUpload
+                                  ? null
+                                  : () => unawaited(_sendCurrentRecording()),
                             ),
                           ),
                         ),
                         Visibility(
-                          visible: widget.recording.sent && _hasUnsentParts,
+                          visible: _recording.captureReviewed &&
+                              _recording.sent &&
+                              _hasUnsentParts,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.refresh),
                               label: Text(
                                   t('recListItem.buttons.resendUnsentParts')),
-                              onPressed: _hasIdleUnsentParts
+                              onPressed: _canResendUnsentParts
                                   ? _resendUnsentPartsForCurrentRecording
                                   : null,
                             ),
@@ -1247,17 +1457,45 @@ class _RecordingItemState extends State<RecordingItem> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: ElevatedButton(
-                            onPressed: () async {
-                              await _withLoader(() async {
-                                await DatabaseNew.deleteRecordingFromCache(
-                                    widget.recording.id!);
-                                if (mounted) {
-                                  setState(() {
-                                    // Optionally refresh UI or provide feedback
-                                  });
-                                }
-                              });
-                            },
+                            onPressed: _uploadIsActive
+                                ? null
+                                : () async {
+                                    final bool isUnsentOrLocalOnly =
+                                        !_recording.sent ||
+                                            _recording.BEId == null;
+                                    if (isUnsentOrLocalOnly) {
+                                      final bool? confirm =
+                                          await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: Text(t(
+                                              'recListItem.dialogs.confirmDelete.title')),
+                                          content: Text(t(
+                                              'recListItem.dialogs.confirmDelete.message')),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(ctx).pop(false),
+                                              child: Text(t(
+                                                  'recListItem.dialogs.confirmDelete.cancel')),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(ctx).pop(true),
+                                              child: Text(t(
+                                                  'recListItem.dialogs.confirmDelete.delete')),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (!mounted) return;
+                                      if (confirm != true) return;
+                                    }
+
+                                    await _withLoader(
+                                      _deleteRecordingFromCache,
+                                    );
+                                  },
                             child: Text(t('recListItem.buttons.deleteCache')),
                           ),
                         ),
@@ -1274,36 +1512,39 @@ class _RecordingItemState extends State<RecordingItem> {
                             ),
                             style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red),
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: Text(t(
-                                      'recListItem.dialogs.confirmDelete.title')),
-                                  content: Text(t(
-                                      'recListItem.dialogs.confirmDelete.message')),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(ctx).pop(false),
-                                      child: Text(t(
-                                          'recListItem.dialogs.confirmDelete.cancel')),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(ctx).pop(true),
-                                      child: Text(t(
-                                          'recListItem.dialogs.confirmDelete.delete')),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm == true) {
-                                await _withLoader(() async {
-                                  await _deleteRecording();
-                                });
-                              }
-                            },
+                            onPressed: _uploadIsActive
+                                ? null
+                                : () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text(t(
+                                            'recListItem.dialogs.confirmDelete.title')),
+                                        content: Text(t(
+                                            'recListItem.dialogs.confirmDelete.message')),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(false),
+                                            child: Text(t(
+                                                'recListItem.dialogs.confirmDelete.cancel')),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(true),
+                                            child: Text(t(
+                                                'recListItem.dialogs.confirmDelete.delete')),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (!mounted) return;
+                                    if (confirm == true) {
+                                      await _withLoader(() async {
+                                        await _deleteRecording();
+                                      });
+                                    }
+                                  },
                           ),
                         ),
                       ],
@@ -1381,6 +1622,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   void fetchRecPart(int id) async {
     final part = await DatabaseNew.fetchPartsFromDbById(id);
+    if (!mounted) return;
     setState(() {
       parts = part;
     });

@@ -47,7 +47,9 @@ import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/map/filtered_parts_api_loader.dart';
 import 'package:strnadi/map/RecordingPage.dart';
+import 'package:strnadi/map/map_async_request_state.dart';
 import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
+import 'package:strnadi/map/recording_author_filter.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:strnadi/map/mapUtils/recordingParser.dart';
 import 'package:strnadi/map/searchBar.dart';
@@ -91,12 +93,12 @@ DialectVisibilityMode dialectVisibilityMode = DialectVisibilityMode.aiAdmin;
 
 class _RecordingDialectSelection {
   final List<String> dialects;
-  final bool hasAnySelectedDialect;
+  final bool isVisibleInSelectedMode;
   final _MapMarkerStatus markerStatus;
 
   const _RecordingDialectSelection({
     required this.dialects,
-    required this.hasAnySelectedDialect,
+    required this.isVisibleInSelectedMode,
     required this.markerStatus,
   });
 }
@@ -123,7 +125,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
   List<DetectedDialect> _cachedDetectedDialects = [];
   bool _hasCachedDialectData = false;
   bool _isLoadingRecordings = true;
+  final MapLoadingTracker _mapLoadingTracker = MapLoadingTracker();
+  int? _recordingsLoadingToken;
+  int? _dialectRefreshLoadingToken;
   int _activeRecordingsRequestId = 0;
+  int _activeDialectRequestId = 0;
+  int _recordingDataGeneration = 0;
 
   final MapController _mapController = MapController();
   // Legend dialect codes (start with local defaults; replace with BE list when available)
@@ -231,6 +238,65 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
+  void _syncRecordingsLoading() {
+    _setRecordingsLoading(_mapLoadingTracker.isLoading);
+  }
+
+  int _beginRecordingsLoading() {
+    final int? obsoleteDialectToken = _dialectRefreshLoadingToken;
+    if (obsoleteDialectToken != null) {
+      _mapLoadingTracker.finish(obsoleteDialectToken);
+      _dialectRefreshLoadingToken = null;
+    }
+    final int token = _mapLoadingTracker.replace(_recordingsLoadingToken);
+    _recordingsLoadingToken = token;
+    _syncRecordingsLoading();
+    return token;
+  }
+
+  void _finishRecordingsLoading(int token) {
+    _mapLoadingTracker.finish(token);
+    if (_recordingsLoadingToken == token) {
+      _recordingsLoadingToken = null;
+    }
+    _syncRecordingsLoading();
+  }
+
+  int _beginDialectRefreshLoading() {
+    final int token = _mapLoadingTracker.replace(_dialectRefreshLoadingToken);
+    _dialectRefreshLoadingToken = token;
+    _syncRecordingsLoading();
+    return token;
+  }
+
+  void _finishDialectRefreshLoading(int token) {
+    _mapLoadingTracker.finish(token);
+    if (_dialectRefreshLoadingToken == token) {
+      _dialectRefreshLoadingToken = null;
+    }
+    _syncRecordingsLoading();
+  }
+
+  bool _isCurrentRecordingsRequest(int requestId) {
+    return mounted && requestId == _activeRecordingsRequestId;
+  }
+
+  bool _isCurrentDialectRequest({
+    required int dialectRequestId,
+    required int recordingsRequestId,
+    required int dataGeneration,
+  }) {
+    return mounted &&
+        isMapDialectRequestCurrent(
+          dialectRequestId: dialectRequestId,
+          activeDialectRequestId: _activeDialectRequestId,
+          recordingsRequestId: recordingsRequestId,
+          activeRecordingsRequestId: _activeRecordingsRequestId,
+          dataGeneration: dataGeneration,
+          activeDataGeneration: _recordingDataGeneration,
+        );
+  }
+
   bool _matchesRecordingAge(Recording recording) {
     switch (_recordingAgeFilter) {
       case RecordingAgeFilter.all:
@@ -266,6 +332,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -284,6 +351,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   Future<void> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!mounted) return;
       if (!serviceEnabled) {
         _showMessage("Please enable location services");
         logger.w("Location services are not enabled");
@@ -294,8 +362,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
+      if (!mounted) return;
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+        if (!mounted) return;
         if (permission == LocationPermission.denied) {
           logger.w("Location permissions are denied");
           setState(() {
@@ -314,15 +384,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
       }
 
       Position position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
       logger.t('current possition initialized');
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
-      _mapController.move(_currentPosition, _currentZoom);
     } catch (e, stackTrace) {
       logger.e("Error retrieving location: $e",
           error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
+    } finally {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _moveMapToLocation(_currentPosition);
+        });
+      }
     }
   }
 
@@ -330,23 +407,27 @@ class _MapScreenV2State extends State<MapScreenV2> {
   void initState() {
     super.initState();
     _loadGuestStatus();
-    _currentPosition = LatLng(
-        LocationService().lastKnownPosition?.latitude ?? 0.0,
-        LocationService().lastKnownPosition?.longitude ?? 0.0);
+    final LatLng? lastKnownPosition = LocationService().lastKnownPosition;
+    if (lastKnownPosition != null) {
+      _currentPosition = lastKnownPosition;
+      _currentCenter = lastKnownPosition;
+    }
 
-    _getCurrentLocation();
+    unawaited(_getCurrentLocation());
 
     unawaited(getRecordings());
 
     // Subscribe to the centralized location stream.
     _positionStreamSubscription =
         LocationService().positionStream.listen((Position position) {
+      if (!mounted) return;
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
     });
 
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
+      if (!mounted) return;
       if (event is MapEventMoveEnd) {
         final bool wasUsingClusterRendering = _shouldUseClusterRendering;
         _currentCenter = event.camera.center;
@@ -365,7 +446,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
     unawaited(_refreshLegendCodes());
   }
 
-  Future<void> fetchClusters() async {
+  Future<void> fetchClusters({int? dataGeneration}) async {
+    final int expectedGeneration = dataGeneration ?? _recordingDataGeneration;
     final markers = getDialectSeparatedRecordings();
     final entries = markers.entries.toList();
     final dialectKeys =
@@ -387,7 +469,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
             ))
         .toList(growable: false);
 
-    if (!mounted || !_shouldUseClusterRendering) return;
+    if (!mounted ||
+        !mapRenderGenerationIsCurrent(
+          expected: expectedGeneration,
+          current: _recordingDataGeneration,
+        ) ||
+        !_shouldUseClusterRendering) {
+      return;
+    }
     setState(() {
       markersWidgets = builtWidgets;
     });
@@ -397,25 +486,42 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   bool _shouldShowRecordingOnMap(int recordingBEId) {
     final Recording? recording = _recordingsByBeId[recordingBEId];
-    if (recording != null && !_matchesRecordingAge(recording)) {
-      return false;
-    }
-    if (_hiddenRecordingIds.contains(recordingBEId)) {
-      return false;
-    }
-    final entry = _dialectsByRecording[recordingBEId];
-    if (entry == null) return true;
-    return entry.hasAnySelectedDialect;
+    final _RecordingDialectSelection? entry =
+        _dialectsByRecording[recordingBEId];
+    return shouldShowMapRecording(
+      matchesAge: recording == null || _matchesRecordingAge(recording),
+      isExplicitlyHidden: _hiddenRecordingIds.contains(recordingBEId),
+      isVisibleInSelectedMode: entry?.isVisibleInSelectedMode,
+    );
+  }
+
+  void _moveMapToLocation(LatLng location) {
+    if (!mounted) return;
+
+    // Programmatic moves do not reliably emit MapEventMoveEnd. Keep the
+    // viewport state used for marker culling in sync before rebuilding.
+    _mapController.move(location, _currentZoom);
+    _currentCenter = _mapController.camera.center;
+    _currentZoom = _mapController.camera.zoom;
+    _updateGrid();
+    unawaited(_rebuildMapMarkers());
   }
 
   Future<void> _rebuildMapMarkers() async {
+    final int dataGeneration = _recordingDataGeneration;
     final bool shouldUseClusterRendering = _shouldUseClusterRendering;
     final markers = shouldUseClusterRendering
         ? const <Marker>[]
         : _buildRecordingMarkers(
             visibleBounds: _expandedVisibleBoundsForUngrouped(),
           );
-    if (!mounted) return;
+    if (!mounted ||
+        !mapRenderGenerationIsCurrent(
+          expected: dataGeneration,
+          current: _recordingDataGeneration,
+        )) {
+      return;
+    }
     setState(() {
       _visibleMarkers = markers;
       if (!shouldUseClusterRendering) {
@@ -427,17 +533,45 @@ class _MapScreenV2State extends State<MapScreenV2> {
       return;
     }
 
-    await fetchClusters();
+    await fetchClusters(dataGeneration: dataGeneration);
   }
 
   Future<void> getRecordings() async {
     final int requestId = ++_activeRecordingsRequestId;
-    _setRecordingsLoading(true);
+    final int loadingToken = _beginRecordingsLoading();
     try {
       int? userId;
       //String? email;
       if (_recordingAuthorFilter == 'me') {
-        userId = int.parse((await secureStorage.read(key: 'userId'))!);
+        String? storedUserId;
+        try {
+          storedUserId = await secureStorage.read(key: 'userId');
+        } catch (error, stackTrace) {
+          if (_isCurrentRecordingsRequest(requestId)) {
+            _clearUnavailableCurrentUserResults();
+          }
+          logger.w(
+            '[MapV2] Cannot filter by current user: failed to read user id.',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return;
+        }
+        if (!_isCurrentRecordingsRequest(requestId)) {
+          return;
+        }
+        final RecordingAuthorFilterResolution authorResolution =
+            resolveRecordingAuthorFilter(
+          requestedFilter: _recordingAuthorFilter,
+          storedUserId: storedUserId,
+        );
+        if (!authorResolution.isAvailable) {
+          _clearUnavailableCurrentUserResults();
+          logger.w(
+              '[MapV2] Cannot filter by current user: no valid user id is stored.');
+          return;
+        }
+        userId = authorResolution.userId;
       }
 
       final response = await _recordingsController.fetchRecordings(
@@ -462,13 +596,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final List<Part> parts = getParts(jsonEncode(data));
         final List<Recording> recordings = await GetRecordings(responseBody);
 
-        length = 0;
-        for (int i = 0; i < parts.length; i++) {
-          length += parts[i].length ?? 0;
-        }
-        if (!mounted || requestId != _activeRecordingsRequestId) {
+        final int totalLength = parts.fold<int>(
+          0,
+          (int total, Part part) => total + (part.length ?? 0),
+        );
+        if (!_isCurrentRecordingsRequest(requestId)) {
           return;
         }
+        length = totalLength;
+        final int dataGeneration = ++_recordingDataGeneration;
         _recordingsByBeId
           ..clear()
           ..addEntries(
@@ -494,7 +630,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
             _recLocalToBE.length.toString());
         logger
             .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
-        await _fetchDialects(refreshFromApi: true, requestId: requestId);
+        await _fetchDialects(
+          refreshFromApi: true,
+          recordingsRequestId: requestId,
+          dataGeneration: dataGeneration,
+        );
       } else {
         logger.e(
             'Failed to fetch recordings ${response.statusCode} | ${response.data}');
@@ -503,16 +643,41 @@ class _MapScreenV2State extends State<MapScreenV2> {
       logger.e("Error generariong map $error",
           error: error, stackTrace: stackTrace);
     } finally {
-      if (requestId == _activeRecordingsRequestId) {
-        _setRecordingsLoading(false);
-      }
+      _finishRecordingsLoading(loadingToken);
     }
+  }
+
+  void _clearRecordingResults() {
+    _activeDialectRequestId++;
+    _recordingDataGeneration++;
+    length = 0;
+    _recordings = const <Part>[];
+    _fullRecordings = const <Recording>[];
+    _visibleMarkers = const <Marker>[];
+    markersWidgets = const <Widget>[];
+    _cachedFilteredParts = const <FilteredRecordingPart>[];
+    _cachedDetectedDialects = const <DetectedDialect>[];
+    _hasCachedDialectData = false;
+    _dialectsByRecording = <int, _RecordingDialectSelection>{};
+    _hiddenRecordingIds = <int>{};
+    _recLocalToBE.clear();
+    _recordingsByBeId.clear();
+  }
+
+  void _clearUnavailableCurrentUserResults() {
+    if (!mounted) return;
+    setState(() {
+      _isGuestUser = true;
+      _clearRecordingResults();
+    });
   }
 
   Future<void> _fetchDialects({
     bool refreshFromApi = true,
-    int? requestId,
+    required int recordingsRequestId,
+    required int dataGeneration,
   }) async {
+    final int dialectRequestId = ++_activeDialectRequestId;
     try {
       // Snapshot sizes for quick diagnosis
       logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
@@ -527,7 +692,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
         final api = await _filteredPartsApiLoader.fetch(
           verified: false,
         );
-        if (requestId != null && requestId != _activeRecordingsRequestId) {
+        if (!_isCurrentDialectRequest(
+          dialectRequestId: dialectRequestId,
+          recordingsRequestId: recordingsRequestId,
+          dataGeneration: dataGeneration,
+        )) {
           return;
         }
         frps = api.frps;
@@ -590,48 +759,38 @@ class _MapScreenV2State extends State<MapScreenV2> {
           continue;
         }
 
-        final Set<String> allDialectCodes = <String>{};
-        for (final frp in recFrps) {
-          final rows = frp.BEId == null
-              ? const <DetectedDialect>[]
-              : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
-          for (final d in rows) {
-            allDialectCodes.addAll(_allDialectCodesForRecording(d));
-          }
-        }
-        if (allDialectCodes.isNotEmpty &&
-            allDialectCodes.every(_isNoDialectCode)) {
-          hiddenRecordingIds.add(beId);
-          continue;
-        }
-
-        // Prefer representative filtered parts for this recording (by BE id).
-        // If none exists, fall back to all filtered parts so the recording
-        // still gets a marker from available model/admin data.
-        // If an admin-confirmed representative exists, model-only
-        // source parts must not influence the badge.
+        // A substantive admin confirmation from any part is authoritative.
+        // Otherwise an explicit admin "No Dialect" is authoritative, followed
+        // by representatives and finally all available parts.
         final reps = recFrps.where((f) => f.isRepresentant).toList();
-        final sourceParts = selectDialectSourceParts<FilteredRecordingPart>(
-          parts: recFrps,
-          isRepresentant: (part) => part.isRepresentant,
-        );
-        final bool usedSourcePartsFallback = reps.isEmpty;
-        final bool hasState6 = sourceParts.any((f) => f.state == 6);
         final Map<int, List<DetectedDialect>> rowsBySourcePart =
             <int, List<DetectedDialect>>{};
-        bool hasAdminConfirmedSourcePart = false;
-
-        for (final frp in sourceParts) {
+        for (final frp in recFrps) {
           final rows = frp.BEId == null
               ? const <DetectedDialect>[]
               : (ddsByFilteredPart[frp.BEId!] ?? const <DetectedDialect>[]);
           if (frp.BEId != null) {
             rowsBySourcePart[frp.BEId!] = rows;
           }
-          if (rows.any(_hasAdminConfirmedDialect)) {
-            hasAdminConfirmedSourcePart = true;
-          }
         }
+        final sourceParts = selectDialectSourceParts<FilteredRecordingPart>(
+          parts: recFrps,
+          isRepresentant: (part) => part.isRepresentant,
+          hasSubstantiveConfirmedDialect: (part) {
+            final rows = part.BEId == null
+                ? const <DetectedDialect>[]
+                : (rowsBySourcePart[part.BEId!] ?? const <DetectedDialect>[]);
+            return rows.any(_hasAdminConfirmedDialect);
+          },
+          hasAuthoritativeNoDialect: (part) {
+            final rows = part.BEId == null
+                ? const <DetectedDialect>[]
+                : (rowsBySourcePart[part.BEId!] ?? const <DetectedDialect>[]);
+            return rows.any(_hasAuthoritativeNoDialect);
+          },
+        );
+        final bool usedSourcePartsFallback = reps.isEmpty;
+        final bool hasState6 = sourceParts.any((f) => f.state == 6);
 
         final List<DetectedDialectSnapshot> sourceRows =
             <DetectedDialectSnapshot>[];
@@ -642,9 +801,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
               : (rowsBySourcePart[frp.BEId!] ?? const <DetectedDialect>[]);
           final bool isAdminConfirmedSourcePart =
               rows.any(_hasAdminConfirmedDialect);
-          if (hasAdminConfirmedSourcePart && !isAdminConfirmedSourcePart) {
-            continue;
-          }
 
           for (final d in rows) {
             sourceRows.add(
@@ -652,20 +808,30 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 confirmed: d.confirmedDialect,
                 predicted: d.predictedDialect,
                 guessed: d.userGuessDialect,
-                adminConfirmedRepresentant: isAdminConfirmedSourcePart,
+                substantiveConfirmedSource: isAdminConfirmedSourcePart,
               ),
             );
           }
         }
 
+        final DialectSummaryMode summaryMode = _dialectSummaryMode();
         final summary = summarizeRecordingDialects(
           rows: sourceRows,
-          mode: _dialectSummaryMode(),
+          mode: summaryMode,
           canonicalize: _canonicalizeDialect,
         );
+        if (summary.hasAuthoritativeNoDialect) {
+          hiddenRecordingIds.add(beId);
+          continue;
+        }
+        final bool isVisibleInSelectedMode = shouldRenderDialectMarker(
+          summary: summary,
+          mode: summaryMode,
+          hasAiProcessedFallback: hasState6,
+        );
 
-        // Fallback when no codes collected
-        List<String> out;
+        // Fallback when no substantive dialect codes were collected.
+        List<String> out = dialectsForMapMarker(summary);
         if (!summary.hasAnySelectedDialect) {
           recsWithNoCodes++;
           logger.w(
@@ -673,9 +839,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
             'fallback=Unknown (sourceFRPs=${sourceParts.length}, '
             'repFRPs=${reps.length})',
           );
-          out = <String>['Unknown'];
         } else {
-          out = List<String>.from(summary.dialects);
           out = limitFailsafeDialects(
             dialects: out,
             usedFailsafe: usedSourcePartsFallback,
@@ -708,13 +872,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     : _MapMarkerStatus.none;
         byRecording[beId] = _RecordingDialectSelection(
           dialects: normalized,
-          hasAnySelectedDialect: summary.hasAnySelectedDialect,
+          isVisibleInSelectedMode: isVisibleInSelectedMode,
           markerStatus: markerStatus,
         );
       }
 
-      if (!mounted ||
-          (requestId != null && requestId != _activeRecordingsRequestId)) {
+      if (!_isCurrentDialectRequest(
+        dialectRequestId: dialectRequestId,
+        recordingsRequestId: recordingsRequestId,
+        dataGeneration: dataGeneration,
+      )) {
         return;
       }
       setState(() {
@@ -747,28 +914,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
       _dialectsByRecording[beId]?.markerStatus ?? _MapMarkerStatus.none;
 
   bool _hasAdminConfirmedDialect(DetectedDialect row) {
-    return _canonicalizeDialect(row.confirmedDialect).isNotEmpty;
+    final String canonical = _canonicalizeDialect(row.confirmedDialect);
+    return canonical.isNotEmpty && !isSemanticDialectSentinel(canonical);
   }
 
-  List<String> _allDialectCodesForRecording(DetectedDialect row) {
-    final List<String> codes = <String>[];
-
-    void addIfPresent(String? value) {
-      final String canonical = _canonicalizeDialect(value);
-      if (canonical.isNotEmpty) {
-        codes.add(canonical);
-      }
-    }
-
-    addIfPresent(row.confirmedDialect);
-    addIfPresent(row.predictedDialect);
-    addIfPresent(row.userGuessDialect);
-
-    return codes;
-  }
-
-  bool _isNoDialectCode(String value) {
-    return _canonicalizeDialect(value) == 'No Dialect';
+  bool _hasAuthoritativeNoDialect(DetectedDialect row) {
+    return isAuthoritativeNoDialect(
+      _canonicalizeDialect(row.confirmedDialect),
+    );
   }
 
   LatLngBounds? _expandedVisibleBoundsForUngrouped() {
@@ -992,17 +1145,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
   }
 
-  void getRecordingFromPartId(int id) async {
-    for (int rec = 0; rec < _fullRecordings.length; rec++) {
-      if (_fullRecordings[rec].BEId == id) {
-        UserData? user = await getUser(_fullRecordings[rec]);
-        await DatabaseNew.getRecordingPartByBEID(_fullRecordings[rec].BEId!);
+  Future<void> getRecordingFromPartId(int id) async {
+    final List<Recording> recordings = List<Recording>.of(_fullRecordings);
+    for (final Recording recording in recordings) {
+      if (recording.BEId == id) {
+        final UserData? user = await getUser(recording);
+        await DatabaseNew.getRecordingPartByBEID(recording.BEId!);
 
         if (!mounted) return;
         showCupertinoSheet(
           context: context,
           builder: (context) => RecordingFromMap(
-            recording: _fullRecordings[rec],
+            recording: recording,
             user: user,
           ),
         );
@@ -1051,6 +1205,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
   @override
   void dispose() {
+    _activeRecordingsRequestId++;
+    _activeDialectRequestId++;
+    _recordingDataGeneration++;
     _mapEventSubscription?.cancel();
     _positionStreamSubscription?.cancel();
     super.dispose();
@@ -1073,6 +1230,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
           if (_mapSize == null || _mapSize != newSize) {
             _mapSize = newSize;
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
               _updateGrid();
             });
           }
@@ -1219,7 +1377,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     Expanded(
                       child: SearchBarWidget(
                         onLocationSelected: (LatLng location) {
-                          _mapController.move(location, _currentZoom);
+                          _moveMapToLocation(location);
                         },
                       ),
                     ),
@@ -1261,8 +1419,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         tooltip: t('map.buttons.reset'),
                         onPressed: () async {
                           await _getCurrentLocation();
-                          _mapController.move(_currentPosition, _currentZoom);
-                          _updateGrid();
                         },
                         backgroundColor: Colors.white,
                         child: Image.asset('assets/icons/location.png',
@@ -1331,8 +1487,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   void _updateGrid() {
+    if (!mounted) return;
     if (_currentZoom < 7) {
-      if (_gridLines.isEmpty || !mounted) {
+      if (_gridLines.isEmpty) {
         return;
       }
       setState(() {
@@ -1383,11 +1540,17 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<void> _refreshDialectSelectionFromCache() async {
-    _setRecordingsLoading(true);
+    final int recordingsRequestId = _activeRecordingsRequestId;
+    final int dataGeneration = _recordingDataGeneration;
+    final int loadingToken = _beginDialectRefreshLoading();
     try {
-      await _fetchDialects(refreshFromApi: false);
+      await _fetchDialects(
+        refreshFromApi: false,
+        recordingsRequestId: recordingsRequestId,
+        dataGeneration: dataGeneration,
+      );
     } finally {
-      _setRecordingsLoading(false);
+      _finishDialectRefreshLoading(loadingToken);
     }
   }
 
@@ -1398,6 +1561,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     required DialectVisibilityMode nextDialectVisibilityMode,
     required bool nextClusterPoints,
   }) {
+    if (!mounted) return;
     final bool shouldReloadRecordings =
         nextRecordingAuthorFilter != _recordingAuthorFilter;
     final bool shouldRefreshDialects = !shouldReloadRecordings &&
@@ -1422,6 +1586,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
       _dialectVisibilityMode = nextDialectVisibilityMode;
       _clusterPoints = nextClusterPoints;
       dialectVisibilityMode = nextDialectVisibilityMode;
+      if (shouldReloadRecordings) {
+        // Never render the previous author's markers under a newly selected
+        // author label while secure storage or the backend request is pending.
+        _clearRecordingResults();
+      } else if (shouldRefreshDialects || shouldRebuildMarkers) {
+        // Invalidate every async marker build when age, dialect, or clustering
+        // inputs change. This also prevents true→false→true cluster ABA races.
+        _recordingDataGeneration++;
+      }
     });
 
     if (shouldReloadRecordings) {
