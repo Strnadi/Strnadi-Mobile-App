@@ -14,14 +14,19 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/config/config.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/passReset/forgottenPassword.dart';
-import 'dart:convert';
+import 'package:strnadi/user/profile_account_safety.dart';
+import 'package:strnadi/utils/async_single_flight.dart';
 
 import '../../auth/google_sign_in_service.dart';
 import '../../firebase/firebase.dart' as strnadiFirebase;
@@ -45,22 +50,22 @@ class User {
     required this.city,
   });
 
-  factory User.fromJson(Map<String, dynamic> json) {
+  factory User.fromProfile(UserProfileData profile) {
     return User(
-      nickname: json['nickname'] ?? "",
-      email: json['email'],
-      firstName: json['firstName'],
-      lastName: json['lastName'],
-      postCode: json['postCode'],
-      city: json['city'],
+      nickname: profile.nickname,
+      email: profile.email,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      postCode: profile.postCode,
+      city: profile.city,
     );
   }
 }
 
 class ProfileEditPage extends StatefulWidget {
-  Function() refreshUserCallback;
+  final FutureOr<void> Function() refreshUserCallback;
 
-  ProfileEditPage({Key? key, required this.refreshUserCallback})
+  const ProfileEditPage({Key? key, required this.refreshUserCallback})
       : super(key: key);
 
   @override
@@ -69,7 +74,12 @@ class ProfileEditPage extends StatefulWidget {
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
   static const UserController _userController = UserController();
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   User? user;
+  final AsyncSingleFlight _saveFlight = AsyncSingleFlight();
+  bool _isSaving = false;
+  bool _isDeleting = false;
+  bool _isLoadingProfile = true;
 
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _firstnameController = TextEditingController();
@@ -78,120 +88,180 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _postCodeController = TextEditingController();
 
-  Future<void> fetchUser(int userId, String jwt) async {
-    final response = await _userController.getUserById(userId);
-    final dynamic responseData = response.data is String
-        ? jsonDecode(response.data as String)
-        : response.data;
-
-    if (response.statusCode == 200) {
-      logger.i('Fetched user: $responseData');
-
-      setState(() {
-        user = User.fromJson((responseData as Map).cast<String, dynamic>());
-        _nicknameController.text = user!.nickname;
-        _firstnameController.text = user!.firstName;
-        _lastnameController.text = user!.lastName;
-        _cityController.text = user!.city ?? '';
-        _postCodeController.text = user!.postCode?.toString() ?? '';
-        _emailController.text = user!.email;
-      });
-    } else {
-      logger.i('Failed to load user: ${response.statusCode} ${response.data}');
-      _showMessage(t("user.profile.dialogs.error.load"));
+  Future<ActivatedAuthSessionSnapshot?> _captureVerifiedSession() async {
+    final ActivatedAuthSessionSnapshot? session =
+        await activatedAuthSessions.capture();
+    final int? userId = int.tryParse(session?.userId ?? '');
+    if (session == null || !session.verified || userId == null || userId <= 0) {
+      return null;
     }
+    return session;
   }
 
-  Future<void> refreshUser(int userId) async {
-    final secureStorage = FlutterSecureStorage();
-
-    final response = await _userController.getUserById(userId);
-    if (response.statusCode == 200) {
-      final dynamic responseData = response.data is String
-          ? jsonDecode(response.data as String)
-          : response.data;
-      final data = (responseData as Map).cast<String, dynamic>();
-      await secureStorage.write(key: 'user', value: data['firstName']);
-      await secureStorage.write(key: 'lastname', value: data['lastName']);
-      await secureStorage.write(key: 'nick', value: data['nickname']);
-      await secureStorage.write(key: 'role', value: data['role']);
-      await widget.refreshUserCallback();
-      setState(() {
-        user = User.fromJson(data);
-      });
-    }
+  Future<bool> _isCurrent(
+    ActivatedAuthSessionSnapshot session,
+    String host,
+  ) async {
+    return Config.host == host &&
+        await activatedAuthSessions.isCurrent(session);
   }
 
-  Future<void> updateUser(
-      String email, Map<String, dynamic> updatedData, String jwt) async {
-    final secureStorage = FlutterSecureStorage();
-
-    final id = await secureStorage.read(key: "userId");
-    logger.i(jsonEncode(updatedData));
-
-    final response =
-        await _userController.updateUserById(int.parse(id!), updatedData);
-
-    if (response.statusCode == 200) {
-      await refreshUser(int.parse(id!));
-      _showMessage(t("user.profile.dialogs.success.update"));
-    } else {
-      logger
-          .i('Failed to update user: ${response.statusCode} ${response.data}');
-      _showMessage(t("user.profile.dialogs.error.update"));
-    }
+  void _applyProfile(UserProfileData profile) {
+    user = User.fromProfile(profile);
+    _nicknameController.text = profile.nickname;
+    _firstnameController.text = profile.firstName;
+    _lastnameController.text = profile.lastName;
+    _cityController.text = profile.city ?? '';
+    _postCodeController.text = profile.postCode?.toString() ?? '';
+    _emailController.text = profile.email;
   }
 
-  Future<void> updateUserData() async {
-    final secureStorage = FlutterSecureStorage();
-    String? jwt = await secureStorage.read(key: 'token');
-
-    if (user != null && jwt != null) {
-      Map<String, dynamic> updatedData = {
-        'nickname':
-            _nicknameController.text.isEmpty ? null : _nicknameController.text,
-        'firstName': _firstnameController.text.isEmpty
-            ? null
-            : _firstnameController.text,
-        'lastName':
-            _lastnameController.text.isEmpty ? null : _lastnameController.text,
-        'postCode': _postCodeController.text.trim().isEmpty
-            ? null
-            : int.parse(_postCodeController.text.trim()),
-        'city': _cityController.text.isEmpty ? null : _cityController.text,
-      };
-
-      updateUser(user!.email, updatedData, jwt);
-    } else {
-      _showMessage(t('user.profile.dialogs.error.load'));
-    }
-  }
-
-  Future<void> extractEmailFromJwt() async {
-    final secureStorage = FlutterSecureStorage();
-    String? jwt = await secureStorage.read(key: 'token');
-
-    try {
-      if (jwt == null) {
-        throw Exception('Jwt token invalid');
+  Future<void> fetchUser() async {
+    final ActivatedAuthSessionSnapshot? session =
+        await _captureVerifiedSession();
+    if (session == null) {
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+        _showMessage(t('user.profile.dialogs.error.auth'));
       }
+      return;
+    }
 
-      final int userId = int.parse((await secureStorage.read(key: 'userId'))!);
-
-      fetchUser(userId, jwt);
-    } catch (e, stackTrace) {
-      logger.i("Error fetching user data: $e",
-          error: e, stackTrace: stackTrace);
+    final String host = Config.host;
+    try {
+      final response = await _userController.getUserById(
+        int.parse(session.userId),
+        accessToken: session.accessToken,
+        host: host,
+      );
+      final UserProfileData? profile = parseSuccessfulUserProfile(
+        statusCode: response.statusCode,
+        payload: response.data,
+      );
+      if (profile == null) {
+        if (mounted && await _isCurrent(session, host)) {
+          _showMessage(t('user.profile.dialogs.error.load'));
+        }
+        return;
+      }
+      if (!await _isCurrent(session, host) || !mounted) return;
+      setState(() => _applyProfile(profile));
+    } catch (_) {
+      logger.w('User profile could not be loaded.');
+      if (mounted && await _isCurrent(session, host)) {
+        _showMessage(t('user.profile.dialogs.error.load'));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
     }
   }
 
-  void UpdateUser() {
-    // Update user
-    _showMessage(t('user.profile.dialogs.success.noChanges'));
+  Future<bool> _refreshUser(
+    ActivatedAuthSessionSnapshot session,
+    String host,
+  ) async {
+    final response = await _userController.getUserById(
+      int.parse(session.userId),
+      accessToken: session.accessToken,
+      host: host,
+    );
+    final UserProfileData? profile = parseSuccessfulUserProfile(
+      statusCode: response.statusCode,
+      payload: response.data,
+    );
+    if (profile == null || !await _isCurrent(session, host)) return false;
+
+    await _secureStorage.write(
+      key: profileFirstNameStorageKey,
+      value: profile.firstName,
+    );
+    await _secureStorage.write(
+      key: profileLastNameStorageKey,
+      value: profile.lastName,
+    );
+    await _secureStorage.write(
+      key: profileNicknameStorageKey,
+      value: profile.nickname,
+    );
+    if (profile.role != null) {
+      await _secureStorage.write(
+        key: profileRoleStorageKey,
+        value: profile.role,
+      );
+    }
+    if (!await _isCurrent(session, host)) return false;
+
+    await widget.refreshUserCallback();
+    if (!await _isCurrent(session, host) || !mounted) return false;
+    setState(() => _applyProfile(profile));
+    return true;
+  }
+
+  Future<void> updateUserData() {
+    return _saveFlight.run(() async {
+      if (mounted) setState(() => _isSaving = true);
+      try {
+        if (user == null) {
+          _showMessage(t('user.profile.dialogs.error.load'));
+          return;
+        }
+        final Map<String, dynamic>? updatedData = buildUserProfilePatch(
+          nickname: _nicknameController.text,
+          firstName: _firstnameController.text,
+          lastName: _lastnameController.text,
+          postCode: _postCodeController.text,
+          city: _cityController.text,
+        );
+        if (updatedData == null) {
+          _showMessage(t('user.profile.dialogs.error.update'));
+          return;
+        }
+
+        final ActivatedAuthSessionSnapshot? session =
+            await _captureVerifiedSession();
+        if (session == null) {
+          _showMessage(t('user.profile.dialogs.error.auth'));
+          return;
+        }
+        final String host = Config.host;
+        final response = await _userController.updateUserById(
+          int.parse(session.userId),
+          updatedData,
+          accessToken: session.accessToken,
+          host: host,
+        );
+        if (!await _isCurrent(session, host) || !mounted) return;
+        if (response.statusCode != 200) {
+          logger.w('User profile update was rejected.');
+          _showMessage(t('user.profile.dialogs.error.update'));
+          return;
+        }
+
+        final bool refreshed = await _refreshUser(session, host);
+        if (!mounted || !await _isCurrent(session, host)) return;
+        _showMessage(
+          t(
+            refreshed
+                ? 'user.profile.dialogs.success.update'
+                : 'user.profile.dialogs.error.update',
+          ),
+        );
+      } catch (_) {
+        logger.w('User profile update failed.');
+        if (mounted) {
+          _showMessage(t('user.profile.dialogs.error.update'));
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    });
   }
 
   Future<void> confirmAndDeleteAccount() async {
-    final confirmed = await showDialog<bool>(
+    if (_isDeleting) return;
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t('user.profile.dialogs.deleteAccount.title')),
@@ -210,32 +280,54 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       ),
     );
 
-    if (confirmed == true) {
-      final secureStorage = FlutterSecureStorage();
-      String? jwt = await secureStorage.read(key: 'token');
-      String? userId = await secureStorage.read(key: 'userId');
-
-      if (jwt == null || userId == null) {
+    if (!mounted || confirmed != true) return;
+    setState(() => _isDeleting = true);
+    try {
+      final ActivatedAuthSessionSnapshot? session =
+          await _captureVerifiedSession();
+      if (session == null) {
         _showMessage(t('user.profile.dialogs.error.auth'));
         return;
       }
-
-      final response = await _userController.deleteUserById(int.parse(userId));
+      final String host = Config.host;
+      final response = await _userController.deleteUserById(
+        int.parse(session.userId),
+        accessToken: session.accessToken,
+        host: host,
+      );
+      if (!mounted || !await _isCurrent(session, host)) return;
 
       if (response.statusCode == 200) {
-        _showMessage(t('user.profile.dialogs.deleteAccount.success'));
-        logout(context);
+        await logout();
       } else {
         _showMessage(t('user.profile.dialogs.deleteAccount.error'));
-        logger.i('Delete failed: ${response.statusCode} | ${response.data}');
+        logger.w('Account deletion was rejected.');
       }
+    } catch (_) {
+      logger.w('Account deletion failed.');
+      if (mounted) {
+        _showMessage(t('user.profile.dialogs.deleteAccount.error'));
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
   @override
   void initState() {
     super.initState();
-    extractEmailFromJwt();
+    unawaited(fetchUser());
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    _firstnameController.dispose();
+    _lastnameController.dispose();
+    _cityController.dispose();
+    _emailController.dispose();
+    _postCodeController.dispose();
+    super.dispose();
   }
 
   @override
@@ -255,75 +347,88 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 backgroundColor: Colors.amber,
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
               ),
-              onPressed: () {
-                updateUserData();
-              }, // Save action
-              child: Text(t('postRecordingForm.recordingForm.buttons.save'),
-                  style: TextStyle(color: Colors.white)),
+              onPressed: _isSaving || _isLoadingProfile
+                  ? null
+                  : () => unawaited(updateUserData()),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      t('postRecordingForm.recordingForm.buttons.save'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
             ),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Text(t("user.profile.title"),
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                SizedBox(height: 20),
-                _buildTextField(
-                    t('user.profile.fields.firstName'), _firstnameController),
-                _buildTextField(
-                    t('user.profile.fields.lastName'), _lastnameController),
-                _buildTextField(
-                    t('user.profile.fields.nickname'), _nicknameController),
-                _buildTextField(
-                    t('user.profile.fields.email'), _emailController,
-                    readOnly: true),
-                _buildTextField(t('user.profile.fields.city'), _cityController),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: t('user.profile.fields.postCode'),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
-                    ),
-                    controller: _postCodeController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      body: _isLoadingProfile
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Text(t("user.profile.title"),
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 20),
+                      _buildTextField(t('user.profile.fields.firstName'),
+                          _firstnameController),
+                      _buildTextField(t('user.profile.fields.lastName'),
+                          _lastnameController),
+                      _buildTextField(t('user.profile.fields.nickname'),
+                          _nicknameController),
+                      _buildTextField(
+                          t('user.profile.fields.email'), _emailController,
+                          readOnly: true),
+                      _buildTextField(
+                          t('user.profile.fields.city'), _cityController),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            labelText: t('user.profile.fields.postCode'),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                          ),
+                          controller: _postCodeController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const Divider(),
+                  ListTile(
+                    title: Text(t('user.profile.buttons.changePassword')),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ForgottenPassword()),
+                      );
+                    }, // Open password change
+                  ),
+                  ListTile(
+                    title: Text(t('user.profile.buttons.deleteAccount'),
+                        style: TextStyle(color: Colors.red)),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _isDeleting
+                        ? null
+                        : () => unawaited(confirmAndDeleteAccount()),
+                  ),
+                ],
+              ),
             ),
-            const Divider(),
-            ListTile(
-              title: Text(t('user.profile.buttons.changePassword')),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const ForgottenPassword()),
-                );
-              }, // Open password change
-            ),
-            ListTile(
-              title: Text(t('user.profile.buttons.deleteAccount'),
-                  style: TextStyle(color: Colors.red)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                confirmAndDeleteAccount();
-              }, // Open delete account confirmation
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -343,6 +448,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -356,13 +462,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
-  Future<void> logout(BuildContext context) async {
+  Future<void> logout() async {
     FlutterSecureStorage secureStorage = FlutterSecureStorage();
 
-    await GoogleSignInService.signOut();
-    await secureStorage.deleteAll();
     await strnadiFirebase.deleteToken();
+    await activatedAuthSessions.clearAllPreservingGeneration(
+      secureStorage.deleteAll,
+    );
+    await GoogleSignInService.signOut();
 
+    if (!mounted) return;
     Navigator.of(context)
         .pushNamedAndRemoveUntil('/authorizator', (route) => false);
   }

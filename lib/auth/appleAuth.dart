@@ -105,9 +105,7 @@ class AppleAuth {
       token: jwt,
     );
 
-    logger.t(body);
-
-    logger.t(response.data);
+    logger.i('Apple credential exchange status: ${response.statusCode}');
 
     Map<String, dynamic> resp = {};
     if (response.statusCode == 200) {
@@ -119,8 +117,7 @@ class AppleAuth {
       }
       logger.i('Apple Sign-In successful');
     } else {
-      logger.w(
-          'Apple Sign-In failed with status code: ${response.statusCode} | ${response.data}');
+      logger.w('Apple Sign-In failed with status code ${response.statusCode}.');
     }
     resp.addAll({"status": response.statusCode});
     return resp;

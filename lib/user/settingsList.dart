@@ -23,8 +23,8 @@ import 'package:strnadi/user/settingsPages/userInfo.dart' hide logger;
 import 'package:package_info_plus/package_info_plus.dart';
 
 class MenuScreen extends StatelessWidget {
-  Function() refreshUserCallback;
-  Function(BuildContext, {bool popUp}) logout;
+  final Function() refreshUserCallback;
+  final Future<void> Function(BuildContext, {bool popUp}) logout;
 
   MenuScreen(
       {Key? key, required this.refreshUserCallback, required this.logout})
@@ -88,7 +88,7 @@ class MenuScreen extends StatelessWidget {
       _showAboutDialog(context);
     } else {
       // TODO: implement other menu items
-      _showMessage(t('menu.error.notImplemented'), context);
+      _showMessage(t('user.menu.error.notImplemented'), context);
     }
   }
 
@@ -101,6 +101,7 @@ class MenuScreen extends StatelessWidget {
 
   void _showAboutDialog(BuildContext context) async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    if (!context.mounted) return;
     showAboutDialog(
       context: context,
       applicationName: 'Strnadi Mobile App',

@@ -13,7 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart' hide Config;
 import 'package:strnadi/localization/localization.dart';
@@ -22,11 +21,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
-import 'package:strnadi/bottomBar.dart';
+import 'package:strnadi/user/logout_safety.dart';
+import 'package:strnadi/user/profile_account_safety.dart';
 import 'package:strnadi/user/settingsList.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
 import '../config/config.dart';
@@ -43,8 +42,10 @@ class UserPage extends StatefulWidget {
 
 class _UserPageState extends State<UserPage> {
   static const UserController _userController = UserController();
+  static const ProfilePhotoPublishCoordinator _photoPublisher =
+      ProfilePhotoPublishCoordinator();
 
-  var secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
 
   late String userName = 'null';
   late String lastName = 'null';
@@ -75,10 +76,16 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> setName() async {
-    final f = await secureStorage.read(key: 'firstName') ?? 'username';
-    final l = await secureStorage.read(key: 'lastName') ?? 'LastName';
-    final n = await secureStorage.read(key: 'nick') ?? 'nickName';
-    logger.i("Loaded name from local storage: $f $l ($n)");
+    final ActivatedAuthSessionSnapshot? session =
+        await _captureVerifiedSession();
+    if (session == null) return;
+    final String f =
+        await secureStorage.read(key: profileFirstNameStorageKey) ?? 'username';
+    final String l =
+        await secureStorage.read(key: profileLastNameStorageKey) ?? 'LastName';
+    final String n =
+        await secureStorage.read(key: profileNicknameStorageKey) ?? 'nickName';
+    if (!await activatedAuthSessions.isCurrent(session)) return;
     if (!mounted) return;
     setState(() {
       userName = f;
@@ -87,11 +94,22 @@ class _UserPageState extends State<UserPage> {
     });
   }
 
+  Future<ActivatedAuthSessionSnapshot?> _captureVerifiedSession() async {
+    final ActivatedAuthSessionSnapshot? session =
+        await activatedAuthSessions.capture();
+    final int? userId = int.tryParse(session?.userId ?? '');
+    if (session == null || !session.verified || userId == null || userId <= 0) {
+      return null;
+    }
+    return session;
+  }
+
   @override
   void initState() {
     super.initState();
     setName(); // local storage fetch
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _withLoader(() async {
         await checkConnectivity();
         await Future.wait([
@@ -104,23 +122,10 @@ class _UserPageState extends State<UserPage> {
 
   Future<void> checkConnectivity() async {
     bool connected = await Config.hasBasicInternet;
+    if (!mounted) return;
     setState(() {
       _isConnected = connected;
     });
-  }
-
-  Future<File> convertBase64ToImage(
-      String base64String, String fileName) async {
-    // Decode the base64 string to bytes
-    final bytes = base64Decode(base64String);
-
-    // Get the directory to save the file
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/$fileName');
-
-    // Write the bytes to the file
-    await file.writeAsBytes(bytes);
-    return file;
   }
 
   Future<void> refreshUserData() async {
@@ -131,181 +136,242 @@ class _UserPageState extends State<UserPage> {
     });
   }
 
-  Map<String, dynamic>? _decodeMapPayload(dynamic payload) {
-    try {
-      if (payload is Map) {
-        return payload.cast<String, dynamic>();
-      }
-      if (payload is String) {
-        final decoded = jsonDecode(payload);
-        return decoded is Map ? decoded.cast<String, dynamic>() : null;
-      }
-      if (payload is List<int>) {
-        final decoded = jsonDecode(utf8.decode(payload));
-        return decoded is Map ? decoded.cast<String, dynamic>() : null;
-      }
-    } catch (_) {}
-    return null;
-  }
-
   Future<void> getProfilePic(String? mail) async {
-    final id = await secureStorage.read(key: "userId");
-    if (id == null) return;
-
-    final cacheKey = 'profilePic_$id';
+    final ActivatedAuthSessionSnapshot? session =
+        await _captureVerifiedSession();
+    if (session == null) return;
+    final int userId = int.parse(session.userId);
+    final String host = Config.host;
+    final String cacheKey = profilePhotoCacheKey(
+      ownerUserId: session.userId,
+      environment: Config.hostEnvironment.name,
+    );
     final cacheManager = DefaultCacheManager();
 
-    // Try to load from cache first
     final cachedFile = await cacheManager.getFileFromCache(cacheKey);
     if (cachedFile != null && await cachedFile.file.exists()) {
+      if (!await activatedAuthSessions.isCurrent(session) ||
+          Config.host != host) {
+        return;
+      }
+      if (!mounted) return;
       setState(() => profileImagePath = cachedFile.file.path);
-      logger.i("Loaded profile picture from cache: ${cachedFile.file.path}");
       return;
     }
 
     try {
-      final value = await _userController.getProfilePhoto(int.parse(id));
+      final value = await _userController.getProfilePhoto(
+        userId,
+        accessToken: session.accessToken,
+        host: host,
+      );
       if (value.statusCode == 200) {
-        final Map<String, dynamic>? data = _decodeMapPayload(value.data);
-        if (data == null) {
-          logger.e('Profile picture payload is not JSON map.');
+        final Map<String, dynamic>? data = decodeProfileMapPayload(value.data);
+        final Object? encodedPhoto = data?['photoBase64'];
+        final Object? rawFormat = data?['format'];
+        if (encodedPhoto is! String ||
+            encodedPhoto.isEmpty ||
+            rawFormat is! String) {
+          logger.w('Profile picture payload was invalid.');
           return;
         }
-        final file = await convertBase64ToImage(
-          data['photoBase64'],
-          'profilePic.${data['format']}',
+        final photoBytes = base64Decode(encodedPhoto);
+        if (!await activatedAuthSessions.isCurrent(session) ||
+            Config.host != host) {
+          return;
+        }
+        final File file = await cacheManager.putFile(
+          cacheKey,
+          photoBytes,
+          fileExtension: profilePhotoFormatFromPath('photo.$rawFormat'),
         );
 
-        await cacheManager.putFile(cacheKey, await file.readAsBytes());
-
+        if (!await activatedAuthSessions.isCurrent(session) ||
+            Config.host != host) {
+          return;
+        }
         if (!mounted) return;
-        setState(() {
-          profileImagePath = file.path;
-        });
-        logger.i("Profile picture downloaded $profileImagePath");
+        setState(() => profileImagePath = file.path);
       } else {
-        logger.e(
-            "Profile picture download failed with status code ${value.statusCode} ${value.data}");
+        logger.w(
+          'Profile picture download failed with status '
+          '${value.statusCode}.',
+        );
       }
-    } catch (e, st) {
-      logger.e('Profile picture download error', error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
+    } catch (_) {
+      logger.w('Profile picture download failed.');
     }
   }
 
   Future<void> getUserData() async {
-    final usernameExists = await secureStorage.containsKey(key: 'user');
-    final id = await secureStorage.read(key: "userId");
-
-    if (usernameExists) {
-      var storedUserName = await secureStorage.read(key: 'user');
-      var storedLastName = await secureStorage.read(key: 'lastname');
-      setState(() {
-        userName = storedUserName!;
-        lastName = storedLastName!;
-      });
-      logger.i("User data loaded from cache");
-      return;
-    }
-
-    final jwt = await secureStorage.read(key: 'token');
-    if (jwt == null || id == null) return;
+    final ActivatedAuthSessionSnapshot? session =
+        await _captureVerifiedSession();
+    if (session == null) return;
+    final int userId = int.parse(session.userId);
+    final String host = Config.host;
 
     try {
-      final response = await _userController.getUserById(int.parse(id));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic>? data = _decodeMapPayload(response.data);
-        if (data == null) {
-          logger.e('User payload is not JSON map.');
-          return;
-        }
-        setState(() {
-          userName = data['firstName'];
-          lastName = data['lastName'];
-        });
-        secureStorage.write(key: 'user', value: data['firstName']);
-        secureStorage.write(key: 'lastname', value: data['lastName']);
+      final response = await _userController.getUserById(
+        userId,
+        accessToken: session.accessToken,
+        host: host,
+      );
+      final UserProfileData? data = parseSuccessfulUserProfile(
+        statusCode: response.statusCode,
+        payload: response.data,
+      );
+      if (data == null ||
+          !await activatedAuthSessions.isCurrent(session) ||
+          Config.host != host) {
+        return;
       }
-    } catch (error) {
-      Sentry.captureException(error);
+
+      await secureStorage.write(
+        key: profileFirstNameStorageKey,
+        value: data.firstName,
+      );
+      await secureStorage.write(
+        key: profileLastNameStorageKey,
+        value: data.lastName,
+      );
+      await secureStorage.write(
+        key: profileNicknameStorageKey,
+        value: data.nickname,
+      );
+      if (data.role != null) {
+        await secureStorage.write(
+          key: profileRoleStorageKey,
+          value: data.role,
+        );
+      }
+
+      if (!await activatedAuthSessions.isCurrent(session) ||
+          Config.host != host ||
+          !mounted) {
+        return;
+      }
+      setState(() {
+        userName = data.firstName;
+        lastName = data.lastName;
+        nickName = data.nickname;
+      });
+    } catch (_) {
+      logger.w('User profile refresh failed.');
     }
   }
 
   Future<void> pickProfileImage() async {
     if (_isLoading) return;
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        profileImagePath = pickedFile.path;
-      });
-      await secureStorage.write(key: 'profileImage', value: pickedFile.path);
-      var userId = await secureStorage.read(key: 'userId');
-      final cacheKey = 'profilePic_$userId';
-      await DefaultCacheManager().removeFile('profilePic_$userId');
-      await DefaultCacheManager()
-          .putFile(cacheKey, await File(profileImagePath!).readAsBytes());
-
+    try {
       await _withLoader(() async {
-        await UploadProfilePic();
+        final XFile? pickedFile =
+            await ImagePicker().pickImage(source: ImageSource.gallery);
+        if (pickedFile == null) return;
+        await _uploadProfilePic(pickedFile.path);
       });
+    } catch (_) {
+      logger.w('Profile picture selection failed.');
+      _showMessage(t('user.profile.dialogs.error.profilePhotoUpload'));
     }
   }
 
-  Future<void> UploadProfilePic() async {
-    final id = await secureStorage.read(key: "userId");
-    if (id == null) return;
+  Future<void> _uploadProfilePic(String imagePath) async {
+    final ActivatedAuthSessionSnapshot? session =
+        await _captureVerifiedSession();
+    if (session == null) {
+      _showMessage(t('user.profile.dialogs.error.auth'));
+      return;
+    }
+    final int userId = int.parse(session.userId);
+    final String host = Config.host;
+    final String cacheKey = profilePhotoCacheKey(
+      ownerUserId: session.userId,
+      environment: Config.hostEnvironment.name,
+    );
+    final File candidateFile = File(imagePath);
 
-    final String photoBase64 =
-        base64Encode(File(profileImagePath!).readAsBytesSync());
-    final String format = profileImagePath!.split('.').last;
     try {
-      final value = await _userController.uploadProfilePhoto(
-        userId: int.parse(id),
-        photoBase64: photoBase64,
-        format: format,
+      final ProfilePhotoPublishOutcome outcome =
+          await _photoPublisher.publishBoundedCandidate(
+        candidateLength: candidateFile.length,
+        readCandidate: candidateFile.readAsBytes,
+        uploadCandidate: (imageBytes) async {
+          final value = await _userController.uploadProfilePhoto(
+            userId: userId,
+            photoBase64: base64Encode(imageBytes),
+            format: profilePhotoFormatFromPath(imagePath),
+            accessToken: session.accessToken,
+            host: host,
+          );
+          return value.statusCode;
+        },
+        isSessionCurrent: () async =>
+            await activatedAuthSessions.isCurrent(session) &&
+            Config.host == host,
+        commitScopedCache: (imageBytes) async {
+          final File cachedFile = await DefaultCacheManager().putFile(
+            cacheKey,
+            imageBytes,
+            fileExtension: profilePhotoFormatFromPath(imagePath),
+          );
+          return cachedFile.path;
+        },
+        publishVisiblePath: (String cachedPath) async {
+          if (!mounted) return;
+          setState(() => profileImagePath = cachedPath);
+        },
       );
-      if (value.statusCode == 200) {
-        _showMessage(t('Profile picture uploaded'), context);
-        logger.i("Profile picture uploaded");
-      } else {
-        _showMessage(t('Profile picture upload failed'), context);
-        logger.e(
-            "Profile picture upload failed with status code ${value.statusCode}");
+
+      if (!mounted) return;
+      if (outcome == ProfilePhotoPublishOutcome.published) {
+        _showMessage(t('user.profile.dialogs.success.profilePhotoUploaded'));
+      } else if (outcome != ProfilePhotoPublishOutcome.sessionChanged) {
+        _showMessage(t('user.profile.dialogs.error.profilePhotoUpload'));
       }
-    } catch (e, st) {
-      logger.e('Profile picture upload error', error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
+    } catch (_) {
+      logger.w('Profile picture upload failed.');
+      if (await activatedAuthSessions.isCurrent(session)) {
+        _showMessage(t('user.profile.dialogs.error.profilePhotoUpload'));
+      }
     }
   }
 
   Future<void> logout(BuildContext context, {bool popUp = true}) async {
     if (popUp) {
+      final NavigatorState navigator = Navigator.of(context);
       showDialog(
           context: context,
-          builder: (context) {
+          builder: (dialogContext) {
             return AlertDialog(
               title: Text(t('logout.title')),
               content: Text(t('logout.message')),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                   child: Text(t('logout.cancel')),
                 ),
                 TextButton(
                   onPressed: () async {
                     if (_isLoading) return;
-                    Navigator.of(context).pop(); // close dialog first
+                    Navigator.of(dialogContext).pop();
                     await _withLoader(() async {
-                      unawaited(TrackingConsentManager.captureEvent('logout',
-                          properties: {'method': 'manual'}));
-                      unawaited(TrackingConsentManager.resetIdentity());
-                      await GoogleSignInService.signOut();
-                      await secureStorage.deleteAll();
-                      await strnadiFirebase.deleteToken();
-                      if (!mounted) return;
-                      Navigator.of(context).pushNamedAndRemoveUntil(
+                      await runOrderedLogoutCleanup(
+                        captureLogoutEvent: () =>
+                            TrackingConsentManager.captureEvent(
+                          'logout',
+                          properties: const {'method': 'manual'},
+                        ),
+                        resetAnalyticsIdentity:
+                            TrackingConsentManager.resetIdentity,
+                        deleteDeviceToken: strnadiFirebase.deleteToken,
+                        clearAuthSession: () =>
+                            activatedAuthSessions.clearAllPreservingGeneration(
+                          secureStorage.deleteAll,
+                        ),
+                        signOutIdentityProvider: GoogleSignInService.signOut,
+                      );
+                      if (!mounted || !navigator.mounted) return;
+                      navigator.pushNamedAndRemoveUntil(
                           '/authorizator', (route) => false);
                     });
                   },
@@ -316,14 +382,21 @@ class _UserPageState extends State<UserPage> {
           });
     } else {
       await _withLoader(() async {
-        unawaited(TrackingConsentManager.captureEvent('logout',
-            properties: {'method': 'manual'}));
-        unawaited(TrackingConsentManager.resetIdentity());
-        await GoogleSignInService.signOut();
-        await secureStorage.deleteAll();
-        await strnadiFirebase.deleteToken();
+        await runOrderedLogoutCleanup(
+          captureLogoutEvent: () => TrackingConsentManager.captureEvent(
+            'logout',
+            properties: const {'method': 'manual'},
+          ),
+          resetAnalyticsIdentity: TrackingConsentManager.resetIdentity,
+          deleteDeviceToken: strnadiFirebase.deleteToken,
+          clearAuthSession: () =>
+              activatedAuthSessions.clearAllPreservingGeneration(
+            secureStorage.deleteAll,
+          ),
+          signOutIdentityProvider: GoogleSignInService.signOut,
+        );
         if (!mounted) return;
-        Navigator.of(context)
+        Navigator.of(this.context)
             .pushNamedAndRemoveUntil('/authorizator', (route) => false);
       });
     }
@@ -410,7 +483,8 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
-  void _showMessage(String s, BuildContext context) {
+  void _showMessage(String s) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(s),
     ));

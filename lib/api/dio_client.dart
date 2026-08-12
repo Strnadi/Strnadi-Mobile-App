@@ -99,8 +99,7 @@ class ApiDioClient {
 
           apiLogger.e(
             '[API][$requestId] ${error.requestOptions.method} $sanitizedUri '
-            '-> ERROR (${elapsedMs}ms): ${error.message}',
-            error: error,
+            '-> ERROR (${elapsedMs}ms, ${error.type.name})',
             stackTrace: error.stackTrace,
           );
           handler.next(error);

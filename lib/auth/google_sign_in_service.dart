@@ -110,8 +110,7 @@ class GoogleSignInService {
       Map<String, dynamic> product = {"status": response.statusCode};
 
       if (response.statusCode != 200) {
-        logger.w(
-            'Google sign in failed: ${response.statusCode} | ${response.data}');
+        logger.w('Google sign in failed with status ${response.statusCode}.');
         return product;
       }
       final dynamic raw = response.data is String
@@ -165,8 +164,7 @@ class GoogleSignInService {
         final jwt = response.data.toString();
         return jwt;
       } else {
-        throw Exception(
-            'Sign in failed: ${response.statusCode} | ${response.data}');
+        throw Exception('Sign in failed with status ${response.statusCode}.');
       }
     } catch (e, stackTrace) {
       signOut();
@@ -190,7 +188,7 @@ class GoogleSignInService {
     final idToken = await getIdToken();
     final email = _extractEmailFromIdToken(idToken);
 
-    logger.i('Google email: ${email ?? 'unknown'}');
+    logger.i('Google sign-up identity contains email: ${email != null}.');
 
     final response =
         await _authController.signUpGoogle(idToken: idToken, email: email);
@@ -201,7 +199,7 @@ class GoogleSignInService {
       return {'status': 409};
     } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
-      logger.w('Sign up failed: ${response.statusCode} | ${response.data}');
+      logger.w('Google sign up failed with status ${response.statusCode}.');
       return {'status': response.statusCode};
     }
 

@@ -7,10 +7,14 @@ class AuthController {
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(String path, {Map<String, dynamic>? queryParameters}) {
+  Uri _uri(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    String? host,
+  }) {
     return Uri(
       scheme: 'https',
-      host: Config.host,
+      host: host ?? Config.host,
       path: path,
       queryParameters: queryParameters?.map(
         (key, value) => MapEntry(key, value?.toString()),
@@ -57,26 +61,54 @@ class AuthController {
     );
   }
 
-  Future<Response<dynamic>> hasGoogleId(int userId) {
+  Future<Response<dynamic>> hasGoogleId(
+    int userId, {
+    required String accessToken,
+    required String host,
+  }) {
     return _dio.getUri(
-      _uri('/auth/has-google-id', queryParameters: <String, int>{
-        'userId': userId,
-      }),
+      _uri(
+        '/auth/has-google-id',
+        host: host,
+        queryParameters: <String, int>{
+          'userId': userId,
+        },
+      ),
       options: Options(
         contentType: Headers.jsonContentType,
-        extra: const <String, Object>{'authRequired': false},
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, String>{
+          'Authorization': 'Bearer $accessToken',
+        },
+        extra: const <String, Object>{'authRequired': true},
       ),
     );
   }
 
-  Future<Response<dynamic>> hasAppleId(int userId) {
+  Future<Response<dynamic>> hasAppleId(
+    int userId, {
+    required String accessToken,
+    required String host,
+  }) {
     return _dio.getUri(
-      _uri('/auth/has-apple-id', queryParameters: <String, int>{
-        'userId': userId,
-      }),
+      _uri(
+        '/auth/has-apple-id',
+        host: host,
+        queryParameters: <String, int>{
+          'userId': userId,
+        },
+      ),
       options: Options(
         contentType: Headers.jsonContentType,
-        extra: const <String, Object>{'authRequired': false},
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (int? status) => status != null && status < 500,
+        headers: <String, String>{
+          'Authorization': 'Bearer $accessToken',
+        },
+        extra: const <String, Object>{'authRequired': true},
       ),
     );
   }

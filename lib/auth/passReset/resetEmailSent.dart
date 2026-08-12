@@ -46,7 +46,8 @@ class ResetEmailSent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 36),
-              Text(t('passwordReset.emailSent.title'),
+              Text(
+                t('signup.passwordReset.emailSent.title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -54,7 +55,8 @@ class ResetEmailSent extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                t('passwordReset.emailSent.message').replaceFirst('{email}', userEmail),
+                t('signup.passwordReset.emailSent.message')
+                    .replaceFirst('{email}', userEmail),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[700],

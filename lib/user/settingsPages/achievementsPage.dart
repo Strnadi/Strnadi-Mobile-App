@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/achievements_controller.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/widgets/progressIndicator.dart';
 
@@ -48,7 +49,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
   static const AchievementsController _achievementsController =
       AchievementsController();
 
-  late Future<List<Achievement>> _achievementsFuture;
   List<Achievement> achievements = [];
   bool isLoading = true;
 
@@ -62,6 +62,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
     final userAchs = await getUserAchievement();
     final allAchs = await getAllAchievements();
 
+    if (!mounted) return;
     setState(() {
       achievements = mergeAchievements(userAchs, allAchs);
       isLoading = false;
@@ -97,8 +98,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     var token = await storage.read(key: 'userId');
 
-    logger.i('$token');
-
     final int userId = int.tryParse(token ?? '') ?? -1;
     if (userId <= 0) {
       return list;
@@ -106,7 +105,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
     try {
       final value = await _achievementsController.fetchForUser(userId);
       if (value.statusCode == 200) {
-        logger.i('achievements ${value.data}');
+        logger.i('Achievements loaded.');
         // Parse your achievements here and add to list
         // Example:
         list = await parseAchievements(
@@ -121,11 +120,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
       Sentry.captureException(e, stackTrace: st);
     }
 
-    setState(() {
-      isLoading = false;
-      achievements = list;
-    });
-
     return list;
   }
 
@@ -137,8 +131,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     try {
       final parsed = json.decode(jsonString);
-
-      logger.i(parsed);
 
       // Handle if response is a list directly
       if (parsed is List) {
@@ -230,7 +222,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
     try {
       final value = await _achievementsController.fetchAll();
       if (value.statusCode == 200) {
-        logger.i('achievements ${value.data}');
+        logger.i('Achievements loaded.');
         // Parse your achievements here and add to list
         // Example:
         list = await parseAchievements(_encodeResponseData(value.data));
@@ -242,22 +234,18 @@ class _AchievementsPageState extends State<AchievementsPage> {
       Sentry.captureException(e, stackTrace: st);
     }
 
-    setState(() {
-      achievements = list;
-      isLoading = false;
-    });
-
     return list;
   }
 
   @override
   Widget build(BuildContext context) {
-    double progress = achievements.where((a) => a.unlocked).length.toDouble() /
-        achievements.length.toDouble();
+    final double progress = achievements.isEmpty
+        ? 0
+        : achievements.where((a) => a.unlocked).length / achievements.length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Achievements'),
+        title: Text(t('achievements.title')),
         centerTitle: true,
         elevation: 0,
       ),
@@ -272,7 +260,18 @@ class _AchievementsPageState extends State<AchievementsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${achievements.where((a) => a.unlocked).length}/${achievements.length} Unlocked',
+                          t('achievements.unlockedCount')
+                              .replaceFirst(
+                                '{unlocked}',
+                                achievements
+                                    .where((a) => a.unlocked)
+                                    .length
+                                    .toString(),
+                              )
+                              .replaceFirst(
+                                '{total}',
+                                achievements.length.toString(),
+                              ),
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
                                     color: Colors.grey[600],
@@ -482,7 +481,9 @@ class AchievementCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                achievement.unlocked ? '✓ Unlocked' : '🔒 Locked',
+                achievement.unlocked
+                    ? t('achievements.unlocked')
+                    : t('achievements.locked'),
                 style: TextStyle(
                   color: achievement.unlocked
                       ? Colors.green.shade700
@@ -496,7 +497,7 @@ class AchievementCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(t('achievements.close')),
           ),
         ],
       ),

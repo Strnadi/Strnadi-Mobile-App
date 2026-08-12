@@ -24,6 +24,7 @@ import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/email_input_formatter.dart';
 import 'package:strnadi/auth/email_validator.dart';
 import 'package:strnadi/auth/appleAuth.dart' as apple;
@@ -34,6 +35,7 @@ import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
+import 'package:strnadi/utils/async_single_flight.dart';
 
 import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
@@ -55,6 +57,7 @@ class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   late TapGestureRecognizer _registerTapRecognizer;
+  final AsyncSingleFlight _loginSingleFlight = AsyncSingleFlight();
 
   bool _isLoading = false;
   void _showLoader() {
@@ -145,7 +148,7 @@ class _LoginState extends State<Login> {
         await secureStorage.write(key: 'nick', value: nick);
         await secureStorage.write(key: 'role', value: role);
 
-        logger.i("Fetched user name: $firstName $lastName");
+        logger.i('Fetched user profile metadata.');
       } else {
         logger.w(
             'Failed to fetch user name. Status code: ${response.statusCode}');
@@ -168,7 +171,28 @@ class _LoginState extends State<Login> {
     return email;
   }
 
-  void login() async {
+  void login() {
+    if (_loginSingleFlight.isRunning) return;
+
+    _showLoader();
+    final Future<void> operation = _loginSingleFlight.run(_performLogin);
+    unawaited(
+      operation.then<void>(
+        (_) => _hideLoader(),
+        onError: (Object error, StackTrace stackTrace) {
+          _hideLoader();
+          logger.e(
+            'Unexpected password login failure',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          Sentry.captureException(error, stackTrace: stackTrace);
+        },
+      ),
+    );
+  }
+
+  Future<void> _performLogin() async {
     final String email = _normalizeEmailInput();
     if (email.isEmpty || _passwordController.text.isEmpty) {
       _showMessage(t('login.errors.emptyFieldsError'));
@@ -176,7 +200,7 @@ class _LoginState extends State<Login> {
     }
 
     if (!EmailValidator.isValid(email)) {
-      _showMessage(t('login.errors.invalidEmailError'));
+      _showMessage(t('login.errors.invalidEmailFormat'));
       return;
     }
 
@@ -190,28 +214,43 @@ class _LoginState extends State<Login> {
       final String token = response.data.toString();
 
       if (response.statusCode == 200 || response.statusCode == 202) {
-        FlutterSecureStorage secureStorage = FlutterSecureStorage();
         logger.i("user has logged in with status code ${response.statusCode}");
-        if (await secureStorage.read(key: 'token') != null) {
-          secureStorage.delete(key: 'token');
-        }
-        await secureStorage.write(key: 'token', value: token);
+        final AuthSessionTransition transition =
+            await activatedAuthSessions.beginTokenTransition(token);
 
         final verifyResponse = await _authController.verifyJwt(token);
+        final JwtVerificationDisposition verification =
+            classifyJwtVerificationStatus(verifyResponse.statusCode);
 
         int? userId;
-        if (verifyResponse.statusCode == 403) {
+        if (verification == JwtVerificationDisposition.rejected) {
+          logger.w(
+              'Password JWT verification rejected status ${verifyResponse.statusCode}.');
+          await activatedAuthSessions.invalidate();
+          _showMessage(t('login.errors.loginFailed'));
+          return;
+        }
+        if (verification == JwtVerificationDisposition.notVerified) {
           // If the JWT check returns 403, the account is not verified.
           final idResponse = await _userController.getUserIdFromToken();
           if (idResponse.statusCode != 200) {
             _showMessage(t('login.errors.idGetError'));
             return;
           }
-          userId = int.parse(idResponse.data.toString());
-          await secureStorage.write(key: 'userId', value: userId.toString());
+          userId = int.tryParse(idResponse.data.toString());
+          if (userId == null || userId <= 0) {
+            _showMessage(t('login.errors.idGetError'));
+            return;
+          }
+          await activatedAuthSessions.activate(
+            transition,
+            userId,
+            verified: false,
+          );
           await cacheUserData(userId);
           _trackLogin(method: 'password', userId: userId, verified: false);
           _finishCredentialAutofill();
+          if (!mounted) return;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -223,38 +262,52 @@ class _LoginState extends State<Login> {
           );
           return;
         } else {
-          await secureStorage.write(key: 'token', value: token);
           final idResponse = await _userController.getUserIdFromToken();
           if (idResponse.statusCode != 200) {
             _showMessage(t('login.errors.idGetError'));
             return;
           }
-          userId = int.parse(idResponse.data.toString());
-          await secureStorage.write(key: 'userId', value: userId.toString());
+          userId = int.tryParse(idResponse.data.toString());
+          if (userId == null || userId <= 0) {
+            _showMessage(t('login.errors.idGetError'));
+            return;
+          }
+          await activatedAuthSessions.activate(
+            transition,
+            userId,
+            verified: true,
+          );
           await cacheUserData(userId);
         }
-        await secureStorage.write(key: 'verified', value: 'true');
-        if (userId != null) {
-          _trackLogin(method: 'password', userId: userId, verified: true);
-        }
+        _trackLogin(method: 'password', userId: userId, verified: true);
         _finishCredentialAutofill();
-        logger.i('Login token stored');
+        logger.i('Password login session activated.');
         await fb.refreshToken();
         DatabaseNew.syncRecordings();
+        if (!mounted) return;
         await navigateToSessionLanding(context);
       } else if (response.statusCode == 403) {
-        FlutterSecureStorage secureStorage = FlutterSecureStorage();
-        await secureStorage.write(key: 'token', value: token);
+        final AuthSessionTransition transition =
+            await activatedAuthSessions.beginTokenTransition(token);
         final idResponse = await _userController.getUserIdFromToken();
         if (idResponse.statusCode != 200) {
           _showMessage(t('login.errors.idGetError'));
           return;
         }
-        int userId = int.parse(idResponse.data.toString());
-        await secureStorage.write(key: 'userId', value: userId.toString());
+        final int? userId = int.tryParse(idResponse.data.toString());
+        if (userId == null || userId <= 0) {
+          _showMessage(t('login.errors.idGetError'));
+          return;
+        }
+        await activatedAuthSessions.activate(
+          transition,
+          userId,
+          verified: false,
+        );
         await cacheUserData(userId);
         _trackLogin(method: 'password', userId: userId, verified: false);
         _finishCredentialAutofill();
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -267,8 +320,7 @@ class _LoginState extends State<Login> {
       } else if (response.statusCode == 401) {
         _showMessage(t('login.errors.invalidCredentials'));
       } else {
-        logger.w(
-            'Login failed: Code: ${response.statusCode} message: ${response.data}');
+        logger.w('Login failed with status ${response.statusCode}.');
         _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
@@ -280,6 +332,7 @@ class _LoginState extends State<Login> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -476,7 +529,7 @@ class _LoginState extends State<Login> {
                     }
                     if (data['status'] == 200) {
                       logger.i(
-                          'Google sign in successful, returned data: ${data.toString()}');
+                          'Google sign in succeeded; existing=${data['exists']}.');
                       if (data['exists'] == false) {
                         // New user, proceed with registration
                         unawaited(TrackingConsentManager.captureEvent(
@@ -484,6 +537,7 @@ class _LoginState extends State<Login> {
                             properties: {'method': 'google'}));
                         logger.i(
                             'Google sign in: new user, proceeding to registration');
+                        if (!context.mounted) return;
                         Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
@@ -497,26 +551,35 @@ class _LoginState extends State<Login> {
                                     )));
                         return;
                       }
-                      String? jwt = data['jwt'] as String?;
-                      final secureStorage = const FlutterSecureStorage();
-                      // Persist the token locally
-                      await secureStorage.write(key: 'token', value: jwt);
-                      await secureStorage.write(
-                          key: 'verified', value: true.toString());
-                      logger.i('Google sign‑in successful, token stored');
+                      final String? jwt = data['jwt'] as String?;
+                      if (jwt == null || jwt.trim().isEmpty) {
+                        _showMessage(t('login.errors.loginFailed'));
+                        return;
+                      }
+                      final AuthSessionTransition transition =
+                          await activatedAuthSessions.beginTokenTransition(jwt);
 
                       // Retrieve user‑id from backend
                       final idResponse =
                           await _userController.getUserIdFromToken();
                       if (idResponse.statusCode != 200) {
                         logger.e(
-                            'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
+                            'Failed to retrieve user ID; status ${idResponse.statusCode}.');
                         _showMessage(t('login.errors.idGetError'));
                         return;
                       }
-                      final userId = int.parse(idResponse.data.toString());
-                      await secureStorage.write(
-                          key: 'userId', value: userId.toString());
+                      final int? userId =
+                          int.tryParse(idResponse.data.toString());
+                      if (userId == null || userId <= 0) {
+                        _showMessage(t('login.errors.idGetError'));
+                        return;
+                      }
+                      await activatedAuthSessions.activate(
+                        transition,
+                        userId,
+                        verified: true,
+                      );
+                      logger.i('Google sign‑in successful, session activated');
                       await cacheUserData(userId);
                       _trackLogin(
                         method: 'google',
@@ -524,10 +587,11 @@ class _LoginState extends State<Login> {
                         verified: true,
                       );
                       await fb.refreshToken();
+                      if (!context.mounted) return;
                       await navigateToSessionLanding(context);
                     } else {
                       logger.w(
-                          'Google sign in failed with status code: ${data['status']} | ${data.toString()}');
+                          'Google sign in failed with status ${data['status']}.');
                       _showMessage(t('login.errors.loginFailed'));
                       return;
                     }
@@ -581,7 +645,7 @@ class _LoginState extends State<Login> {
                       return;
                     } else if (data['status'] == 200) {
                       logger.i(
-                          'Apple sign in successful, returned data: ${data.toString()}');
+                          'Apple sign in succeeded; existing=${data['exists']}.');
                       if (data['exists'] == false) {
                         // New user, proceed with registration
                         unawaited(TrackingConsentManager.captureEvent(
@@ -590,6 +654,7 @@ class _LoginState extends State<Login> {
                         _hideLoader();
                         logger.i(
                             'Apple sign in: new user, proceeding to registration');
+                        if (!context.mounted) return;
                         Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
@@ -615,7 +680,7 @@ class _LoginState extends State<Login> {
                       return;
                     } else {
                       logger.w(
-                          'Apple sign in failed with status code: ${data['status']} | ${data.toString()}');
+                          'Apple sign in failed with status ${data['status']}.');
                       _hideLoader();
                       _showMessage(t('auth.apple.error.login_failed'));
                       return;
@@ -634,6 +699,7 @@ class _LoginState extends State<Login> {
                         email.isEmpty)) {
                       // Missing profile data → go to the registration screen
                       _hideLoader();
+                      if (!context.mounted) return;
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
@@ -650,13 +716,8 @@ class _LoginState extends State<Login> {
                     }
 
                     final String jwt = data['jwt'] as String;
-                    final secureStorage = const FlutterSecureStorage();
-
-                    // Persist the token locally
-                    await secureStorage.write(key: 'token', value: jwt);
-                    await secureStorage.write(
-                        key: 'verified', value: true.toString());
-                    logger.i('Apple sign‑in successful, token stored');
+                    final AuthSessionTransition transition =
+                        await activatedAuthSessions.beginTokenTransition(jwt);
 
                     // Retrieve user‑id from backend
                     final idResponse =
@@ -664,15 +725,23 @@ class _LoginState extends State<Login> {
                     if (idResponse.statusCode != 200) {
                       _hideLoader();
                       logger.w(
-                          'Failed to retrieve user ID: ${idResponse.statusCode} | ${idResponse.data}');
-                      _showMessage('login.errors.idGetError');
+                          'Failed to retrieve user ID; status ${idResponse.statusCode}.');
+                      _showMessage(t('login.errors.idGetError'));
                       return;
                     }
-                    final userId = int.parse(idResponse.data.toString());
-                    logger.i('User ID retrieved: $userId');
+                    final int? userId =
+                        int.tryParse(idResponse.data.toString());
+                    if (userId == null || userId <= 0) {
+                      _showMessage(t('login.errors.idGetError'));
+                      return;
+                    }
+                    logger.i('Apple login owner resolved.');
 
-                    await secureStorage.write(
-                        key: 'userId', value: userId.toString());
+                    await activatedAuthSessions.activate(
+                      transition,
+                      userId,
+                      verified: true,
+                    );
                     _trackLogin(
                       method: 'apple',
                       userId: userId,
@@ -685,6 +754,7 @@ class _LoginState extends State<Login> {
                     await cacheUserData(userId);
                     _hideLoader();
 
+                    if (!context.mounted) return;
                     await navigateToSessionLanding(context);
                   } catch (e, stackTrace) {
                     logger.e('Apple sign-in error: $e',
@@ -740,9 +810,7 @@ class _LoginState extends State<Login> {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  login();
-                },
+                onPressed: _loginSingleFlight.isRunning ? null : login,
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
                   shadowColor: Colors.transparent,

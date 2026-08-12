@@ -17,10 +17,8 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
-import 'package:strnadi/auth/registeration/passwordReg.dart';
 
 import 'cityReg.dart';
-import 'package:flutter/material.dart';
 
 Logger logger = Logger();
 
@@ -219,7 +217,7 @@ class _RegNameState extends State<RegName> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return t('signup.name.errors.null_surname_err');
+                        return t('signup.name.errors.null_last_name_err');
                       }
                       return null;
                     },
