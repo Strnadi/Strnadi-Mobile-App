@@ -345,7 +345,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       home: widget.homeOverride ?? Authorizator(),
       onGenerateRoute: (settings) {
         final name = settings.name ?? '';
-        switch (name) {
+        final uri = Uri.tryParse(name);
+        final path = uri?.path ?? name;
+        switch (path) {
           case '/ucet/email-neoveren':
             return MaterialPageRoute(
               settings: const RouteSettings(name: '/email-not-verified'),
@@ -358,7 +360,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             );
           case '/ucet/obnova-hesla':
             final args = settings.arguments as Map<String, dynamic>?;
-            final token = args?['token'] as String? ?? '';
+            final token = args?['token'] as String? ??
+                uri?.queryParameters['token'] ??
+                '';
             return MaterialPageRoute(
               settings: const RouteSettings(name: '/reset-password'),
               builder: (_) => ChangePassword(jwt: token),
