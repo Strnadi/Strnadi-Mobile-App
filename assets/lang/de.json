@@ -471,6 +471,12 @@
       "title": "Aufnahmen werden geladen",
       "subtitle": "Die Markierungen erscheinen gleich auf der Karte."
     },
+    "offline": {
+      "savedData": "Die zuletzt gespeicherten Daten werden angezeigt.",
+      "savedDataAt": "Gespeicherte Daten vom {time} werden angezeigt.",
+      "noData": "Aktuelle oder gespeicherte Daten konnten nicht geladen werden.",
+      "retry": "Aktuelle Daten erneut laden"
+    },
     "legend": {
       "title": "Legende",
       "dialects": {

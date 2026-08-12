@@ -471,6 +471,12 @@
       "title": "Načítají se nahrávky",
       "subtitle": "Body se na mapě objeví za okamžik."
     },
+    "offline": {
+      "savedData": "Zobrazuji poslední uložená data.",
+      "savedDataAt": "Zobrazuji uložená data z {time}.",
+      "noData": "Aktuální ani uložená data se nepodařilo načíst.",
+      "retry": "Načíst aktuální data znovu"
+    },
     "legend": {
       "title": "Legenda",
       "dialects": {

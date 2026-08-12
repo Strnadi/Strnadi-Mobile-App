@@ -46,6 +46,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/map/filtered_parts_api_loader.dart';
+import 'package:strnadi/map/map_data_cache.dart';
 import 'package:strnadi/map/RecordingPage.dart';
 import 'package:strnadi/map/map_async_request_state.dart';
 import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
@@ -103,6 +104,16 @@ class _RecordingDialectSelection {
   });
 }
 
+class _DialectRefreshResult {
+  const _DialectRefreshResult({
+    required this.isCurrentServerData,
+    this.serverPayload,
+  });
+
+  final bool isCurrentServerData;
+  final List<dynamic>? serverPayload;
+}
+
 class MapScreenV2 extends StatefulWidget {
   const MapScreenV2({Key? key}) : super(key: key);
 
@@ -116,6 +127,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   static const UserController _userController = UserController();
   final FilteredPartsApiLoader _filteredPartsApiLoader =
       FilteredPartsApiLoader(logger: logger);
+  late final MapDataCache _mapDataCache;
 
   late bool _clusterPoints = false;
 
@@ -125,6 +137,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
   List<DetectedDialect> _cachedDetectedDialects = [];
   bool _hasCachedDialectData = false;
   bool _isLoadingRecordings = true;
+  bool _isUsingSavedMapData = false;
+  bool _mapRefreshFailed = false;
+  DateTime? _savedMapDataAt;
   final MapLoadingTracker _mapLoadingTracker = MapLoadingTracker();
   int? _recordingsLoadingToken;
   int? _dialectRefreshLoadingToken;
@@ -406,6 +421,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   void initState() {
     super.initState();
+    _mapDataCache = MapDataCache(
+      scope: '${Config.hostEnvironment.name}|${Config.host}',
+    );
     _loadGuestStatus();
     final LatLng? lastKnownPosition = LocationService().lastKnownPosition;
     if (lastKnownPosition != null) {
@@ -415,7 +433,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     unawaited(_getCurrentLocation());
 
-    unawaited(getRecordings());
+    unawaited(_loadSavedMapDataThenRefresh());
 
     // Subscribe to the centralized location stream.
     _positionStreamSubscription =
@@ -444,6 +462,120 @@ class _MapScreenV2State extends State<MapScreenV2> {
     // Warm legend codes from BE (non-blocking). UI shows defaults immediately.
     // When BE responds, we update the list without showing an empty placeholder.
     unawaited(_refreshLegendCodes());
+  }
+
+  Future<int?> _applyRecordingsPayload({
+    required List<dynamic> data,
+    required int requestId,
+  }) async {
+    final String responseBody = jsonEncode(data);
+    final List<Part> parts = getParts(responseBody);
+    final List<Recording> recordings = await GetRecordings(responseBody);
+    final int totalLength = parts.fold<int>(
+      0,
+      (int total, Part part) => total + (part.length ?? 0),
+    );
+    if (!_isCurrentRecordingsRequest(requestId)) return null;
+
+    length = totalLength;
+    final int dataGeneration = ++_recordingDataGeneration;
+    _recordingsByBeId
+      ..clear()
+      ..addEntries(
+        recordings
+            .where((recording) => recording.BEId != null)
+            .map((recording) => MapEntry(recording.BEId!, recording)),
+      );
+    _recLocalToBE.clear();
+    for (final Recording recording in recordings) {
+      if (recording.id != null && recording.BEId != null) {
+        _recLocalToBE[recording.id!] = recording.BEId!;
+      }
+    }
+    setState(() {
+      _recordings = parts;
+      _fullRecordings = recordings;
+      _visibleMarkers = const <Marker>[];
+    });
+    return dataGeneration;
+  }
+
+  Future<void> _loadSavedMapDataThenRefresh() async {
+    final int requestId = ++_activeRecordingsRequestId;
+    try {
+      final MapDataCacheEntry? entry = await _mapDataCache.load();
+      if (!_isCurrentRecordingsRequest(requestId)) return;
+
+      if (entry != null) {
+        final int? dataGeneration = await _applyRecordingsPayload(
+          data: entry.recordingsPayload,
+          requestId: requestId,
+        );
+        if (dataGeneration != null && _isCurrentRecordingsRequest(requestId)) {
+          setState(() {
+            _isUsingSavedMapData = true;
+            _savedMapDataAt = entry.savedAt;
+          });
+
+          try {
+            final FilteredPartsBundle bundle =
+                FilteredPartsApiLoader.parsePayload(
+              entry.filteredPartsPayload,
+            );
+            _cachedFilteredParts = bundle.frps;
+            _cachedDetectedDialects = bundle.dds;
+            _hasCachedDialectData = true;
+            await _fetchDialects(
+              refreshFromApi: false,
+              recordingsRequestId: requestId,
+              dataGeneration: dataGeneration,
+            );
+          } catch (_) {
+            await _rebuildMapMarkers();
+          }
+        }
+      }
+    } catch (error, stackTrace) {
+      logger.w(
+        '[MapV2] Saved map data could not be loaded.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    if (mounted) {
+      await getRecordings();
+    }
+  }
+
+  void _setMapRefreshFailed() {
+    if (!mounted) return;
+    setState(() {
+      _mapRefreshFailed = true;
+    });
+  }
+
+  void _setMapDataCurrent() {
+    if (!mounted) return;
+    setState(() {
+      _isUsingSavedMapData = false;
+      _mapRefreshFailed = false;
+      _savedMapDataAt = null;
+    });
+  }
+
+  String _savedMapDataMessage() {
+    final DateTime? savedAt = _savedMapDataAt?.toLocal();
+    if (savedAt == null) return t('map.offline.savedData');
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    final String time =
+        '${savedAt.day}.${savedAt.month}.${savedAt.year} ${twoDigits(savedAt.hour)}:${twoDigits(savedAt.minute)}';
+    return t('map.offline.savedDataAt').replaceAll('{time}', time);
+  }
+
+  String _mapAvailabilityMessage() {
+    if (_isUsingSavedMapData) return _savedMapDataMessage();
+    return t('map.offline.noData');
   }
 
   Future<void> fetchClusters({int? dataGeneration}) async {
@@ -537,6 +669,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
   Future<void> getRecordings() async {
     final int requestId = ++_activeRecordingsRequestId;
     final int loadingToken = _beginRecordingsLoading();
+    if (mounted) {
+      setState(() {
+        _mapRefreshFailed = false;
+      });
+    }
     try {
       int? userId;
       //String? email;
@@ -585,61 +722,52 @@ class _MapScreenV2State extends State<MapScreenV2> {
         if (decoded is! List) {
           logger
               .e('Failed to parse recordings payload: ${decoded.runtimeType}');
+          _setMapRefreshFailed();
           return;
         }
         final List<dynamic> data = decoded;
-        final String responseBody = response.data is String
-            ? response.data as String
-            : jsonEncode(data);
-        final List<Part> parts = getParts(jsonEncode(data));
-        final List<Recording> recordings = await GetRecordings(responseBody);
-
-        final int totalLength = parts.fold<int>(
-          0,
-          (int total, Part part) => total + (part.length ?? 0),
-        );
-        if (!_isCurrentRecordingsRequest(requestId)) {
+        final FilteredPartsBundle filteredParts =
+            await _filteredPartsApiLoader.fetch(verified: false);
+        if (!_isCurrentRecordingsRequest(requestId)) return;
+        if (!filteredParts.isAvailable) {
+          _setMapRefreshFailed();
           return;
         }
-        length = totalLength;
-        final int dataGeneration = ++_recordingDataGeneration;
-        _recordingsByBeId
-          ..clear()
-          ..addEntries(
-            recordings
-                .where((recording) => recording.BEId != null)
-                .map((recording) => MapEntry(recording.BEId!, recording)),
-          );
-        // Build local->BE id map for consistent lookups
-        _recLocalToBE.clear();
-        for (final r in recordings) {
-          if (r.id != null && r.BEId != null) {
-            _recLocalToBE[r.id!] = r.BEId!;
-          }
-        }
-        setState(() {
-          _recordings = parts;
-          _fullRecordings = recordings;
-          _visibleMarkers = const <Marker>[];
-        });
-        logger.i(
-            '[MapV2] getRecordings(): parts=${parts.length}, totalLength=$length');
-        logger.i('[MapV2] getRecordings(): local->BE map size=' +
-            _recLocalToBE.length.toString());
-        logger
-            .i('[MapV2] getRecordings(): fullRecordings=${recordings.length}');
-        await _fetchDialects(
-          refreshFromApi: true,
+        final int? dataGeneration = await _applyRecordingsPayload(
+          data: data,
+          requestId: requestId,
+        );
+        if (dataGeneration == null) return;
+        final _DialectRefreshResult dialectRefresh = await _fetchDialects(
+          refreshedBundle: filteredParts,
           recordingsRequestId: requestId,
           dataGeneration: dataGeneration,
         );
+        if (!_isCurrentRecordingsRequest(requestId)) return;
+        if (dialectRefresh.isCurrentServerData) {
+          if (_recordingAuthorFilter == 'all' &&
+              dialectRefresh.serverPayload != null) {
+            final bool saved = await _mapDataCache.save(
+              data,
+              dialectRefresh.serverPayload!,
+            );
+            if (!saved) {
+              logger.w('[MapV2] Current map snapshot could not be cached.');
+            }
+            if (!_isCurrentRecordingsRequest(requestId)) return;
+          }
+          _setMapDataCurrent();
+        } else {
+          _setMapRefreshFailed();
+        }
       } else {
-        logger.e(
-            'Failed to fetch recordings ${response.statusCode} | ${response.data}');
+        logger.w('Failed to fetch recordings (${response.statusCode}).');
+        _setMapRefreshFailed();
       }
     } catch (error, stackTrace) {
-      logger.e("Error generariong map $error",
+      logger.w('Current map data could not be loaded.',
           error: error, stackTrace: stackTrace);
+      _setMapRefreshFailed();
     } finally {
       _finishRecordingsLoading(loadingToken);
     }
@@ -656,6 +784,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _cachedFilteredParts = const <FilteredRecordingPart>[];
     _cachedDetectedDialects = const <DetectedDialect>[];
     _hasCachedDialectData = false;
+    _isUsingSavedMapData = false;
+    _mapRefreshFailed = false;
+    _savedMapDataAt = null;
     _dialectsByRecording = <int, _RecordingDialectSelection>{};
     _hiddenRecordingIds = <int>{};
     _recLocalToBE.clear();
@@ -670,8 +801,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
   }
 
-  Future<void> _fetchDialects({
+  Future<_DialectRefreshResult> _fetchDialects({
     bool refreshFromApi = true,
+    FilteredPartsBundle? refreshedBundle,
     required int recordingsRequestId,
     required int dataGeneration,
   }) async {
@@ -686,22 +818,40 @@ class _MapScreenV2State extends State<MapScreenV2> {
       // Always fetch all FRPs from BE to keep map filtering fully client-side.
       final List<FilteredRecordingPart> frps;
       final List<DetectedDialect> dds;
-      if (refreshFromApi || !_hasCachedDialectData) {
-        final api = await _filteredPartsApiLoader.fetch(
-          verified: false,
-        );
+      bool isCurrentServerData = true;
+      List<dynamic>? serverPayload;
+      if (refreshedBundle != null) {
+        frps = refreshedBundle.frps;
+        dds = refreshedBundle.dds;
+        _cachedFilteredParts = frps;
+        _cachedDetectedDialects = dds;
+        _hasCachedDialectData = true;
+        serverPayload = refreshedBundle.sourcePayload;
+      } else if (refreshFromApi || !_hasCachedDialectData) {
+        final FilteredPartsBundle api =
+            await _filteredPartsApiLoader.fetch(verified: false);
         if (!_isCurrentDialectRequest(
           dialectRequestId: dialectRequestId,
           recordingsRequestId: recordingsRequestId,
           dataGeneration: dataGeneration,
         )) {
-          return;
+          return const _DialectRefreshResult(isCurrentServerData: false);
         }
-        frps = api.frps;
-        dds = api.dds;
-        _cachedFilteredParts = frps;
-        _cachedDetectedDialects = dds;
-        _hasCachedDialectData = true;
+        if (!api.isAvailable) {
+          if (!_hasCachedDialectData) {
+            return const _DialectRefreshResult(isCurrentServerData: false);
+          }
+          frps = _cachedFilteredParts;
+          dds = _cachedDetectedDialects;
+          isCurrentServerData = false;
+        } else {
+          frps = api.frps;
+          dds = api.dds;
+          _cachedFilteredParts = frps;
+          _cachedDetectedDialects = dds;
+          _hasCachedDialectData = true;
+          serverPayload = api.sourcePayload;
+        }
       } else {
         frps = _cachedFilteredParts;
         dds = _cachedDetectedDialects;
@@ -861,7 +1011,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         recordingsRequestId: recordingsRequestId,
         dataGeneration: dataGeneration,
       )) {
-        return;
+        return const _DialectRefreshResult(isCurrentServerData: false);
       }
       setState(() {
         _dialectsByRecording = byRecording;
@@ -877,10 +1027,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
         'missingBEId=$recordingsWithoutBackendId',
       );
       await _rebuildMapMarkers();
+      return _DialectRefreshResult(
+        isCurrentServerData: isCurrentServerData,
+        serverPayload: serverPayload,
+      );
     } catch (e, stackTrace) {
       logger.e('Failed to fetch representative dialects: ' + e.toString(),
           error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
+      return const _DialectRefreshResult(isCurrentServerData: false);
     }
   }
 
@@ -1323,6 +1478,60 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     ),
                   ),
                 ),
+              if (_isUsingSavedMapData ||
+                  (_mapRefreshFailed && !_isLoadingRecordings))
+                Positioned(
+                  top: _isLoadingRecordings ? 216 : 140,
+                  left: 16,
+                  right: 16,
+                  child: Center(
+                    child: Material(
+                      color: const Color(0xFFFDF3D8),
+                      elevation: 3,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        padding: const EdgeInsets.only(
+                          left: 12,
+                          top: 8,
+                          bottom: 8,
+                          right: 4,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.cloud_off_outlined,
+                              size: 18,
+                              color: Color(0xFF765B13),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _mapAvailabilityMessage(),
+                                style: const TextStyle(
+                                  color: Color(0xFF5C470F),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (_mapRefreshFailed && !_isLoadingRecordings)
+                              IconButton(
+                                tooltip: t('map.offline.retry'),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: getRecordings,
+                                icon: const Icon(
+                                  Icons.refresh,
+                                  color: Color(0xFF765B13),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: 80,
                 left: 16,
@@ -1575,7 +1784,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
     });
 
     if (shouldReloadRecordings) {
-      unawaited(getRecordings());
+      if (_recordingAuthorFilter == 'all') {
+        unawaited(_loadSavedMapDataThenRefresh());
+      } else {
+        unawaited(getRecordings());
+      }
       return;
     }
     if (shouldRefreshDialects) {
