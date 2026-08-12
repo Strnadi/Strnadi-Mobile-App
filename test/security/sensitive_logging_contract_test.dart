@@ -33,6 +33,20 @@ void main() {
       expect(part, isNot(contains(r'path: ${unready.path}')));
     });
 
+    test('map dialect refresh logs only aggregate results', () {
+      final String source = File('lib/map/mapv2.dart').readAsStringSync();
+
+      expect(source, isNot(contains('[MapV2] recBE=')));
+      expect(source, isNot(contains('example FRP beId/state')));
+      expect(source, isNot(contains('visible markers rebuilt=')));
+      expect(source, contains("'emptyOrUnknown=\$recsWithNoCodes, '"));
+      expect(source, contains("'clamped=\$clampedDialectLists, '"));
+      expect(
+        source,
+        contains("'missingBEId=\$recordingsWithoutBackendId'"),
+      );
+    });
+
     test('authentication response bodies are never written to logs', () {
       for (final String path in <String>[
         'lib/auth/unverifiedEmail.dart',

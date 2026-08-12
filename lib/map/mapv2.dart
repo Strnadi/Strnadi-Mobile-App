@@ -480,8 +480,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     setState(() {
       markersWidgets = builtWidgets;
     });
-
-    logger.i('[MapV2] clusters rebuilt: buckets=' + markers.length.toString());
   }
 
   bool _shouldShowRecordingOnMap(int recordingBEId) {
@@ -709,13 +707,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
         dds = _cachedDetectedDialects;
         logger.i('[MapV2] _fetchDialects(): using cached filtered data');
       }
-      if (frps.isNotEmpty) {
-        logger.d('[MapV2] example FRP beId/state: ' +
-            (frps.first.BEId?.toString() ?? 'null') +
-            '/' +
-            frps.first.state.toString());
-      }
-
       logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
           frps.length.toString() +
           ', DDs=' +
@@ -744,11 +735,13 @@ class _MapScreenV2State extends State<MapScreenV2> {
       final Map<int, _RecordingDialectSelection> byRecording = {};
       final Set<int> hiddenRecordingIds = <int>{};
       int recsWithNoCodes = 0;
+      int clampedDialectLists = 0;
+      int recordingsWithoutBackendId = 0;
 
       for (final rec in _fullRecordings) {
         final int? beId = rec.BEId;
         if (beId == null) {
-          logger.w('[MapV2] rec has null BEId, skipping');
+          recordingsWithoutBackendId++;
           continue;
         }
 
@@ -834,30 +827,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
         List<String> out = dialectsForMapMarker(summary);
         if (!summary.hasAnySelectedDialect) {
           recsWithNoCodes++;
-          logger.w(
-            '[MapV2] recBE=$beId: no dialect codes collected; '
-            'fallback=Unknown (sourceFRPs=${sourceParts.length}, '
-            'repFRPs=${reps.length})',
-          );
         } else {
           out = limitFailsafeDialects(
             dialects: out,
             usedFailsafe: usedSourcePartsFallback,
           );
-
-          logger.i('[MapV2] recBE=' +
-              beId.toString() +
-              ': codes=[' +
-              out.join(',') +
-              '] tier=' +
-              summary.selectedTier.name);
         }
 
         // Clamp to two dialects to enable diagonal split; more than two would fall back to mix otherwise
         if (out.length > 2) {
-          logger.w('[MapV2] recBE=' +
-              beId.toString() +
-              ': >2 dialects detected; clamping to first two for split visual');
+          clampedDialectLists++;
           out = out.take(2).toList();
         }
 
@@ -888,14 +867,15 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _dialectsByRecording = byRecording;
         _hiddenRecordingIds = hiddenRecordingIds;
       });
-      logger.i('[MapV2] _fetchDialects(): done; records=' +
-          byRecording.length.toString() +
-          ', hidden=' +
-          hiddenRecordingIds.length.toString() +
-          ', visible=' +
-          (_fullRecordings.length - hiddenRecordingIds.length).toString() +
-          ', emptyOrUnknown=' +
-          recsWithNoCodes.toString());
+      logger.i(
+        '[MapV2] _fetchDialects(): done; '
+        'records=${byRecording.length}, '
+        'hidden=${hiddenRecordingIds.length}, '
+        'visible=${_fullRecordings.length - hiddenRecordingIds.length}, '
+        'emptyOrUnknown=$recsWithNoCodes, '
+        'clamped=$clampedDialectLists, '
+        'missingBEId=$recordingsWithoutBackendId',
+      );
       await _rebuildMapMarkers();
     } catch (e, stackTrace) {
       logger.e('Failed to fetch representative dialects: ' + e.toString(),
@@ -1005,7 +985,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
       );
     });
 
-    logger.i('[MapV2] visible markers rebuilt=' + markers.length.toString());
     return markers;
   }
 
@@ -1073,8 +1052,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
         }
       }
     });
-    logger.i(
-        '[MapV2] cluster buckets rebuilt=' + dialectMarkers.length.toString());
     return dialectMarkers;
   }
 
