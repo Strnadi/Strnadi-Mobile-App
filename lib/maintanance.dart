@@ -14,8 +14,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 import 'package:flutter/material.dart';
+import 'package:strnadi/localization/localization.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MaintenancePage extends StatelessWidget {
@@ -46,9 +46,9 @@ class MaintenancePage extends StatelessWidget {
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Aplikace Strnadi je momentálně v údržbě.',
-                style: TextStyle(
+              Text(
+                t('maintenance.title'),
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF2D2B18), // Hnědá
@@ -56,9 +56,9 @@ class MaintenancePage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Podrobnější informace najdete zde:',
-                style: TextStyle(
+              Text(
+                t('maintenance.details'),
+                style: const TextStyle(
                   fontSize: 16,
                   color: Color(0xFF2D2B18),
                 ),

@@ -24,7 +24,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/passReset/newPassword.dart';
-import 'package:strnadi/auth/unverifiedEmail.dart';
+import 'package:strnadi/bootstrap/database_bootstrap_error_page.dart';
 import 'package:strnadi/updateChecker.dart';
 import 'auth/emailVerificationResult/notSuccessVerify.dart';
 import 'auth/emailVerificationResult/successVerify.dart';
@@ -33,6 +33,7 @@ import 'package:strnadi/maintanance.dart';
 import 'package:strnadi/config/config.dart'; // ensure Config and ServerHealth are in scope
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
+import 'package:strnadi/update_checker_logic.dart';
 import 'deep_link_handler.dart';
 import 'package:strnadi/bootstrap/app_bootstrap.dart';
 import 'package:strnadi/localization/localization.dart';
@@ -43,7 +44,7 @@ import 'privacy/tracking_consent.dart';
 final logger = Logger();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
+final GlobalKey<_MyAppState> _myAppKey = GlobalKey<_MyAppState>();
 
 class UploadProgressBridge {
   static const String portName = 'upload_progress_port';
@@ -96,7 +97,7 @@ void _showMessage(BuildContext context, String message) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(t('Login')),
+      title: Text(t('login.title')),
       content: Text(message),
       actions: [
         TextButton(
@@ -113,16 +114,22 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
   if (Platform.isAndroid) {
     final availability = await GoogleApiAvailability.instance
         .checkGooglePlayServicesAvailability();
+    if (!context.mounted) return;
+
     if (availability != GooglePlayServicesAvailability.success) {
       // Attempt to prompt the user to update/install Google Play Services.
       await GoogleApiAvailability.instance.makeGooglePlayServicesAvailable();
+      if (!context.mounted) return;
+
       // Re-check availability after attempting resolution.
       final newAvailability = await GoogleApiAvailability.instance
           .checkGooglePlayServicesAvailability();
+      if (!context.mounted) return;
+
       if (newAvailability != GooglePlayServicesAvailability.success) {
         _showMessage(
           context,
-          'Google Play Services are required for this app to function properly.',
+          t('dialogs.googlePlayServicesRequired'),
         );
       }
     }
@@ -176,6 +183,7 @@ class _PermissionGateState extends State<PermissionGate> {
           await TrackingConsentManager.ensureTrackingConsent();
       await _continueBootstrap(trackingAuthorized: trackingAuthorized);
     }
+    if (!mounted) return;
     setState(() {}); // rebuild UI based on _granted
   }
 
@@ -201,15 +209,39 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
       return;
     }
 
-    await AppBootstrap.initializeDatabase(logger);
-    AppBootstrap.initializeNotifications();
+    Future<void> launchDatabaseBackedApp() async {
+      await AppBootstrap.initializeDatabase(logger);
+      await AppBootstrap.initializeNotifications(logger);
 
-    runApp(MyApp(key: myAppKey));
+      runApp(MyApp(key: _myAppKey));
 
-    // Initialize deep links after the first frame so the Navigator exists.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      DeepLinkHandler().initialize();
-    });
+      // Initialize deep links after the first frame so the Navigator exists.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinkHandler().initialize();
+      });
+    }
+
+    try {
+      await launchDatabaseBackedApp();
+    } catch (error, stackTrace) {
+      logger.e(
+        'App startup stopped because local storage is unavailable.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      runApp(
+        DatabaseBootstrapErrorApp(
+          onRetry: launchDatabaseBackedApp,
+          onRetryFailure: (retryError, retryStackTrace) {
+            logger.e(
+              'Database startup retry failed.',
+              error: retryError,
+              stackTrace: retryStackTrace,
+            );
+          },
+        ),
+      );
+    }
   }
 
   await AppBootstrap.runWithTelemetry(
@@ -220,7 +252,14 @@ Future<void> _continueBootstrap({required bool trackingAuthorized}) async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({
+    super.key,
+    this.homeOverride,
+    this.enableLifecycleSideEffects = true,
+  });
+
+  final Widget? homeOverride;
+  final bool enableLifecycleSideEffects;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -230,25 +269,43 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    if (!widget.enableLifecycleSideEffects) return;
     WidgetsBinding.instance.addObserver(this);
     Config.onHostEnvironmentChanged = refreshBadge;
     TrackingConsentManager.ensureObserver();
     unawaited(TrackingConsentManager.captureEvent('app_opened', properties: {
       'environment': Config.hostEnvironment.name,
     }));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final BuildContext? navigatorContext = navigatorKey.currentContext;
+      if (!mounted || navigatorContext == null || !navigatorContext.mounted) {
+        return;
+      }
+      unawaited(
+        runUpdateChecksWhileMounted(
+          isMounted: () => mounted && navigatorContext.mounted,
+          checkForUpdate: () => checkForUpdate(navigatorContext),
+          checkPlatformServices: () =>
+              _checkGooglePlayServices(navigatorContext),
+        ),
+      );
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    if (Config.onHostEnvironmentChanged == refreshBadge) {
-      Config.onHostEnvironmentChanged = null;
+    if (widget.enableLifecycleSideEffects) {
+      WidgetsBinding.instance.removeObserver(this);
+      if (Config.onHostEnvironmentChanged == refreshBadge) {
+        Config.onHostEnvironmentChanged = null;
+      }
     }
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!widget.enableLifecycleSideEffects) return;
     if (state == AppLifecycleState.resumed) {
       // When the app returns to foreground, reconcile any stale sending flags
       unawaited(DatabaseNew.checkSendingRecordings().then((_) async {
@@ -263,6 +320,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
 
   void refreshBadge() {
+    unawaited(DatabaseNew.refreshUnreadNotificationCount());
+    if (!mounted) return;
     setState(() => debugBadge = Config.hostEnvironment == HostEnvironment.dev);
   }
 
@@ -272,7 +331,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: (debugBadge),
       title: 'Strnadi',
       navigatorKey: navigatorKey,
-      navigatorObservers: TrackingConsentManager.navigatorObservers,
+      navigatorObservers: widget.enableLifecycleSideEffects
+          ? TrackingConsentManager.navigatorObservers
+          : const <NavigatorObserver>[],
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSwatch().copyWith(
@@ -281,7 +342,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         fontFamily: 'Bricolage Grotesque',
       ),
-      home: Authorizator(),
+      home: widget.homeOverride ?? Authorizator(),
       onGenerateRoute: (settings) {
         final name = settings.name ?? '';
         switch (name) {
@@ -332,16 +393,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   @override
-  void initState() {
-    super.initState();
-    // Defer the check until after the first frame is rendered.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await checkForUpdate(context);
-      await _checkGooglePlayServices(context);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: null,
@@ -365,8 +416,7 @@ class PermissionScreen extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: Text(
-          t('Aplikace potřebuje povolení k mikrofonu a notifikacím.\n'
-              'Prosím povolte je v nastavení a spusťte Strnadi znovu.'),
+          t('dialogs.startupPermissionsRequired'),
           textAlign: TextAlign.center,
         ),
       ),

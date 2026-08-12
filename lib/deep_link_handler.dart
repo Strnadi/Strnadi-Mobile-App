@@ -18,6 +18,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'package:strnadi/utils/log_redactor.dart';
 
 Logger logger = Logger();
 
@@ -36,7 +37,7 @@ class DeepLinkHandler {
   }
 
   void _handleUri(Uri uri) {
-    logger.i('Received deep link: $uri');
+    logger.i('Received deep link: ${LogRedactor.redactUri(uri)}');
     switch (uri.path) {
       case '/ucet/obnova-hesla':
         logger.i('Navigating to Reset Password page');
@@ -86,7 +87,7 @@ class DeepLinkHandler {
         _handleUri(initialUri);
       }
     }).catchError((error) {
-      logger.e('Initial deep link error: $error');
+      logger.e('Initial deep link could not be handled.');
     });
 
     _sub = _appLinks.uriLinkStream.listen((Uri? uri) async {
@@ -95,7 +96,7 @@ class DeepLinkHandler {
         _handleUri(uri);
       }
     }, onError: (error) {
-      logger.e('Deep link error: $error');
+      logger.e('Incoming deep link could not be handled.');
     });
   }
 

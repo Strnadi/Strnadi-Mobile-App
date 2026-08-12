@@ -41,9 +41,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/main.dart';
 
 void main() {
-  testWidgets('MyApp renders root MaterialApp', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
+  testWidgets('MyApp renders root MaterialApp without bootstrap side effects',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MyApp(
+        homeOverride: SizedBox(key: Key('isolated-test-home')),
+        enableLifecycleSideEffects: false,
+      ),
+    );
     await tester.pump();
+
     expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.byKey(const Key('isolated-test-home')), findsOneWidget);
   });
 }

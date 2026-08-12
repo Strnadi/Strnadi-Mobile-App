@@ -14,108 +14,108 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
-import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'dart:io';
+
 import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:version/version.dart';
+import 'package:strnadi/localization/localization.dart';
+import 'package:strnadi/update_checker_logic.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+const MethodChannel _androidUpdateChannel =
+    MethodChannel('com.delta.strnadi/app_update');
+
+typedef StoreUriLauncher = Future<void> Function(Uri storeUri);
 
 Future<void> checkForUpdate(BuildContext context) async {
   try {
-    final packageInfo = await PackageInfo.fromPlatform();
-    final bundleId = packageInfo.packageName;
-    Version latestVersion;
-
-    if (Platform.isIOS) {
-      // Use Apple App Store via iTunes Lookup API
-      final url = 'https://itunes.apple.com/lookup?bundleId=$bundleId';
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['resultCount'] > 0) {
-          final latestVersionString = data['results'][0]['version'];
-          latestVersion = Version.parse(latestVersionString);
-        } else {
-          print('No results found from iTunes lookup.');
-          return;
-        }
-      } else {
-        print('Failed to fetch version info from Apple App Store.');
-        return;
-      }
-    } else if (Platform.isAndroid) {
-      // Use Google Play Store by scraping the app page
-      final url = 'https://play.google.com/store/apps/details?id=$bundleId&hl=en';
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final document = response.body;
-        // Extract the current version using RegExp. Note: The regex may need adjustment if Google Play's HTML structure changes.
-        RegExp regExp = RegExp(r'Current Version[\s\S]*?<span[^>]*>([\d\.]+)</span>');
-        final match = regExp.firstMatch(document);
-        if (match != null) {
-          final latestVersionString = match.group(1)!;
-          latestVersion = Version.parse(latestVersionString);
-        } else {
-          print('Could not extract version info from Google Play.');
-          return;
-        }
-      } else {
-        print('Failed to fetch version info from Google Play Store.');
-        return;
-      }
-    } else {
-      // Fallback for unsupported platforms.
-      print('Update check not supported on this platform.');
-      return;
-    }
-
-    // Get current app version
-    final currentVersion = Version.parse(packageInfo.version);
-
-    // Compare versions
-    if (latestVersion > currentVersion) {
-      // Show update dialog
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(t('Update Available')),
-          content: Text(
-            t('A new version ({version}) is available. Please update your app.')
-                .replaceFirst('{version}', latestVersion.toString()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                String redirectUrl;
-                if (Platform.isIOS) {
-                  // Replace 'YOUR_APP_ID' with your actual App Store ID
-                  redirectUrl = 'https://play.google.com/store/apps/details?id=com.delta.strnadi';
-                } else if (Platform.isAndroid) {
-                  redirectUrl = 'https://play.google.com/store/apps/details?id=$bundleId';
-                } else {
-                  redirectUrl = 'https://strnadi.cz';
-                }
-
-                final Uri uri = Uri.parse(redirectUrl);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri);
-                } else {
-                  print('Could not launch $redirectUrl');
-                }
-                Navigator.of(context).pop();
-              },
-              child: Text(t('Update')),
-            ),
-          ],
-        ),
-      );
-    }
+    await runPlatformUpdateCheck(
+      platform: Platform.isIOS
+          ? UpdateTargetPlatform.ios
+          : Platform.isAndroid
+              ? UpdateTargetPlatform.android
+              : UpdateTargetPlatform.unsupported,
+      isMounted: () => context.mounted,
+      loadInstalledApp: () async {
+        final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+        return InstalledAppVersion(
+          bundleId: packageInfo.packageName,
+          version: packageInfo.version,
+          buildNumber: packageInfo.buildNumber,
+        );
+      },
+      lookupAppleRelease: _lookupAppleRelease,
+      lookupAndroidUpdate: () =>
+          _androidUpdateChannel.invokeMethod<Object?>('checkForUpdate'),
+      presentUpdate: (UpdatePrompt prompt) async {
+        if (!context.mounted) return;
+        await showUpdateDialog(context, prompt);
+      },
+    );
   } catch (e) {
-    print('Error checking for update: $e');
+    debugPrint('Error checking for update: $e');
+  }
+}
+
+Future<UpdateRelease?> _lookupAppleRelease(String bundleId) async {
+  final Uri lookupUri = Uri.https(
+    'itunes.apple.com',
+    '/lookup',
+    <String, String>{'bundleId': bundleId},
+  );
+  final response = await http.get(lookupUri);
+  if (response.statusCode != 200) {
+    debugPrint('Failed to fetch version info from Apple App Store.');
+    return null;
+  }
+
+  final UpdateRelease? release = parseITunesLookupRelease(response.body);
+  if (release == null) {
+    debugPrint('No valid release found from iTunes lookup.');
+  }
+  return release;
+}
+
+Future<void> showUpdateDialog(
+  BuildContext context,
+  UpdatePrompt prompt, {
+  StoreUriLauncher? launchStore,
+}) async {
+  final String message = prompt.versionLabel == null
+      ? t('updates.available.messageWithoutVersion')
+      : t('updates.available.message')
+          .replaceFirst('{version}', prompt.versionLabel!);
+
+  await showDialog<void>(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(
+      title: Text(t('updates.available.title')),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            try {
+              await (launchStore ?? _launchStoreUri)(prompt.storeUri);
+            } catch (error) {
+              debugPrint('Could not launch ${prompt.storeUri}: $error');
+            }
+
+            if (!dialogContext.mounted) return;
+            Navigator.of(dialogContext).pop();
+          },
+          child: Text(t('updates.available.action')),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _launchStoreUri(Uri storeUri) async {
+  if (await canLaunchUrl(storeUri)) {
+    await launchUrl(storeUri, mode: LaunchMode.externalApplication);
+  } else {
+    debugPrint('Could not launch $storeUri');
   }
 }

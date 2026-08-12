@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Strnadi potřebují přístup k fotoaparátu, abyste mohli přidávat fotografie ptáků k nahrávkám a žádostem o určení.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Strnadi používají vaši polohu k přesnému určení místa nahrávky, i když nahrávání pokračuje na pozadí.";
+"NSLocationWhenInUseUsageDescription" = "Strnadi používají vaši polohu k přesnému určení místa nahrávky.";
+"NSMicrophoneUsageDescription" = "Strnadi potřebují přístup k mikrofonu pro nahrávání ptačího zpěvu k určení a analýze.";
+"NSPhotoLibraryUsageDescription" = "Strnadi potřebují přístup ke knihovně fotografií, abyste mohli připojit existující fotografie ptáků.";
+"NSUserNotificationUsageDescription" = "Strnadi používají oznámení k informování o průběhu nahrávání a odesílání.";
+"NSUserTrackingUsageDescription" = "S vaším souhlasem Strnadi používají údaje o používání ke zlepšování analytiky a obsahu. Volbu můžete změnit v Nastavení.";

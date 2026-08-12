@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Strnadi needs camera access so you can add bird photos to recordings and identification requests.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Strnadi uses your location to attach an accurate place to a recording, including while recording continues in the background.";
+"NSLocationWhenInUseUsageDescription" = "Strnadi uses your location to attach an accurate place to a recording.";
+"NSMicrophoneUsageDescription" = "Strnadi needs microphone access to record bird songs for identification and analysis.";
+"NSPhotoLibraryUsageDescription" = "Strnadi needs photo library access so you can attach existing bird photos.";
+"NSUserNotificationUsageDescription" = "Strnadi uses notifications to report recording and upload progress.";
+"NSUserTrackingUsageDescription" = "With your permission, Strnadi uses usage data to improve analytics and content. You can change this choice in Settings.";
