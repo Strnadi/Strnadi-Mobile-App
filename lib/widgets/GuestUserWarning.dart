@@ -18,9 +18,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/authorizator.dart';
 import '../localization/localization.dart';
+import '../navigation/recorder_exit_policy.dart';
+
+Widget _buildAuthorizator(BuildContext context) => Authorizator();
 
 class GuestUserRules extends StatelessWidget {
-  const GuestUserRules({Key? key}) : super(key: key);
+  final RecorderExitPolicy? recorderExitPolicy;
+  final WidgetBuilder loginPageBuilder;
+
+  const GuestUserRules({
+    super.key,
+    this.recorderExitPolicy,
+    this.loginPageBuilder = _buildAuthorizator,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,14 +48,25 @@ class GuestUserRules extends StatelessWidget {
         CupertinoDialogAction(
           child: Text(t('widgets.guest_user_rules.login')),
           onPressed: () async {
-            Navigator.of(context).pop();
             SharedPreferences prefs = await SharedPreferences.getInstance();
-            prefs.setBool('popupShown', false);
-            Navigator.pushReplacement(
-              context,
+            if (!context.mounted) return;
+            if (!await permitsRecorderExit(recorderExitPolicy)) return;
+            if (!context.mounted) return;
+
+            try {
+              await prefs.setBool('popupShown', false);
+            } catch (_) {
+              // This preference only controls whether the guest hint repeats;
+              // it must not strand the user after recorder cleanup succeeded.
+            }
+            if (!context.mounted) return;
+
+            final NavigatorState navigator = Navigator.of(context);
+            navigator.pop();
+            navigator.pushReplacement(
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) =>
-                    Authorizator(),
+                    loginPageBuilder(context),
                 settings: const RouteSettings(name: '/'),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,

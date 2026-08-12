@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/dialects_controller.dart';
+import 'package:strnadi/config/config.dart';
 import 'package:strnadi/dialects/dialect_definition.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,7 +27,8 @@ const DialectsController _dialectsController = DialectsController();
 final Logger logger = Logger();
 
 class DialectColorCache {
-  static const _prefsKey = 'dialect_colors_v1';
+  static const String _legacyPrefsKey = 'dialect_colors_v1';
+  static const String _scopedPrefsPrefix = 'dialect_colors_v2';
   static const Map<String, String> _defaults = {
     'BC': '#FDE441',
     'BE': '#52DC4D',
@@ -39,9 +41,39 @@ class DialectColorCache {
     'No Dialect': '#000000',
   };
 
+  static String preferencesKeyForScope({
+    required String environment,
+    required String host,
+  }) {
+    final String normalizedEnvironment =
+        environment.trim().toLowerCase().isEmpty
+            ? 'unknown'
+            : environment.trim().toLowerCase();
+    final String normalizedHost = host.trim().toLowerCase().isEmpty
+        ? 'unknown'
+        : host.trim().toLowerCase();
+    return '$_scopedPrefsPrefix:'
+        '${Uri.encodeComponent(normalizedEnvironment)}:'
+        '${Uri.encodeComponent(normalizedHost)}';
+  }
+
+  static String get _currentPrefsKey {
+    String host;
+    try {
+      host = Config.host;
+    } catch (_) {
+      host = 'unconfigured';
+    }
+    return preferencesKeyForScope(
+      environment: Config.hostEnvironment.name,
+      host: host,
+    );
+  }
+
   static Future<Map<String, String>> _readRaw() async {
+    final String preferencesKey = _currentPrefsKey;
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefsKey);
+    final raw = prefs.getString(preferencesKey);
     if (raw == null) return {};
     try {
       final Map<String, dynamic> parsed = jsonDecode(raw);
@@ -57,14 +89,30 @@ class DialectColorCache {
     }
   }
 
-  static Future<void> _writeRaw(Map<String, String> map) async {
+  static Future<void> _writeRaw(
+    Map<String, String> map, {
+    required String preferencesKey,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final normalized = <String, String>{};
     map.forEach((k, v) {
       final canonical = DialectKeywordTranslator.toEnglish(k) ?? k;
       normalized[canonical] = v;
     });
-    await prefs.setString(_prefsKey, jsonEncode(normalized));
+    await prefs.setString(preferencesKey, jsonEncode(normalized));
+  }
+
+  static Future<void> clearCurrentScope() async {
+    try {
+      final String preferencesKey = _currentPrefsKey;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(preferencesKey);
+      // The legacy key was shared by production and development. Never allow
+      // it to leak colors across environments after upgrading.
+      await prefs.remove(_legacyPrefsKey);
+    } catch (error) {
+      logger.w('[DialectColorCache] failed to clear current scope: $error');
+    }
   }
 
   static Future<List<Color>> getColors(List<String> dialects) async {
@@ -186,8 +234,10 @@ class DynamicIcon extends StatelessWidget {
   /// Accepts either of these response shapes:
   /// 1) Map: { "BC": "#FDE441", ... }
   /// 2) List of objects: [ {"code":"BC","color":"#FDE441"}, ... ]
-  static Future<Map<String, String>> _fetchAllDialectColors() async {
-    final response = await _dialectsController.fetchDialectPalette();
+  static Future<Map<String, String>> _fetchAllDialectColors({
+    required String host,
+  }) async {
+    final response = await _dialectsController.fetchDialectPalette(host: host);
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -272,13 +322,22 @@ class DynamicIcon extends StatelessWidget {
   static Future<void> refreshDialects(
       [List<String> dialects = const []]) async {
     try {
-      final serverMap = await _fetchAllDialectColors();
+      final String environment = Config.hostEnvironment.name;
+      final String host = Config.host;
+      final String preferencesKey = DialectColorCache.preferencesKeyForScope(
+        environment: environment,
+        host: host,
+      );
+      final serverMap = await _fetchAllDialectColors(host: host);
       if (serverMap.isEmpty) {
         logger.w(
             'refreshDialects: server returned empty map; keeping existing cache.');
         return;
       }
-      await DialectColorCache._writeRaw(serverMap);
+      await DialectColorCache._writeRaw(
+        serverMap,
+        preferencesKey: preferencesKey,
+      );
       logger.i('[DialectColorCache] refreshDialects: cached ' +
           serverMap.length.toString() +
           ' entries from server.');
@@ -288,7 +347,10 @@ class DynamicIcon extends StatelessWidget {
   }
 
   /// Convenience wrapper to refresh all dialect colors.
-  static Future<void> refreshAllDialects() async {
+  static Future<void> refreshAllDialects({bool clearExisting = false}) async {
+    if (clearExisting) {
+      await DialectColorCache.clearCurrentScope();
+    }
     await refreshDialects();
   }
 
@@ -341,11 +403,6 @@ class DynamicIcon extends StatelessWidget {
       }
     }
     return result;
-  }
-
-  static String _colorToHex6(Color c) {
-    final rgb = c.value & 0x00FFFFFF; // drop alpha
-    return '#${rgb.toRadixString(16).padLeft(6, '0')}';
   }
 
   @override

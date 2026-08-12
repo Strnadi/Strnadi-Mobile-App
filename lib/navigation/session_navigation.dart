@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/navigation/session_landing_preparation.dart';
 import 'package:strnadi/recording/streamRec.dart';
 
-Future<bool> hasActiveVerifiedSession() async {
-  const secureStorage = FlutterSecureStorage();
-  final String? token = await secureStorage.read(key: 'token');
-  final String? verified = await secureStorage.read(key: 'verified');
-
-  if (token == null || token.isEmpty || verified != 'true') {
-    return false;
-  }
+Future<String?> captureActiveVerifiedSessionId() async {
+  final ActivatedAuthSessionSnapshot? session =
+      await activatedAuthSessions.capture();
+  if (session?.verified != true) return null;
 
   try {
-    final DateTime expirationDate = JwtDecoder.getExpirationDate(token);
-    return expirationDate.isAfter(DateTime.now());
+    final DateTime expirationDate =
+        JwtDecoder.getExpirationDate(session!.accessToken);
+    return expirationDate.isAfter(DateTime.now()) ? session.sessionId : null;
   } catch (_) {
-    return false;
+    return null;
   }
 }
 
+Future<bool> hasActiveVerifiedSession() async {
+  return await captureActiveVerifiedSessionId() != null;
+}
+
 Future<void> navigateToSessionLanding(BuildContext context) async {
-  final bool isLoggedIn = await hasActiveVerifiedSession();
+  final bool isLoggedIn = await prepareSessionLanding(
+    captureActiveVerifiedSessionId: captureActiveVerifiedSessionId,
+    adoptGuestDrafts: DatabaseNew.updateRecordingsMail,
+  );
   if (!context.mounted) return;
 
   if (isLoggedIn) {

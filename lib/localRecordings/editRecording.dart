@@ -19,8 +19,6 @@
 
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
-import 'package:strnadi/localization/localization.dart';
-import 'package:flutter/material.dart';
 import 'package:strnadi/database/databaseNew.dart';
 
 import 'package:strnadi/database/Models/recording.dart';
@@ -38,55 +36,116 @@ class EditRecordingPage extends StatefulWidget {
 class _EditRecordingPageState extends State<EditRecordingPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _noteController;
-  late final TextEditingController _countController;
-  late final TextEditingController _deviceController;
-  double _strnadiCountController = 1.0;
+  late double _strnadiCountController;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.recording.name ?? '');
     _noteController = TextEditingController(text: widget.recording.note ?? '');
-    _countController = TextEditingController(
-        text: widget.recording.estimatedBirdsCount?.toString() ?? '');
-    _deviceController =
-        TextEditingController(text: widget.recording.device ?? '');
+    _strnadiCountController =
+        widget.recording.estimatedBirdsCount.clamp(1, 3).toDouble();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _noteController.dispose();
-    _countController.dispose();
-    _deviceController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    // Update fields from the form
-    widget.recording.name = _nameController.text.trim();
-    widget.recording.note = _noteController.text.trim();
-    widget.recording.estimatedBirdsCount =
-        int.tryParse(_countController.text) ??
-            widget.recording.estimatedBirdsCount;
-    widget.recording.device = _deviceController.text.trim();
+    if (_isSaving) return;
 
-    // Persist the change
-    await DatabaseNew.updateRecording(widget.recording);
-    // If the recording already exists on the backend, patch it there as well
-    if (widget.recording.BEId != null) {
+    final int? recordingId = widget.recording.id;
+    if (recordingId == null || recordingId <= 0) {
+      _showSaveMessage('editRecording.messages.saveFailed');
+      return;
+    }
+
+    final String stagedName = _nameController.text.trim();
+    final String stagedNote = _noteController.text.trim();
+    final int stagedBirdCount = _strnadiCountController.toInt();
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final Recording? latest =
+          await DatabaseNew.getRecordingFromDbByIdNoMail(recordingId);
+      if (latest == null) {
+        throw StateError('The recording no longer exists.');
+      }
+
+      latest
+        ..name = stagedName
+        ..note = stagedNote
+        ..estimatedBirdsCount = stagedBirdCount;
+
+      // Persist staged values before mutating the object shared with the
+      // previous page. An active upload lease makes this update fail closed.
+      await DatabaseNew.updateRecording(latest);
+
+      widget.recording
+        ..name = stagedName
+        ..note = stagedNote
+        ..estimatedBirdsCount = stagedBirdCount;
+
+      // Re-read upload-owned fields. The backend parent may have been created
+      // after this edit page opened.
+      final Recording updated =
+          await DatabaseNew.getRecordingFromDbByIdNoMail(recordingId) ?? latest;
+      if (updated.BEId != null) {
+        await DatabaseNew.updateRecordingBE(updated);
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, updated);
+    } catch (e, stackTrace) {
+      logger.e(
+        'Error saving recording metadata',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+
+      Recording? persisted;
       try {
-        await DatabaseNew.updateRecordingBE(widget.recording);
-      } catch (e, stackTrace) {
-        logger.e('Error updating recording', error: e, stackTrace: stackTrace);
-        // Ignore backend sync errors for now; user changes are saved locally
+        persisted = await DatabaseNew.getRecordingFromDbByIdNoMail(recordingId);
+      } catch (readError, readStackTrace) {
+        logger.e(
+          'Error checking whether recording metadata was saved locally',
+          error: readError,
+          stackTrace: readStackTrace,
+        );
+      }
+      if (!mounted) return;
+      final bool savedLocally = persisted != null &&
+          persisted.name == stagedName &&
+          persisted.note == stagedNote &&
+          persisted.estimatedBirdsCount == stagedBirdCount;
+      _showSaveMessage(
+        savedLocally
+            ? 'editRecording.messages.syncFailed'
+            : 'editRecording.messages.saveFailed',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
+  }
 
-    // Return the updated object to the caller
-    if (mounted) {
-      Navigator.pop(context, widget.recording);
-    }
+  void _showSaveMessage(String key) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(t(key))));
   }
 
   @override
@@ -98,7 +157,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: _save,
+            onPressed: _isSaving ? null : _save,
           ),
         ],
       ),
@@ -109,12 +168,16 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
             children: [
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Název'),
+                decoration: InputDecoration(
+                  labelText: t('editRecording.fields.name'),
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Poznámka'),
+                decoration: InputDecoration(
+                  labelText: t('editRecording.fields.note'),
+                ),
                 maxLines: 3,
               ),
               const SizedBox(height: 10),
@@ -123,7 +186,7 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
               Text(
                 _strnadiCountController.toInt() == 3
                     ? t('postRecordingForm.recordingForm.fields.birdCount.count.threeOrMore')
-                    : "${_strnadiCountController.toInt()} strnad${_strnadiCountController.toInt() == 1 ? "" : "i"}",
+                    : _strnadiCountController.toInt().toString(),
                 style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 5),
@@ -145,8 +208,14 @@ class _EditRecordingPageState extends State<EditRecordingPage> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _save,
-                child: Text(t('editRecording.buttons.saveChanges')),
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(t('editRecording.buttons.saveChanges')),
               ),
             ],
           ),

@@ -14,7 +14,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
-import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/ModelHandler.dart';
 
 import '../localization/localization.dart';
@@ -28,13 +27,6 @@ class DialectBadge extends StatelessWidget {
     required this.dialect,
     this.showDot = false,
   }) : super(key: key);
-
-  String _formatDuration(Duration d) {
-    final ms = (d.inMilliseconds % 1000).toString().padLeft(3, '0');
-    final sec = (d.inSeconds % 60).toString().padLeft(2, '0');
-    final min = d.inMinutes.toString().padLeft(2, '0');
-    return "$min:$sec,$ms";
-  }
 
   @override
   Widget build(BuildContext context) {
