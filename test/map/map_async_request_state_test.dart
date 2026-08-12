@@ -133,10 +133,13 @@ void main() {
     });
 
     test('guards stale recording responses before mutating shared length', () {
-      final int methodStart =
-          source.indexOf('Future<void> getRecordings() async');
-      final int methodEnd =
-          source.indexOf('void _clearRecordingResults()', methodStart);
+      final int methodStart = source.indexOf(
+        'Future<int?> _applyRecordingsPayload({',
+      );
+      final int methodEnd = source.indexOf(
+        'Future<void> _loadSavedMapDataThenRefresh()',
+        methodStart,
+      );
       final String method = source.substring(methodStart, methodEnd);
 
       final int localCalculation = method.indexOf('final int totalLength');
@@ -152,8 +155,28 @@ void main() {
       expect(method, isNot(contains('length +=')));
     });
 
+    test('keeps saved markers until both current payloads are available', () {
+      final int methodStart =
+          source.indexOf('Future<void> getRecordings() async');
+      final int methodEnd =
+          source.indexOf('void _clearRecordingResults()', methodStart);
+      final String method = source.substring(methodStart, methodEnd);
+
+      final int recordingsAwait =
+          method.indexOf('_recordingsController.fetchRecordings(');
+      final int filteredPartsAwait =
+          method.indexOf('_filteredPartsApiLoader.fetch(', recordingsAwait);
+      final int applyCurrentPayload =
+          method.indexOf('_applyRecordingsPayload(', filteredPartsAwait);
+
+      expect(recordingsAwait, greaterThanOrEqualTo(0));
+      expect(filteredPartsAwait, greaterThan(recordingsAwait));
+      expect(applyCurrentPayload, greaterThan(filteredPartsAwait));
+    });
+
     test('guards API results before updating dialect caches and selection', () {
-      final int methodStart = source.indexOf('Future<void> _fetchDialects({');
+      final int methodStart =
+          source.indexOf('Future<_DialectRefreshResult> _fetchDialects({');
       final int methodEnd =
           source.indexOf('List<String> _dialectsForRecordingId', methodStart);
       final String method = source.substring(methodStart, methodEnd);
@@ -200,8 +223,9 @@ void main() {
     });
 
     test('wires fallback visibility into the final map marker policy', () {
-      final int dialectMethodStart =
-          source.indexOf('Future<void> _fetchDialects({');
+      final int dialectMethodStart = source.indexOf(
+        'Future<_DialectRefreshResult> _fetchDialects({',
+      );
       final int dialectMethodEnd = source.indexOf(
         'List<String> _dialectsForRecordingId',
         dialectMethodStart,

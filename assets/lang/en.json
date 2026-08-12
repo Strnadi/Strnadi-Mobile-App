@@ -474,6 +474,12 @@
       "title": "Loading recordings",
       "subtitle": "Markers will appear on the map in a moment."
     },
+    "offline": {
+      "savedData": "Showing the last saved data.",
+      "savedDataAt": "Showing data saved at {time}.",
+      "noData": "Current or saved data could not be loaded.",
+      "retry": "Load current data again"
+    },
     "legend": {
       "title": "Legend",
       "dialects": {
