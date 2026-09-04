@@ -387,7 +387,6 @@ class _ControllerRecordingDownloadApi implements RecordingDownloadApi {
   }) async {
     final Response<List<int>> response =
         await _recordingPartsApi.downloadPartSound(
-      backendRecordingId,
       backendPartId,
       accessToken: session.accessToken,
       host: session.backendHost,

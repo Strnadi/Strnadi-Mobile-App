@@ -309,7 +309,10 @@ void main() {
       expect(upload, greaterThan(registration));
       expect(gate, contains('catch (error, stackTrace)'));
       expect(gate, contains("'health registration'"));
-      expect(callback, contains('_startHealthServer(recordingId)'));
+      expect(
+        callback,
+        contains('_backgroundUploadHealthServer.start(recordingId)'),
+      );
     });
 
     test('notification failure cannot replace the upload task result', () {
@@ -1010,9 +1013,9 @@ void main() {
       expect(download, greaterThan(fetch));
       expect(
         reconciliation,
-        contains(
-            "'/recordings/part/\$backendRecordingId/\$backendPartId/sound'"),
+        contains("'/recordings/part/\$backendPartId/sound'"),
       );
+      expect(reconciliation, isNot(contains('\$backendRecordingId/')));
       expect(
         reconciliation,
         contains("'Authorization': 'Bearer \$accessToken'"),

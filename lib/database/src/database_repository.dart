@@ -1445,13 +1445,17 @@ class DatabaseNew {
             : null;
       },
       schedule: (int id) {
+        final RecordingBackgroundWorkRequest request =
+            buildRecordingBackgroundWorkRequest(
+          recordingId: id,
+          isIOS: Platform.isIOS,
+        );
         return Workmanager().registerOneOffTask(
-          Platform.isIOS
-              ? "com.delta.strnadi.sendRecording"
-              : "sendRecording_$id",
-          Platform.isIOS ? "com.delta.strnadi.sendRecording" : "sendRecording",
-          inputData: <String, int>{"recordingId": id},
-          existingWorkPolicy: Platform.isIOS
+          request.uniqueName,
+          request.taskName,
+          inputData: request.inputData,
+          existingWorkPolicy: request.existingWorkPolicy ==
+                  RecordingBackgroundExistingWorkPolicy.append
               ? ExistingWorkPolicy.append
               : ExistingWorkPolicy.keep,
         );

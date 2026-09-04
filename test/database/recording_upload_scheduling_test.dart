@@ -53,6 +53,73 @@ void main() {
     });
   });
 
+  group('platform background work request', () {
+    test('Android uses one stable keep-policy job per recording', () {
+      final RecordingBackgroundWorkRequest request =
+          buildRecordingBackgroundWorkRequest(
+        recordingId: 42,
+        isIOS: false,
+      );
+
+      expect(request.uniqueName, 'sendRecording_42');
+      expect(request.taskName, recordingBackgroundTaskName);
+      expect(request.inputData, <String, int>{'recordingId': 42});
+      expect(
+        request.existingWorkPolicy,
+        RecordingBackgroundExistingWorkPolicy.keep,
+      );
+      expect(
+        () => request.inputData['recordingId'] = 99,
+        throwsUnsupportedError,
+      );
+    });
+
+    test('iOS uses its registered processing identifier and append policy', () {
+      final RecordingBackgroundWorkRequest request =
+          buildRecordingBackgroundWorkRequest(
+        recordingId: 42,
+        isIOS: true,
+      );
+
+      expect(request.uniqueName, iosRecordingBackgroundTaskIdentifier);
+      expect(request.taskName, iosRecordingBackgroundTaskIdentifier);
+      expect(request.inputData, <String, int>{'recordingId': 42});
+      expect(
+        request.existingWorkPolicy,
+        RecordingBackgroundExistingWorkPolicy.append,
+      );
+    });
+
+    for (final int invalidId in <int>[0, -1]) {
+      test('cannot build platform work for invalid id $invalidId', () {
+        expect(
+          () => buildRecordingBackgroundWorkRequest(
+            recordingId: invalidId,
+            isIOS: false,
+          ),
+          throwsA(isA<RecordingUploadValidationException>()),
+        );
+      });
+    }
+
+    test('only the Android and iOS recording task names are recognized', () {
+      expect(
+          isRecordingBackgroundTaskName(recordingBackgroundTaskName), isTrue);
+      expect(
+        isRecordingBackgroundTaskName(iosRecordingBackgroundTaskIdentifier),
+        isTrue,
+      );
+      for (final String invalid in <String>[
+        '',
+        'sendRecording_42',
+        'SendRecording',
+        'com.delta.strnadi.sendRecording.extra',
+      ]) {
+        expect(isRecordingBackgroundTaskName(invalid), isFalse);
+      }
+    });
+  });
+
   group('review-gated background scheduling (mocked DB and scheduler)', () {
     test('a reviewed capture is scheduled exactly once', () async {
       final _FakeSchedulingBoundary fake = _FakeSchedulingBoundary(

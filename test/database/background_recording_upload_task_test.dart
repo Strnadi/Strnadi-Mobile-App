@@ -187,6 +187,49 @@ void main() {
       expect(harness.healthStops, 1);
       expect(harness.ancillaryFailures, contains('health shutdown'));
     });
+
+    test('an already-owned health server is not stopped by this worker',
+        () async {
+      harness.healthStartedResult = false;
+
+      final bool result = await harness.run();
+
+      expect(result, isTrue);
+      expect(harness.healthStarts, 1);
+      expect(harness.healthStops, 0);
+      expect(harness.uploadCalls, 1);
+      expect(harness.dialectCalls, 1);
+    });
+
+    test('task failure reporting cannot replace retry classification',
+        () async {
+      final UploadException failure = UploadException('mock timeout', 503);
+      harness
+        ..uploadError = failure
+        ..throwTaskFailureReporter = true;
+
+      final bool result = await harness.run();
+
+      expect(result, isFalse);
+      expect(harness.taskFailures, <Object>[failure]);
+      expect(
+        harness.notices.last,
+        BackgroundRecordingUploadNotice.uploadFailed,
+      );
+    });
+
+    test('broken ancillary reporting cannot alter a completed upload',
+        () async {
+      harness
+        ..noticeError = const _Failure('mock notification unavailable')
+        ..throwAncillaryReporter = true;
+
+      final bool result = await harness.run();
+
+      expect(result, isTrue);
+      expect(harness.ancillaryFailures, <String>['notification']);
+      expect(harness.healthStops, 1);
+    });
   });
 }
 
@@ -212,6 +255,9 @@ class _Harness {
   Object? healthStartError;
   Object? healthStopError;
   bool removeOnSecondLoad = false;
+  bool healthStartedResult = true;
+  bool throwTaskFailureReporter = false;
+  bool throwAncillaryReporter = false;
 
   int loadCalls = 0;
   int reconcileCalls = 0;
@@ -222,6 +268,7 @@ class _Harness {
   final List<BackgroundRecordingUploadNotice> notices =
       <BackgroundRecordingUploadNotice>[];
   final List<String> ancillaryFailures = <String>[];
+  final List<Object> taskFailures = <Object>[];
 
   Future<bool> run({Object? rawRecordingId = 42}) {
     return handleBackgroundRecordingUploadTask<_FakeRecording>(
@@ -261,7 +308,7 @@ class _Harness {
       startHealth: (int id) async {
         healthStarts++;
         if (healthStartError != null) throw healthStartError!;
-        return true;
+        return healthStartedResult;
       },
       stopHealth: (int id) async {
         healthStops++;
@@ -274,9 +321,8 @@ class _Harness {
         }
         if (error is RecordingUploadValidationException) return false;
         if (error is UploadException) {
-          final int? status = error.statusCode;
-          return status == null ||
-              status == 401 ||
+          final int status = error.statusCode;
+          return status == 401 ||
               status == 408 ||
               status == 409 ||
               status == 425 ||
@@ -285,12 +331,21 @@ class _Harness {
         }
         return true;
       },
+      onTaskFailure: (Object error, StackTrace stackTrace) {
+        taskFailures.add(error);
+        if (throwTaskFailureReporter) {
+          throw const _Failure('mock task reporter unavailable');
+        }
+      },
       onAncillaryFailure: (
         String operation,
         Object error,
         StackTrace stackTrace,
       ) {
         ancillaryFailures.add(operation);
+        if (throwAncillaryReporter) {
+          throw const _Failure('mock ancillary reporter unavailable');
+        }
       },
     );
   }

@@ -35,6 +35,29 @@ typedef BackgroundRecordingAncillaryFailure = void Function(
   Object error,
   StackTrace stackTrace,
 );
+typedef BackgroundRecordingTaskInitializer = Future<void> Function();
+typedef BackgroundRecordingTaskHandler = Future<bool> Function(
+  Map<String, dynamic>? inputData,
+);
+typedef BackgroundUnknownTaskReporter = void Function(String taskName);
+
+/// Routes a Workmanager callback through testable initialization and task
+/// boundaries. Unknown task names complete successfully so they are not
+/// retried forever by the platform scheduler.
+Future<bool> dispatchBackgroundRecordingTask({
+  required String taskName,
+  required Map<String, dynamic>? inputData,
+  required BackgroundRecordingTaskInitializer initialize,
+  required BackgroundRecordingTaskHandler handleRecordingTask,
+  BackgroundUnknownTaskReporter? onUnknownTask,
+}) async {
+  await initialize();
+  if (!isRecordingBackgroundTaskName(taskName)) {
+    onUnknownTask?.call(taskName);
+    return true;
+  }
+  return handleRecordingTask(inputData);
+}
 
 /// Executes one scheduled recording upload through injected boundaries.
 ///

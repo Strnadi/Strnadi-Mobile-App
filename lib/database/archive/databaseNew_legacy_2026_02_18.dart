@@ -1496,7 +1496,7 @@ class DatabaseNew {
       final Uri url = Uri(
         scheme: 'https',
         host: Config.host,
-        path: '/recordings/part/${recording.BEId}/${part.BEId}/sound',
+        path: '/recordings/part/${part.BEId}/sound',
       );
       try {
         final Response<List<int>> response = await dio.get<List<int>>(
@@ -1515,7 +1515,7 @@ class DatabaseNew {
         );
         if (response.statusCode != 200 || response.data == null) {
           throw FetchException(
-              'Failed to download recording part: /recordings/part/${recording.BEId}/${part.BEId}/sound',
+              'Failed to download recording part: /recordings/part/${part.BEId}/sound',
               response.statusCode ?? 500);
         }
         // Save part to disk
@@ -1543,7 +1543,7 @@ class DatabaseNew {
               error: e, stackTrace: stackTrace);
           Sentry.captureException(e, stackTrace: stackTrace);
           throw FetchException(
-              'Error downloading recording part: /recordings/part/${recording.BEId}/${part.BEId}/sound',
+              'Error downloading recording part: /recordings/part/${part.BEId}/sound',
               500);
         }
       }

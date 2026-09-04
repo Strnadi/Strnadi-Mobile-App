@@ -84,14 +84,13 @@ class RecordingPartsController {
   }
 
   Future<Response<dynamic>> fetchPart(
-    int backendRecordingId,
     int backendPartId, {
     String? accessToken,
     String? host,
   }) {
     return _dio.getUri(
       _uri(
-        '/recordings/part/$backendRecordingId/$backendPartId/sound',
+        '/recordings/part/$backendPartId/sound',
         host: host,
       ),
       options: Options(
@@ -109,7 +108,6 @@ class RecordingPartsController {
   }
 
   Future<Response<List<int>>> downloadPartSound(
-    int backendRecordingId,
     int backendPartId, {
     required String accessToken,
     required String host,
@@ -118,7 +116,7 @@ class RecordingPartsController {
   }) {
     return _dio.get<List<int>>(
       _uri(
-        '/recordings/part/$backendRecordingId/$backendPartId/sound',
+        '/recordings/part/$backendPartId/sound',
         host: host,
       ).toString(),
       options: Options(

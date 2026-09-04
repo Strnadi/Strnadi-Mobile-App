@@ -634,7 +634,6 @@ Future<bool> _handleDeletedPath(RecordingPart recordingPart) async {
   }
 
   final response = await _recordingPartsApi.fetchPart(
-    recordingPart.backendRecordingId!,
     recordingPart.BEId!,
   );
 

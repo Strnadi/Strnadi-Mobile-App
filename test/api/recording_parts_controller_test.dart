@@ -30,7 +30,6 @@ void main() {
     const RecordingPartsController controller = RecordingPartsController();
 
     final Response<dynamic> response = await controller.fetchPart(
-      900,
       101,
       accessToken: 'captured-token',
       host: 'api.example.test',
@@ -41,7 +40,7 @@ void main() {
     final RequestOptions request = adapter.requests.single;
     expect(
       request.uri,
-      Uri.parse('https://api.example.test/recordings/part/900/101/sound'),
+      Uri.parse('https://api.example.test/recordings/part/101/sound'),
     );
     expect(request.headers['Authorization'], 'Bearer captured-token');
     expect(request.followRedirects, isFalse);
@@ -57,7 +56,6 @@ void main() {
     const RecordingPartsController controller = RecordingPartsController();
 
     final Response<List<int>> response = await controller.downloadPartSound(
-      900,
       101,
       accessToken: 'captured-download-token',
       host: 'captured-api.example.test',
@@ -69,7 +67,7 @@ void main() {
     expect(
       request.uri,
       Uri.parse(
-        'https://captured-api.example.test/recordings/part/900/101/sound',
+        'https://captured-api.example.test/recordings/part/101/sound',
       ),
     );
     expect(
@@ -96,7 +94,6 @@ void main() {
     const RecordingPartsController controller = RecordingPartsController();
 
     final Response<List<int>> response = await controller.downloadPartSound(
-      900,
       101,
       accessToken: 'captured-download-token',
       host: 'captured-api.example.test',

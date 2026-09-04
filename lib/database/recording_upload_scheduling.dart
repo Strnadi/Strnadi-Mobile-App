@@ -3,6 +3,26 @@ import 'package:strnadi/database/recording_upload_service.dart';
 typedef RecordingCaptureReviewLoader = Future<bool?> Function(int recordingId);
 typedef RecordingBackgroundScheduler = Future<void> Function(int recordingId);
 
+const String recordingBackgroundTaskName = 'sendRecording';
+const String iosRecordingBackgroundTaskIdentifier =
+    'com.delta.strnadi.sendRecording';
+
+enum RecordingBackgroundExistingWorkPolicy { append, keep }
+
+class RecordingBackgroundWorkRequest {
+  RecordingBackgroundWorkRequest({
+    required this.uniqueName,
+    required this.taskName,
+    required Map<String, int> inputData,
+    required this.existingWorkPolicy,
+  }) : inputData = Map<String, int>.unmodifiable(inputData);
+
+  final String uniqueName;
+  final String taskName;
+  final Map<String, int> inputData;
+  final RecordingBackgroundExistingWorkPolicy existingWorkPolicy;
+}
+
 bool persistedCaptureReviewFlag(Object? value) {
   return value == 1 || value == true;
 }
@@ -19,6 +39,35 @@ int? parseScheduledRecordingId(Object? value) {
     parsed = null;
   }
   return parsed != null && parsed > 0 ? parsed : null;
+}
+
+bool isRecordingBackgroundTaskName(String taskName) {
+  return taskName == recordingBackgroundTaskName ||
+      taskName == iosRecordingBackgroundTaskIdentifier;
+}
+
+RecordingBackgroundWorkRequest buildRecordingBackgroundWorkRequest({
+  required int recordingId,
+  required bool isIOS,
+}) {
+  if (recordingId <= 0) {
+    throw const RecordingUploadValidationException(
+      'Cannot build background work without a valid local recording id.',
+    );
+  }
+
+  return RecordingBackgroundWorkRequest(
+    uniqueName: isIOS
+        ? iosRecordingBackgroundTaskIdentifier
+        : '${recordingBackgroundTaskName}_$recordingId',
+    taskName: isIOS
+        ? iosRecordingBackgroundTaskIdentifier
+        : recordingBackgroundTaskName,
+    inputData: <String, int>{'recordingId': recordingId},
+    existingWorkPolicy: isIOS
+        ? RecordingBackgroundExistingWorkPolicy.append
+        : RecordingBackgroundExistingWorkPolicy.keep,
+  );
 }
 
 /// Resolves durable capture-review state before invoking a platform scheduler.

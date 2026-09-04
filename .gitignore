@@ -79,3 +79,5 @@ delete.sh
 build.env.json
 
 *.p8
+
+coverage/

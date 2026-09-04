@@ -38,6 +38,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/background_recording_upload_task.dart';
+import 'package:strnadi/database/background_upload_health_server.dart';
 import 'package:strnadi/database/recording_upload_service.dart';
 import 'package:strnadi/database/upload_protocol.dart';
 import 'package:strnadi/exceptions.dart';
@@ -54,10 +55,8 @@ final logger = Logger();
 const FilteredRecordingsController _filteredRecordingsController =
     FilteredRecordingsController();
 
-// ---------- Lightweight health-check port server ----------
-String _healthPortName(int recordingId) => '/upload/rec/$recordingId';
-
-final Map<int, ReceivePort> _healthPorts = <int, ReceivePort>{};
+final BackgroundRecordingHealthServer _backgroundUploadHealthServer =
+    BackgroundRecordingHealthServer();
 
 Future<void> _loadBackgroundLocalization() async {
   try {
@@ -96,68 +95,6 @@ Future<void> _loadBackgroundLocalization() async {
   }
 }
 
-/// Start a simple reply server bound to IsolateNameServer under a well-known name.
-/// While active, UI can `lookupPortByName` and send either a `SendPort` directly
-/// or a Map with `{'replyTo': SendPort, 'cmd': 'ping'}` to receive a status reply.
-bool _startHealthServer(int recordingId) {
-  if (_healthPorts.containsKey(recordingId)) {
-    return false;
-  }
-  final ReceivePort candidate = ReceivePort();
-
-  final name = _healthPortName(recordingId);
-  final bool ok =
-      IsolateNameServer.registerPortWithName(candidate.sendPort, name);
-  if (!ok) {
-    candidate.close();
-    logger.i('Upload health server already exists on $name.');
-    return false;
-  }
-  _healthPorts[recordingId] = candidate;
-
-  candidate.listen((message) {
-    try {
-      // Accept either a SendPort directly...
-      if (message is SendPort) {
-        message.send({
-          'status': 'uploading',
-          'recordingId': recordingId,
-        });
-        return;
-      }
-      // ...or a Map with a replyTo port
-      if (message is Map) {
-        final replyTo = message['replyTo'];
-        if (replyTo is SendPort) {
-          replyTo.send({
-            'status': 'uploading',
-            'recordingId': recordingId,
-            'cmd': message['cmd'],
-          });
-          return;
-        }
-      }
-    } catch (_) {
-      // Best-effort: ignore malformed messages
-    }
-  });
-
-  logger.i('Health-check server started on ${_healthPortName(recordingId)}');
-  return true;
-}
-
-/// Stop and unregister the health server.
-void _stopHealthServer(int recordingId) {
-  try {
-    IsolateNameServer.removePortNameMapping(_healthPortName(recordingId));
-  } catch (_) {}
-  try {
-    _healthPorts.remove(recordingId)?.close();
-  } catch (_) {}
-  logger.i('Health-check server stopped on ${_healthPortName(recordingId)}');
-}
-// ----------------------------------------------------------
-
 Future<void> registerPlugins() async {
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
@@ -185,17 +122,18 @@ Future<void> registerPlugins() async {
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     logger.i('Got background task: $task');
-    await registerPlugins();
-    logger.i('Background Flutter binding initialized');
-
-    if (task == 'sendRecording' || task == 'com.delta.strnadi.sendRecording') {
-      final ok = await _handleSendRecordingTask(inputData);
-      return Future.value(ok);
-    }
-
-    // Unknown task: still return success to avoid retries.
-    logger.w('Unknown task name: $task');
-    return Future.value(true);
+    return dispatchBackgroundRecordingTask(
+      taskName: task,
+      inputData: inputData,
+      initialize: () async {
+        await registerPlugins();
+        logger.i('Background Flutter binding initialized');
+      },
+      handleRecordingTask: _handleSendRecordingTask,
+      onUnknownTask: (String unknownTask) {
+        logger.w('Unknown task name: $unknownTask');
+      },
+    );
   });
 }
 
@@ -445,8 +383,19 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
       beRecordingId: backendRecordingId,
     ),
     sendNotice: _sendBackgroundUploadNotice,
-    startHealth: (int recordingId) async => _startHealthServer(recordingId),
-    stopHealth: (int recordingId) async => _stopHealthServer(recordingId),
+    startHealth: (int recordingId) async {
+      final bool started = _backgroundUploadHealthServer.start(recordingId);
+      logger.i(
+        started
+            ? 'Health-check server started for recording $recordingId.'
+            : 'Upload health server already exists for recording $recordingId.',
+      );
+      return started;
+    },
+    stopHealth: (int recordingId) async {
+      _backgroundUploadHealthServer.stop(recordingId);
+      logger.i('Health-check server stopped for recording $recordingId.');
+    },
     isRetryable: isRetryableRecordingUploadFailure,
     onTaskFailure: (Object error, StackTrace stackTrace) {
       logger.e(
