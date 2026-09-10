@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:strnadi/security/secure_storage_recovery.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sentry_logging/sentry_logging.dart';
@@ -24,6 +27,13 @@ class AppBootstrap {
   static bool _configLoaded = false;
 
   static Future<void> initializeBeforeConsent() async {
+    if (Platform.isAndroid) {
+      const storage = FlutterSecureStorage();
+      await recoverUndecryptableCredentials(
+        read: (key) => storage.read(key: key),
+        delete: (key) => storage.delete(key: key),
+      );
+    }
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp();
     }

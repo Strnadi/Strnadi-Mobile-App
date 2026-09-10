@@ -27,6 +27,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/security/markdown_download_security.dart';
+import 'package:strnadi/security/markdown_link_opener.dart';
 import 'package:strnadi/utils/markdown_html_normalizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -250,21 +251,14 @@ class _MDRenderState extends State<MDRender> {
 
     final Uri url = candidates.first;
 
-    if (_shouldDownloadBeforeOpening(url)) {
-      final String? localPath = await _downloadMarkdownFilePath(candidates);
-      if (localPath != null) {
-        final bool openedLocal = await launchUrl(
-          Uri.file(localPath),
-          mode: LaunchMode.externalApplication,
-        );
-        if (openedLocal) {
-          return;
-        }
-      }
-    }
-
-    final bool opened =
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+    final bool opened = await openMarkdownLink(
+      url: url,
+      download: _shouldDownloadBeforeOpening(url)
+          ? () => _downloadMarkdownFilePath(candidates)
+          : null,
+      openLocal: openLocalMarkdownAttachment,
+      openRemote: (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
+    );
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open link: $href')),
