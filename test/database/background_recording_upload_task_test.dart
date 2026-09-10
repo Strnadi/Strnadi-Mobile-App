@@ -11,6 +11,28 @@ void main() {
       harness = _Harness();
     });
 
+    test(
+        'deferred upload retains the retry without a failure or success notice',
+        () async {
+      harness.uploadError =
+          RecordingUploadDeferredException('Network policy disallows upload');
+      final recording = harness.recording;
+      final result = await harness.run();
+      expect(result, isFalse);
+      expect(harness.recording, same(recording));
+      expect(harness.recording!.uploaded, isFalse);
+      expect(harness.dialectCalls, 0);
+      expect(harness.taskFailures, isEmpty);
+      expect(harness.notices, isEmpty);
+      expect(harness.healthStops, 1);
+
+      harness.uploadError = null;
+      expect(await harness.run(), isTrue);
+      expect(harness.recording!.uploaded, isTrue);
+      expect(
+          harness.notices, [BackgroundRecordingUploadNotice.uploadSucceeded]);
+    });
+
     test('invalid input is permanent and never reads the database', () async {
       final bool result = await harness.run(rawRecordingId: 'not-an-id');
 

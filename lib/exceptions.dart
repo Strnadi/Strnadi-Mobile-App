@@ -17,7 +17,8 @@
 /// Thrown when a recording has unsent parts that need to be resent.
 class UnsentPartsException implements Exception {
   final String message;
-  UnsentPartsException([this.message = 'Recording has unsent parts to resend.']);
+  UnsentPartsException(
+      [this.message = 'Recording has unsent parts to resend.']);
   @override
   String toString() => 'UnsentPartsException: $message';
 }
@@ -44,6 +45,12 @@ class UploadException implements Exception {
   String toString() {
     return 'UploadException: $message with code $statusCode';
   }
+}
+
+/// The recording remains queued until policy, review or authentication allows
+/// uploading. Keep the retryable status for legacy upload callers.
+class RecordingUploadDeferredException extends UploadException {
+  RecordingUploadDeferredException(String reason) : super(reason, 503);
 }
 
 class UnreadyException implements Exception {
@@ -73,7 +80,8 @@ class LocationException implements Exception {
   final bool enabled;
   final bool? falledBack;
 
-  LocationException(this.message, this.permission, this.enabled, this.falledBack);
+  LocationException(
+      this.message, this.permission, this.enabled, this.falledBack);
   @override
   toString() {
     return 'LocationException: $message, permission: $permission, enabled: $enabled, falledBack: $falledBack';

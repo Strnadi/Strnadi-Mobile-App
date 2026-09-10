@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/databaseNew.dart';
+import 'package:strnadi/database/recording_upload_service.dart';
 import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
 import 'package:strnadi/localization/localization.dart';
 
@@ -14,6 +15,9 @@ class IncompleteUploadPrompt {
     BuildContext context, {
     int? recordingId,
     bool oncePerSession = true,
+    Future<List<IncompleteRecordingUpload>> Function(int? recordingId)?
+        findIncompleteUploads,
+    void Function(Object error, StackTrace stackTrace)? reportFailure,
   }) async {
     if (_showing) return;
 
@@ -22,7 +26,8 @@ class IncompleteUploadPrompt {
     _showing = true;
     try {
       final List<IncompleteRecordingUpload> issues =
-          await DatabaseNew.findIncompleteUploads(recordingId: recordingId);
+          await (findIncompleteUploads?.call(recordingId) ??
+              DatabaseNew.findIncompleteUploads(recordingId: recordingId));
       if (!context.mounted || issues.isEmpty) return;
 
       final List<IncompleteRecordingUpload> visibleIssues = oncePerSession
@@ -68,10 +73,18 @@ class IncompleteUploadPrompt {
       if (shouldSend == true && context.mounted) {
         await _sendMissingAudio(context, visibleIssues);
       }
+    } on RecordingUploadSessionChangedException {
+      // The lookup belongs to the previous account/environment. Abandon it;
+      // a later check can inspect the current session without touching its data.
+      return;
     } catch (error, stackTrace) {
       // This check runs from post-frame callbacks as well as explicit actions.
       // A DB inspection failure must not become an unhandled framework error.
-      Sentry.captureException(error, stackTrace: stackTrace);
+      if (reportFailure != null) {
+        reportFailure(error, stackTrace);
+      } else {
+        Sentry.captureException(error, stackTrace: stackTrace);
+      }
     } finally {
       _showing = false;
     }

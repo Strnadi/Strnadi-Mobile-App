@@ -1,4 +1,5 @@
 import 'package:strnadi/database/recording_upload_scheduling.dart';
+import 'package:strnadi/exceptions.dart';
 
 enum BackgroundRecordingUploadNotice {
   missingId,
@@ -154,6 +155,11 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
     );
     return true;
   } catch (error, stackTrace) {
+    if (error is RecordingUploadDeferredException) {
+      // No upload was attempted. Keep the scheduled retry and local data,
+      // without reporting a failed upload or a misleading success notification.
+      return false;
+    }
     try {
       onTaskFailure?.call(error, stackTrace);
     } catch (_) {

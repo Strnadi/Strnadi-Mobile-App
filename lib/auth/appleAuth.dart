@@ -17,6 +17,7 @@
 
 import 'dart:io' show Platform;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:strnadi/auth/apple_sign_in_cancellation.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import '../config/config.dart';
 import 'dart:convert';
@@ -59,16 +60,19 @@ class AppleAuth {
       throw UnsupportedError('Apple Sign‑In is not supported on this platform');
     }
 
-    final credential = await SignInWithApple.getAppleIDCredential(
-      scopes: const [
-        AppleIDAuthorizationScopes.fullName,
-        AppleIDAuthorizationScopes.email,
-      ],
-      webAuthenticationOptions: WebAuthenticationOptions(
-        clientId: 'web.delta.strnadi',
-        redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
+    final credential = await requestAppleSignIn(
+      () => SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.fullName,
+          AppleIDAuthorizationScopes.email,
+        ],
+        webAuthenticationOptions: WebAuthenticationOptions(
+          clientId: 'web.delta.strnadi',
+          redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
+        ),
       ),
     );
+    if (credential == null) return null;
 
     return AppleAuthResult(
       userIdentifier: credential.userIdentifier ?? '',
