@@ -683,7 +683,7 @@ class _FakeDraftPersistence implements RecordingDraftPersistence {
   int updateCalls = 0;
   int deleteCalls = 0;
   List<Dialect>? insertedDialects;
-  ({int? userId, String? mail})? ownerBeforeInsert;
+  ({Object? userId, String? mail})? ownerBeforeInsert;
   Recording? updatedRecording;
   List<Dialect>? updatedDialects;
   final List<int> deletedIds = <int>[];

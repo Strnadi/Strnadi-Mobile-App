@@ -1,3 +1,4 @@
+import 'package:strnadi/PostRecordingForm/queue_recording_upload.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -147,8 +148,9 @@ class _RecordingFormState extends State<RecordingForm> {
         isPlaying = playing;
       });
     });
-    _audioStateSubscription =
-        _audioPlayer.playerStateStream.listen((playerState) {
+    _audioStateSubscription = _audioPlayer.playerStateStream.listen((
+      playerState,
+    ) {
       if (!mounted) return;
       if (playerState.processingState == ProcessingState.completed) {
         _audioPlayer.seek(Duration.zero);
@@ -158,7 +160,8 @@ class _RecordingFormState extends State<RecordingForm> {
     _audioPlayer.setFilePath(widget.filepath);
 
     final RecordingDraftHandoff? persistedDraft = widget.persistedDraft;
-    recording = persistedDraft?.recording ??
+    recording =
+        persistedDraft?.recording ??
         Recording(
           createdAt: widget.recordingParts.isNotEmpty
               ? widget.recordingParts.first.startTime ?? widget.startTime
@@ -170,7 +173,7 @@ class _RecordingFormState extends State<RecordingForm> {
           note: _commentController.text,
           path: widget.filepath,
           partCount: widget.recordingParts.length,
-          env: Config.hostEnvironment.name.toString(),
+          env: Config.dataEnvironment.toString(),
           totalSeconds: 0,
         );
     _recordingId = persistedDraft?.recording.id;
@@ -178,8 +181,9 @@ class _RecordingFormState extends State<RecordingForm> {
     // The durable insert already captured and validated the owner snapshot.
     // Loading it again from independently changing secure-storage keys could
     // accidentally rebind the draft while the form is open.
-    _recordingOwnerReady =
-        persistedDraft == null ? _loadRecordingOwner() : Future<void>.value();
+    _recordingOwnerReady = persistedDraft == null
+        ? _loadRecordingOwner()
+        : Future<void>.value();
 
     _deviceModelFuture = getDeviceModel();
     _deviceModelFuture.then((model) {
@@ -192,7 +196,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
     // Log how many parts we received from streamRec.
     logger.i(
-        "RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.");
+      "RecordingForm: Received ${widget.recordingParts.length} recording parts from streamRec.",
+    );
 
     if (persistedDraft != null) {
       recordingParts.addAll(persistedDraft.recordingParts);
@@ -216,17 +221,20 @@ class _RecordingFormState extends State<RecordingForm> {
       }
 
       // Assign the duration (in seconds) to each RecordingPart.
-      for (int i = 0;
-          i < recordingParts.length && i < widget.recordingPartsTimeList.length;
-          i++) {
+      for (
+        int i = 0;
+        i < recordingParts.length && i < widget.recordingPartsTimeList.length;
+        i++
+      ) {
         recordingParts[i].length = widget.recordingPartsTimeList[i];
       }
     }
 
     _route.addAll(widget.route);
 
-    final RecordingPart? firstRecordingPart =
-        firstRecordingPartOrNull(recordingParts);
+    final RecordingPart? firstRecordingPart = firstRecordingPartOrNull(
+      recordingParts,
+    );
     if (firstRecordingPart != null) {
       reverseGeocode(
         firstRecordingPart.gpsLatitudeStart,
@@ -236,13 +244,11 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   Future<void> _loadRecordingOwner() async {
-    final ActivatedAuthSessionSnapshot? session =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? session = await activatedAuthSessions
+        .capture();
     if (session?.verified != true) {
       if (mounted) {
-        _showMessage(
-          t('postRecordingForm.recordingForm.dialogs.error.login'),
-        );
+        _showMessage(t('postRecordingForm.recordingForm.dialogs.error.login'));
       }
       return;
     }
@@ -427,26 +433,28 @@ class _RecordingFormState extends State<RecordingForm> {
   }
 
   List<Dialect> _buildDialects() {
-    return dialectSegments.map((DialectModel dialect) {
-      final Duration startOffset = Duration(
-        microseconds:
-            (dialect.startTime * Duration.microsecondsPerSecond).round(),
-      );
-      final Duration endOffset = Duration(
-        microseconds:
-            (dialect.endTime * Duration.microsecondsPerSecond).round(),
-      );
-      return Dialect(
-        id: null,
-        BEID: null,
-        recordingId: null,
-        recordingBEID: null,
-        userGuessDialect: dialect.type,
-        adminDialect: null,
-        startDate: recording.createdAt.add(startOffset),
-        endDate: recording.createdAt.add(endOffset),
-      );
-    }).toList(growable: false);
+    return dialectSegments
+        .map((DialectModel dialect) {
+          final Duration startOffset = Duration(
+            microseconds: (dialect.startTime * Duration.microsecondsPerSecond)
+                .round(),
+          );
+          final Duration endOffset = Duration(
+            microseconds: (dialect.endTime * Duration.microsecondsPerSecond)
+                .round(),
+          );
+          return Dialect(
+            id: null,
+            BEID: null,
+            recordingId: null,
+            recordingBEID: null,
+            userGuessDialect: dialect.type,
+            adminDialect: null,
+            startDate: recording.createdAt.add(startOffset),
+            endDate: recording.createdAt.add(endOffset),
+          );
+        })
+        .toList(growable: false);
   }
 
   void _showDialectSelectionDialog() {
@@ -507,8 +515,10 @@ class _RecordingFormState extends State<RecordingForm> {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: dialect.color,
                   borderRadius: BorderRadius.circular(4),
@@ -532,8 +542,11 @@ class _RecordingFormState extends State<RecordingForm> {
                     dialectSegments.remove(dialect);
                   });
                 },
-                child: Icon(Icons.delete_outline,
-                    color: Colors.red.shade300, size: 20),
+                child: Icon(
+                  Icons.delete_outline,
+                  color: Colors.red.shade300,
+                  size: 20,
+                ),
               ),
             ],
           ),
@@ -551,7 +564,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse(
-        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+      "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}",
+    );
 
     logger.i('Reverse geocoding the captured recording location.');
     try {
@@ -574,7 +588,8 @@ class _RecordingFormState extends State<RecordingForm> {
         }
       } else {
         logger.e(
-            "Reverse geocode failed with status code ${response.statusCode}");
+          "Reverse geocode failed with status code ${response.statusCode}",
+        );
       }
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', stackTrace: stackTrace, error: e);
@@ -615,7 +630,8 @@ class _RecordingFormState extends State<RecordingForm> {
 
   Future<void> upload() async {
     logger.i(
-        "Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}");
+      "Uploading recording. Estimated birds count: ${_strnadiCountController.toInt()}",
+    );
     recording.note = _buildRecordingNote();
     recording.name = _recordingNameController.text.isEmpty
         ? null
@@ -688,26 +704,6 @@ class _RecordingFormState extends State<RecordingForm> {
       return;
     }
 
-    // Check connectivity and user preference before upload
-    if (!await Config.hasBasicInternet) {
-      if (!mounted) return;
-      logger.w("No internet connection, saved offline");
-      await _showMessage(t(
-          "postRecordingForm.recordingForm.dialogs.error.noInternet.message"));
-      if (!mounted) return;
-      _replaceWithRecorder();
-      return;
-    }
-    if (!await Config.canUpload) {
-      if (!mounted) return;
-      logger.w("Upload only allowed on Wi-Fi, saved offline");
-      await _showMessage(
-          t("postRecordingForm.recordingForm.dialogs.error.wifiOnly.message"));
-      if (!mounted) return;
-      _replaceWithRecorder();
-      return;
-    }
-
     final ActivatedAuthSessionSnapshot? uploadSession =
         await activatedAuthSessions.capture();
     if (uploadSession?.verified != true) {
@@ -746,8 +742,13 @@ class _RecordingFormState extends State<RecordingForm> {
       );
       return;
     }
+    late final QueuedRecordingUploadStatus queueStatus;
     try {
-      await DatabaseNew.sendRecordingBackground(_recordingId!);
+      queueStatus = await queueRecordingUpload(
+        schedule: () => DatabaseNew.sendRecordingBackground(_recordingId!),
+        hasInternet: () => Config.hasBasicInternet,
+        canUpload: () => Config.canUpload,
+      );
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -760,6 +761,16 @@ class _RecordingFormState extends State<RecordingForm> {
     }
     logger.i("Recording upload scheduled");
     if (!mounted) return;
+    if (queueStatus != QueuedRecordingUploadStatus.ready) {
+      await _showMessage(
+        t(
+          queueStatus == QueuedRecordingUploadStatus.offline
+              ? 'postRecordingForm.recordingForm.dialogs.error.noInternet.message'
+              : 'postRecordingForm.recordingForm.dialogs.error.wifiOnly.message',
+        ),
+      );
+      if (!mounted) return;
+    }
     _replaceWithRecorder();
   }
 
@@ -781,8 +792,9 @@ class _RecordingFormState extends State<RecordingForm> {
     final Color secondaryRed = const Color(0xFFFFEDED);
     final Color yellowishBlack = const Color(0xFF2D2B18);
     final Color yellow = const Color(0xFFFFD641);
-    final RecordingPart? firstRecordingPart =
-        firstRecordingPartOrNull(recordingParts);
+    final RecordingPart? firstRecordingPart = firstRecordingPartOrNull(
+      recordingParts,
+    );
 
     return PopScope(
       canPop: false,
@@ -807,22 +819,34 @@ class _RecordingFormState extends State<RecordingForm> {
                               context: context,
                               builder: (BuildContext context) {
                                 return AlertDialog(
-                                  title: Text(t(
-                                      'postRecordingForm.addDialect.dialogs.confirmation.title')),
-                                  content: Text(t(
-                                      'postRecordingForm.recordingForm.dialogs.confirmation.message')),
+                                  title: Text(
+                                    t(
+                                      'postRecordingForm.addDialect.dialogs.confirmation.title',
+                                    ),
+                                  ),
+                                  content: Text(
+                                    t(
+                                      'postRecordingForm.recordingForm.dialogs.confirmation.message',
+                                    ),
+                                  ),
                                   actions: [
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.of(context).pop(false),
-                                      child: Text(t(
-                                          'postRecordingForm.addDialect.dialogs.confirmation.no')),
+                                      child: Text(
+                                        t(
+                                          'postRecordingForm.addDialect.dialogs.confirmation.no',
+                                        ),
+                                      ),
                                     ),
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.of(context).pop(true),
-                                      child: Text(t(
-                                          'postRecordingForm.addDialect.dialogs.confirmation.yes')),
+                                      child: Text(
+                                        t(
+                                          'postRecordingForm.addDialect.dialogs.confirmation.yes',
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 );
@@ -844,16 +868,22 @@ class _RecordingFormState extends State<RecordingForm> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
-                    child:
-                        Text(t('postRecordingForm.recordingForm.buttons.save')),
+                    child: Text(
+                      t('postRecordingForm.recordingForm.buttons.save'),
+                    ),
                   ),
                 ),
               ],
               leading: IconButton(
-                icon: Image.asset('assets/icons/backButton.png',
-                    width: 30, height: 30),
+                icon: Image.asset(
+                  'assets/icons/backButton.png',
+                  width: 30,
+                  height: 30,
+                ),
                 onPressed: !_isLoading ? _discardAndReturnToRecorder : null,
               ),
             ),
@@ -865,27 +895,33 @@ class _RecordingFormState extends State<RecordingForm> {
                     Text(
                       _formatDuration(totalDuration),
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
                           icon: const Icon(Icons.replay_10, size: 32),
-                          onPressed:
-                              !_isLoading ? () => seekRelative(-10) : null,
+                          onPressed: !_isLoading
+                              ? () => seekRelative(-10)
+                              : null,
                         ),
                         IconButton(
-                          icon: Icon(isPlaying
-                              ? Icons.pause_circle_filled
-                              : Icons.play_circle_filled),
+                          icon: Icon(
+                            isPlaying
+                                ? Icons.pause_circle_filled
+                                : Icons.play_circle_filled,
+                          ),
                           iconSize: 72,
                           onPressed: !_isLoading ? togglePlay : null,
                         ),
                         IconButton(
                           icon: const Icon(Icons.forward_10, size: 32),
-                          onPressed:
-                              !_isLoading ? () => seekRelative(10) : null,
+                          onPressed: !_isLoading
+                              ? () => seekRelative(10)
+                              : null,
                         ),
                       ],
                     ),
@@ -895,18 +931,25 @@ class _RecordingFormState extends State<RecordingForm> {
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.add),
-                        label: Text(t(
-                            'postRecordingForm.recordingForm.buttons.addDialect')),
+                        label: Text(
+                          t(
+                            'postRecordingForm.recordingForm.buttons.addDialect',
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFF7C0),
                           foregroundColor: Colors.black,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20)),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
-                        onPressed:
-                            !_isLoading ? _showDialectSelectionDialog : null,
+                        onPressed: !_isLoading
+                            ? _showDialectSelectionDialog
+                            : null,
                       ),
                     ),
 
@@ -932,9 +975,14 @@ class _RecordingFormState extends State<RecordingForm> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Recording name
-                            Text(t('postRecordingForm.recordingForm.fields.recordingName.name'),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              t(
+                                'postRecordingForm.recordingForm.fields.recordingName.name',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 5),
                             Container(
                               decoration: BoxDecoration(
@@ -947,17 +995,21 @@ class _RecordingFormState extends State<RecordingForm> {
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 15, vertical: 12),
+                                    horizontal: 15,
+                                    vertical: 12,
+                                  ),
                                 ),
                                 keyboardType: TextInputType.text,
                                 maxLength: 49,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
                                     return t(
-                                        'postRecordingForm.recordingForm.fields.recordingName.error.empty');
+                                      'postRecordingForm.recordingForm.fields.recordingName.error.empty',
+                                    );
                                   } else if (value.length > 49) {
                                     return t(
-                                        'postRecordingForm.recordingForm.fields.recordingName.error.tooLong');
+                                      'postRecordingForm.recordingForm.fields.recordingName.error.tooLong',
+                                    );
                                   }
                                   return null;
                                 },
@@ -967,17 +1019,22 @@ class _RecordingFormState extends State<RecordingForm> {
                             const SizedBox(height: 20),
 
                             // Bird count
-                            Text(t('postRecordingForm.recordingForm.fields.birdCount.name'),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              t(
+                                'postRecordingForm.recordingForm.fields.birdCount.name',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 5),
                             Text(
                               t(
                                 _strnadiCountController.toInt() == 1
                                     ? 'postRecordingForm.recordingForm.slider.oneBird'
                                     : _strnadiCountController.toInt() == 2
-                                        ? 'postRecordingForm.recordingForm.slider.twoBirds'
-                                        : 'postRecordingForm.recordingForm.slider.threeOrMoreBirds',
+                                    ? 'postRecordingForm.recordingForm.slider.twoBirds'
+                                    : 'postRecordingForm.recordingForm.slider.threeOrMoreBirds',
                               ),
                               style: const TextStyle(fontSize: 14),
                             ),
@@ -995,16 +1052,22 @@ class _RecordingFormState extends State<RecordingForm> {
                                 max: 3,
                                 divisions: 2,
                                 onChanged: (value) => setState(
-                                    () => _strnadiCountController = value),
+                                  () => _strnadiCountController = value,
+                                ),
                               ),
                             ),
 
                             const SizedBox(height: 20),
 
                             // Comment
-                            Text(t('postRecordingForm.recordingForm.fields.comment.name'),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              t(
+                                'postRecordingForm.recordingForm.fields.comment.name',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 5),
                             Container(
                               decoration: BoxDecoration(
@@ -1017,13 +1080,17 @@ class _RecordingFormState extends State<RecordingForm> {
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 15, vertical: 12),
+                                    horizontal: 15,
+                                    vertical: 12,
+                                  ),
                                 ),
                                 keyboardType: TextInputType.multiline,
                                 maxLines: null,
-                                validator: (value) => (value == null ||
-                                        value.isEmpty)
-                                    ? t('postRecordingForm.recordingForm.fields.comment.error.empty')
+                                validator: (value) =>
+                                    (value == null || value.isEmpty)
+                                    ? t(
+                                        'postRecordingForm.recordingForm.fields.comment.error.empty',
+                                      )
                                     : null,
                               ),
                             ),
@@ -1031,9 +1098,12 @@ class _RecordingFormState extends State<RecordingForm> {
                             const SizedBox(height: 20),
 
                             // Map label
-                            Text(t('recListItem.placeTitle'),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              t('recListItem.placeTitle'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             Text(placeTitle),
                             if (firstRecordingPart != null)
                               Text(
@@ -1042,12 +1112,16 @@ class _RecordingFormState extends State<RecordingForm> {
                               )
                             else
                               Text(
-                                t('postRecordingForm.recordingForm.dialogs.error.invalidParts'),
+                                t(
+                                  'postRecordingForm.recordingForm.dialogs.error.invalidParts',
+                                ),
                               ),
                             const SizedBox(height: 5),
                             Padding(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 15, vertical: 12),
+                                horizontal: 15,
+                                vertical: 12,
+                              ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(15),
                                 child: SizedBox(
@@ -1058,17 +1132,21 @@ class _RecordingFormState extends State<RecordingForm> {
                                       if (snapshot.connectionState ==
                                           ConnectionState.waiting) {
                                         return const Center(
-                                            child: CircularProgressIndicator());
+                                          child: CircularProgressIndicator(),
+                                        );
                                       } else if (!snapshot.hasData ||
                                           snapshot.data == false) {
                                         return Container(
                                           color: Colors.grey.shade300,
                                           alignment: Alignment.center,
                                           child: Text(
-                                            t('postRecordingForm.recordingForm.placeholders.noInternet'),
+                                            t(
+                                              'postRecordingForm.recordingForm.placeholders.noInternet',
+                                            ),
                                             style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black54),
+                                              fontSize: 14,
+                                              color: Colors.black54,
+                                            ),
                                           ),
                                         );
                                       } else if (_computedCenter.latitude !=
@@ -1080,8 +1158,8 @@ class _RecordingFormState extends State<RecordingForm> {
                                             initialZoom: _computedZoom,
                                             interactionOptions:
                                                 InteractionOptions(
-                                                    flags:
-                                                        InteractiveFlag.none),
+                                                  flags: InteractiveFlag.none,
+                                                ),
                                           ),
                                           mapController: _mapController,
                                           children: [
@@ -1095,22 +1173,26 @@ class _RecordingFormState extends State<RecordingForm> {
                                               PolylineLayer(
                                                 polylines: [
                                                   Polyline(
-                                                      points: List.from(_route),
-                                                      strokeWidth: 4.0,
-                                                      color: Colors.blue),
+                                                    points: List.from(_route),
+                                                    strokeWidth: 4.0,
+                                                    color: Colors.blue,
+                                                  ),
                                                 ],
                                               ),
                                             MarkerLayer(
-                                              markers:
-                                                  recordingParts.map((part) {
+                                              markers: recordingParts.map((
+                                                part,
+                                              ) {
                                                 return Marker(
                                                   point: LatLng(
                                                     part.gpsLatitudeStart,
                                                     part.gpsLongitudeStart,
                                                   ),
-                                                  child: const Icon(Icons.place,
-                                                      color: Colors.red,
-                                                      size: 30),
+                                                  child: const Icon(
+                                                    Icons.place,
+                                                    color: Colors.red,
+                                                    size: 30,
+                                                  ),
                                                 );
                                               }).toList(),
                                             ),
@@ -1121,11 +1203,14 @@ class _RecordingFormState extends State<RecordingForm> {
                                           color: Colors.grey.shade300,
                                           alignment: Alignment.center,
                                           child: Text(
-                                            t('postRecordingForm.recordingForm.placeholders.noGpsPoints'),
+                                            t(
+                                              'postRecordingForm.recordingForm.placeholders.noGpsPoints',
+                                            ),
                                             style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black54,
-                                                fontWeight: FontWeight.bold),
+                                              fontSize: 14,
+                                              color: Colors.black54,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         );
                                       }
@@ -1149,13 +1234,17 @@ class _RecordingFormState extends State<RecordingForm> {
                                     backgroundColor: secondaryRed,
                                     foregroundColor: primaryRed,
                                     shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10)),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
+                                      vertical: 12,
+                                    ),
                                   ),
-                                  child: Text(t(
-                                      'postRecordingForm.recordingForm.buttons.discard')),
+                                  child: Text(
+                                    t(
+                                      'postRecordingForm.recordingForm.buttons.discard',
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
