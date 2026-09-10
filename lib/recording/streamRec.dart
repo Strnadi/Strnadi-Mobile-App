@@ -31,6 +31,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/recording/recording_location_subscription.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/PostRecordingForm/recording_draft_handoff.dart';
 import 'package:strnadi/config/config.dart';
@@ -321,6 +322,12 @@ class _LiveRecState extends State<LiveRec> {
     try {
       await _foregroundServiceEntryCompleter.future;
       if (!mounted) return;
+      // Revoked GPS/microphone permission must never prevent stopping an
+      // existing segment. Permissions are needed only to start or resume.
+      if (_recordState == RecordState.record) {
+        await _pause();
+        return;
+      }
       if (!_hasMicPermission) {
         // Request microphone permission
         var status = await Permission.microphone.request();
@@ -345,9 +352,7 @@ class _LiveRecState extends State<LiveRec> {
         _showMessage(context, t('streamRec.errors.locationPermission'));
         return;
       }
-      if (_recordState == RecordState.record) {
-        await _pause();
-      } else if (_recordState == RecordState.pause) {
+      if (_recordState == RecordState.pause) {
         await _resume();
       } else {
         await _start();
@@ -915,7 +920,7 @@ class _LiveRecState extends State<LiveRec> {
           startTime: overallStartTime!,
           recordingParts: recordingPartsList,
           recordingPartDurations: recordingPartsTimeList,
-          environment: Config.hostEnvironment.name,
+          environment: Config.dataEnvironment,
         );
       } catch (error, stackTrace) {
         if (error is RecordingDraftPersistenceException &&
@@ -1462,18 +1467,32 @@ class _LiveRecState extends State<LiveRec> {
     }
     setState(() => _rememberSegmentStartLocation(startLocation));
 
-    _locationSub = _locService.positionStream.listen((position) {
-      if (!mounted) return;
-      final now = DateTime.now();
-      if (_lastRouteUpdateTime == null ||
-          now.difference(_lastRouteUpdateTime!) >= Duration(seconds: 5)) {
-        setState(() {
-          currentPosition = LatLng(position.latitude, position.longitude);
-          _liveRoute.add(LatLng(position.latitude, position.longitude));
-          _lastRouteUpdateTime = now;
-        });
-      }
-    });
+    await _locationSub?.cancel();
+    if (!mounted) return;
+    bool locationFailureShown = false;
+    _locationSub = subscribeToRecordingLocation(
+      positions: _locService.positionStream,
+      onPosition: (position) {
+        if (!mounted) return;
+        locationFailureShown = false;
+        final now = DateTime.now();
+        if (_lastRouteUpdateTime == null ||
+            now.difference(_lastRouteUpdateTime!) >= Duration(seconds: 5)) {
+          setState(() {
+            currentPosition = LatLng(position.latitude, position.longitude);
+            _liveRoute.add(LatLng(position.latitude, position.longitude));
+            _lastRouteUpdateTime = now;
+          });
+        }
+      },
+      onFailure: (error, stackTrace) {
+        if (!mounted || locationFailureShown) return;
+        locationFailureShown = true;
+        logger.w('Recording location updates are unavailable.',
+            error: error, stackTrace: stackTrace);
+        _showMessage(context, t('streamRec.errors.locationFetchError'));
+      },
+    );
 
     bool recorderStarted = false;
     try {

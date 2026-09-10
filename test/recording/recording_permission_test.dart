@@ -21,6 +21,18 @@ import 'package:geolocator/geolocator.dart';
 import 'package:strnadi/recording/recording_permission.dart';
 
 void main() {
+  test('pause is wired before permission checks so revocation cannot block it',
+      () {
+    final source = File('lib/recording/streamRec.dart').readAsStringSync();
+    final start = source.indexOf('Future<void> _toggleRecording()');
+    final pause = source.indexOf('await _pause();', start);
+    expect(pause, greaterThan(start));
+    expect(pause,
+        lessThan(source.indexOf('Permission.microphone.request()', start)));
+    expect(
+        pause, lessThan(source.indexOf('Geolocator.checkPermission()', start)));
+  });
+
   test('recording accepts only usable foreground location permissions', () {
     expect(
       isUsableRecordingLocationPermission(LocationPermission.whileInUse),

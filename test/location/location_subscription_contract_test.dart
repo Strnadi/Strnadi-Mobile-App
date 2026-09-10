@@ -46,7 +46,7 @@ void main() {
 
     expect(
       source,
-      contains('_locationSub = _locService.positionStream.listen'),
+      contains('_locationSub = subscribeToRecordingLocation('),
     );
     expect(source, contains('await _locationSub?.cancel()'));
     expect(source, isNot(contains('_locService.init()')));

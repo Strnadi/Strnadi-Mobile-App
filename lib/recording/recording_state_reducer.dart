@@ -19,15 +19,16 @@ import 'package:record/record.dart';
 /// Reconciles native recorder events with the app's logical workflow.
 ///
 /// Stopping a physical stream is how this app implements a logical pause.
-/// Some platforms publish their STOP event after the pause workflow has
-/// already advanced. While [logicalPauseOwnsState] is true, that late event
-/// must not hide the resume/finish controls.
+/// Native events can arrive after the pause workflow has already advanced.
+/// While [logicalPauseOwnsState] is true, neither a late STOP nor RECORD may
+/// overwrite it: finalized metadata no longer belongs to an active segment.
+/// Resume releases this ownership only after creating the next segment.
 RecordState reduceRecorderState({
   required RecordState currentState,
   required RecordState physicalState,
   required bool logicalPauseOwnsState,
 }) {
-  if (logicalPauseOwnsState && physicalState == RecordState.stop) {
+  if (logicalPauseOwnsState) {
     return RecordState.pause;
   }
   return physicalState;

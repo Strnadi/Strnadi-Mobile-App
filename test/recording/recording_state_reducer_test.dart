@@ -42,12 +42,37 @@ void main() {
     expect(state, RecordState.pause);
   });
 
-  test('physical record and pause events still advance the workflow', () {
+  test('late RECORD cannot offer pause again after its metadata was finalized',
+      () {
+    var state = RecordState.pause;
+    for (final event in [
+      RecordState.record,
+      RecordState.stop,
+      RecordState.record
+    ]) {
+      state = reduceRecorderState(
+        currentState: state,
+        physicalState: event,
+        logicalPauseOwnsState: true,
+      );
+      expect(state, RecordState.pause);
+    }
+    expect(
+        reduceRecorderState(
+          currentState: state,
+          physicalState: RecordState.record,
+          logicalPauseOwnsState: false,
+        ),
+        RecordState.record);
+  });
+
+  test('physical record and pause advance after the app releases ownership',
+      () {
     expect(
       reduceRecorderState(
         currentState: RecordState.pause,
         physicalState: RecordState.record,
-        logicalPauseOwnsState: true,
+        logicalPauseOwnsState: false,
       ),
       RecordState.record,
     );
