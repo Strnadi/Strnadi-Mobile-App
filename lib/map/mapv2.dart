@@ -47,6 +47,13 @@ import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/map/filtered_parts_api_loader.dart';
 import 'package:strnadi/map/map_data_cache.dart';
+import 'package:strnadi/map/map_clusters.dart';
+import 'package:strnadi/map/kfme_grid.dart';
+import 'package:strnadi/map/map_feature_marker.dart';
+import 'package:strnadi/map/map_feature_filters.dart';
+import 'package:strnadi/map/map_feature_filter_controls.dart';
+import 'package:strnadi/map/map_cluster_picker.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/map/RecordingPage.dart';
 import 'package:strnadi/map/map_async_request_state.dart';
 import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
@@ -69,23 +76,11 @@ import '../navigation/scaffold_with_bottom_bar.dart';
 final logger = Logger();
 final MAPY_CZ_API_KEY = Config.mapsApiKey;
 
-enum DialectVisibilityMode {
-  all,
-  aiAdmin,
-  adminOnly,
-}
+enum DialectVisibilityMode { all, aiAdmin, adminOnly }
 
-enum RecordingAgeFilter {
-  all,
-  newer,
-  older,
-}
+enum RecordingAgeFilter { all, newer, older }
 
-enum _MapMarkerStatus {
-  none,
-  aiAssisted,
-  adminConfirmed,
-}
+enum _MapMarkerStatus { none, aiAssisted, adminConfirmed }
 
 /// Global mode deciding which dialect source is used on the map.
 ///
@@ -125,11 +120,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
   static const RecordingsController _recordingsController =
       RecordingsController();
   static const UserController _userController = UserController();
-  final FilteredPartsApiLoader _filteredPartsApiLoader =
-      FilteredPartsApiLoader(logger: logger);
+  final FilteredPartsApiLoader _filteredPartsApiLoader = FilteredPartsApiLoader(
+    logger: logger,
+  );
   late final MapDataCache _mapDataCache;
 
-  late bool _clusterPoints = false;
+  late bool _clusterPoints = true;
 
   List<Widget> markersWidgets = [];
   List<Marker> _visibleMarkers = [];
@@ -146,12 +142,25 @@ class _MapScreenV2State extends State<MapScreenV2> {
   int _activeRecordingsRequestId = 0;
   int _activeDialectRequestId = 0;
   int _recordingDataGeneration = 0;
+  Timer? _mapClustersDebounce;
+  List<MapCluster> _mapClusters = const <MapCluster>[];
+  String? _lastExpandedClusterId;
+  String? _mapSessionId;
+  String? _mapHost;
+
+  Future<bool> _isMapScopeCurrent() async {
+    final session = await activatedAuthSessions.capture();
+    return mounted &&
+        Config.host == _mapHost &&
+        session?.sessionId == _mapSessionId;
+  }
 
   final MapController _mapController = MapController();
   // Legend dialect codes (start with local defaults; replace with BE list when available)
   List<String> _legendCodes = DynamicIcon.getDefaultDialectKeys();
   bool _isSatelliteView = false;
   String _recordingAuthorFilter = 'all';
+  MapFeatureFilters _mapFeatureFilters = MapFeatureFilters.defaults;
   RecordingAgeFilter _recordingAgeFilter = RecordingAgeFilter.newer;
   DialectVisibilityMode _dialectVisibilityMode = dialectVisibilityMode;
   List<Polyline> _gridLines = [];
@@ -334,15 +343,20 @@ class _MapScreenV2State extends State<MapScreenV2> {
         setState(() {
           _legendCodes = canonicalCodes;
         });
-        logger.i('[MapV2] Legend codes updated from BE (' +
-            canonicalCodes.length.toString() +
-            ')');
+        logger.i(
+          '[MapV2] Legend codes updated from BE (' +
+              canonicalCodes.length.toString() +
+              ')',
+        );
       } else {
         logger.w('[MapV2] Legend codes: BE returned empty; keeping defaults');
       }
     } catch (e, st) {
-      logger.w('[MapV2] Legend codes refresh failed: ' + e.toString(),
-          error: e, stackTrace: st);
+      logger.w(
+        '[MapV2] Legend codes refresh failed: ' + e.toString(),
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -405,8 +419,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
     } catch (e, stackTrace) {
-      logger.e("Error retrieving location: $e",
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        "Error retrieving location: $e",
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
     } finally {
       if (mounted) {
@@ -422,7 +439,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   void initState() {
     super.initState();
     _mapDataCache = MapDataCache(
-      scope: '${Config.hostEnvironment.name}|${Config.host}',
+      scope: '${Config.dataEnvironment}|${Config.host}',
     );
     _loadGuestStatus();
     final LatLng? lastKnownPosition = LocationService().lastKnownPosition;
@@ -433,11 +450,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     unawaited(_getCurrentLocation());
 
-    unawaited(_loadSavedMapDataThenRefresh());
+    // The viewport endpoint is deliberately not backed by MapDataCache: a
+    // cached viewport is only a partial view and must never masquerade as a
+    // complete offline map.
 
     // Subscribe to the centralized location stream.
-    _positionStreamSubscription =
-        LocationService().positionStream.listen((Position position) {
+    _positionStreamSubscription = LocationService().positionStream.listen((
+      Position position,
+    ) {
       if (!mounted) return;
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
@@ -447,15 +467,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
       if (!mounted) return;
       if (event is MapEventMoveEnd) {
-        final bool wasUsingClusterRendering = _shouldUseClusterRendering;
         _currentCenter = event.camera.center;
         _currentZoom = event.camera.zoom;
         _updateGrid();
-        final bool isUsingClusterRendering = _shouldUseClusterRendering;
-        if (isUsingClusterRendering != wasUsingClusterRendering ||
-            !isUsingClusterRendering) {
-          unawaited(_rebuildMapMarkers());
-        }
+        _scheduleMapClustersRefresh();
       }
     });
 
@@ -519,9 +534,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
           try {
             final FilteredPartsBundle bundle =
-                FilteredPartsApiLoader.parsePayload(
-              entry.filteredPartsPayload,
-            );
+                FilteredPartsApiLoader.parsePayload(entry.filteredPartsPayload);
             _cachedFilteredParts = bundle.frps;
             _cachedDetectedDialects = bundle.dds;
             _hasCachedDialectData = true;
@@ -582,23 +595,27 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final int expectedGeneration = dataGeneration ?? _recordingDataGeneration;
     final markers = getDialectSeparatedRecordings();
     final entries = markers.entries.toList();
-    final dialectKeys =
-        entries.map((entry) => entry.key).toList(growable: false);
+    final dialectKeys = entries
+        .map((entry) => entry.key)
+        .toList(growable: false);
     final colors = dialectKeys.isEmpty
         ? const <Color>[]
         : await DialectColorCache.getColors(dialectKeys);
     final fallbackColors = await DialectColorCache.getColors(['Unknown']);
-    final fallbackColor =
-        fallbackColors.isNotEmpty ? fallbackColors.first : Colors.grey;
+    final fallbackColor = fallbackColors.isNotEmpty
+        ? fallbackColors.first
+        : Colors.grey;
     final Map<String, Color> colorByDialect = <String, Color>{};
     for (int i = 0; i < dialectKeys.length && i < colors.length; i++) {
       colorByDialect[dialectKeys[i]] = colors[i];
     }
     final builtWidgets = entries
-        .map((entry) => _createClusterLayer(
-              entry.value,
-              colorByDialect[entry.key] ?? fallbackColor,
-            ))
+        .map(
+          (entry) => _createClusterLayer(
+            entry.value,
+            colorByDialect[entry.key] ?? fallbackColor,
+          ),
+        )
         .toList(growable: false);
 
     if (!mounted ||
@@ -634,7 +651,51 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _currentCenter = _mapController.camera.center;
     _currentZoom = _mapController.camera.zoom;
     _updateGrid();
-    unawaited(_rebuildMapMarkers());
+    _scheduleMapClustersRefresh(immediate: true);
+  }
+
+  String _mapClustersDialectMode() {
+    switch (_dialectVisibilityMode) {
+      case DialectVisibilityMode.all:
+        return 'All';
+      case DialectVisibilityMode.aiAdmin:
+        return 'AiAdmin';
+      case DialectVisibilityMode.adminOnly:
+        return 'AdminOnly';
+    }
+  }
+
+  DateTime? _mapClustersCreatedFrom() {
+    switch (_recordingAgeFilter) {
+      case RecordingAgeFilter.newer:
+        return _newProjectStart;
+      case RecordingAgeFilter.older:
+        return _oldProjectStart;
+      case RecordingAgeFilter.all:
+        return null;
+    }
+  }
+
+  DateTime? _mapClustersCreatedTo() =>
+      _recordingAgeFilter == RecordingAgeFilter.older
+      ? _oldProjectEnd.subtract(const Duration(days: 1))
+      : null;
+
+  void _scheduleMapClustersRefresh({bool immediate = false}) {
+    _mapClustersDebounce?.cancel();
+    if (!mounted ||
+        _mapSize == null ||
+        _mapSize!.width <= 0 ||
+        _mapSize!.height <= 0) {
+      return;
+    }
+    if (immediate) {
+      unawaited(getRecordings());
+      return;
+    }
+    _mapClustersDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) unawaited(getRecordings());
+    });
   }
 
   Future<void> _rebuildMapMarkers() async {
@@ -667,6 +728,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<void> getRecordings() async {
+    final host = Config.host;
     final int requestId = ++_activeRecordingsRequestId;
     final int loadingToken = _beginRecordingsLoading();
     if (mounted) {
@@ -675,12 +737,25 @@ class _MapScreenV2State extends State<MapScreenV2> {
       });
     }
     try {
-      int? userId;
-      //String? email;
-      if (_recordingAuthorFilter == 'me') {
+      final session = await activatedAuthSessions.capture();
+      if (!mounted ||
+          requestId != _activeRecordingsRequestId ||
+          Config.host != host) {
+        return;
+      }
+      if (_mapHost != null &&
+          (_mapHost != host || _mapSessionId != session?.sessionId)) {
+        setState(_clearRecordingResults);
+      }
+      final effectiveFilters = _mapFeatureFilters.forUser(
+        signedIn: session?.verified == true,
+      );
+      Object? userId;
+      if (_recordingAuthorFilter != 'all' ||
+          effectiveFilters.hideOthersWithoutMeaningfulDialect) {
         String? storedUserId;
         try {
-          storedUserId = await secureStorage.read(key: 'userId');
+          storedUserId = session?.verified == true ? session?.userId : null;
         } catch (error, stackTrace) {
           if (_isCurrentRecordingsRequest(requestId)) {
             _clearUnavailableCurrentUserResults();
@@ -697,77 +772,88 @@ class _MapScreenV2State extends State<MapScreenV2> {
         }
         final RecordingAuthorFilterResolution authorResolution =
             resolveRecordingAuthorFilter(
-          requestedFilter: _recordingAuthorFilter,
-          storedUserId: storedUserId,
-        );
+              requestedFilter: _recordingAuthorFilter,
+              requiresUserId:
+                  effectiveFilters.hideOthersWithoutMeaningfulDialect,
+              storedUserId: storedUserId,
+            );
         if (!authorResolution.isAvailable) {
           _clearUnavailableCurrentUserResults();
           logger.w(
-              '[MapV2] Cannot filter by current user: no valid user id is stored.');
+            '[MapV2] Cannot filter by current user: no valid user id is stored.',
+          );
           return;
         }
         userId = authorResolution.userId;
       }
 
-      final response = await _recordingsController.fetchRecordings(
-        userId: userId?.toString(),
-        includeParts: true,
-        includeSound: false,
+      final Size? mapSize = _mapSize;
+      if (mapSize == null || mapSize.width <= 0 || mapSize.height <= 0) {
+        return;
+      }
+      if (!mounted) return;
+      final MapClustersRequest request = MapClustersRequest(
+        center: _currentCenter,
+        zoom: _currentZoom,
+        viewportWidthPx: mapSize.width,
+        viewportHeightPx: mapSize.height,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        dialectMode: _mapClustersDialectMode(),
+        clustered: _clusterPoints,
+        featureFilters: effectiveFilters,
+        ownerScope: switch (_recordingAuthorFilter) {
+          'me' => 'Mine',
+          'others' => 'Others',
+          _ => 'All',
+        },
+        userId: userId,
+        createdFrom: _mapClustersCreatedFrom(),
+        createdTo: _mapClustersCreatedTo(),
       );
+      final response = await _recordingsController.fetchMapClusters(
+        request,
+        host: host,
+      );
+      final currentSession = await activatedAuthSessions.capture();
+      if (!mounted ||
+          Config.host != host ||
+          currentSession?.sessionId != session?.sessionId ||
+          requestId != _activeRecordingsRequestId) {
+        return;
+      }
       if (response.statusCode == 200) {
-        logger.i('Recordings fetched');
-        final dynamic decoded = response.data is String
-            ? jsonDecode(response.data as String)
-            : response.data;
-        if (decoded is! List) {
-          logger
-              .e('Failed to parse recordings payload: ${decoded.runtimeType}');
-          _setMapRefreshFailed();
-          return;
-        }
-        final List<dynamic> data = decoded;
-        final FilteredPartsBundle filteredParts =
-            await _filteredPartsApiLoader.fetch(verified: false);
         if (!_isCurrentRecordingsRequest(requestId)) return;
-        if (!filteredParts.isAvailable) {
-          _setMapRefreshFailed();
-          return;
-        }
-        final int? dataGeneration = await _applyRecordingsPayload(
-          data: data,
-          requestId: requestId,
-        );
-        if (dataGeneration == null) return;
-        final _DialectRefreshResult dialectRefresh = await _fetchDialects(
-          refreshedBundle: filteredParts,
-          recordingsRequestId: requestId,
-          dataGeneration: dataGeneration,
-        );
+        final MapClustersResponse clusters =
+            MapClustersResponse.fromResponseData(response.data);
         if (!_isCurrentRecordingsRequest(requestId)) return;
-        if (dialectRefresh.isCurrentServerData) {
-          if (_recordingAuthorFilter == 'all' &&
-              dialectRefresh.serverPayload != null) {
-            final bool saved = await _mapDataCache.save(
-              data,
-              dialectRefresh.serverPayload!,
-            );
-            if (!saved) {
-              logger.w('[MapV2] Current map snapshot could not be cached.');
-            }
-            if (!_isCurrentRecordingsRequest(requestId)) return;
-          }
-          _setMapDataCurrent();
-        } else {
-          _setMapRefreshFailed();
-        }
+        setState(() {
+          _mapClusters = clusters.features;
+          _mapSessionId = session?.sessionId;
+          _mapHost = host;
+          _isUsingSavedMapData = false;
+          _mapRefreshFailed = false;
+          _savedMapDataAt = null;
+        });
+        logger.i('[MapV2] map-clusters loaded: ${clusters.features.length}');
       } else {
-        logger.w('Failed to fetch recordings (${response.statusCode}).');
-        _setMapRefreshFailed();
+        if (_isCurrentRecordingsRequest(requestId)) {
+          final MapClustersApiError apiError = MapClustersApiError.fromResponse(
+            statusCode: response.statusCode,
+            payload: response.data,
+          );
+          logger.w('[MapV2] ${apiError.toLogMessage()}');
+          _setMapRefreshFailed();
+        }
       }
     } catch (error, stackTrace) {
-      logger.w('Current map data could not be loaded.',
-          error: error, stackTrace: stackTrace);
-      _setMapRefreshFailed();
+      logger.w(
+        'Current map data could not be loaded.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (_isCurrentRecordingsRequest(requestId)) {
+        _setMapRefreshFailed();
+      }
     } finally {
       _finishRecordingsLoading(loadingToken);
     }
@@ -791,6 +877,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _hiddenRecordingIds = <int>{};
     _recLocalToBE.clear();
     _recordingsByBeId.clear();
+    _mapClusters = const <MapCluster>[];
+    _lastExpandedClusterId = null;
+    _mapSessionId = null;
+    _mapHost = null;
   }
 
   void _clearUnavailableCurrentUserResults() {
@@ -810,10 +900,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
     final int dialectRequestId = ++_activeDialectRequestId;
     try {
       // Snapshot sizes for quick diagnosis
-      logger.i('[MapV2] _fetchDialects(): start; fullRecs=' +
-          _fullRecordings.length.toString() +
-          ', dialectMode=' +
-          _dialectVisibilityModeForLog());
+      logger.i(
+        '[MapV2] _fetchDialects(): start; fullRecs=' +
+            _fullRecordings.length.toString() +
+            ', dialectMode=' +
+            _dialectVisibilityModeForLog(),
+      );
 
       // Always fetch all FRPs from BE to keep map filtering fully client-side.
       final List<FilteredRecordingPart> frps;
@@ -828,8 +920,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
         _hasCachedDialectData = true;
         serverPayload = refreshedBundle.sourcePayload;
       } else if (refreshFromApi || !_hasCachedDialectData) {
-        final FilteredPartsBundle api =
-            await _filteredPartsApiLoader.fetch(verified: false);
+        final FilteredPartsBundle api = await _filteredPartsApiLoader.fetch(
+          verified: false,
+        );
         if (!_isCurrentDialectRequest(
           dialectRequestId: dialectRequestId,
           recordingsRequestId: recordingsRequestId,
@@ -857,10 +950,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
         dds = _cachedDetectedDialects;
         logger.i('[MapV2] _fetchDialects(): using cached filtered data');
       }
-      logger.i('[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
-          frps.length.toString() +
-          ', DDs=' +
-          dds.length.toString());
+      logger.i(
+        '[MapV2] _fetchDialects(): fetched from BE; FRPs=' +
+            frps.length.toString() +
+            ', DDs=' +
+            dds.length.toString(),
+      );
 
       final Map<int, List<FilteredRecordingPart>> frpsByRecording =
           <int, List<FilteredRecordingPart>>{};
@@ -942,8 +1037,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
           final rows = frp.BEId == null
               ? const <DetectedDialect>[]
               : (rowsBySourcePart[frp.BEId!] ?? const <DetectedDialect>[]);
-          final bool isAdminConfirmedSourcePart =
-              rows.any(_hasAdminConfirmedDialect);
+          final bool isAdminConfirmedSourcePart = rows.any(
+            _hasAdminConfirmedDialect,
+          );
 
           for (final d in rows) {
             sourceRows.add(
@@ -990,15 +1086,16 @@ class _MapScreenV2State extends State<MapScreenV2> {
           out = out.take(2).toList();
         }
 
-        final normalized =
-            _canonicalizeDialectList(out.isEmpty ? <String>['Unknown'] : out);
+        final normalized = _canonicalizeDialectList(
+          out.isEmpty ? <String>['Unknown'] : out,
+        );
         final _MapMarkerStatus markerStatus =
             summary.selectedTier == SelectedDialectTier.confirmed
-                ? _MapMarkerStatus.adminConfirmed
-                : (summary.selectedTier == SelectedDialectTier.predicted ||
-                        (!summary.hasAnySelectedDialect && hasState6))
-                    ? _MapMarkerStatus.aiAssisted
-                    : _MapMarkerStatus.none;
+            ? _MapMarkerStatus.adminConfirmed
+            : (summary.selectedTier == SelectedDialectTier.predicted ||
+                  (!summary.hasAnySelectedDialect && hasState6))
+            ? _MapMarkerStatus.aiAssisted
+            : _MapMarkerStatus.none;
         byRecording[beId] = _RecordingDialectSelection(
           dialects: normalized,
           isVisibleInSelectedMode: isVisibleInSelectedMode,
@@ -1032,8 +1129,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
         serverPayload: serverPayload,
       );
     } catch (e, stackTrace) {
-      logger.e('Failed to fetch representative dialects: ' + e.toString(),
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to fetch representative dialects: ' + e.toString(),
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
       return const _DialectRefreshResult(isCurrentServerData: false);
     }
@@ -1054,9 +1154,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   bool _hasAuthoritativeNoDialect(DetectedDialect row) {
-    return isAuthoritativeNoDialect(
-      _canonicalizeDialect(row.confirmedDialect),
-    );
+    return isAuthoritativeNoDialect(_canonicalizeDialect(row.confirmedDialect));
   }
 
   LatLngBounds? _expandedVisibleBoundsForUngrouped() {
@@ -1085,9 +1183,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return lastPartByRecording;
   }
 
-  List<Marker> _buildRecordingMarkers({
-    LatLngBounds? visibleBounds,
-  }) {
+  List<Marker> _buildRecordingMarkers({LatLngBounds? visibleBounds}) {
     final lastPartByRecording = _latestPartPerRecording();
 
     final markers = <Marker>[];
@@ -1125,7 +1221,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     backgroundColor: Colors.transparent,
                     dialects:
                         dialects, // <- array, e.g. ['BC','XB'] or ['Unknown']
-                    cacheKey: 'be:' +
+                    cacheKey:
+                        'be:' +
                         beId.toString() +
                         ';dialects:' +
                         dialects.join('+'),
@@ -1179,7 +1276,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   backgroundColor: Colors.transparent,
                   dialects:
                       dialects, // <- array, e.g. ['BC','XB'] or ['Unknown']
-                  cacheKey: 'be:' +
+                  cacheKey:
+                      'be:' +
                       beId.toString() +
                       ';dialects:' +
                       dialects.join('+'),
@@ -1210,8 +1308,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
     return dialectMarkers;
   }
 
-  Future<(String?, String?)?> getProfilePic(int? userId_) async {
-    final int? userId = userId_;
+  Future<(String?, String?)?> getProfilePic(Object? userId_) async {
+    final Object? userId = userId_;
     if (userId == null) {
       return null;
     }
@@ -1228,7 +1326,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
         }
       } else {
         logger.e(
-            "Profile picture download failed with status code ${value.statusCode}");
+          "Profile picture download failed with status code ${value.statusCode}",
+        );
       }
     } catch (e) {
       return null;
@@ -1237,7 +1336,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   }
 
   Future<UserData?> getUser(Recording rec) async {
-    final int? userId = rec.userId;
+    final Object? userId = rec.userId;
     if (userId == null) {
       return null;
     }
@@ -1246,7 +1345,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
       final userResponse = await _userController.getUserById(userId);
       if (userResponse.statusCode != 200) {
         logger.e(
-            'Failed to fetch user profile. status=${userResponse.statusCode}');
+          'Failed to fetch user profile. status=${userResponse.statusCode}',
+        );
         return null;
       }
 
@@ -1254,8 +1354,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
           ? json.decode(userResponse.data as String)
           : userResponse.data;
       if (payload is! Map) {
-        logger
-            .e('Failed to parse user profile payload: ${payload.runtimeType}');
+        logger.e(
+          'Failed to parse user profile payload: ${payload.runtimeType}',
+        );
         return null;
       }
 
@@ -1287,27 +1388,26 @@ class _MapScreenV2State extends State<MapScreenV2> {
         if (!mounted) return;
         showCupertinoSheet(
           context: context,
-          builder: (context) => RecordingFromMap(
-            recording: recording,
-            user: user,
-          ),
+          builder: (context) =>
+              RecordingFromMap(recording: recording, user: user),
         );
         return;
       }
     }
 
     showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-              title: Text(t('map.dialogs.error.title')),
-              content: Text('${t('map.dialogs.error.recordingNotFound')} $id'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(t('map.dialogs.error.close')),
-                ),
-              ],
-            ));
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('map.dialogs.error.title')),
+        content: Text('${t('map.dialogs.error.recordingNotFound')} $id'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(t('map.dialogs.error.close')),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _createClusterLayer(List<Marker> markers, Color color) {
@@ -1335,11 +1435,237 @@ class _MapScreenV2State extends State<MapScreenV2> {
     );
   }
 
+  List<Marker> _buildServerClusterMarkers() {
+    return _mapClusters
+        .map(
+          (feature) => Marker(
+            point: feature.center,
+            width: MapFeatureMarker.extent(feature),
+            height: MapFeatureMarker.extent(feature),
+            child: MapFeatureMarker(
+              key: ValueKey('server-feature-${feature.id}'),
+              feature: feature,
+              onTap: () => _selectMapFeature(feature),
+            ),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _selectMapFeature(MapCluster feature) async {
+    final requestId = _activeRecordingsRequestId;
+    if (!await _isMapScopeCurrent()) {
+      if (mounted) {
+        _clearUnavailableCurrentUserResults();
+        _scheduleMapClustersRefresh(immediate: true);
+      }
+      return;
+    }
+    if (!mounted || requestId != _activeRecordingsRequestId) return;
+    final point = _mapController.camera.latLngToScreenOffset(feature.center);
+    final overlapping = _mapClusters
+        .where(
+          (other) =>
+              (_mapController.camera.latLngToScreenOffset(other.center) - point)
+                  .distance <
+              (MapFeatureMarker.extent(feature) +
+                      MapFeatureMarker.extent(other)) /
+                  2,
+        )
+        .toList();
+    if (overlapping.length > 1) {
+      final selected = await showModalBottomSheet<MapCluster>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * .5,
+            child: ListView(
+              children: overlapping
+                  .map(
+                    (f) => ListTile(
+                      title: Text(
+                        f.recording?.name ??
+                            '${t('map.clusterPicker.title')} (${f.count})',
+                      ),
+                      subtitle: Text(
+                        f.dialects
+                            .map((d) => '${d.code} ${d.percentage}%')
+                            .join(', '),
+                      ),
+                      onTap: () => Navigator.pop(context, f),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ),
+      );
+      if (!mounted ||
+          requestId != _activeRecordingsRequestId ||
+          selected == null) {
+        return;
+      }
+      // A chooser must allow selection even if groups cannot separate spatially.
+      if (selected.isRecording) {
+        unawaited(_openClusterRecording(selected.recording!.recordingId));
+      } else {
+        unawaited(_showClusterPicker(selected));
+      }
+      return;
+    }
+    _onMapClusterTap(feature);
+  }
+
+  void _onMapClusterTap(MapCluster feature) {
+    if (feature.isRecording) {
+      unawaited(_openClusterRecording(feature.recording!.recordingId));
+      return;
+    }
+    final bounds = feature.bounds!;
+    if (bounds.coincident ||
+        _currentZoom >= 19 ||
+        _lastExpandedClusterId == feature.id) {
+      unawaited(_showClusterPicker(feature));
+      return;
+    }
+    _lastExpandedClusterId = feature.id;
+    final size = _mapSize;
+    if (size == null) return;
+    // Fit unwrapped longitude span, including antimeridian-crossing bounds.
+    double mercatorY(double lat) {
+      final sin = math.sin(
+        lat.clamp(-85.05112878, 85.05112878) * math.pi / 180,
+      );
+      return .5 - math.log((1 + sin) / (1 - sin)) / (4 * math.pi);
+    }
+
+    final xSpan = math.max(bounds.longitudeSpan / 360, 1e-10);
+    final ySpan = math.max(
+      (mercatorY(bounds.north) - mercatorY(bounds.south)).abs(),
+      1e-10,
+    );
+    final fitZoom = math.min(
+      math.log(math.max(size.width - 96, 1) / (256 * xSpan)) / math.ln2,
+      math.log(math.max(size.height - 96, 1) / (256 * ySpan)) / math.ln2,
+    );
+    if (fitZoom <= _currentZoom + .1) {
+      unawaited(_showClusterPicker(feature));
+      return;
+    }
+    final lng = ((bounds.west + bounds.longitudeSpan / 2 + 180) % 360) - 180;
+    final y = (mercatorY(bounds.north) + mercatorY(bounds.south)) / 2;
+    final n = math.pi * (1 - 2 * y);
+    final lat = math.atan((math.exp(n) - math.exp(-n)) / 2) * 180 / math.pi;
+    _mapController.move(LatLng(lat, lng), fitZoom.clamp(1, 19).toDouble());
+    _currentCenter = _mapController.camera.center;
+    _currentZoom = _mapController.camera.zoom;
+    _scheduleMapClustersRefresh(immediate: true);
+  }
+
+  Future<void> _showClusterPicker(MapCluster feature) async {
+    final host = Config.host;
+    final requestId = _activeRecordingsRequestId;
+    bool current() =>
+        mounted &&
+        Config.host == host &&
+        requestId == _activeRecordingsRequestId;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => MapClusterPicker(
+        cluster: feature,
+        isCurrent: current,
+        loadPage: (cursor) async {
+          if (!current() || !await _isMapScopeCurrent()) {
+            throw ClusterSnapshotExpired();
+          }
+          final response = await _recordingsController.fetchMapClusterItems(
+            feature.id,
+            cursor,
+            host: host,
+          );
+          if (!current() ||
+              !await _isMapScopeCurrent() ||
+              response.statusCode == 409 ||
+              response.statusCode == 410) {
+            throw ClusterSnapshotExpired();
+          }
+          if (response.statusCode != 200) {
+            throw const FormatException('Cluster items request failed.');
+          }
+          return MapClusterItemsPage.fromResponseData(response.data);
+        },
+        onExpired: () {
+          Navigator.pop(sheetContext);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('map.clusterPicker.expired'))),
+          );
+          _scheduleMapClustersRefresh(immediate: true);
+        },
+        onSelect: (id) {
+          Navigator.pop(sheetContext);
+          if (current()) unawaited(_openClusterRecording(id));
+        },
+      ),
+    );
+  }
+
+  Future<void> _openClusterRecording(int recordingId) async {
+    if (!await _isMapScopeCurrent()) return;
+    final host = Config.host;
+    final requestId = _activeRecordingsRequestId;
+    try {
+      final response = await _recordingsController.fetchRecordingById(
+        recordingId,
+        host: host,
+        includeParts: true,
+      );
+      if (!mounted ||
+          host != Config.host ||
+          requestId != _activeRecordingsRequestId ||
+          response.statusCode != 200 ||
+          !await _isMapScopeCurrent()) {
+        return;
+      }
+      final dynamic decoded = response.data is String
+          ? jsonDecode(response.data as String)
+          : response.data;
+      if (decoded is! Map) return;
+      final Recording recording = Recording.fromBEJson(
+        decoded.map(
+          (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+        ),
+        null,
+      );
+      final UserData? user = await getUser(recording);
+      if (!mounted ||
+          host != Config.host ||
+          requestId != _activeRecordingsRequestId ||
+          !await _isMapScopeCurrent()) {
+        return;
+      }
+      if (!mounted) return;
+      showCupertinoSheet(
+        context: context,
+        builder: (context) =>
+            RecordingFromMap(recording: recording, user: user),
+      );
+    } catch (error, stackTrace) {
+      logger.w(
+        '[MapV2] Could not open cluster recording.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _activeRecordingsRequestId++;
     _activeDialectRequestId++;
     _recordingDataGeneration++;
+    _mapClustersDebounce?.cancel();
     _mapEventSubscription?.cancel();
     _positionStreamSubscription?.cancel();
     super.dispose();
@@ -1364,6 +1690,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
               _updateGrid();
+              _scheduleMapClustersRefresh(immediate: true);
             });
           }
           return Stack(
@@ -1374,7 +1701,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                   initialCenter: _currentPosition,
                   initialZoom: 13,
                   interactionOptions: InteractionOptions(
-                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  ),
                   minZoom: 1,
                   maxZoom: 19,
                   initialRotation: 0,
@@ -1391,9 +1719,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           'https://api.mapy.cz/v1/maptiles/names-overlay/256/{z}/{x}/{y}?apikey=$MAPY_CZ_API_KEY',
                       userAgentPackageName: 'cz.delta.strnadi',
                     ),
-                  PolylineLayer(
-                    polylines: _gridLines,
-                  ),
+                  PolylineLayer(polylines: _gridLines),
                   MarkerLayer(
                     markers: [
                       Marker(
@@ -1408,12 +1734,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                     ],
                   ),
-                  if (_shouldUseClusterRendering)
-                    for (var widget in markersWidgets) widget,
-                  if (!_shouldUseClusterRendering)
-                    MarkerLayer(
-                      markers: _visibleMarkers,
-                    ),
+                  MarkerLayer(markers: _buildServerClusterMarkers()),
                 ],
               ),
               if (_isLoadingRecordings)
@@ -1426,7 +1747,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 360),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.94),
                           borderRadius: BorderRadius.circular(14),
@@ -1553,8 +1876,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                             backgroundColor: Colors.white,
                             onPressed: _showLegendDialog,
                             tooltip: t('map.buttons.info'),
-                            child: Image.asset('assets/icons/info.png',
-                                width: 30, height: 30),
+                            child: Image.asset(
+                              'assets/icons/info.png',
+                              width: 30,
+                              height: 30,
+                            ),
                           ),
                         );
                       },
@@ -1588,8 +1914,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         backgroundColor: Colors.white,
                         onPressed: _openMapFilter,
                         tooltip: t('map.buttons.mapSettings'),
-                        child: Image.asset('assets/icons/sort.png',
-                            width: 24, height: 24),
+                        child: Image.asset(
+                          'assets/icons/sort.png',
+                          width: 24,
+                          height: 24,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1607,8 +1936,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                           await _getCurrentLocation();
                         },
                         backgroundColor: Colors.white,
-                        child: Image.asset('assets/icons/location.png',
-                            width: 24, height: 24),
+                        child: Image.asset(
+                          'assets/icons/location.png',
+                          width: 24,
+                          height: 24,
+                        ),
                       ),
                     ),
                   ],
@@ -1618,8 +1950,10 @@ class _MapScreenV2State extends State<MapScreenV2> {
                 bottom: mapyLegendBottomOffset,
                 left: 10,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 2,
+                    horizontal: 4,
+                  ),
                   color: Colors.white70,
                   child: Text(
                     t('map.legend.mapyCz'),
@@ -1641,9 +1975,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
     double latRad = latlng.latitude * math.pi / 180;
     double y =
         (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
-            2 *
-            nTiles *
-            tileSize;
+        2 *
+        nTiles *
+        tileSize;
     return Offset(x, y);
   }
 
@@ -1685,40 +2019,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     }
     if (_mapSize == null) return;
     final bounds = calculateBounds();
-    final double northBound = bounds.north;
-    final double southBound = bounds.south;
-    final double westBound = bounds.west;
-    final double eastBound = bounds.east;
-
-    const double gridCellHeight = 6 / 60;
-    const double gridCellWidth = 10 / 60;
-    // The fixed top left (origin) of the grid:
-    const double originLat = 56.0; // 56°0'N
-    const double originLon = 5 + 40 / 60; // 5°40'E, i.e. ~5.666667
-
-    List<Polyline> newGridLines = [];
-
-    int kStartLon = ((westBound - originLon) / gridCellWidth).ceil();
-    for (int k = kStartLon;; k++) {
-      double gridLon = originLon + k * gridCellWidth;
-      if (gridLon > eastBound) break;
-      newGridLines.add(Polyline(
-        points: [LatLng(northBound, gridLon), LatLng(southBound, gridLon)],
-        strokeWidth: 1.0,
-        color: Colors.red,
-      ));
-    }
-
-    int kStartLat = ((originLat - northBound) / gridCellHeight).floor();
-    for (int k = kStartLat;; k++) {
-      double gridLat = originLat - k * gridCellHeight;
-      if (gridLat < southBound) break;
-      newGridLines.add(Polyline(
-        points: [LatLng(gridLat, westBound), LatLng(gridLat, eastBound)],
-        strokeWidth: 1.0,
-        color: Colors.red,
-      ));
-    }
+    final newGridLines = buildKfmeGrid(bounds: bounds, zoom: _currentZoom);
 
     setState(() {
       _gridLines = newGridLines;
@@ -1746,22 +2047,18 @@ class _MapScreenV2State extends State<MapScreenV2> {
     required RecordingAgeFilter nextRecordingAgeFilter,
     required DialectVisibilityMode nextDialectVisibilityMode,
     required bool nextClusterPoints,
+    required MapFeatureFilters nextFeatureFilters,
   }) {
     if (!mounted) return;
     final bool shouldReloadRecordings =
-        nextRecordingAuthorFilter != _recordingAuthorFilter;
-    final bool shouldRefreshDialects = !shouldReloadRecordings &&
-        nextDialectVisibilityMode != _dialectVisibilityMode;
-    final bool shouldRebuildMarkers = !shouldReloadRecordings &&
-        !shouldRefreshDialects &&
-        (nextRecordingAgeFilter != _recordingAgeFilter ||
-            nextClusterPoints != _clusterPoints);
+        nextRecordingAuthorFilter != _recordingAuthorFilter ||
+        nextDialectVisibilityMode != _dialectVisibilityMode ||
+        nextRecordingAgeFilter != _recordingAgeFilter ||
+        nextClusterPoints != _clusterPoints ||
+        nextFeatureFilters != _mapFeatureFilters;
     final bool shouldUpdateViewOnly = nextIsSatelliteView != _isSatelliteView;
 
-    if (!shouldReloadRecordings &&
-        !shouldRefreshDialects &&
-        !shouldRebuildMarkers &&
-        !shouldUpdateViewOnly) {
+    if (!shouldReloadRecordings && !shouldUpdateViewOnly) {
       return;
     }
 
@@ -1771,41 +2068,35 @@ class _MapScreenV2State extends State<MapScreenV2> {
       _recordingAgeFilter = nextRecordingAgeFilter;
       _dialectVisibilityMode = nextDialectVisibilityMode;
       _clusterPoints = nextClusterPoints;
+      _mapFeatureFilters = nextFeatureFilters;
       dialectVisibilityMode = nextDialectVisibilityMode;
       if (shouldReloadRecordings) {
-        // Never render the previous author's markers under a newly selected
-        // author label while secure storage or the backend request is pending.
+        // Invalidate pending responses before displaying the new filter state.
+        _activeRecordingsRequestId++;
         _clearRecordingResults();
-      } else if (shouldRefreshDialects || shouldRebuildMarkers) {
-        // Invalidate every async marker build when age, dialect, or clustering
-        // inputs change. This also prevents true→false→true cluster ABA races.
-        _recordingDataGeneration++;
       }
     });
 
     if (shouldReloadRecordings) {
-      if (_recordingAuthorFilter == 'all') {
-        unawaited(_loadSavedMapDataThenRefresh());
-      } else {
-        unawaited(getRecordings());
-      }
-      return;
-    }
-    if (shouldRefreshDialects) {
-      unawaited(_refreshDialectSelectionFromCache());
-      return;
-    }
-    if (shouldRebuildMarkers) {
-      unawaited(_rebuildMapMarkers());
+      _scheduleMapClustersRefresh(immediate: true);
     }
   }
 
-  void _openMapFilter() {
+  void _openMapFilter() async {
+    var canFilterByUser = false;
+    try {
+      final session = await activatedAuthSessions.capture();
+      canFilterByUser = session?.verified == true;
+    } catch (_) {
+      // Non-account filters remain usable if secure storage is unavailable.
+    }
+    if (!mounted) return;
     bool tempIsSatelliteView = _isSatelliteView;
     String tempRecordingAuthorFilter = _recordingAuthorFilter;
     RecordingAgeFilter tempRecordingAgeFilter = _recordingAgeFilter;
     DialectVisibilityMode tempDialectVisibilityMode = _dialectVisibilityMode;
     bool tempClusterPoints = _clusterPoints;
+    MapFeatureFilters tempFeatureFilters = _mapFeatureFilters;
     void applyCurrentSelection() {
       _applyMapFilterSelection(
         nextIsSatelliteView: tempIsSatelliteView,
@@ -1813,6 +2104,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
         nextRecordingAgeFilter: tempRecordingAgeFilter,
         nextDialectVisibilityMode: tempDialectVisibilityMode,
         nextClusterPoints: tempClusterPoints,
+        nextFeatureFilters: tempFeatureFilters,
       );
     }
 
@@ -1901,8 +2193,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    child:
-                                        Text(t('map.filters.mapView.classic')),
+                                    child: Text(
+                                      t('map.filters.mapView.classic'),
+                                    ),
                                   ),
                                 ),
                                 Padding(
@@ -1927,7 +2220,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       ),
                                     ),
                                     child: Text(
-                                        t('map.filters.mapView.satellite')),
+                                      t('map.filters.mapView.satellite'),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1955,7 +2249,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                      color: tempRecordingAgeFilter ==
+                                      color:
+                                          tempRecordingAgeFilter ==
                                               RecordingAgeFilter.older
                                           ? Colors.black
                                           : Colors.grey.shade200,
@@ -1965,8 +2260,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child:
-                                      Text(t('map.filters.recordingAge.older')),
+                                  child: Text(
+                                    t('map.filters.recordingAge.older'),
+                                  ),
                                 ),
                                 OutlinedButton(
                                   onPressed: () {
@@ -1979,7 +2275,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                      color: tempRecordingAgeFilter ==
+                                      color:
+                                          tempRecordingAgeFilter ==
                                               RecordingAgeFilter.newer
                                           ? Colors.black
                                           : Colors.grey.shade200,
@@ -1989,8 +2286,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child:
-                                      Text(t('map.filters.recordingAge.newer')),
+                                  child: Text(
+                                    t('map.filters.recordingAge.newer'),
+                                  ),
                                 ),
                                 OutlinedButton(
                                   onPressed: () {
@@ -2003,7 +2301,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                      color: tempRecordingAgeFilter ==
+                                      color:
+                                          tempRecordingAgeFilter ==
                                               RecordingAgeFilter.all
                                           ? Colors.black
                                           : Colors.grey.shade200,
@@ -2013,76 +2312,24 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child:
-                                      Text(t('map.filters.recordingAge.all')),
+                                  child: Text(
+                                    t('map.filters.recordingAge.all'),
+                                  ),
                                 ),
                               ],
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(t('map.filters.recordingAuthor.title')),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      setModalState(() {
-                                        tempRecordingAuthorFilter = 'all';
-                                      });
-                                      applyCurrentSelection();
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(
-                                        color:
-                                            tempRecordingAuthorFilter == 'all'
-                                                ? Colors.black
-                                                : Colors.grey.shade200,
-                                      ),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      t('map.filters.recordingAuthor.all'),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      setModalState(() {
-                                        tempRecordingAuthorFilter = 'me';
-                                      });
-                                      applyCurrentSelection();
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      side: BorderSide(
-                                        color: tempRecordingAuthorFilter == 'me'
-                                            ? Colors.black
-                                            : Colors.grey.shade200,
-                                      ),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(
-                                        t('map.filters.recordingAuthor.me')),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                        MapOwnerFilterControl(
+                          value: tempRecordingAuthorFilter,
+                          canFilterByUser: canFilterByUser,
+                          onChanged: (value) {
+                            setModalState(
+                              () => tempRecordingAuthorFilter = value,
+                            );
+                            applyCurrentSelection();
+                          },
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2104,7 +2351,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                      color: tempDialectVisibilityMode ==
+                                      color:
+                                          tempDialectVisibilityMode ==
                                               DialectVisibilityMode.all
                                           ? Colors.black
                                           : Colors.grey,
@@ -2129,7 +2377,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                      color: tempDialectVisibilityMode ==
+                                      color:
+                                          tempDialectVisibilityMode ==
                                               DialectVisibilityMode.aiAdmin
                                           ? Colors.black
                                           : Colors.grey,
@@ -2154,7 +2403,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                   style: OutlinedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     side: BorderSide(
-                                      color: tempDialectVisibilityMode ==
+                                      color:
+                                          tempDialectVisibilityMode ==
                                               DialectVisibilityMode.adminOnly
                                           ? Colors.black
                                           : Colors.grey,
@@ -2227,13 +2477,23 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    child:
-                                        Text(t('map.filters.clustering.off')),
+                                    child: Text(
+                                      t('map.filters.clustering.off'),
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ],
+                        ),
+                        MapFeatureFilterControls(
+                          value: tempFeatureFilters,
+                          clustered: tempClusterPoints,
+                          canFilterByUser: canFilterByUser,
+                          onChanged: (value) {
+                            setModalState(() => tempFeatureFilters = value);
+                            applyCurrentSelection();
+                          },
                         ),
                         const SizedBox(height: 20),
                         SizedBox(
@@ -2258,7 +2518,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
                                     RecordingAgeFilter.newer;
                                 tempDialectVisibilityMode =
                                     DialectVisibilityMode.aiAdmin;
-                                tempClusterPoints = false;
+                                tempClusterPoints = true;
+                                tempFeatureFilters = MapFeatureFilters.defaults;
                               });
                               applyCurrentSelection();
                             },
@@ -2283,8 +2544,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (BuildContext context) {
-        final double bottomSystemInset =
-            MediaQuery.of(context).viewPadding.bottom;
+        final double bottomSystemInset = MediaQuery.of(
+          context,
+        ).viewPadding.bottom;
         return Container(
           padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomSystemInset),
           decoration: const BoxDecoration(
@@ -2360,7 +2622,9 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         foregroundColor: const Color(0xFF2D2B18),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         textStyle: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16.0),
                         ),

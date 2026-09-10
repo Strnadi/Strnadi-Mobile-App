@@ -73,15 +73,26 @@ void main() {
       );
     });
 
-    test('all marker-affecting filter paths invalidate async renders', () {
+    test('server filter wiring invalidates requests before clearing markers',
+        () {
       final String source = File('lib/map/mapv2.dart').readAsStringSync();
+      final String filterMethod = source
+          .split('void _applyMapFilterSelection(')[1]
+          .split('void _openMapFilter()')[0];
 
-      expect(
-        source,
-        contains(
-          'else if (shouldRefreshDialects || shouldRebuildMarkers)',
-        ),
-      );
+      for (final String filter in <String>[
+        'nextRecordingAuthorFilter != _recordingAuthorFilter',
+        'nextDialectVisibilityMode != _dialectVisibilityMode',
+        'nextRecordingAgeFilter != _recordingAgeFilter',
+        'nextClusterPoints != _clusterPoints',
+        'nextFeatureFilters != _mapFeatureFilters',
+      ]) {
+        expect(filterMethod, contains(filter));
+      }
+      expect(filterMethod.indexOf('_activeRecordingsRequestId++;'),
+          lessThan(filterMethod.indexOf('_clearRecordingResults();')));
+      expect(filterMethod,
+          contains('_scheduleMapClustersRefresh(immediate: true)'));
       expect(
         source,
         contains('dataGeneration: dataGeneration'),

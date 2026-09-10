@@ -155,23 +155,22 @@ void main() {
       expect(method, isNot(contains('length +=')));
     });
 
-    test('keeps saved markers until both current payloads are available', () {
+    test('uses the viewport API instead of loading and joining all recordings',
+        () {
       final int methodStart =
           source.indexOf('Future<void> getRecordings() async');
       final int methodEnd =
           source.indexOf('void _clearRecordingResults()', methodStart);
       final String method = source.substring(methodStart, methodEnd);
 
-      final int recordingsAwait =
-          method.indexOf('_recordingsController.fetchRecordings(');
-      final int filteredPartsAwait =
-          method.indexOf('_filteredPartsApiLoader.fetch(', recordingsAwait);
-      final int applyCurrentPayload =
-          method.indexOf('_applyRecordingsPayload(', filteredPartsAwait);
-
-      expect(recordingsAwait, greaterThanOrEqualTo(0));
-      expect(filteredPartsAwait, greaterThan(recordingsAwait));
-      expect(applyCurrentPayload, greaterThan(filteredPartsAwait));
+      expect(
+          method,
+          contains(
+              '_recordingsController.fetchMapClusters(request, host: host)'));
+      expect(method, isNot(contains('_recordingsController.fetchRecordings(')));
+      expect(method, isNot(contains('_filteredPartsApiLoader.fetch(')));
+      expect(method, contains('MapClustersResponse.fromResponseData'));
+      expect(method, contains('if (_isCurrentRecordingsRequest(requestId))'));
     });
 
     test('guards API results before updating dialect caches and selection', () {
@@ -286,7 +285,8 @@ void main() {
       );
     });
 
-    test('programmatic map moves refresh bounds before rebuilding markers', () {
+    test('programmatic map moves refresh the server viewport after camera sync',
+        () {
       final int moveMethodStart =
           source.indexOf('void _moveMapToLocation(LatLng location)');
       final int moveMethodEnd = source.indexOf(
@@ -302,14 +302,14 @@ void main() {
           moveMethod.indexOf('_currentCenter = _mapController.camera.center;');
       final int zoomUpdate =
           moveMethod.indexOf('_currentZoom = _mapController.camera.zoom;');
-      final int markerRebuild =
-          moveMethod.indexOf('unawaited(_rebuildMapMarkers());');
+      final int viewportRefresh =
+          moveMethod.indexOf('_scheduleMapClustersRefresh(immediate: true);');
 
       expect(moveMethodStart, greaterThanOrEqualTo(0));
       expect(cameraMove, greaterThanOrEqualTo(0));
       expect(centerUpdate, greaterThan(cameraMove));
       expect(zoomUpdate, greaterThan(centerUpdate));
-      expect(markerRebuild, greaterThan(zoomUpdate));
+      expect(viewportRefresh, greaterThan(zoomUpdate));
       expect(
         source,
         contains(

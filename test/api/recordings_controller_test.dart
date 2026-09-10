@@ -4,6 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/dio_client.dart';
+import 'package:strnadi/map/map_clusters.dart';
+import 'package:strnadi/map/map_feature_filters.dart';
+import 'package:latlong2/latlong.dart';
 
 void main() {
   late Dio dio;
@@ -124,6 +127,99 @@ void main() {
     expect(request.followRedirects, isFalse);
     expect(request.maxRedirects, 0);
   });
+
+  test('map filter options reach the HTTP request unchanged', () async {
+    adapter = _SingleResponseAdapter(200);
+    dio.httpClientAdapter = adapter;
+    await const RecordingsController().fetchMapClusters(
+      MapClustersRequest(
+        center: LatLng(50, 14),
+        zoom: 12,
+        viewportWidthPx: 390,
+        viewportHeightPx: 844,
+        devicePixelRatio: 2,
+        dialectMode: 'All',
+        ownerScope: 'Others',
+        userId: 42,
+        clustered: false,
+        featureFilters: const MapFeatureFilters(
+          mixDialects: false,
+          mixSources: false,
+          onlyMeaningfulDialects: true,
+          hideOthersWithoutMeaningfulDialect: true,
+        ),
+      ),
+      host: 'api.example.test',
+    );
+    final query = adapter.requests.single.uri.queryParameters;
+    expect(query['mixDialects'], 'false');
+    expect(query['mixSources'], 'false');
+    expect(query['onlyMeaningfulDialects'], 'true');
+    expect(query['hideOthersWithoutMeaningfulDialect'], 'true');
+    expect(query['ownerScope'], 'Others');
+    expect(query['userId'], '42');
+    expect(query['clustered'], 'false');
+  });
+
+  test('map clusters sends only a mocked viewport request', () async {
+    adapter = _SingleResponseAdapter(422);
+    dio.httpClientAdapter = adapter;
+    const RecordingsController controller = RecordingsController();
+
+    final Response<dynamic> response = await controller.fetchMapClusters(
+      MapClustersRequest(
+        center: LatLng(50.1, 14.4),
+        zoom: 12.5,
+        viewportWidthPx: 390,
+        viewportHeightPx: 844,
+        devicePixelRatio: 3,
+        dialectMode: 'AiAdmin',
+        ownerScope: 'Mine',
+        userId: 12,
+      ),
+      host: 'api.example.test',
+    );
+
+    expect(response.statusCode, 422);
+    final RequestOptions request = adapter.requests.single;
+    expect(request.method, 'GET');
+    expect(request.uri.path, '/recordings/map-clusters');
+    expect(request.uri.queryParameters, <String, String>{
+      'centerLat': '50.1',
+      'centerLng': '14.4',
+      'zoom': '12.5',
+      'viewportWidthPx': '390',
+      'viewportHeightPx': '844',
+      'devicePixelRatio': '3.0',
+      'dialectMode': 'AiAdmin',
+      'ownerScope': 'Mine',
+      'clustered': 'true',
+      'mixDialects': 'true',
+      'mixSources': 'true',
+      'onlyMeaningfulDialects': 'false',
+      'hideOthersWithoutMeaningfulDialect': 'false',
+      'userId': '12',
+    });
+    expect(request.validateStatus(422), isTrue);
+    expect(request.validateStatus(500), isFalse);
+  });
+  for (final status in [200, 409, 410]) {
+    test('cluster detail encodes opaque IDs and cursor and returns $status',
+        () async {
+      adapter = _SingleResponseAdapter(status);
+      dio.httpClientAdapter = adapter;
+      final response = await const RecordingsController().fetchMapClusterItems(
+          'cluster/a', 'cursor+/?=',
+          host: 'api.example.test');
+      expect(response.statusCode, status);
+      final r = adapter.requests.single;
+      expect(r.uri.pathSegments,
+          ['recordings', 'map-clusters', 'cluster/a', 'items']);
+      expect(r.uri.queryParameters, {'cursor': 'cursor+/?=', 'pageSize': '5'});
+      expect(r.followRedirects, false);
+      expect(r.maxRedirects, 0);
+    });
+  }
 }
 
 void _expectPinnedRequest(

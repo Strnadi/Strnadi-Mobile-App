@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
 import 'package:strnadi/api/post_json_with_redirect.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/map/map_clusters.dart';
 
 class RecordingsController {
   const RecordingsController();
@@ -121,6 +122,43 @@ class RecordingsController {
       }),
       options: Options(contentType: Headers.jsonContentType),
     );
+  }
+
+  Future<Response<dynamic>> fetchMapClusters(
+    MapClustersRequest request, {
+    String? host,
+  }) {
+    return _dio.getUri(
+      _uri(
+        '/recordings/map-clusters',
+        host: host,
+        queryParameters: request.toQueryParameters(),
+      ),
+      options: Options(
+        contentType: Headers.jsonContentType,
+        followRedirects: false,
+        maxRedirects: 0,
+        // The caller must distinguish validation failures from an empty map.
+        validateStatus: (int? status) => status != null && status < 500,
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> fetchMapClusterItems(
+      String clusterId, String cursor,
+      {required String host, int pageSize = 5}) {
+    if (pageSize < 1 || pageSize > 50) throw ArgumentError.value(pageSize);
+    final uri = Uri(
+        scheme: 'https',
+        host: host,
+        pathSegments: ['recordings', 'map-clusters', clusterId, 'items'],
+        queryParameters: {'cursor': cursor, 'pageSize': '$pageSize'});
+    return _dio.getUri(uri,
+        options: Options(
+            contentType: Headers.jsonContentType,
+            followRedirects: false,
+            maxRedirects: 0,
+            validateStatus: (status) => status != null && status < 500));
   }
 
   Future<Response<dynamic>> fetchIncompleteRecordings({

@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -168,9 +169,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   Future<void> _resolvePlaybackAccess() async {
     final String role =
         (await _secureStorage.read(key: 'role') ?? '').toLowerCase();
-    final int? currentUserId =
-        int.tryParse((await _secureStorage.read(key: 'userId') ?? '').trim());
-    final int? ownerUserId = _recording.userId;
+    final Object? currentUserId =
+        parseUserId((await _secureStorage.read(key: 'userId') ?? '').trim());
+    final Object? ownerUserId = _recording.userId;
     final bool isAdmin = role == 'admin';
     final bool isOwner = ownerUserId != null &&
         currentUserId != null &&

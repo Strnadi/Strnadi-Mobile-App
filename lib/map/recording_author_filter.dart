@@ -1,3 +1,5 @@
+import 'package:strnadi/auth/user_identity.dart';
+
 class RecordingAuthorFilterResolution {
   const RecordingAuthorFilterResolution._({
     required this.isAvailable,
@@ -6,30 +8,33 @@ class RecordingAuthorFilterResolution {
 
   const RecordingAuthorFilterResolution.all() : this._(isAvailable: true);
 
-  const RecordingAuthorFilterResolution.currentUser(int userId)
-      : this._(isAvailable: true, userId: userId);
+  const RecordingAuthorFilterResolution.currentUser(Object userId)
+    : this._(isAvailable: true, userId: userId);
 
   const RecordingAuthorFilterResolution.unavailable()
-      : this._(isAvailable: false);
+    : this._(isAvailable: false);
 
   final bool isAvailable;
-  final int? userId;
+  final Object? userId;
 }
 
 /// Resolves the backend user filter without reading secure storage or an API.
 ///
-/// A current-user filter is available only for a positive numeric user id.
+/// User-relative filters require a valid current-user identity.
 /// Callers must clear stale results when [isAvailable] is false.
 RecordingAuthorFilterResolution resolveRecordingAuthorFilter({
   required String requestedFilter,
   required String? storedUserId,
+  bool requiresUserId = false,
 }) {
-  if (requestedFilter != 'me') {
+  if (requestedFilter != 'me' &&
+      requestedFilter != 'others' &&
+      !requiresUserId) {
     return const RecordingAuthorFilterResolution.all();
   }
 
-  final int? userId = int.tryParse(storedUserId?.trim() ?? '');
-  if (userId == null || userId <= 0) {
+  final Object? userId = parseUserId(storedUserId?.trim() ?? '');
+  if (userId == null || parseUserId(userId) == null) {
     return const RecordingAuthorFilterResolution.unavailable();
   }
   return RecordingAuthorFilterResolution.currentUser(userId);
