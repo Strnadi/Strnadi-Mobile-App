@@ -1,0 +1,6344 @@
+{
+  "endpoint": "https://preprod-api.strnadi.cz/recordings?parts=true&sound=false",
+  "checkedAt": "2026-09-04T11:58:14.367288Z",
+  "recordingsChecked": 5089,
+  "partsChecked": 4972,
+  "invalidParts": [
+    {
+      "recordingId": 7763,
+      "partId": 7705,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7764,
+      "partId": 7706,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7765,
+      "partId": 7707,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7766,
+      "partId": 7708,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7767,
+      "partId": 7709,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7768,
+      "partId": 7710,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7769,
+      "partId": 7711,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7770,
+      "partId": 7712,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7771,
+      "partId": 7713,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7772,
+      "partId": 7714,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7773,
+      "partId": 7715,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7774,
+      "partId": 7716,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7775,
+      "partId": 7717,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7776,
+      "partId": 7718,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7777,
+      "partId": 7719,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7778,
+      "partId": 7720,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7779,
+      "partId": 7721,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7780,
+      "partId": 7722,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7781,
+      "partId": 7723,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7782,
+      "partId": 7724,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7783,
+      "partId": 7725,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7784,
+      "partId": 7726,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7785,
+      "partId": 7727,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7786,
+      "partId": 7728,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7787,
+      "partId": 7729,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7788,
+      "partId": 7730,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7789,
+      "partId": 7731,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7790,
+      "partId": 7732,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7791,
+      "partId": 7733,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7792,
+      "partId": 7734,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7793,
+      "partId": 7735,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7794,
+      "partId": 7736,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7795,
+      "partId": 7737,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7796,
+      "partId": 7738,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7797,
+      "partId": 7739,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7798,
+      "partId": 7740,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7799,
+      "partId": 7741,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7800,
+      "partId": 7742,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7801,
+      "partId": 7743,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7802,
+      "partId": 7744,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7803,
+      "partId": 7745,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7804,
+      "partId": 7746,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7805,
+      "partId": 7747,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7806,
+      "partId": 7748,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7807,
+      "partId": 7749,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7808,
+      "partId": 7750,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7809,
+      "partId": 7751,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7810,
+      "partId": 7752,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7811,
+      "partId": 7753,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7812,
+      "partId": 7754,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7813,
+      "partId": 7755,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7814,
+      "partId": 7756,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7815,
+      "partId": 7757,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7816,
+      "partId": 7758,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7817,
+      "partId": 7759,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7818,
+      "partId": 7760,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7819,
+      "partId": 7761,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7820,
+      "partId": 7762,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7821,
+      "partId": 7763,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7822,
+      "partId": 7764,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7823,
+      "partId": 7765,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7824,
+      "partId": 7766,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7825,
+      "partId": 7767,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7826,
+      "partId": 7768,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7827,
+      "partId": 7769,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7828,
+      "partId": 7770,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7829,
+      "partId": 7771,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7830,
+      "partId": 7772,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7831,
+      "partId": 7773,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7832,
+      "partId": 7774,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7833,
+      "partId": 7775,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7834,
+      "partId": 7776,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7835,
+      "partId": 7777,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7836,
+      "partId": 7778,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7837,
+      "partId": 7779,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7838,
+      "partId": 7780,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7839,
+      "partId": 7781,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7840,
+      "partId": 7782,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7841,
+      "partId": 7783,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7842,
+      "partId": 7784,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7843,
+      "partId": 7785,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7844,
+      "partId": 7786,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7845,
+      "partId": 7787,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7846,
+      "partId": 7788,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7847,
+      "partId": 7789,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7848,
+      "partId": 7790,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7849,
+      "partId": 7791,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7850,
+      "partId": 7792,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7851,
+      "partId": 7793,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7852,
+      "partId": 7794,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7853,
+      "partId": 7795,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7854,
+      "partId": 7796,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7855,
+      "partId": 7797,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7856,
+      "partId": 7798,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7857,
+      "partId": 7799,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7858,
+      "partId": 7800,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7859,
+      "partId": 7801,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7860,
+      "partId": 7802,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7861,
+      "partId": 7803,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7862,
+      "partId": 7804,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7863,
+      "partId": 7805,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7864,
+      "partId": 7806,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7865,
+      "partId": 7807,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7866,
+      "partId": 7808,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7867,
+      "partId": 7809,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7868,
+      "partId": 7810,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7869,
+      "partId": 7811,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7870,
+      "partId": 7812,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7871,
+      "partId": 7813,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7872,
+      "partId": 7814,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7873,
+      "partId": 7815,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7874,
+      "partId": 7816,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7875,
+      "partId": 7817,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7876,
+      "partId": 7818,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7877,
+      "partId": 7819,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7878,
+      "partId": 7820,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7879,
+      "partId": 7821,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7880,
+      "partId": 7822,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7881,
+      "partId": 7823,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7882,
+      "partId": 7824,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7883,
+      "partId": 7825,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7884,
+      "partId": 7826,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7885,
+      "partId": 7827,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7886,
+      "partId": 7828,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7887,
+      "partId": 7829,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7888,
+      "partId": 7830,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7889,
+      "partId": 7831,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7890,
+      "partId": 7832,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7891,
+      "partId": 7833,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7892,
+      "partId": 7834,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7893,
+      "partId": 7835,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7894,
+      "partId": 7836,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7895,
+      "partId": 7837,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7896,
+      "partId": 7838,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7897,
+      "partId": 7839,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7898,
+      "partId": 7840,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7899,
+      "partId": 7841,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7900,
+      "partId": 7842,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7901,
+      "partId": 7843,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7902,
+      "partId": 7844,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7903,
+      "partId": 7845,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7904,
+      "partId": 7846,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7905,
+      "partId": 7847,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7906,
+      "partId": 7848,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7907,
+      "partId": 7849,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7908,
+      "partId": 7850,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7909,
+      "partId": 7851,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7910,
+      "partId": 7852,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7911,
+      "partId": 7853,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7912,
+      "partId": 7854,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7913,
+      "partId": 7855,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7914,
+      "partId": 7856,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7915,
+      "partId": 7857,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7916,
+      "partId": 7858,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7917,
+      "partId": 7859,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7918,
+      "partId": 7860,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7919,
+      "partId": 7861,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7920,
+      "partId": 7862,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7921,
+      "partId": 7863,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7922,
+      "partId": 7864,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7923,
+      "partId": 7865,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7924,
+      "partId": 7866,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7925,
+      "partId": 7867,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7926,
+      "partId": 7868,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7927,
+      "partId": 7869,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7928,
+      "partId": 7870,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7929,
+      "partId": 7871,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7930,
+      "partId": 7872,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7931,
+      "partId": 7873,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7932,
+      "partId": 7874,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7933,
+      "partId": 7875,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7934,
+      "partId": 7876,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7935,
+      "partId": 7877,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7936,
+      "partId": 7878,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7937,
+      "partId": 7879,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7938,
+      "partId": 7880,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7939,
+      "partId": 7881,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7940,
+      "partId": 7882,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7941,
+      "partId": 7883,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7942,
+      "partId": 7884,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7943,
+      "partId": 7885,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7944,
+      "partId": 7886,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7945,
+      "partId": 7887,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7946,
+      "partId": 7888,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7947,
+      "partId": 7889,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7948,
+      "partId": 7890,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7949,
+      "partId": 7891,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7950,
+      "partId": 7892,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7951,
+      "partId": 7893,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7952,
+      "partId": 7894,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7953,
+      "partId": 7895,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7954,
+      "partId": 7896,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7955,
+      "partId": 7897,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7956,
+      "partId": 7898,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7957,
+      "partId": 7899,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7958,
+      "partId": 7900,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7959,
+      "partId": 7901,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7960,
+      "partId": 7902,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7961,
+      "partId": 7903,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7962,
+      "partId": 7904,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7963,
+      "partId": 7905,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7964,
+      "partId": 7906,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7965,
+      "partId": 7907,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7966,
+      "partId": 7908,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7967,
+      "partId": 7909,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7968,
+      "partId": 7910,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7969,
+      "partId": 7911,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7970,
+      "partId": 7912,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7971,
+      "partId": 7913,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7972,
+      "partId": 7914,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7973,
+      "partId": 7915,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7974,
+      "partId": 7916,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7975,
+      "partId": 7917,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7976,
+      "partId": 7918,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7977,
+      "partId": 7919,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7978,
+      "partId": 7920,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7979,
+      "partId": 7921,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7980,
+      "partId": 7922,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7981,
+      "partId": 7923,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7982,
+      "partId": 7924,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7983,
+      "partId": 7925,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7984,
+      "partId": 7926,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7985,
+      "partId": 7927,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7986,
+      "partId": 7928,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7987,
+      "partId": 7929,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7988,
+      "partId": 7930,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7989,
+      "partId": 7931,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7990,
+      "partId": 7932,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7991,
+      "partId": 7933,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7992,
+      "partId": 7934,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7993,
+      "partId": 7935,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7994,
+      "partId": 7936,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7995,
+      "partId": 7937,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7996,
+      "partId": 7938,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7997,
+      "partId": 7939,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7998,
+      "partId": 7940,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 7999,
+      "partId": 7941,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8000,
+      "partId": 7942,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8001,
+      "partId": 7943,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8002,
+      "partId": 7944,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8003,
+      "partId": 7945,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8004,
+      "partId": 7946,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8005,
+      "partId": 7947,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8006,
+      "partId": 7948,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8007,
+      "partId": 7949,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8008,
+      "partId": 7950,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8009,
+      "partId": 7951,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8010,
+      "partId": 7952,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8011,
+      "partId": 7953,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8012,
+      "partId": 7954,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8013,
+      "partId": 7955,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8014,
+      "partId": 7956,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8015,
+      "partId": 7957,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8016,
+      "partId": 7958,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8017,
+      "partId": 7959,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8018,
+      "partId": 7960,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8019,
+      "partId": 7961,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8020,
+      "partId": 7962,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8021,
+      "partId": 7963,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8022,
+      "partId": 7964,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8023,
+      "partId": 7965,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8024,
+      "partId": 7966,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8025,
+      "partId": 7967,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8026,
+      "partId": 7968,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8027,
+      "partId": 7969,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8028,
+      "partId": 7970,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8029,
+      "partId": 7971,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8030,
+      "partId": 7972,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8031,
+      "partId": 7973,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8032,
+      "partId": 7974,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8033,
+      "partId": 7975,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8034,
+      "partId": 7976,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8035,
+      "partId": 7977,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8036,
+      "partId": 7978,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8037,
+      "partId": 7979,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8038,
+      "partId": 7980,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8039,
+      "partId": 7981,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8040,
+      "partId": 7982,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8041,
+      "partId": 7983,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8042,
+      "partId": 7984,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8043,
+      "partId": 7985,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8044,
+      "partId": 7986,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8045,
+      "partId": 7987,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8046,
+      "partId": 7988,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8047,
+      "partId": 7989,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8048,
+      "partId": 7990,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8049,
+      "partId": 7991,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8050,
+      "partId": 7992,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8051,
+      "partId": 7993,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8052,
+      "partId": 7994,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8053,
+      "partId": 7995,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8054,
+      "partId": 7996,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8055,
+      "partId": 7997,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8056,
+      "partId": 7998,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8057,
+      "partId": 7999,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8058,
+      "partId": 8000,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8059,
+      "partId": 8001,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8060,
+      "partId": 8002,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8061,
+      "partId": 8003,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8062,
+      "partId": 8004,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8063,
+      "partId": 8005,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8064,
+      "partId": 8006,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8065,
+      "partId": 8007,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8066,
+      "partId": 8008,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8067,
+      "partId": 8009,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8068,
+      "partId": 8010,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8069,
+      "partId": 8011,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8070,
+      "partId": 8012,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8071,
+      "partId": 8013,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8072,
+      "partId": 8014,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8073,
+      "partId": 8015,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8074,
+      "partId": 8016,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8075,
+      "partId": 8017,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8076,
+      "partId": 8018,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8077,
+      "partId": 8019,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8078,
+      "partId": 8020,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8079,
+      "partId": 8021,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8080,
+      "partId": 8022,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8081,
+      "partId": 8023,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8082,
+      "partId": 8024,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8083,
+      "partId": 8025,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8084,
+      "partId": 8026,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8085,
+      "partId": 8027,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8086,
+      "partId": 8028,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8087,
+      "partId": 8029,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8088,
+      "partId": 8030,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8089,
+      "partId": 8031,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8090,
+      "partId": 8032,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8091,
+      "partId": 8033,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8092,
+      "partId": 8034,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8093,
+      "partId": 8035,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8094,
+      "partId": 8036,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8095,
+      "partId": 8037,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8096,
+      "partId": 8038,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8097,
+      "partId": 8039,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8098,
+      "partId": 8040,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8099,
+      "partId": 8041,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8100,
+      "partId": 8042,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8101,
+      "partId": 8043,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8102,
+      "partId": 8044,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8103,
+      "partId": 8045,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8104,
+      "partId": 8046,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8105,
+      "partId": 8047,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8106,
+      "partId": 8048,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8107,
+      "partId": 8049,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8108,
+      "partId": 8050,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8109,
+      "partId": 8051,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8110,
+      "partId": 8052,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8111,
+      "partId": 8053,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8112,
+      "partId": 8054,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8113,
+      "partId": 8055,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8114,
+      "partId": 8056,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8115,
+      "partId": 8057,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8116,
+      "partId": 8058,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8117,
+      "partId": 8059,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8118,
+      "partId": 8060,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8119,
+      "partId": 8061,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8120,
+      "partId": 8062,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8121,
+      "partId": 8063,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8122,
+      "partId": 8064,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8123,
+      "partId": 8065,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8124,
+      "partId": 8066,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8125,
+      "partId": 8067,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8126,
+      "partId": 8068,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8127,
+      "partId": 8069,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8128,
+      "partId": 8070,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8129,
+      "partId": 8071,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8130,
+      "partId": 8072,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8131,
+      "partId": 8073,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8132,
+      "partId": 8074,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8133,
+      "partId": 8075,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8134,
+      "partId": 8076,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8135,
+      "partId": 8077,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8136,
+      "partId": 8078,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8137,
+      "partId": 8079,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8138,
+      "partId": 8080,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8139,
+      "partId": 8081,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8140,
+      "partId": 8082,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8141,
+      "partId": 8083,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8142,
+      "partId": 8084,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8143,
+      "partId": 8085,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8144,
+      "partId": 8086,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8145,
+      "partId": 8087,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8146,
+      "partId": 8088,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8147,
+      "partId": 8089,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8148,
+      "partId": 8090,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8149,
+      "partId": 8091,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8150,
+      "partId": 8092,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8151,
+      "partId": 8093,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8152,
+      "partId": 8094,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8153,
+      "partId": 8095,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8154,
+      "partId": 8096,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8155,
+      "partId": 8097,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8156,
+      "partId": 8098,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8157,
+      "partId": 8099,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8158,
+      "partId": 8100,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8159,
+      "partId": 8101,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8160,
+      "partId": 8102,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8161,
+      "partId": 8103,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8162,
+      "partId": 8104,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8163,
+      "partId": 8105,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8164,
+      "partId": 8106,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8165,
+      "partId": 8107,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8166,
+      "partId": 8108,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8167,
+      "partId": 8109,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8168,
+      "partId": 8110,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8169,
+      "partId": 8111,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8170,
+      "partId": 8112,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8171,
+      "partId": 8113,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8172,
+      "partId": 8114,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8173,
+      "partId": 8115,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8174,
+      "partId": 8116,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8175,
+      "partId": 8117,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8176,
+      "partId": 8118,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8177,
+      "partId": 8119,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8178,
+      "partId": 8120,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8179,
+      "partId": 8121,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8180,
+      "partId": 8122,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8181,
+      "partId": 8123,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8182,
+      "partId": 8124,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8183,
+      "partId": 8125,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8184,
+      "partId": 8126,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8185,
+      "partId": 8127,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8186,
+      "partId": 8128,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8187,
+      "partId": 8129,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8188,
+      "partId": 8130,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8189,
+      "partId": 8131,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8190,
+      "partId": 8132,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8191,
+      "partId": 8133,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8192,
+      "partId": 8134,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8193,
+      "partId": 8135,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8194,
+      "partId": 8136,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8195,
+      "partId": 8137,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8196,
+      "partId": 8138,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8197,
+      "partId": 8139,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8198,
+      "partId": 8140,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8199,
+      "partId": 8141,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8200,
+      "partId": 8142,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8201,
+      "partId": 8143,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8202,
+      "partId": 8144,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8203,
+      "partId": 8145,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8204,
+      "partId": 8146,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8205,
+      "partId": 8147,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8206,
+      "partId": 8148,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8207,
+      "partId": 8149,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8208,
+      "partId": 8150,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8209,
+      "partId": 8151,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8210,
+      "partId": 8152,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8211,
+      "partId": 8153,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8212,
+      "partId": 8154,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8213,
+      "partId": 8155,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8214,
+      "partId": 8156,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8215,
+      "partId": 8157,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8216,
+      "partId": 8158,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8217,
+      "partId": 8159,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8218,
+      "partId": 8160,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8219,
+      "partId": 8161,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8220,
+      "partId": 8162,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8221,
+      "partId": 8163,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8222,
+      "partId": 8164,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8223,
+      "partId": 8165,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8224,
+      "partId": 8166,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8225,
+      "partId": 8167,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8226,
+      "partId": 8168,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8227,
+      "partId": 8169,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8228,
+      "partId": 8170,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8229,
+      "partId": 8171,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8230,
+      "partId": 8172,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8231,
+      "partId": 8173,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8232,
+      "partId": 8174,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8233,
+      "partId": 8175,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8234,
+      "partId": 8176,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8235,
+      "partId": 8177,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8236,
+      "partId": 8178,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8237,
+      "partId": 8179,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8238,
+      "partId": 8180,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8239,
+      "partId": 8181,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8240,
+      "partId": 8182,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8241,
+      "partId": 8183,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8242,
+      "partId": 8184,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8243,
+      "partId": 8185,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8244,
+      "partId": 8186,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8245,
+      "partId": 8187,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8246,
+      "partId": 8188,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8247,
+      "partId": 8189,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8248,
+      "partId": 8190,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8249,
+      "partId": 8191,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8250,
+      "partId": 8192,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8251,
+      "partId": 8193,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8252,
+      "partId": 8194,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8253,
+      "partId": 8195,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8254,
+      "partId": 8196,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8255,
+      "partId": 8197,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8256,
+      "partId": 8198,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8257,
+      "partId": 8199,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8258,
+      "partId": 8200,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8259,
+      "partId": 8201,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8260,
+      "partId": 8202,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8261,
+      "partId": 8203,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8262,
+      "partId": 8204,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8263,
+      "partId": 8205,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8264,
+      "partId": 8206,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8265,
+      "partId": 8207,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8266,
+      "partId": 8208,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8267,
+      "partId": 8209,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8268,
+      "partId": 8210,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8269,
+      "partId": 8211,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8270,
+      "partId": 8212,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8271,
+      "partId": 8213,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8272,
+      "partId": 8214,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8273,
+      "partId": 8215,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8274,
+      "partId": 8216,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8275,
+      "partId": 8217,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8276,
+      "partId": 8218,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8277,
+      "partId": 8219,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8278,
+      "partId": 8220,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8279,
+      "partId": 8221,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8280,
+      "partId": 8222,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8281,
+      "partId": 8223,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8282,
+      "partId": 8224,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8283,
+      "partId": 8225,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8284,
+      "partId": 8226,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8285,
+      "partId": 8227,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8286,
+      "partId": 8228,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8287,
+      "partId": 8229,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8288,
+      "partId": 8230,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8289,
+      "partId": 8231,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8290,
+      "partId": 8232,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8291,
+      "partId": 8233,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8292,
+      "partId": 8234,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8293,
+      "partId": 8235,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8294,
+      "partId": 8236,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8295,
+      "partId": 8237,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8296,
+      "partId": 8238,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8297,
+      "partId": 8239,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8298,
+      "partId": 8240,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8299,
+      "partId": 8241,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8300,
+      "partId": 8242,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8301,
+      "partId": 8243,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8302,
+      "partId": 8244,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8303,
+      "partId": 8245,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8304,
+      "partId": 8246,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8305,
+      "partId": 8247,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8306,
+      "partId": 8248,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8307,
+      "partId": 8249,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8308,
+      "partId": 8250,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8309,
+      "partId": 8251,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8310,
+      "partId": 8252,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8311,
+      "partId": 8253,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8312,
+      "partId": 8254,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8313,
+      "partId": 8255,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8314,
+      "partId": 8256,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8315,
+      "partId": 8257,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8316,
+      "partId": 8258,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8317,
+      "partId": 8259,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8318,
+      "partId": 8260,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8319,
+      "partId": 8261,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8320,
+      "partId": 8262,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8321,
+      "partId": 8263,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8322,
+      "partId": 8264,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8323,
+      "partId": 8265,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8324,
+      "partId": 8266,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8325,
+      "partId": 8267,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8326,
+      "partId": 8268,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8327,
+      "partId": 8269,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8328,
+      "partId": 8270,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8329,
+      "partId": 8271,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8330,
+      "partId": 8272,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8331,
+      "partId": 8273,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8332,
+      "partId": 8274,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8333,
+      "partId": 8275,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8334,
+      "partId": 8276,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8335,
+      "partId": 8277,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8336,
+      "partId": 8278,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8337,
+      "partId": 8279,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8338,
+      "partId": 8280,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8339,
+      "partId": 8281,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8340,
+      "partId": 8282,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8341,
+      "partId": 8283,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8342,
+      "partId": 8284,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8343,
+      "partId": 8285,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8344,
+      "partId": 8286,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8345,
+      "partId": 8287,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8346,
+      "partId": 8288,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8347,
+      "partId": 8289,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8348,
+      "partId": 8290,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8349,
+      "partId": 8291,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8350,
+      "partId": 8292,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8351,
+      "partId": 8293,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8352,
+      "partId": 8294,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8353,
+      "partId": 8295,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8354,
+      "partId": 8296,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8355,
+      "partId": 8297,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8356,
+      "partId": 8298,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8357,
+      "partId": 8299,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8358,
+      "partId": 8300,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8359,
+      "partId": 8301,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8360,
+      "partId": 8302,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8361,
+      "partId": 8303,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8362,
+      "partId": 8304,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8363,
+      "partId": 8305,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8364,
+      "partId": 8306,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8365,
+      "partId": 8307,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8366,
+      "partId": 8308,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8367,
+      "partId": 8309,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8368,
+      "partId": 8310,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8369,
+      "partId": 8311,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8370,
+      "partId": 8312,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8371,
+      "partId": 8313,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8372,
+      "partId": 8314,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8373,
+      "partId": 8315,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8374,
+      "partId": 8316,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8375,
+      "partId": 8317,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8376,
+      "partId": 8318,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8377,
+      "partId": 8319,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8378,
+      "partId": 8320,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8379,
+      "partId": 8321,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8380,
+      "partId": 8322,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8381,
+      "partId": 8323,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8382,
+      "partId": 8324,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8383,
+      "partId": 8325,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8384,
+      "partId": 8326,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8385,
+      "partId": 8327,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8386,
+      "partId": 8328,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8387,
+      "partId": 8329,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8388,
+      "partId": 8330,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8389,
+      "partId": 8331,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8390,
+      "partId": 8332,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8391,
+      "partId": 8333,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8392,
+      "partId": 8334,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8393,
+      "partId": 8335,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8394,
+      "partId": 8336,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8395,
+      "partId": 8337,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8396,
+      "partId": 8338,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8397,
+      "partId": 8339,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8398,
+      "partId": 8340,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8399,
+      "partId": 8341,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8400,
+      "partId": 8342,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8401,
+      "partId": 8343,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8402,
+      "partId": 8344,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8403,
+      "partId": 8345,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8404,
+      "partId": 8346,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8405,
+      "partId": 8347,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8406,
+      "partId": 8348,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8407,
+      "partId": 8349,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8408,
+      "partId": 8350,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8409,
+      "partId": 8351,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8410,
+      "partId": 8352,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8411,
+      "partId": 8353,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8412,
+      "partId": 8354,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8413,
+      "partId": 8355,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8414,
+      "partId": 8356,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8415,
+      "partId": 8357,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8416,
+      "partId": 8358,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8417,
+      "partId": 8359,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8418,
+      "partId": 8360,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8419,
+      "partId": 8361,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8420,
+      "partId": 8362,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8421,
+      "partId": 8363,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8422,
+      "partId": 8364,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8423,
+      "partId": 8365,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8424,
+      "partId": 8366,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8425,
+      "partId": 8367,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8426,
+      "partId": 8368,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8427,
+      "partId": 8369,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8428,
+      "partId": 8370,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8429,
+      "partId": 8371,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8430,
+      "partId": 8372,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8431,
+      "partId": 8373,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8432,
+      "partId": 8374,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8433,
+      "partId": 8375,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8434,
+      "partId": 8376,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8435,
+      "partId": 8377,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8436,
+      "partId": 8378,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8437,
+      "partId": 8379,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8438,
+      "partId": 8380,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8439,
+      "partId": 8381,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8440,
+      "partId": 8382,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8441,
+      "partId": 8383,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8442,
+      "partId": 8384,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8443,
+      "partId": 8385,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8444,
+      "partId": 8386,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8445,
+      "partId": 8387,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8446,
+      "partId": 8388,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8447,
+      "partId": 8389,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8448,
+      "partId": 8390,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8449,
+      "partId": 8391,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8450,
+      "partId": 8392,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8451,
+      "partId": 8393,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8452,
+      "partId": 8394,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8453,
+      "partId": 8395,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8454,
+      "partId": 8396,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8455,
+      "partId": 8397,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8456,
+      "partId": 8398,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8457,
+      "partId": 8399,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8458,
+      "partId": 8400,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8459,
+      "partId": 8401,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8460,
+      "partId": 8402,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8461,
+      "partId": 8403,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8462,
+      "partId": 8404,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8463,
+      "partId": 8405,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8464,
+      "partId": 8406,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8465,
+      "partId": 8407,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8466,
+      "partId": 8408,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8467,
+      "partId": 8409,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8468,
+      "partId": 8410,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8469,
+      "partId": 8411,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8470,
+      "partId": 8412,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8471,
+      "partId": 8413,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8472,
+      "partId": 8414,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8473,
+      "partId": 8415,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8474,
+      "partId": 8416,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8475,
+      "partId": 8417,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8476,
+      "partId": 8418,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8477,
+      "partId": 8419,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8478,
+      "partId": 8420,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8479,
+      "partId": 8421,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8480,
+      "partId": 8422,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8481,
+      "partId": 8423,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8482,
+      "partId": 8424,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8483,
+      "partId": 8425,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8484,
+      "partId": 8426,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8485,
+      "partId": 8427,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8486,
+      "partId": 8428,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8487,
+      "partId": 8429,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8488,
+      "partId": 8430,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8489,
+      "partId": 8431,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8490,
+      "partId": 8432,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8491,
+      "partId": 8433,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8492,
+      "partId": 8434,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8493,
+      "partId": 8435,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8494,
+      "partId": 8436,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8495,
+      "partId": 8437,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8496,
+      "partId": 8438,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8497,
+      "partId": 8439,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8498,
+      "partId": 8440,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8499,
+      "partId": 8441,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8500,
+      "partId": 8442,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8501,
+      "partId": 8443,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8502,
+      "partId": 8444,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8503,
+      "partId": 8445,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8504,
+      "partId": 8446,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8505,
+      "partId": 8447,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8506,
+      "partId": 8448,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8507,
+      "partId": 8449,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8508,
+      "partId": 8450,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8509,
+      "partId": 8451,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8510,
+      "partId": 8452,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8511,
+      "partId": 8453,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8512,
+      "partId": 8454,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8513,
+      "partId": 8455,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8514,
+      "partId": 8456,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8515,
+      "partId": 8457,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8516,
+      "partId": 8458,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8517,
+      "partId": 8459,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8518,
+      "partId": 8460,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8519,
+      "partId": 8461,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8520,
+      "partId": 8462,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8521,
+      "partId": 8463,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8522,
+      "partId": 8464,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8523,
+      "partId": 8465,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8524,
+      "partId": 8466,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8525,
+      "partId": 8467,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8526,
+      "partId": 8468,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8527,
+      "partId": 8469,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8528,
+      "partId": 8470,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8529,
+      "partId": 8471,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8530,
+      "partId": 8472,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8531,
+      "partId": 8473,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8532,
+      "partId": 8474,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8533,
+      "partId": 8475,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8534,
+      "partId": 8476,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8535,
+      "partId": 8477,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8536,
+      "partId": 8478,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8537,
+      "partId": 8479,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8538,
+      "partId": 8480,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8539,
+      "partId": 8481,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8540,
+      "partId": 8482,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8541,
+      "partId": 8483,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8542,
+      "partId": 8484,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8543,
+      "partId": 8485,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8544,
+      "partId": 8486,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8545,
+      "partId": 8487,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8546,
+      "partId": 8488,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8547,
+      "partId": 8489,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8548,
+      "partId": 8490,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8549,
+      "partId": 8491,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8550,
+      "partId": 8492,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8551,
+      "partId": 8493,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8552,
+      "partId": 8494,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8553,
+      "partId": 8495,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    },
+    {
+      "recordingId": 8554,
+      "partId": 8496,
+      "invalidFields": {
+        "startDate": "null",
+        "endDate": "null"
+      }
+    }
+  ]
+}
