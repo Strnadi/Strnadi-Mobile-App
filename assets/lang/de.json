@@ -1,5 +1,20 @@
 {
   "auth": {
+    "administration": {
+      "continue": "Über Administration anmelden",
+      "description": "Melden Sie sich sicher im Browser an.",
+      "errors": {
+        "cancelled": "Die Anmeldung wurde abgebrochen. Sie können es erneut versuchen.",
+        "denied": "Die Anmeldung wurde abgelehnt. Bitte versuchen Sie es erneut.",
+        "invalidCallback": "Die Anmeldeantwort war ungültig. Bitte versuchen Sie es erneut.",
+        "staleSession": "Ihr Konto oder die Umgebung hat sich geändert. Bitte melden Sie sich erneut an.",
+        "network": "Die Verbindung ist fehlgeschlagen. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "server": "Der Anmeldedienst ist nicht verfügbar. Bitte versuchen Sie es später erneut.",
+        "invalidResponse": "Der Anmeldedienst hat eine ungültige Antwort zurückgegeben. Bitte versuchen Sie es erneut.",
+        "loginRequired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+        "exchangeDenied": "Der Zugriff auf dieses Projekt wurde verweigert. Bitte wenden Sie sich an die Projektadministration."
+      }
+    },
     "title": "Dialekte tschechischer Goldammern",
     "subtitle": "Aufnehmen, kartieren, erobern",
     "apple": {
@@ -404,6 +419,21 @@
     "no_nickname": "Benutzer hat keinen Spitznamen"
   },
   "map": {
+    "clusterPicker": {
+      "title": "Aufnahmen",
+      "recording": "Aufnahme",
+      "failed": "Weitere Aufnahmen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "more": "Mehr laden",
+      "expired": "Der Cluster hat sich geändert. Die Karte wurde aktualisiert.",
+      "sources": {
+        "confirmed": "Vom Administrator bestätigt",
+        "ai": "KI-Vorhersage",
+        "user": "Nutzervorschlag",
+        "unknown": "Unbekannt",
+        "mixed": "Gemischte Quellen"
+      }
+    },
     "notifications": {
       "enableLocation": "Bitte Standortdienste aktivieren",
       "locationDenied": "Standortberechtigungen wurden verweigert",
@@ -439,6 +469,20 @@
       "hint": "Ort oder Koordinaten suchen (z. B. 50.087, 14.421)"
     },
     "filters": {
+      "features": {
+        "advanced": "Erweitert",
+        "mixDialects": "Dialekte in Gruppen mischen",
+        "mixDialectsHelp": "Aufnahmen mit verschiedenen Dialekten in einer Gruppe zusammenfassen.",
+        "mixSources": "Bestimmungsquellen in Gruppen mischen",
+        "mixSourcesHelp": "Bestätigte Bestimmungen, KI-Ergebnisse und Nutzertipps zusammenfassen.",
+        "enableClustering": "Aktivieren Sie die Gruppierung, um diese Optionen zu ändern.",
+        "onlyMeaningfulDialects": "Nur Aufnahmen mit Dialekt",
+        "onlyMeaningfulDialectsHelp": "Aufnahmen mit ausschließlich unbekannten oder Nicht-Dialekt-Zuordnungen ausblenden.",
+        "hideOthersWithoutMeaningfulDialect": "Fremde Aufnahmen ohne Dialekt ausblenden",
+        "hideOthersHelp": "Meine Aufnahmen auch ohne bestimmten Dialekt behalten.",
+        "onlyMeaningfulOverrides": "„Nur Aufnahmen mit Dialekt“ blendet auch meine Aufnahmen ohne Dialekt aus.",
+        "signInRequired": "Melden Sie sich an, um nach Ihrem Konto zu filtern."
+      },
       "clustering": {
         "title": "Clustering",
         "on": "Clustering aktivieren",
@@ -450,6 +494,7 @@
         "satellite": "Satellit"
       },
       "recordingAuthor": {
+        "others": "Andere",
         "title": "Autor der Aufnahme",
         "all": "Alle",
         "me": "Nur ich"
@@ -607,11 +652,11 @@
         "error": {
           "noInternet": {
             "title": "Verbindungsfehler",
-            "message": "Zum Speichern der Aufnahme ist eine Internetverbindung erforderlich"
+            "message": "Die Aufnahme ist gespeichert und wird automatisch hochgeladen, sobald wieder eine Verbindung besteht."
           },
           "wifiOnly": {
             "title": "Verbindungsfehler",
-            "message": "Uploads sind nur über WLAN erlaubt"
+            "message": "Die Aufnahme ist gespeichert und wird automatisch hochgeladen, sobald die Verbindung Ihren Einstellungen entspricht und der Server erreichbar ist."
           },
           "login": "Bitte melden Sie sich an, bevor Sie diese Aufnahme senden.",
           "invalidParts": "Die Aufnahme ist unvollständig und konnte nicht gespeichert werden. Bitte nehmen Sie sie erneut auf.",
@@ -727,6 +772,20 @@
       }
     },
     "settings": {
+      "environment": {
+        "section": "Entwicklereinstellungen",
+        "label": "Serverumgebung",
+        "production": "Produktion",
+        "development": "Entwicklung",
+        "preprod": "Preprod",
+        "devBadge": "DEV",
+        "preprodBadge": "PREPROD",
+        "confirmTitle": "Umgebung wechseln?",
+        "confirmMessage": "Beim Wechsel der Umgebung werden Sie abgemeldet. Aufnahmen bleiben in ihrer ursprünglichen Umgebung. Fortfahren?",
+        "cancel": "Abbrechen",
+        "continue": "Fortfahren",
+        "failed": "Die Umgebung konnte nicht geändert werden. Prüfen Sie die Konfiguration und versuchen Sie es erneut."
+      },
       "title": "Einstellungen",
       "app": "App",
       "fields": {

@@ -69,7 +69,7 @@ void main() {
       expect(firebase, contains('DeviceRegistrationScope('));
       expect(firebase, contains('sessionId: session.sessionId'));
       expect(firebase, contains('accessToken: session.accessToken'));
-      expect(firebase, contains('environment: Config.hostEnvironment.name'));
+      expect(firebase, contains('environment: Config.dataEnvironment'));
       expect(firebase, contains('apiHost: Config.host'));
       expect(firebase, contains("host: scope.apiHost"));
       expect(firebase, contains("accessToken: scope.accessToken"));

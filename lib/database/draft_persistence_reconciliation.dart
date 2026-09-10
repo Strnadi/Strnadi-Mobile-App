@@ -1,3 +1,5 @@
+import 'package:strnadi/auth/user_identity.dart';
+
 /// Immutable account/environment identity used while recording-related local
 /// state is read or written.
 ///
@@ -80,11 +82,11 @@ RecordingOwnerSnapshot resolveRecordingOwnerSnapshot({
     );
   }
 
-  final int? numericUserId = int.tryParse(ownerId);
+  final Object? numericUserId = parseUserId(ownerId);
   if (!hasToken ||
       !hasUserId ||
       numericUserId == null ||
-      numericUserId <= 0 ||
+      parseUserId(numericUserId) == null ||
       email.isEmpty ||
       sessionId.isEmpty) {
     throw StateError('Recording authentication changed while being captured.');
@@ -141,8 +143,8 @@ bool recordingOwnerBindingMatchesSnapshot({
     return persistedUserId == null && email.isEmpty;
   }
 
-  final int? userId = _integralId(persistedUserId);
-  return userId == int.parse(snapshot.userId!) &&
+  final Object? userId = parseUserId(persistedUserId);
+  return userId == requireUserId(snapshot.userId!) &&
       email.toLowerCase() == snapshot.accountEmail!.trim().toLowerCase();
 }
 
@@ -263,15 +265,6 @@ void _validatePersistedDraftOwner(
   )) {
     throw StateError('The reconciled recording belongs to another account.');
   }
-}
-
-int? _integralId(Object? raw) {
-  if (raw is int) return raw > 0 ? raw : null;
-  if (raw is num && raw.isFinite && raw == raw.truncate() && raw > 0) {
-    return raw.toInt();
-  }
-  final int? parsed = int.tryParse(raw?.toString() ?? '');
-  return parsed != null && parsed > 0 ? parsed : null;
 }
 
 Set<String> _expectedKeys(Iterable<String> rawKeys, String entity) {

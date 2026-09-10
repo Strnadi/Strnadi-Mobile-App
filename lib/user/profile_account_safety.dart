@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -138,10 +139,10 @@ String profilePhotoCacheKey({
   required String ownerUserId,
   required String environment,
 }) {
-  final int? numericOwner = int.tryParse(ownerUserId.trim());
+  final Object? numericOwner = parseUserId(ownerUserId.trim());
   final String normalizedEnvironment = environment.trim().toLowerCase();
   if (numericOwner == null ||
-      numericOwner <= 0 ||
+      parseUserId(numericOwner) == null ||
       normalizedEnvironment.isEmpty) {
     throw const ProfileAccountException(
       'A profile cache key requires an owner and environment.',

@@ -3,6 +3,20 @@ import 'package:strnadi/utils/log_redactor.dart';
 
 void main() {
   group('LogRedactor', () {
+    test('redacts OAuth callback and PKCE credentials', () {
+      final uri = LogRedactor.redactUri(Uri.parse(
+        'com.delta.strnadi://auth/callback?code=secret&state=secret'
+        '&code_verifier=secret&code_challenge=secret',
+      ));
+      expect(uri.toString(), isNot(contains('secret')));
+      expect(
+          LogRedactor.redactMap({
+            'refresh_token': 'secret',
+            'subject_token': 'secret',
+            'code_verifier': 'secret'
+          }).values,
+          everyElement(LogRedactor.redacted));
+    });
     test('redacts secrets recursively without mutating safe values', () {
       final Map<String, dynamic> redacted = LogRedactor.redactMap(
         <String, dynamic>{

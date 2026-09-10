@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -98,8 +99,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     var token = await storage.read(key: 'userId');
 
-    final int userId = int.tryParse(token ?? '') ?? -1;
-    if (userId <= 0) {
+    final Object userId = int.tryParse(token ?? '') ?? -1;
+    if (parseUserId(userId) == null) {
       return list;
     }
     try {

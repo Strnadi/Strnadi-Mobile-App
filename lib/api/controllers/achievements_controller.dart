@@ -25,9 +25,9 @@ class AchievementsController {
     );
   }
 
-  Future<Response<dynamic>> fetchForUser(int userId) {
+  Future<Response<dynamic>> fetchForUser(Object userId) {
     return _dio.getUri(
-      _uri('/achievements', queryParameters: <String, int>{
+      _uri('/achievements', queryParameters: <String, Object>{
         'userId': userId,
       }),
       options: Options(contentType: Headers.jsonContentType),

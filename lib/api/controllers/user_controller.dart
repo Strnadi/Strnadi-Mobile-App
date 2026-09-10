@@ -1,3 +1,6 @@
+import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/auth/user_identity.dart';
+import 'package:strnadi/api/models/administration_profile.dart';
 import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
 import 'package:strnadi/config/config.dart';
@@ -6,21 +9,6 @@ class UserController {
   const UserController();
 
   Dio get _dio => ApiDioClient.instance;
-
-  Uri _uri(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    String? host,
-  }) {
-    return Uri(
-      scheme: 'https',
-      host: host ?? Config.host,
-      path: path,
-      queryParameters: queryParameters?.map(
-        (key, value) => MapEntry(key, value?.toString()),
-      ),
-    );
-  }
 
   Options _authenticatedOptions({
     String? accessToken,
@@ -39,55 +27,100 @@ class UserController {
     );
   }
 
+  Future<Response<dynamic>> _ownAdministrationProfile(
+    Object userId, {
+    String? accessToken,
+    String? host,
+    Map<String, dynamic>? body,
+  }) async {
+    final snapshot = await activatedAuthSessions.capture();
+    if (snapshot == null ||
+        parseUserId(userId) != parseUserId(snapshot.userId) ||
+        (accessToken != null && accessToken != snapshot.accessToken) ||
+        (host != null && host != Config.host)) {
+      throw StateError('Only the active account profile is available.');
+    }
+    final environment = Config.dataEnvironment;
+    final response = await _dio.requestUri<dynamic>(
+      ApiDioClient.uri('/account/profile', host: Config.administrationHost),
+      data: body == null ? null : administrationProfilePatch(body),
+      options: _authenticatedOptions(accessToken: snapshot.accessToken)
+        ..method = body == null ? 'GET' : 'PATCH',
+    );
+    if (Config.dataEnvironment != environment ||
+        !await activatedAuthSessions.isCurrent(snapshot)) {
+      throw StateError('Account changed while loading the profile.');
+    }
+    if (response.statusCode == 200) {
+      response.data = normalizeAdministrationProfile(response.data,
+          expectedUserId: snapshot.userId);
+    }
+    return response;
+  }
+
   Future<Response<dynamic>> getUserById(
-    int userId, {
+    Object userId, {
     String? accessToken,
     String? host,
   }) {
+    if (Config.usesAdministration) {
+      return _ownAdministrationProfile(userId,
+          accessToken: accessToken, host: host);
+    }
     return _dio.getUri(
-      _uri('/users/$userId', host: host),
+      ApiDioClient.uri('/users/$userId', host: host),
       options: _authenticatedOptions(accessToken: accessToken),
     );
   }
 
   Future<Response<dynamic>> updateUserById(
-    int userId,
+    Object userId,
     Map<String, dynamic> body, {
     String? accessToken,
     String? host,
   }) {
+    if (Config.usesAdministration) {
+      return _ownAdministrationProfile(userId,
+          accessToken: accessToken, host: host, body: body);
+    }
     return _dio.patchUri(
-      _uri('/users/$userId', host: host),
+      ApiDioClient.uri('/users/$userId', host: host),
       data: body,
       options: _authenticatedOptions(accessToken: accessToken),
     );
   }
 
   Future<Response<dynamic>> deleteUserById(
-    int userId, {
+    Object userId, {
     String? accessToken,
     String? host,
   }) {
     return _dio.deleteUri(
-      _uri('/users/$userId', host: host),
+      ApiDioClient.uri(
+          Config.usesAdministration ? '/account' : '/users/$userId',
+          host: Config.usesAdministration ? Config.administrationHost : host),
       options: _authenticatedOptions(accessToken: accessToken),
     );
   }
 
   Future<Response<dynamic>> getUserIdFromToken() {
     return _dio.getUri(
-      _uri('/users/get-id'),
+      ApiDioClient.uri('/users/get-id'),
       options: Options(contentType: Headers.jsonContentType),
     );
   }
 
   Future<Response<dynamic>> getProfilePhoto(
-    int userId, {
+    Object userId, {
     String? accessToken,
     String? host,
   }) {
     return _dio.getUri(
-      _uri('/users/$userId/get-profile-photo', host: host),
+      ApiDioClient.uri(
+          Config.usesAdministration
+              ? '/users/$userId/profile-photo'
+              : '/users/$userId/get-profile-photo',
+          host: Config.usesAdministration ? Config.administrationHost : host),
       options: _authenticatedOptions(
         accessToken: accessToken,
         responseType: ResponseType.json,
@@ -96,14 +129,18 @@ class UserController {
   }
 
   Future<Response<dynamic>> uploadProfilePhoto({
-    required int userId,
+    required Object userId,
     required String photoBase64,
     required String format,
     String? accessToken,
     String? host,
   }) {
     return _dio.postUri(
-      _uri('/users/$userId/upload-profile-photo', host: host),
+      ApiDioClient.uri(
+          Config.usesAdministration
+              ? '/account/profile-photo'
+              : '/users/$userId/upload-profile-photo',
+          host: Config.usesAdministration ? Config.administrationHost : host),
       data: <String, dynamic>{
         'photoBase64': photoBase64,
         'format': format,
@@ -117,14 +154,14 @@ class UserController {
 
   Future<Response<dynamic>> getUserByEmail(String email) {
     return _dio.getUri(
-      _uri('/users/$email'),
+      ApiDioClient.uri('/users/$email'),
       options: Options(contentType: Headers.jsonContentType),
     );
   }
 
   Future<Response<dynamic>> checkEmailExists(String email) {
     return _dio.getUri(
-      _uri('/users/exists', queryParameters: <String, String>{
+      ApiDioClient.uri('/users/exists', queryParameters: <String, String>{
         'email': email,
       }),
       options: Options(

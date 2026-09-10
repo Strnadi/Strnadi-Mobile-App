@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -58,11 +59,11 @@ class _ConnectedPlatformsState extends State<Connectedplatforms> {
 
   Future<ConnectedAccountSession?> _captureSession() async {
     final snapshot = await activatedAuthSessions.capture();
-    final int? userId = int.tryParse(snapshot?.userId ?? '');
+    final Object? userId = parseUserId(snapshot?.userId ?? '');
     if (snapshot == null ||
         !snapshot.verified ||
         userId == null ||
-        userId <= 0) {
+        parseUserId(userId) == null) {
       return null;
     }
     return ConnectedAccountSession(

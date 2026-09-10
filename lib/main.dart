@@ -1,3 +1,6 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/database/pending_recording_uploads.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -31,6 +34,7 @@ import 'auth/emailVerificationResult/successVerify.dart';
 import 'package:google_api_availability/google_api_availability.dart';
 import 'package:strnadi/maintanance.dart';
 import 'package:strnadi/config/config.dart'; // ensure Config and ServerHealth are in scope
+import 'package:strnadi/widgets/environment_banner.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/update_checker_logic.dart';
@@ -127,34 +131,36 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
       if (!context.mounted) return;
 
       if (newAvailability != GooglePlayServicesAvailability.success) {
-        _showMessage(
-          context,
-          t('dialogs.googlePlayServicesRequired'),
-        );
+        _showMessage(context, t('dialogs.googlePlayServicesRequired'));
       }
     }
   }
 }
 
 void main() {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    // Register global upload progress bridge so background isolates can report to UI
-    UploadProgressBridge.instance.start();
+  // Keep existing diagnostics visible in profile/release builds too.
+  Logger.defaultFilter = () => ProductionFilter();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      // Register global upload progress bridge so background isolates can report to UI
+      UploadProgressBridge.instance.start();
 
-    await AppBootstrap.initializeBeforeConsent();
+      await AppBootstrap.initializeBeforeConsent();
 
-    // 4) Handle tracking consent before finishing app bootstrap
-    final trackingAuthorized =
-        await TrackingConsentManager.ensureTrackingConsent();
+      // 4) Handle tracking consent before finishing app bootstrap
+      final trackingAuthorized =
+          await TrackingConsentManager.ensureTrackingConsent();
 
-    // 5) Continue with app bootstrap directly
-    await _continueBootstrap(trackingAuthorized: trackingAuthorized);
-  }, (error, stack) {
-    if (TrackingConsentManager.isAuthorized) {
-      Sentry.captureException(error, stackTrace: stack);
-    }
-  });
+      // 5) Continue with app bootstrap directly
+      await _continueBootstrap(trackingAuthorized: trackingAuthorized);
+    },
+    (error, stack) {
+      if (TrackingConsentManager.isAuthorized) {
+        Sentry.captureException(error, stackTrace: stack);
+      }
+    },
+  );
 }
 
 // PermissionGate widget – controls runtime permissions and continues app bootstrap
@@ -190,8 +196,7 @@ class _PermissionGateState extends State<PermissionGate> {
   @override
   Widget build(BuildContext context) {
     return _granted
-        ? const SizedBox
-            .shrink() // bude ihned nahrazeno runApp(MyApp) ve _continueBootstrap
+        ? const SizedBox.shrink() // bude ihned nahrazeno runApp(MyApp) ve _continueBootstrap
         : const PermissionScreen();
   }
 }
@@ -266,16 +271,37 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  StreamSubscription<List<ConnectivityResult>>? _uploadConnectivity;
+  late final PendingRecordingUploads _pendingUploads = PendingRecordingUploads(
+    captureSession: activatedAuthSessions.capture,
+    environment: () => Config.dataEnvironment,
+    isCurrent: activatedAuthSessions.isCurrent,
+    canUpload: () => Config.canUpload,
+    loadRecordings: DatabaseNew.getDownloadedRecordingsForCurrentUser,
+    schedule: DatabaseNew.sendRecordingBackground,
+    onError: (error, stackTrace) => logger.w(
+      'Could not schedule pending recordings',
+      error: error,
+      stackTrace: stackTrace,
+    ),
+  );
   @override
   void initState() {
     super.initState();
     if (!widget.enableLifecycleSideEffects) return;
     WidgetsBinding.instance.addObserver(this);
     Config.onHostEnvironmentChanged = refreshBadge;
+    _uploadConnectivity = Connectivity().onConnectivityChanged.listen((_) {
+      unawaited(_pendingUploads.retry());
+    });
+    unawaited(_pendingUploads.retry());
     TrackingConsentManager.ensureObserver();
-    unawaited(TrackingConsentManager.captureEvent('app_opened', properties: {
-      'environment': Config.hostEnvironment.name,
-    }));
+    unawaited(
+      TrackingConsentManager.captureEvent(
+        'app_opened',
+        properties: {'environment': Config.dataEnvironment},
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final BuildContext? navigatorContext = navigatorKey.currentContext;
       if (!mounted || navigatorContext == null || !navigatorContext.mounted) {
@@ -295,6 +321,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     if (widget.enableLifecycleSideEffects) {
+      _pendingUploads.dispose();
+      unawaited(_uploadConnectivity?.cancel());
       WidgetsBinding.instance.removeObserver(this);
       if (Config.onHostEnvironmentChanged == refreshBadge) {
         Config.onHostEnvironmentChanged = null;
@@ -307,28 +335,35 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!widget.enableLifecycleSideEffects) return;
     if (state == AppLifecycleState.resumed) {
+      unawaited(_pendingUploads.retry());
       // When the app returns to foreground, reconcile any stale sending flags
-      unawaited(DatabaseNew.checkSendingRecordings().then((_) async {
-        final BuildContext? context = navigatorKey.currentContext;
-        if (context != null && context.mounted) {
-          await IncompleteUploadPrompt.checkAndPrompt(context);
-        }
-      }));
+      unawaited(
+        DatabaseNew.checkSendingRecordings().then((_) async {
+          final BuildContext? context = navigatorKey.currentContext;
+          if (context != null && context.mounted) {
+            await IncompleteUploadPrompt.checkAndPrompt(context);
+          }
+        }),
+      );
     }
   }
 
-  bool debugBadge = Config.hostEnvironment == HostEnvironment.dev;
+  HostEnvironment _environment = Config.hostEnvironment;
 
   void refreshBadge() {
     unawaited(DatabaseNew.refreshUnreadNotificationCount());
     if (!mounted) return;
-    setState(() => debugBadge = Config.hostEnvironment == HostEnvironment.dev);
+    setState(() => _environment = Config.hostEnvironment);
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: (debugBadge),
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) => EnvironmentBanner(
+        environment: _environment,
+        child: child ?? const SizedBox.shrink(),
+      ),
       title: 'Strnadi',
       navigatorKey: navigatorKey,
       navigatorObservers: widget.enableLifecycleSideEffects
@@ -360,7 +395,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             );
           case '/ucet/obnova-hesla':
             final args = settings.arguments as Map<String, dynamic>?;
-            final token = args?['token'] as String? ??
+            final token =
+                args?['token'] as String? ??
                 uri?.queryParameters['token'] ??
                 '';
             return MaterialPageRoute(
@@ -376,8 +412,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       routes: {
         '/authorizator': (context) => Authorizator(),
         '/reset-password': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-              as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>?;
           final token = args?['token'] ?? '';
           return ChangePassword(jwt: token);
         },

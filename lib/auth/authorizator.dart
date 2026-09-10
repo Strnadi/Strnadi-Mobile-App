@@ -1,3 +1,5 @@
+import 'package:strnadi/auth/administration/app_administration.dart';
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2024 Marian Pecqueur
  * This program is free software: you can redistribute it and/or modify
@@ -60,6 +62,14 @@ class Authorizator extends StatefulWidget {
 enum AuthStatus { loggedIn, loggedOut, notVerified }
 
 Future<AuthStatus> _onlineIsLoggedIn() async {
+  if (AppAdministration.enabled) {
+    try {
+      await AppAdministration.token();
+      return AuthStatus.loggedIn;
+    } catch (_) {
+      return AuthStatus.loggedOut;
+    }
+  }
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
   if (token != null) {
@@ -124,6 +134,9 @@ Future<AuthStatus> _offlineIsLoggedIn() async {
   final String? token = await secureStorage.read(key: 'token');
   final ActivatedAuthSessionSnapshot? snapshot =
       await activatedAuthSessions.capture();
+  if (AppAdministration.enabled && parseUserId(snapshot?.userId) is! String) {
+    return AuthStatus.loggedOut;
+  }
   final OfflineActivatedSessionStatus status = evaluateOfflineActivatedSession(
     snapshot: snapshot,
     storedAccessToken: token,
@@ -297,8 +310,10 @@ class _AuthState extends State<Authorizator> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: () =>
-                                    _navigateIfAllowed(const RegMail()),
+                                onPressed: () => _navigateIfAllowed(
+                                    AppAdministration.enabled
+                                        ? const Login()
+                                        : const RegMail()),
                                 style: ElevatedButton.styleFrom(
                                   elevation: 0,
                                   // No elevation
@@ -433,6 +448,12 @@ class _AuthState extends State<Authorizator> {
   }
 
   Future<void> checkLoggedIn() async {
+    if (AppAdministration.enabled) {
+      if (await isLoggedIn() == AuthStatus.loggedIn && mounted) {
+        await navigateToSessionLanding(context);
+      }
+      return;
+    }
     try {
       await _withLoader(() async {
         final bool online = await Config.hasBasicInternet;

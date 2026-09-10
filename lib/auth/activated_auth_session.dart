@@ -1,9 +1,11 @@
+import 'package:strnadi/auth/user_identity.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:strnadi/config/config.dart';
 
 abstract interface class AuthSessionKeyValueStore {
   Future<String?> read(String key);
@@ -46,11 +48,13 @@ class AuthSessionTransition {
     required this.accessToken,
     required this.subject,
     required this.transitionId,
+    this.scope,
   });
 
   final String accessToken;
   final String subject;
   final String transitionId;
+  final String? scope;
 }
 
 class ActivatedAuthSessionSnapshot {
@@ -155,7 +159,9 @@ class ActivatedAuthSessionManager {
     AuthSessionSubjectDecoder subjectDecoder = decodeAuthSessionJwtSubject,
     AuthSessionIdFactory? sessionIdFactory,
     String Function()? transitionIdFactory,
+    String Function()? scopeProvider,
   })  : _store = store,
+        _scopeProvider = scopeProvider,
         _subjectDecoder = subjectDecoder,
         _sessionIdFactory = sessionIdFactory ??
             ((generation) => _randomOpaqueId('s', generation)),
@@ -170,6 +176,7 @@ class ActivatedAuthSessionManager {
   static const String monotonicGenerationKey = 'authSessionGeneration';
 
   final AuthSessionKeyValueStore _store;
+  final String Function()? _scopeProvider;
   final AuthSessionSubjectDecoder _subjectDecoder;
   final AuthSessionIdFactory _sessionIdFactory;
   final String Function() _transitionIdFactory;
@@ -229,6 +236,7 @@ class ActivatedAuthSessionManager {
         accessToken: token,
         subject: subject.trim(),
         transitionId: transitionId,
+        scope: _scopeProvider?.call(),
       );
     });
   }
@@ -236,7 +244,7 @@ class ActivatedAuthSessionManager {
   /// Activates a transition only after the backend returned a positive user id.
   Future<ActivatedAuthSessionSnapshot> activate(
     AuthSessionTransition transition,
-    int userId, {
+    Object userId, {
     required bool verified,
   }) {
     return _exclusive<ActivatedAuthSessionSnapshot>(
@@ -254,11 +262,11 @@ class ActivatedAuthSessionManager {
   /// login. A matching activated marker is returned unchanged; otherwise the
   /// old user id and marker are invalidated before the fetched id is committed.
   Future<ActivatedAuthSessionSnapshot> activateCurrentToken(
-    int fetchedUserId, {
+    Object fetchedUserId, {
     required bool verified,
   }) {
     return _exclusive<ActivatedAuthSessionSnapshot>(() async {
-      if (fetchedUserId <= 0) {
+      if (parseUserId(fetchedUserId) == null) {
         throw const ActivatedAuthSessionException(
           'A session requires a positive user id.',
         );
@@ -298,6 +306,7 @@ class ActivatedAuthSessionManager {
           accessToken: token,
           subject: subject.trim(),
           transitionId: transitionId,
+          scope: _scopeProvider?.call(),
         ),
         fetchedUserId,
         verified: verified,
@@ -307,10 +316,10 @@ class ActivatedAuthSessionManager {
 
   Future<ActivatedAuthSessionSnapshot> _activateUnlocked(
     AuthSessionTransition transition,
-    int userId, {
+    Object userId, {
     required bool verified,
   }) async {
-    if (userId <= 0) {
+    if (parseUserId(userId) == null) {
       throw const ActivatedAuthSessionException(
         'A session requires a positive user id.',
       );
@@ -319,6 +328,7 @@ class ActivatedAuthSessionManager {
     final String? currentToken = await _store.read(tokenKey);
     final String? pendingTransition = await _store.read(pendingTransitionKey);
     if (currentToken != transition.accessToken ||
+        transition.scope != _scopeProvider?.call() ||
         pendingTransition != transition.transitionId ||
         _subjectDecoder(transition.accessToken) != transition.subject) {
       throw const ActivatedAuthSessionException(
@@ -356,6 +366,7 @@ class ActivatedAuthSessionManager {
       'userId': snapshot.userId,
       'subject': snapshot.subject,
       'verified': snapshot.verified,
+      if (_scopeProvider != null) 'scope': _scopeProvider(),
     });
 
     await _store.write(monotonicGenerationKey, generation.toString());
@@ -369,6 +380,25 @@ class ActivatedAuthSessionManager {
   }
 
   Future<ActivatedAuthSessionSnapshot?> capture() => _captureUnlocked();
+
+  /// Renew a credential without creating a new logical login or changing owner.
+  Future<void> replaceCredential(
+    ActivatedAuthSessionSnapshot expected,
+    String token,
+  ) =>
+      _exclusive(() async {
+        if (!await isCurrent(expected) ||
+            _subjectDecoder(token) != expected.subject) {
+          throw const ActivatedAuthSessionException(
+              'Session changed during renewal.');
+        }
+        if (token == expected.accessToken) return;
+        final marker = jsonDecode((await _store.read(activatedMarkerKey))!)
+            as Map<String, dynamic>;
+        marker['accessToken'] = token;
+        await _store.write(tokenKey, token);
+        await _store.write(activatedMarkerKey, jsonEncode(marker));
+      });
 
   Future<ActivatedAuthSessionSnapshot?> _captureUnlocked() async {
     final String? firstMarker = await _store.read(activatedMarkerKey);
@@ -387,6 +417,12 @@ class ActivatedAuthSessionManager {
       final dynamic decoded = jsonDecode(firstMarker);
       if (decoded is! Map) return null;
       final Map<String, dynamic> marker = decoded.cast<String, dynamic>();
+      final scope = _scopeProvider?.call();
+      if (scope != null &&
+          ((marker['scope'] != null && marker['scope'] != scope) ||
+              (scope.startsWith('preprod|') && marker['scope'] == null))) {
+        return null;
+      }
       final int? version = marker['version'] as int?;
       final int? generation = marker['generation'] as int?;
       final String? markerToken = marker['accessToken'] as String?;
@@ -395,13 +431,13 @@ class ActivatedAuthSessionManager {
       final String? sessionId = marker['sessionId'] as String?;
       final bool? markerVerified = marker['verified'] as bool?;
       final String normalizedMarkerUserId = markerUserId?.trim() ?? '';
-      final int? numericUserId = int.tryParse(normalizedMarkerUserId);
+      final Object? numericUserId = parseUserId(normalizedMarkerUserId);
       if (version != 1 ||
           generation == null ||
           generation <= 0 ||
           persistedGeneration != generation ||
           numericUserId == null ||
-          numericUserId <= 0 ||
+          parseUserId(numericUserId) == null ||
           markerToken == null ||
           markerToken.isEmpty ||
           markerSubject == null ||
@@ -479,4 +515,5 @@ class ActivatedAuthSessionManager {
 final ActivatedAuthSessionManager activatedAuthSessions =
     ActivatedAuthSessionManager(
   store: const SecureStorageAuthSessionKeyValueStore(),
+  scopeProvider: () => Config.dataEnvironment,
 );

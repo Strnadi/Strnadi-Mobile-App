@@ -19,8 +19,19 @@
 
     <application
         android:label="Strnadi"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.markdown-files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/markdown_file_paths" />
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -54,11 +65,17 @@
                 <data android:scheme="https" android:host="dev.strnadi.cz" android:path="/ucet/email-overen" />
                 <data android:scheme="https" android:host="dev.strnadi.cz" android:path="/ucet/email-neoveren" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.delta.strnadi" />
+                <data android:scheme="com.delta.strnadi"
+                    android:host="auth" android:path="/callback" />
             </intent-filter>
         </activity>
         <meta-data android:name="com.posthog.posthog.API_KEY" android:value="phc_z9EJPD4Mx7tvxn4ERnub3lSPkMg51hMgmthaiqM3QDj" />

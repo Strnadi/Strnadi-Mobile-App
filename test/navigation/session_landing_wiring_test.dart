@@ -37,7 +37,7 @@ void main() {
       expect(
         RegExp(r'await navigateToSessionLanding\(context\);')
             .allMatches(restoration),
-        hasLength(2),
+        hasLength(3),
       );
       expect(restoration, isNot(contains('LiveRec(')));
     });

@@ -4,6 +4,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/auth/user_profile_payload.dart';
 
 void main() {
+  test('caches nullable metadata without retaining a previous role or nickname',
+      () async {
+    final values = <String, String?>{'nick': 'Old', 'role': 'admin'};
+    await cacheUserProfileMetadata(
+      {'firstName': 'Ada', 'lastName': 'Bird', 'nickname': null, 'role': null},
+      write: (key, value) async => values[key] = value,
+    );
+    expect(values, {
+      'firstName': 'Ada',
+      'lastName': 'Bird',
+      'nick': null,
+      'role': null,
+    });
+  });
+
+  test(
+      'null, missing and malformed profile fields cannot crash metadata caching',
+      () async {
+    for (final payload in <Object?>[
+      null,
+      {'firstName': null, 'lastName': 'Bird'},
+      {'firstName': 'Ada', 'lastName': null},
+      {'firstName': 'Ada'},
+      {'firstName': 7, 'lastName': 'Bird'},
+      'Invalid JSON',
+    ]) {
+      final values = <String, String?>{'role': 'admin'};
+      await cacheUserProfileMetadata(
+        payload,
+        write: (key, value) async => values[key] = value,
+      );
+      expect(values, {
+        'firstName': null,
+        'lastName': null,
+        'nick': null,
+        'role': null,
+      });
+    }
+  });
+
   group('cached user profile parsing (no API or DB)', () {
     test('accepts typed maps and JSON strings', () {
       for (final Object payload in <Object>[

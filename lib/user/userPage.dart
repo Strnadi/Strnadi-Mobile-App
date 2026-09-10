@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -97,8 +98,11 @@ class _UserPageState extends State<UserPage> {
   Future<ActivatedAuthSessionSnapshot?> _captureVerifiedSession() async {
     final ActivatedAuthSessionSnapshot? session =
         await activatedAuthSessions.capture();
-    final int? userId = int.tryParse(session?.userId ?? '');
-    if (session == null || !session.verified || userId == null || userId <= 0) {
+    final Object? userId = parseUserId(session?.userId ?? '');
+    if (session == null ||
+        !session.verified ||
+        userId == null ||
+        parseUserId(userId) == null) {
       return null;
     }
     return session;
@@ -140,11 +144,11 @@ class _UserPageState extends State<UserPage> {
     final ActivatedAuthSessionSnapshot? session =
         await _captureVerifiedSession();
     if (session == null) return;
-    final int userId = int.parse(session.userId);
+    final Object userId = requireUserId(session.userId);
     final String host = Config.host;
     final String cacheKey = profilePhotoCacheKey(
       ownerUserId: session.userId,
-      environment: Config.hostEnvironment.name,
+      environment: Config.dataEnvironment,
     );
     final cacheManager = DefaultCacheManager();
 
@@ -207,7 +211,7 @@ class _UserPageState extends State<UserPage> {
     final ActivatedAuthSessionSnapshot? session =
         await _captureVerifiedSession();
     if (session == null) return;
-    final int userId = int.parse(session.userId);
+    final Object userId = requireUserId(session.userId);
     final String host = Config.host;
 
     try {
@@ -243,6 +247,8 @@ class _UserPageState extends State<UserPage> {
           key: profileRoleStorageKey,
           value: data.role,
         );
+      } else {
+        await secureStorage.delete(key: profileRoleStorageKey);
       }
 
       if (!await activatedAuthSessions.isCurrent(session) ||
@@ -282,11 +288,11 @@ class _UserPageState extends State<UserPage> {
       _showMessage(t('user.profile.dialogs.error.auth'));
       return;
     }
-    final int userId = int.parse(session.userId);
+    final Object userId = requireUserId(session.userId);
     final String host = Config.host;
     final String cacheKey = profilePhotoCacheKey(
       ownerUserId: session.userId,
-      environment: Config.hostEnvironment.name,
+      environment: Config.dataEnvironment,
     );
     final File candidateFile = File(imagePath);
 
@@ -336,7 +342,8 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
-  Future<void> logout(BuildContext context, {bool popUp = true}) async {
+  Future<void> logout(BuildContext context,
+      {bool popUp = true, Future<void> Function()? afterCleanup}) async {
     if (popUp) {
       final NavigatorState navigator = Navigator.of(context);
       showDialog(
@@ -369,6 +376,7 @@ class _UserPageState extends State<UserPage> {
                           secureStorage.deleteAll,
                         ),
                         signOutIdentityProvider: GoogleSignInService.signOut,
+                        afterCleanup: afterCleanup,
                       );
                       if (!mounted || !navigator.mounted) return;
                       navigator.pushNamedAndRemoveUntil(
@@ -394,6 +402,7 @@ class _UserPageState extends State<UserPage> {
             secureStorage.deleteAll,
           ),
           signOutIdentityProvider: GoogleSignInService.signOut,
+          afterCleanup: afterCleanup,
         );
         if (!mounted) return;
         Navigator.of(this.context)

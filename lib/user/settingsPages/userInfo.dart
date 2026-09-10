@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -91,8 +92,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   Future<ActivatedAuthSessionSnapshot?> _captureVerifiedSession() async {
     final ActivatedAuthSessionSnapshot? session =
         await activatedAuthSessions.capture();
-    final int? userId = int.tryParse(session?.userId ?? '');
-    if (session == null || !session.verified || userId == null || userId <= 0) {
+    final Object? userId = parseUserId(session?.userId ?? '');
+    if (session == null ||
+        !session.verified ||
+        userId == null ||
+        parseUserId(userId) == null) {
       return null;
     }
     return session;
@@ -130,7 +134,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final String host = Config.host;
     try {
       final response = await _userController.getUserById(
-        int.parse(session.userId),
+        requireUserId(session.userId),
         accessToken: session.accessToken,
         host: host,
       );
@@ -163,7 +167,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     String host,
   ) async {
     final response = await _userController.getUserById(
-      int.parse(session.userId),
+      requireUserId(session.userId),
       accessToken: session.accessToken,
       host: host,
     );
@@ -190,6 +194,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         key: profileRoleStorageKey,
         value: profile.role,
       );
+    } else {
+      await _secureStorage.delete(key: profileRoleStorageKey);
     }
     if (!await _isCurrent(session, host)) return false;
 
@@ -227,7 +233,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         }
         final String host = Config.host;
         final response = await _userController.updateUserById(
-          int.parse(session.userId),
+          requireUserId(session.userId),
           updatedData,
           accessToken: session.accessToken,
           host: host,
@@ -291,7 +297,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       }
       final String host = Config.host;
       final response = await _userController.deleteUserById(
-        int.parse(session.userId),
+        requireUserId(session.userId),
         accessToken: session.accessToken,
         host: host,
       );

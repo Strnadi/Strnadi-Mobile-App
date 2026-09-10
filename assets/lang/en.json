@@ -1,5 +1,20 @@
 {
   "auth": {
+    "administration": {
+      "continue": "Sign in through Administration",
+      "description": "Sign in securely in your browser.",
+      "errors": {
+        "cancelled": "Sign-in was cancelled. You can try again.",
+        "denied": "Authorization was denied. Please try again.",
+        "invalidCallback": "The sign-in response was invalid. Please try again.",
+        "staleSession": "Your account or environment changed. Please sign in again.",
+        "network": "Could not connect. Please check your connection and try again.",
+        "server": "The sign-in service is unavailable. Please try again later.",
+        "invalidResponse": "The sign-in service returned an invalid response. Please try again.",
+        "loginRequired": "Your session has ended. Please sign in again.",
+        "exchangeDenied": "Access to this project was denied. Please contact the project administrator."
+      }
+    },
     "title": "Dialects of Czech Yellowhammers",
     "subtitle": "Record, map, conquer",
     "apple": {
@@ -407,6 +422,21 @@
     "no_nickname": "User has no nickname"
   },
   "map": {
+    "clusterPicker": {
+      "title": "Recordings",
+      "recording": "Recording",
+      "failed": "Could not load more recordings.",
+      "retry": "Try again",
+      "more": "Load more",
+      "expired": "The cluster changed. The map has been refreshed.",
+      "sources": {
+        "confirmed": "Confirmed by admin",
+        "ai": "AI prediction",
+        "user": "User suggestion",
+        "unknown": "Unknown",
+        "mixed": "Mixed sources"
+      }
+    },
     "notifications": {
       "enableLocation": "Please enable location services",
       "locationDenied": "Location permissions are denied",
@@ -442,6 +472,20 @@
       "hint": "Search place or coordinates (e.g. 50.087, 14.421)"
     },
     "filters": {
+      "features": {
+        "advanced": "Advanced",
+        "mixDialects": "Mix dialects in clusters",
+        "mixDialectsHelp": "Combine recordings with different dialects in one cluster.",
+        "mixSources": "Mix identification sources in clusters",
+        "mixSourcesHelp": "Combine confirmed, AI and user identifications.",
+        "enableClustering": "Enable clustering to change these options.",
+        "onlyMeaningfulDialects": "Only recordings with a dialect",
+        "onlyMeaningfulDialectsHelp": "Exclude recordings with only unknown or non-dialect labels.",
+        "hideOthersWithoutMeaningfulDialect": "Hide others’ recordings without a dialect",
+        "hideOthersHelp": "Keep my recordings even when they have no dialect.",
+        "onlyMeaningfulOverrides": "“Only recordings with a dialect” also hides my recordings without a dialect.",
+        "signInRequired": "Sign in to use filters relative to your account."
+      },
       "clustering": {
         "title": "Point clustering",
         "on": "Enabled",
@@ -453,6 +497,7 @@
         "satellite": "Aerial"
       },
       "recordingAuthor": {
+        "others": "Others",
         "title": "Recording author",
         "all": "All",
         "me": "Me only"
@@ -610,11 +655,11 @@
         "error": {
           "noInternet": {
             "title": "Connection error",
-            "message": "You need an internet connection to save the recording"
+            "message": "The recording is saved and queued for automatic upload when connectivity returns."
           },
           "wifiOnly": {
             "title": "Connection error",
-            "message": "Recording is allowed on Wi-Fi only"
+            "message": "The recording is saved and queued for automatic upload when the connection meets your settings and the server is available."
           },
           "login": "Please sign in before sending this recording.",
           "invalidParts": "The recording is incomplete and could not be saved. Please record it again.",
@@ -730,6 +775,20 @@
       }
     },
     "settings": {
+      "environment": {
+        "section": "Developer settings",
+        "label": "Server environment",
+        "production": "Production",
+        "development": "Development",
+        "preprod": "Preprod",
+        "devBadge": "DEV",
+        "preprodBadge": "PREPROD",
+        "confirmTitle": "Change environment?",
+        "confirmMessage": "Switching environment will sign you out. Recordings stay in their original environment. Continue?",
+        "cancel": "Cancel",
+        "continue": "Continue",
+        "failed": "Could not change environment. Check the configuration and try again."
+      },
       "title": "Settings",
       "app": "App",
       "fields": {

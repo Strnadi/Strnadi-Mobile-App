@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -88,10 +89,10 @@ class IncompleteRecordingUpload {
     required this.reconcileAllBackendParts,
     required Set<int>? uploadedBackendPartIds,
     required RecordingOwnerSnapshot ownerSnapshot,
-  })  : uploadedBackendPartIds = uploadedBackendPartIds == null
-            ? null
-            : Set<int>.unmodifiable(uploadedBackendPartIds),
-        _ownerSnapshot = ownerSnapshot;
+  }) : uploadedBackendPartIds = uploadedBackendPartIds == null
+           ? null
+           : Set<int>.unmodifiable(uploadedBackendPartIds),
+       _ownerSnapshot = ownerSnapshot;
 
   final Recording recording;
   final int expectedPartsCount;
@@ -137,8 +138,9 @@ class DatabaseNew {
   static List<Recording>? fetchedRecordings;
   static List<RecordingPart>? fetchedRecordingParts;
   static RecordingUploadSession? _fetchedRecordingSession;
-  static final ValueNotifier<int> unreadNotificationCount =
-      ValueNotifier<int>(0);
+  static final ValueNotifier<int> unreadNotificationCount = ValueNotifier<int>(
+    0,
+  );
 
   static bool fetching = false;
   static bool _durationBackfillNeeded = false;
@@ -148,7 +150,7 @@ class DatabaseNew {
       captureActivatedSession: activatedAuthSessions.capture,
       isActivatedSessionCurrent: activatedAuthSessions.isCurrent,
       currentEnvironment: () =>
-          Config.isHostEnvironmentLoaded ? Config.hostEnvironment.name : '',
+          Config.isHostEnvironmentLoaded ? Config.dataEnvironment : '',
     );
   }
 
@@ -171,8 +173,8 @@ class DatabaseNew {
     if (session == null) return;
     validateRecordingUploadSession(session);
     final String email = session.accountEmail?.trim() ?? '';
-    final int? userId = int.tryParse(session.userId.trim());
-    if (email.isEmpty || userId == null || userId <= 0) return;
+    final Object? userId = parseUserId(session.userId.trim());
+    if (email.isEmpty || userId == null || parseUserId(userId) == null) return;
     await _requireRecordingSessionCurrent(sessionProvider, session);
 
     final Database db = await database;
@@ -234,8 +236,11 @@ class DatabaseNew {
         await deleteRecordingFromCache(id);
         logger.i('Auto-pruned recording id $id due to max limit=$max');
       } catch (e, st) {
-        logger.e('Failed to auto-prune recording id $id',
-            error: e, stackTrace: st);
+        logger.e(
+          'Failed to auto-prune recording id $id',
+          error: e,
+          stackTrace: st,
+        );
         Sentry.captureException(e, stackTrace: st);
       }
     }
@@ -252,13 +257,13 @@ class DatabaseNew {
     RecordingUploadSession? capturedSession,
   }) async {
     try {
-      final int? capturedUserId = capturedSession == null
+      final Object? capturedUserId = capturedSession == null
           ? null
-          : int.tryParse(capturedSession.userId.trim());
+          : parseUserId(capturedSession.userId.trim());
       final String? capturedEmail = capturedSession?.accountEmail?.trim();
       if (capturedSession != null &&
           (capturedUserId == null ||
-              capturedUserId <= 0 ||
+              parseUserId(capturedUserId) == null ||
               capturedEmail == null ||
               capturedEmail.isEmpty ||
               recording.env != capturedSession.environment)) {
@@ -267,23 +272,27 @@ class DatabaseNew {
 
       final db = await database;
       if (recording.BEId != null) {
-        List<Map<String, dynamic>> existing = await db.query("recordings",
-            where: "BEId = ? AND env = ?",
-            whereArgs: [recording.BEId, recording.env]);
+        List<Map<String, dynamic>> existing = await db.query(
+          "recordings",
+          where: "BEId = ? AND env = ?",
+          whereArgs: [recording.BEId, recording.env],
+        );
         if (existing.isNotEmpty) {
           final Recording current = Recording.fromJson(existing.first);
           final int id = existing.first["id"] as int;
           if (capturedSession != null) {
             final bool belongsToCapturedAccount =
                 recordingBelongsToCapturedAccount(
-              sent: recording.sent,
-              ownerUserId: recording.userId,
-              capturedUserId: capturedUserId!,
-            );
-            final String desiredMail =
-                belongsToCapturedAccount ? capturedEmail! : '';
-            final int? desiredUserId =
-                belongsToCapturedAccount ? capturedUserId : recording.userId;
+                  sent: recording.sent,
+                  ownerUserId: recording.userId,
+                  capturedUserId: capturedUserId!,
+                );
+            final String desiredMail = belongsToCapturedAccount
+                ? capturedEmail!
+                : '';
+            final Object? desiredUserId = belongsToCapturedAccount
+                ? capturedUserId
+                : recording.userId;
             if (current.env != capturedSession.environment) {
               throw const RecordingUploadSessionChangedException();
             }
@@ -293,11 +302,9 @@ class DatabaseNew {
                 current.userId != desiredUserId) {
               final int ownershipChanged = await db.update(
                 'recordings',
-                <String, Object?>{
-                  'mail': desiredMail,
-                  'userId': desiredUserId,
-                },
-                where: 'id = ? AND BEId = ? AND env = ? '
+                <String, Object?>{'mail': desiredMail, 'userId': desiredUserId},
+                where:
+                    'id = ? AND BEId = ? AND env = ? '
                     'AND (uploadLease IS NULL OR TRIM(uploadLease) = ?)',
                 whereArgs: <Object?>[
                   id,
@@ -342,9 +349,7 @@ class DatabaseNew {
           await updateRecording(recording);
           await updateRecordingCacheState(recording);
           await updateRecordingDuration(recording);
-          logger.i(
-            'Recording with BEId ${recording.BEId} updated (id: $id).',
-          );
+          logger.i('Recording with BEId ${recording.BEId} updated (id: $id).');
           return id;
         }
       }
@@ -354,8 +359,8 @@ class DatabaseNew {
       final String? userIdS = capturedSession == null
           ? await FlutterSecureStorage().read(key: 'userId')
           : capturedSession.userId;
-      final int? currentUserId =
-          capturedUserId ?? int.tryParse((userIdS ?? '').trim());
+      final Object? currentUserId =
+          capturedUserId ?? parseUserId((userIdS ?? '').trim());
 
       logger.i('Token available: ${token != null && token.isNotEmpty}');
 
@@ -395,8 +400,9 @@ class DatabaseNew {
   // static method to select all
   static Future<List<Map<String, dynamic>>> getAllRecordings() async {
     final db = await database;
-    final List<Map<String, dynamic>> recs =
-        await db.rawQuery("SELECT * FROM recordings");
+    final List<Map<String, dynamic>> recs = await db.rawQuery(
+      "SELECT * FROM recordings",
+    );
     return recs;
   }
 
@@ -409,7 +415,7 @@ class DatabaseNew {
     final RecordingUploadSession? session = await sessionProvider.capture();
     if (session == null) return;
     validateRecordingUploadSession(session);
-    final int userId = int.parse(session.userId);
+    final Object userId = requireUserId(session.userId);
     final String email = session.accountEmail?.trim() ?? '';
     if (email.isEmpty) return;
 
@@ -426,13 +432,7 @@ class DatabaseNew {
         'AND COALESCE(sending, 0) = 0 '
         'AND COALESCE(parentUploadAttempted, 0) = 0 '
         'AND (uploadLease IS NULL OR TRIM(uploadLease) = ?)',
-        <Object?>[
-          email,
-          userId,
-          session.environment,
-          '',
-          '',
-        ],
+        <Object?>[email, userId, session.environment, '', ''],
       );
       // If the account changed while SQLite was updating, throwing from the
       // transaction rolls the guest adoption back.
@@ -469,10 +469,7 @@ class DatabaseNew {
       where: localRecordingId == null
           ? 'BEId = ? AND env = ?'
           : 'id = ? AND env = ?',
-      whereArgs: <Object?>[
-        localRecordingId ?? backendRecordingId,
-        environment,
-      ],
+      whereArgs: <Object?>[localRecordingId ?? backendRecordingId, environment],
       limit: 1,
     );
     if (parents.isEmpty) {
@@ -534,8 +531,11 @@ class DatabaseNew {
     try {
       final db = await database;
       if (recordingPart.id != null) {
-        List<Map<String, dynamic>> existing = await db.query("recordingParts",
-            where: "id = ?", whereArgs: [recordingPart.id]);
+        List<Map<String, dynamic>> existing = await db.query(
+          "recordingParts",
+          where: "id = ?",
+          whereArgs: [recordingPart.id],
+        );
         if (existing.isNotEmpty) {
           int id = existing.first["id"];
           final RecordingPart current = RecordingPart.fromJson(existing.first);
@@ -562,7 +562,8 @@ class DatabaseNew {
           }
           await updateRecordingPart(recordingPart);
           logger.i(
-              'Recording part with backendRecordingId ${recordingPart.backendRecordingId} updated (id: $id).');
+            'Recording part with backendRecordingId ${recordingPart.backendRecordingId} updated (id: $id).',
+          );
           return id;
         }
       }
@@ -574,12 +575,12 @@ class DatabaseNew {
         }
         final Map<String, Object?> parent =
             await _requireCurrentEnvironmentRecordingParent(
-          db,
-          localRecordingId: recordingPart.recordingId,
-          backendRecordingId: recordingPart.backendRecordingId,
-          environment: capturedEnvironment ?? Config.hostEnvironment.name,
-          childLabel: 'A backend recording part',
-        );
+              db,
+              localRecordingId: recordingPart.recordingId,
+              backendRecordingId: recordingPart.backendRecordingId,
+              environment: capturedEnvironment ?? Config.dataEnvironment,
+              childLabel: 'A backend recording part',
+            );
         final int parentId = parent['id'] as int;
         final int parentBackendId = parent['BEId'] as int;
         recordingPart
@@ -591,8 +592,9 @@ class DatabaseNew {
           whereArgs: [recordingPart.BEId, parentId],
         );
         if (existingByBeId.isNotEmpty) {
-          final RecordingPart existing =
-              RecordingPart.fromJson(existingByBeId.first);
+          final RecordingPart existing = RecordingPart.fromJson(
+            existingByBeId.first,
+          );
           recordingPart.id = existing.id;
           recordingPart.recordingId ??= existing.recordingId;
           recordingPart.backendRecordingId ??= existing.backendRecordingId;
@@ -611,7 +613,8 @@ class DatabaseNew {
           );
           recordingPart.uploadAttempted = true;
           logger.i(
-              'Recording part with BEId ${recordingPart.BEId} updated (id: ${recordingPart.id}).');
+            'Recording part with BEId ${recordingPart.BEId} updated (id: ${recordingPart.id}).',
+          );
           return recordingPart.id ?? -1;
         }
       }
@@ -624,8 +627,11 @@ class DatabaseNew {
       logger.i('Recording part ${recordingPart.id} inserted.');
       return id;
     } catch (e, stackTrace) {
-      logger.e('Failed to insert recording part',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to insert recording part',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
       rethrow;
     }
@@ -646,7 +652,7 @@ class DatabaseNew {
           userId: null,
           accountEmail: null,
           logicalSessionId: null,
-          environment: Config.hostEnvironment.name,
+          environment: Config.dataEnvironment,
           backendHost: Config.host,
         );
       } else {
@@ -707,7 +713,7 @@ class DatabaseNew {
       userId: userId,
       accountEmail: accountEmail,
       logicalSessionId: logicalSessionId,
-      environment: Config.hostEnvironment.name,
+      environment: Config.dataEnvironment,
       backendHost: Config.host,
     );
   }
@@ -745,8 +751,9 @@ class DatabaseNew {
     recording
       ..env = ownerSnapshot.environment
       ..mail = ownerSnapshot.isGuest ? '' : ownerSnapshot.accountEmail
-      ..userId =
-          ownerSnapshot.isGuest ? null : int.parse(ownerSnapshot.userId!);
+      ..userId = ownerSnapshot.isGuest
+          ? null
+          : requireUserId(ownerSnapshot.userId!);
     recording.uploadKey ??= _newUploadKey('recording');
     recording.partCount = parts.length;
     for (final RecordingPart part in parts) {
@@ -790,12 +797,12 @@ class DatabaseNew {
       try {
         final PersistedDraftIdentity? reconciled =
             await _reconcilePersistedRecordingDraft(
-          db,
-          recording,
-          parts,
-          dialects,
-          ownerSnapshot,
-        );
+              db,
+              recording,
+              parts,
+              dialects,
+              ownerSnapshot,
+            );
         if (reconciled == null) {
           _clearDraftLocalIds(recording, parts, dialects);
           logger.e(
@@ -870,13 +877,7 @@ class DatabaseNew {
     final String recordingUploadKey = (recording.uploadKey ?? '').trim();
     final List<Map<String, Object?>> recordingRows = await executor.query(
       'recordings',
-      columns: const <String>[
-        'id',
-        'uploadKey',
-        'mail',
-        'userId',
-        'env',
-      ],
+      columns: const <String>['id', 'uploadKey', 'mail', 'userId', 'env'],
       where: 'uploadKey = ?',
       whereArgs: <Object?>[recordingUploadKey],
     );
@@ -906,10 +907,12 @@ class DatabaseNew {
     final PersistedDraftIdentity? identity = reconcilePersistedDraftIdentity(
       ownerSnapshot: ownerSnapshot,
       recordingUploadKey: recordingUploadKey,
-      expectedPartUploadKeys:
-          parts.map((part) => (part.uploadKey ?? '').trim()),
-      expectedDialectUploadKeys:
-          dialects.map((dialect) => (dialect.uploadKey ?? '').trim()),
+      expectedPartUploadKeys: parts.map(
+        (part) => (part.uploadKey ?? '').trim(),
+      ),
+      expectedDialectUploadKeys: dialects.map(
+        (dialect) => (dialect.uploadKey ?? '').trim(),
+      ),
       recordingRows: recordingRows,
       partRows: partRows,
       dialectRows: dialectRows,
@@ -1017,7 +1020,8 @@ class DatabaseNew {
       final bool sent = row['sent'] == 1 || row['sent'] == true;
       final bool sending = row['sending'] == 1 || row['sending'] == true;
       final int? backendId = row['BEId'] as int?;
-      final bool parentUploadAttempted = row['parentUploadAttempted'] == 1 ||
+      final bool parentUploadAttempted =
+          row['parentUploadAttempted'] == 1 ||
           row['parentUploadAttempted'] == true;
       final String? lease = row['uploadLease'] as String?;
       if (sent ||
@@ -1027,8 +1031,8 @@ class DatabaseNew {
           (lease != null && lease.isNotEmpty)) {
         throw StateError('Recording upload has already started.');
       }
-      final String currentUploadKey =
-          (row['uploadKey'] as String? ?? '').trim();
+      final String currentUploadKey = (row['uploadKey'] as String? ?? '')
+          .trim();
       if (currentUploadKey != recordingUploadKey) {
         throw const RecordingUploadValidationException(
           'The recording draft identity changed.',
@@ -1040,17 +1044,21 @@ class DatabaseNew {
       late final String aliasedOwnerPredicate;
       final List<Object?> ownerArgs = <Object?>[ownerSnapshot.environment];
       if (ownerSnapshot.isGuest) {
-        ownerPredicate = 'env = ? AND userId IS NULL '
+        ownerPredicate =
+            'env = ? AND userId IS NULL '
             "AND (mail IS NULL OR TRIM(mail) = '')";
-        aliasedOwnerPredicate = 'r.env = ? AND r.userId IS NULL '
+        aliasedOwnerPredicate =
+            'r.env = ? AND r.userId IS NULL '
             "AND (r.mail IS NULL OR TRIM(r.mail) = '')";
       } else {
-        ownerPredicate = 'env = ? AND userId = ? '
+        ownerPredicate =
+            'env = ? AND userId = ? '
             'AND LOWER(TRIM(mail)) = LOWER(?)';
-        aliasedOwnerPredicate = 'r.env = ? AND r.userId = ? '
+        aliasedOwnerPredicate =
+            'r.env = ? AND r.userId = ? '
             'AND LOWER(TRIM(r.mail)) = LOWER(?)';
         ownerArgs.addAll(<Object?>[
-          int.parse(ownerSnapshot.userId!),
+          requireUserId(ownerSnapshot.userId!),
           ownerSnapshot.accountEmail,
         ]);
       }
@@ -1060,7 +1068,8 @@ class DatabaseNew {
       final List<Map<String, Object?>> uploadedDialects = await txn.query(
         'Dialects',
         columns: const <String>['id'],
-        where: 'recordingId = ? AND ('
+        where:
+            'recordingId = ? AND ('
             'BEID IS NOT NULL OR COALESCE(uploadAttempted, 0) = 1'
             ')',
         whereArgs: <Object?>[recordingId],
@@ -1072,7 +1081,8 @@ class DatabaseNew {
       final List<Map<String, Object?>> uploadedParts = await txn.query(
         'recordingParts',
         columns: const <String>['id'],
-        where: 'recordingId = ? AND ('
+        where:
+            'recordingId = ? AND ('
             'BEId IS NOT NULL OR backendRecordingId IS NOT NULL '
             'OR COALESCE(sent, 0) = 1 OR COALESCE(sending, 0) = 1 '
             'OR COALESCE(uploadAttempted, 0) = 1'
@@ -1090,16 +1100,13 @@ class DatabaseNew {
       final int changed = await txn.update(
         'recordings',
         reviewedMetadata,
-        where: 'id = ? AND uploadKey = ? AND $ownerPredicate '
+        where:
+            'id = ? AND uploadKey = ? AND $ownerPredicate '
             'AND COALESCE(sending, 0) = 0 '
             'AND COALESCE(sent, 0) = 0 AND BEId IS NULL '
             'AND COALESCE(parentUploadAttempted, 0) = 0 '
             'AND uploadLease IS NULL',
-        whereArgs: <Object?>[
-          recordingId,
-          recordingUploadKey,
-          ...ownerArgs,
-        ],
+        whereArgs: <Object?>[recordingId, recordingUploadKey, ...ownerArgs],
       );
       if (changed != 1) {
         throw StateError('Recording upload started while saving its draft.');
@@ -1108,7 +1115,8 @@ class DatabaseNew {
 
       await txn.delete(
         'Dialects',
-        where: 'recordingId = ? AND BEID IS NULL '
+        where:
+            'recordingId = ? AND BEID IS NULL '
             'AND COALESCE(uploadAttempted, 0) = 0 AND EXISTS ('
             'SELECT 1 FROM recordings r '
             'WHERE r.id = Dialects.recordingId '
@@ -1144,20 +1152,20 @@ class DatabaseNew {
     recording.captureReviewed = true;
   }
 
-  static Future<void> onFetchFinished(
-    RecordingUploadSession session,
-  ) async {
+  static Future<void> onFetchFinished(RecordingUploadSession session) async {
     const _SecureStorageRecordingUploadSessions sessionProvider =
         _SecureStorageRecordingUploadSessions();
     await _requireRecordingSessionCurrent(sessionProvider, session);
-    List<Recording> oldRecordings =
-        await _getRecordingsForCapturedSession(session);
+    List<Recording> oldRecordings = await _getRecordingsForCapturedSession(
+      session,
+    );
     final Map<int, int> beIdToLocalId = {
       for (final rec in oldRecordings)
-        if (rec.BEId != null && rec.id != null) rec.BEId!: rec.id!
+        if (rec.BEId != null && rec.id != null) rec.BEId!: rec.id!,
     };
-    List<Recording> sentRecordings =
-        oldRecordings.where((recording) => recording.sent).toList();
+    List<Recording> sentRecordings = oldRecordings
+        .where((recording) => recording.sent)
+        .toList();
 
     if (fetchedRecordings == null || fetchedRecordingParts == null) {
       logger.i('No recordings fetched from backend.');
@@ -1169,13 +1177,15 @@ class DatabaseNew {
       if (!fetchedRecordings!.any((f) => f.BEId == recording.BEId)) {
         await deleteRecordingFromCache(recording.id!);
         logger.i(
-            'Recording id ${recording.id} deleted locally (missing on backend).');
+          'Recording id ${recording.id} deleted locally (missing on backend).',
+        );
       }
     }
 
     List<Recording> newRecordings = fetchedRecordings!
         .where(
-            (recording) => !sentRecordings.any((r) => r.BEId == recording.BEId))
+          (recording) => !sentRecordings.any((r) => r.BEId == recording.BEId),
+        )
         .toList();
 
     for (Recording recording in newRecordings) {
@@ -1183,7 +1193,8 @@ class DatabaseNew {
       recording.sent = true;
       recording.downloaded = false;
       logger.i(
-          'Inserting recording with BEId: ${recording.BEId} and name ${recording.name}');
+        'Inserting recording with BEId: ${recording.BEId} and name ${recording.name}',
+      );
       await insertRecording(recording, capturedSession: session);
       if (recording.BEId != null && recording.id != null) {
         beIdToLocalId[recording.BEId!] = recording.id!;
@@ -1200,8 +1211,9 @@ class DatabaseNew {
     for (final RecordingPart recordingPart in fetchedRecordingParts!) {
       await _requireRecordingSessionCurrent(sessionProvider, session);
       final int? backendRecordingId = recordingPart.backendRecordingId;
-      final int? localRecordingId =
-          backendRecordingId == null ? null : beIdToLocalId[backendRecordingId];
+      final int? localRecordingId = backendRecordingId == null
+          ? null
+          : beIdToLocalId[backendRecordingId];
       if (localRecordingId == null) {
         logger.w(
           'Skipping backend part ${recordingPart.BEId}: no current-environment '
@@ -1270,17 +1282,19 @@ class DatabaseNew {
     ];
     late final String where;
     if (ownerSnapshot.isGuest) {
-      where = '${idPredicate}env = ? AND userId IS NULL '
+      where =
+          '${idPredicate}env = ? AND userId IS NULL '
           'AND (mail IS NULL OR TRIM(mail) = ?) '
           'AND COALESCE(sent, 0) = 0 AND BEId IS NULL';
       whereArgs.addAll(<Object?>[ownerSnapshot.environment, '']);
     } else {
-      where = '${idPredicate}mail = ? AND env = ? '
+      where =
+          '${idPredicate}mail = ? AND env = ? '
           'AND (userId IS NULL OR userId = ?)';
       whereArgs.addAll(<Object?>[
         ownerSnapshot.accountEmail,
         ownerSnapshot.environment,
-        int.parse(ownerSnapshot.userId!),
+        requireUserId(ownerSnapshot.userId!),
       ]);
     }
     final List<Map<String, Object?>> recs = await db.query(
@@ -1297,10 +1311,10 @@ class DatabaseNew {
     RecordingUploadSession session,
   ) async {
     validateRecordingUploadSession(session);
-    final int? userId = int.tryParse(session.userId.trim());
+    final Object? userId = parseUserId(session.userId.trim());
     final String? email = session.accountEmail?.trim();
     if (userId == null ||
-        userId <= 0 ||
+        parseUserId(userId) == null ||
         email == null ||
         email.isEmpty ||
         session.environment.trim().isEmpty) {
@@ -1330,7 +1344,8 @@ class DatabaseNew {
         final Database db = await database;
         final List<Map<String, dynamic>> recs = await db.query(
           'recordings',
-          where: 'downloaded = 1 '
+          where:
+              'downloaded = 1 '
               'AND env = ? AND userId = ? '
               "AND LOWER(TRIM(COALESCE(mail, ''))) = ? "
               'AND ('
@@ -1365,12 +1380,12 @@ class DatabaseNew {
   static Future<void> deleteRecording(int id) async {
     _RecordingDeletionClaim? claim;
     try {
-      final String environment = Config.hostEnvironment.name;
+      final String environment = Config.dataEnvironment;
       final String backendHost = Config.host;
       const _SecureStorageRecordingUploadSessions sessionProvider =
           _SecureStorageRecordingUploadSessions();
       final RecordingUploadSession? session = await sessionProvider.capture();
-      if (Config.hostEnvironment.name != environment ||
+      if (Config.dataEnvironment != environment ||
           Config.host != backendHost ||
           (session != null &&
               (session.environment != environment ||
@@ -1416,13 +1431,17 @@ class DatabaseNew {
 
       await _deleteClaimedRecordingLocally(claim);
       logger.i(
-          'Recording id $id deleted locally (and on backend if applicable).');
+        'Recording id $id deleted locally (and on backend if applicable).',
+      );
     } catch (e, stackTrace) {
       if (claim != null) {
         await _releaseDeletionClaim(claim);
       }
-      logger.e('Failed to delete recording id $id',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to delete recording id $id',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
       rethrow;
     }
@@ -1447,14 +1466,16 @@ class DatabaseNew {
       schedule: (int id) {
         final RecordingBackgroundWorkRequest request =
             buildRecordingBackgroundWorkRequest(
-          recordingId: id,
-          isIOS: Platform.isIOS,
-        );
+              recordingId: id,
+              isIOS: Platform.isIOS,
+            );
         return Workmanager().registerOneOffTask(
           request.uniqueName,
           request.taskName,
           inputData: request.inputData,
-          existingWorkPolicy: request.existingWorkPolicy ==
+          constraints: Constraints(networkType: NetworkType.connected),
+          existingWorkPolicy:
+              request.existingWorkPolicy ==
                   RecordingBackgroundExistingWorkPolicy.append
               ? ExistingWorkPolicy.append
               : ExistingWorkPolicy.keep,
@@ -1464,12 +1485,16 @@ class DatabaseNew {
   }
 
   static Future<void> sendRecording(
-      Recording recording, List<RecordingPart> recordingParts) async {
+    Recording recording,
+    List<RecordingPart> recordingParts,
+  ) async {
     await _sendRecording(recording, recordingParts);
   }
 
   static Future<void> sendRecordingNew(
-      Recording recording, List<RecordingPart> recordingParts) async {
+    Recording recording,
+    List<RecordingPart> recordingParts,
+  ) async {
     await _sendRecordingNew(recording, recordingParts);
   }
 
@@ -1477,16 +1502,12 @@ class DatabaseNew {
     required int recordingId,
     required String leaseId,
     required Future<T> Function(RecordingWorkflowLeaseContext context)
-        operation,
+    operation,
   }) {
     return const RecordingWorkflowLeaseService(
       store: _SqliteRecordingUploadStore(),
       sessions: _SecureStorageRecordingUploadSessions(),
-    ).run<T>(
-      recordingId: recordingId,
-      leaseId: leaseId,
-      operation: operation,
-    );
+    ).run<T>(recordingId: recordingId, leaseId: leaseId, operation: operation);
   }
 
   static Future<void> updateDialectWithWorkflowLease(
@@ -1498,16 +1519,12 @@ class DatabaseNew {
     final int changed = await db.update(
       'Dialects',
       dialect.toJson(),
-      where: 'id = ? AND recordingId = ? AND EXISTS ('
+      where:
+          'id = ? AND recordingId = ? AND EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = ? AND r.uploadLease = ?'
           ')',
-      whereArgs: <Object?>[
-        dialect.id,
-        recordingId,
-        recordingId,
-        leaseId,
-      ],
+      whereArgs: <Object?>[dialect.id, recordingId, recordingId, leaseId],
     );
     if (changed != 1) {
       throw StateError('Recording workflow lease is no longer current.');
@@ -1527,12 +1544,7 @@ class DatabaseNew {
       'SELECT 1 FROM recordings r '
       'WHERE r.id = ? AND r.uploadLease = ?'
       ')',
-      <Object?>[
-        dialectId,
-        recordingId,
-        recordingId,
-        leaseId,
-      ],
+      <Object?>[dialectId, recordingId, recordingId, leaseId],
     );
     if (changed != 1) {
       throw StateError('Recording workflow lease is no longer current.');
@@ -1592,27 +1604,30 @@ class DatabaseNew {
       await deleteDownloadedRecordingCacheForActivatedOwner(
         recordingId: id,
         sessions: sessions,
-        deleteOwnedEntry: (
-          int recordingId,
-          RecordingCacheOwner owner,
-          RecordingCacheSessionGuard requireSessionCurrent,
-        ) async {
-          claim = await _claimRecordingDeletion(
-            recordingId,
-            environment: owner.environment,
-            session: null,
-            requireRemoteSession: false,
-            cacheOwner: owner,
-            requirePinnedSessionCurrent: requireSessionCurrent,
-            requireDownloadedCache: true,
-          );
-          await requireSessionCurrent();
-          await _deleteClaimedRecordingLocally(
-            claim!,
-            requirePinnedSessionCurrent: requireSessionCurrent,
-          );
-          logger.i('Downloaded recording id $recordingId deleted from cache.');
-        },
+        deleteOwnedEntry:
+            (
+              int recordingId,
+              RecordingCacheOwner owner,
+              RecordingCacheSessionGuard requireSessionCurrent,
+            ) async {
+              claim = await _claimRecordingDeletion(
+                recordingId,
+                environment: owner.environment,
+                session: null,
+                requireRemoteSession: false,
+                cacheOwner: owner,
+                requirePinnedSessionCurrent: requireSessionCurrent,
+                requireDownloadedCache: true,
+              );
+              await requireSessionCurrent();
+              await _deleteClaimedRecordingLocally(
+                claim!,
+                requirePinnedSessionCurrent: requireSessionCurrent,
+              );
+              logger.i(
+                'Downloaded recording id $recordingId deleted from cache.',
+              );
+            },
       );
     } catch (_) {
       if (claim != null) {
@@ -1645,7 +1660,8 @@ class DatabaseNew {
       final String scopeWhere;
       final List<Object?> scopeArgs;
       if (cacheOwner != null) {
-        scopeWhere = 'id = ? AND env = ? AND userId = ? '
+        scopeWhere =
+            'id = ? AND env = ? AND userId = ? '
             "AND LOWER(TRIM(COALESCE(mail, ''))) = ? "
             '${requireDownloadedCache ? 'AND downloaded = 1 ' : ''}'
             '${requireDownloadedCache ? "AND ((path IS NOT NULL AND path <> '') OR EXISTS (" : ''}'
@@ -1713,14 +1729,7 @@ class DatabaseNew {
         '    AND (uploadLeaseUpdatedAt IS NULL '
         '      OR uploadLeaseUpdatedAt < ?))'
         ')',
-        <Object?>[
-          leaseId,
-          now,
-          ...scopeArgs,
-          '',
-          'delete:%',
-          staleBefore,
-        ],
+        <Object?>[leaseId, now, ...scopeArgs, '', 'delete:%', staleBefore],
       );
       if (changed != 1) {
         throw StateError(
@@ -1861,8 +1870,10 @@ class DatabaseNew {
     await _sendRecordingPart(recordingPart);
   }
 
-  static Future<void> sendRecordingPartNew(RecordingPart recordingPart,
-      {UploadProgress? onProgress}) async {
+  static Future<void> sendRecordingPartNew(
+    RecordingPart recordingPart, {
+    UploadProgress? onProgress,
+  }) async {
     await _sendRecordingPartNew(recordingPart, onProgress: onProgress);
   }
 
@@ -1892,13 +1903,10 @@ class DatabaseNew {
         'Cannot update recording cache state without a valid local id.',
       );
     }
-    await _updateRecordingFields(
-      recordingId,
-      <String, Object?>{
-        'path': recording.path,
-        'downloaded': recording.downloaded ? 1 : 0,
-      },
-    );
+    await _updateRecordingFields(recordingId, <String, Object?>{
+      'path': recording.path,
+      'downloaded': recording.downloaded ? 1 : 0,
+    });
   }
 
   static Future<void> updateRecordingDuration(Recording recording) async {
@@ -1908,10 +1916,9 @@ class DatabaseNew {
         'Cannot update recording duration without a valid local id.',
       );
     }
-    await _updateRecordingFields(
-      recordingId,
-      <String, Object?>{'totalSeconds': recording.totalSeconds},
-    );
+    await _updateRecordingFields(recordingId, <String, Object?>{
+      'totalSeconds': recording.totalSeconds,
+    });
   }
 
   static Future<void> updateRecordingOwnerMail(
@@ -1923,10 +1930,7 @@ class DatabaseNew {
         'Cannot update recording ownership without a valid local id.',
       );
     }
-    await _updateRecordingFields(
-      recordingId,
-      <String, Object?>{'mail': mail},
-    );
+    await _updateRecordingFields(recordingId, <String, Object?>{'mail': mail});
   }
 
   static Future<void> _updateRecordingFields(
@@ -1937,7 +1941,8 @@ class DatabaseNew {
     final int changed = await db.update(
       'recordings',
       fields,
-      where: 'id = ? AND (uploadLease IS NULL OR TRIM(uploadLease) = ?) '
+      where:
+          'id = ? AND (uploadLease IS NULL OR TRIM(uploadLease) = ?) '
           'AND (COALESCE(parentUploadAttempted, 0) = 0 OR BEId IS NOT NULL)',
       whereArgs: <Object?>[recordingId, ''],
     );
@@ -1961,8 +1966,11 @@ class DatabaseNew {
         recordingPartContentUpdateFields(recordingPart),
       );
     } catch (e, stackTrace) {
-      logger.e('Failed to update recording part',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to update recording part',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
       rethrow;
     }
@@ -1981,7 +1989,8 @@ class DatabaseNew {
     final int changed = await db.update(
       'recordingParts',
       recordingPartCacheUpdateFields(recordingPart),
-      where: 'id = ? AND BEId IS NOT NULL AND COALESCE(sent, 0) = 1 '
+      where:
+          'id = ? AND BEId IS NOT NULL AND COALESCE(sent, 0) = 1 '
           'AND NOT EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = recordingParts.recordingId '
@@ -2028,19 +2037,15 @@ class DatabaseNew {
         'sending': 0,
         'uploadAttempted': 1,
       },
-      where: 'id = ? AND BEId = ? AND backendRecordingId = ? '
+      where:
+          'id = ? AND BEId = ? AND backendRecordingId = ? '
           'AND NOT EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = recordingParts.recordingId '
           'AND r.uploadLease IS NOT NULL '
           'AND TRIM(r.uploadLease) <> ?'
           ')',
-      whereArgs: <Object?>[
-        partId,
-        backendPartId,
-        backendRecordingId,
-        '',
-      ],
+      whereArgs: <Object?>[partId, backendPartId, backendRecordingId, ''],
     );
     if (changed != 1) {
       throw StateError(
@@ -2057,7 +2062,8 @@ class DatabaseNew {
     final int changed = await db.update(
       'recordingParts',
       fields,
-      where: 'id = ? AND NOT EXISTS ('
+      where:
+          'id = ? AND NOT EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = recordingParts.recordingId '
           'AND r.uploadLease IS NOT NULL '
@@ -2084,8 +2090,9 @@ class DatabaseNew {
   }
 
   static Future<void> fetchFilteredPartsForRecordingsFromBE(
-      List<Recording> recs,
-      {bool verified = false}) async {
+    List<Recording> recs, {
+    bool verified = false,
+  }) async {
     await _fetchFilteredPartsForRecordingsFromBE(recs, verified: verified);
   }
 
@@ -2107,7 +2114,7 @@ class DatabaseNew {
     final localRecs = await _getRecordingsForCapturedSession(session);
     final Map<int, int> recBeToLocal = {
       for (final r in localRecs)
-        if (r.BEId != null && r.id != null) r.BEId!: r.id!
+        if (r.BEId != null && r.id != null) r.BEId!: r.id!,
     };
 
     // Insert/update filtered parts first
@@ -2115,8 +2122,9 @@ class DatabaseNew {
     for (final frp in fetchedFilteredRecordingParts!) {
       await _requireRecordingSessionCurrent(sessionProvider, session);
       final int? recordingBackendId = frp.recordingBEID;
-      final int? recordingLocalId =
-          recordingBackendId == null ? null : recBeToLocal[recordingBackendId];
+      final int? recordingLocalId = recordingBackendId == null
+          ? null
+          : recBeToLocal[recordingBackendId];
       if (recordingLocalId == null) {
         logger.w(
           'Skipping filtered part ${frp.BEId}: no current-environment '
@@ -2157,8 +2165,9 @@ class DatabaseNew {
       for (final dd in fetchedDetectedDialects!) {
         await _requireRecordingSessionCurrent(sessionProvider, session);
         final int? filteredPartBackendId = dd.filteredPartBEID;
-        int? recordingLocalId =
-            dd.recordingBEID == null ? null : recBeToLocal[dd.recordingBEID!];
+        int? recordingLocalId = dd.recordingBEID == null
+            ? null
+            : recBeToLocal[dd.recordingBEID!];
         if (recordingLocalId == null && filteredPartBackendId != null) {
           final Set<int> candidateRecordings = frpBeToLocal.keys
               .where((key) => key.$2 == filteredPartBackendId)
@@ -2170,8 +2179,8 @@ class DatabaseNew {
         }
         final int? filteredPartLocalId =
             filteredPartBackendId == null || recordingLocalId == null
-                ? null
-                : frpBeToLocal[(recordingLocalId, filteredPartBackendId)];
+            ? null
+            : frpBeToLocal[(recordingLocalId, filteredPartBackendId)];
         if (filteredPartLocalId == null) {
           logger.w(
             'Skipping detected dialect ${dd.BEId}: no current-environment '
@@ -2188,15 +2197,19 @@ class DatabaseNew {
 
   static Future<List<RecordingPart>> fetchPartsFromDbById(int id) async {
     final db = await database;
-    final List<Map<String, dynamic>> parts = await db
-        .rawQuery("SELECT * FROM recordingParts WHERE RecordingId = $id");
+    final List<Map<String, dynamic>> parts = await db.rawQuery(
+      "SELECT * FROM recordingParts WHERE RecordingId = $id",
+    );
     return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
   }
 
   static Future<List<RecordingPart>> getPartsByRecordingId(int id) async {
     final db = await database;
-    final List<Map<String, dynamic>> parts = await db
-        .query("recordingParts", where: "recordingId = ?", whereArgs: [id]);
+    final List<Map<String, dynamic>> parts = await db.query(
+      "recordingParts",
+      where: "recordingId = ?",
+      whereArgs: [id],
+    );
     return List.generate(parts.length, (i) => RecordingPart.fromJson(parts[i]));
   }
 
@@ -2261,16 +2274,20 @@ class DatabaseNew {
     try {
       await concatWavFiles(paths, outputPath);
     } catch (e, stackTrace) {
-      logger.e('Failed to concatenate recording parts for id: $recordingId',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to concatenate recording parts for id: $recordingId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
       return;
     }
 
     logger.i('Reserved a concatenated recording path.');
 
-    final Recording? recording =
-        await getRecordingFromDbByIdNoMail(recordingId);
+    final Recording? recording = await getRecordingFromDbByIdNoMail(
+      recordingId,
+    );
     if (recording == null) {
       logger.w('Recording $recordingId not found when concatenating parts.');
       return;
@@ -2284,9 +2301,11 @@ class DatabaseNew {
   }
 
   static Future<Database> initDb() async {
-    return openDatabase('soundNew.db', version: 17,
-        onCreate: (Database db, int version) async {
-      await db.execute('''
+    return openDatabase(
+      'soundNew.db',
+      version: 17,
+      onCreate: (Database db, int version) async {
+        await db.execute('''
       CREATE TABLE recordings(
         id INTEGER PRIMARY KEY,
         userId INTEGER,
@@ -2313,7 +2332,7 @@ class DatabaseNew {
         env STRING DEFAULT 'prod'
       )
       ''');
-      await db.execute('''
+        await db.execute('''
       CREATE TABLE recordingParts(
         id INTEGER PRIMARY KEY,
         BEId INTEGER,
@@ -2337,7 +2356,7 @@ class DatabaseNew {
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
       )
       ''');
-      await db.execute('''
+        await db.execute('''
       CREATE TABLE images(
         id INTEGER PRIMARY KEY,
         recordingId INTEGER,
@@ -2346,7 +2365,7 @@ class DatabaseNew {
         FOREIGN KEY(recordingId) REFERENCES recordings(id)
       )
       ''');
-      await db.execute('''
+        await db.execute('''
       CREATE TABLE Notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -2359,7 +2378,7 @@ class DatabaseNew {
         providerMessageId TEXT
       )
       ''');
-      await db.execute('''
+        await db.execute('''
       CREATE TABLE Dialects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         BEID INTEGER,
@@ -2373,7 +2392,7 @@ class DatabaseNew {
         endDate TEXT
       )
       ''');
-      await db.execute('''
+        await db.execute('''
     CREATE TABLE FilteredRecordingParts(
       id INTEGER PRIMARY KEY,
       BEId INTEGER,
@@ -2389,7 +2408,7 @@ class DatabaseNew {
     )
     ''');
 
-      await db.execute('''
+        await db.execute('''
     CREATE TABLE DetectedDialects(
       id INTEGER PRIMARY KEY,
       BEId INTEGER,
@@ -2404,46 +2423,59 @@ class DatabaseNew {
       FOREIGN KEY(filteredPartLocalId) REFERENCES FilteredRecordingParts(id)
     )
     ''');
-      await _createScopedBackendIdIndexes(db);
-      await _createNotificationScopeIndex(db);
-    }, onUpgrade: (Database db, int oldVersion, int newVersion) async {
-      if (oldVersion <= 1) {
-        await _ensureColumn(
-            db, 'recordingParts', 'backendRecordingId', 'INTEGER');
-        await db.setVersion(2);
-      }
-      if (oldVersion <= 2) {
-        logger.w(
-            'Old version detected (<=2). Ensuring schema without dropping user data...');
-        await _ensureBaseTables(db);
-        await db.setVersion(newVersion);
-      }
-      // Upgrade from v3 → v4: add the 'sending' column to recordingParts
-      if (oldVersion <= 3) {
-        await _ensureColumn(
-            db, 'recordingParts', 'sending', 'INTEGER DEFAULT 0');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 4) {
-        await _renameColumnIfExists(db, 'Dialects', 'dialect', 'dialectCode');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 5) {
-        try {
-          await _ensureColumn(db, 'recordingParts', 'length', 'INTEGER');
-        } catch (e, stackTrace) {
-          logger.w('Failed to add length column to recordingParts: $e',
-              error: e, stackTrace: stackTrace);
-          Sentry.captureException(e, stackTrace: stackTrace);
+        await _createScopedBackendIdIndexes(db);
+        await _createNotificationScopeIndex(db);
+      },
+      onUpgrade: (Database db, int oldVersion, int newVersion) async {
+        if (oldVersion <= 1) {
+          await _ensureColumn(
+            db,
+            'recordingParts',
+            'backendRecordingId',
+            'INTEGER',
+          );
+          await db.setVersion(2);
         }
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 6) {
-        await _migrateLegacyDialectsTable(db);
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 7) {
-        await db.execute('''
+        if (oldVersion <= 2) {
+          logger.w(
+            'Old version detected (<=2). Ensuring schema without dropping user data...',
+          );
+          await _ensureBaseTables(db);
+          await db.setVersion(newVersion);
+        }
+        // Upgrade from v3 → v4: add the 'sending' column to recordingParts
+        if (oldVersion <= 3) {
+          await _ensureColumn(
+            db,
+            'recordingParts',
+            'sending',
+            'INTEGER DEFAULT 0',
+          );
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 4) {
+          await _renameColumnIfExists(db, 'Dialects', 'dialect', 'dialectCode');
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 5) {
+          try {
+            await _ensureColumn(db, 'recordingParts', 'length', 'INTEGER');
+          } catch (e, stackTrace) {
+            logger.w(
+              'Failed to add length column to recordingParts: $e',
+              error: e,
+              stackTrace: stackTrace,
+            );
+            Sentry.captureException(e, stackTrace: stackTrace);
+          }
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 6) {
+          await _migrateLegacyDialectsTable(db);
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 7) {
+          await db.execute('''
     CREATE TABLE IF NOT EXISTS FilteredRecordingParts(
       id INTEGER PRIMARY KEY,
       BEId INTEGER,
@@ -2458,7 +2490,7 @@ class DatabaseNew {
       FOREIGN KEY(recordingLocalId) REFERENCES recordings(id)
     )
   ''');
-        await db.execute('''
+          await db.execute('''
     CREATE TABLE IF NOT EXISTS DetectedDialects(
       id INTEGER PRIMARY KEY,
       BEId INTEGER,
@@ -2471,150 +2503,160 @@ class DatabaseNew {
       FOREIGN KEY(filteredPartLocalId) REFERENCES FilteredRecordingParts(id)
     )
   ''');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 8) {
-        await _ensureColumn(db, 'recordings', 'partCount', 'INTEGER');
-        await db.execute('''UPDATE recordings AS r
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 8) {
+          await _ensureColumn(db, 'recordings', 'partCount', 'INTEGER');
+          await db.execute('''UPDATE recordings AS r
             SET partCount = COALESCE((
             SELECT COUNT(*)
         FROM recordingParts AS p
         WHERE p.recordingId = r.id
           ), 0);''');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 9) {
-        await _ensureColumn(db, 'recordings', 'env', 'STRING DEFAULT \'prod\'');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 10) {
-        await _ensureColumn(db, 'recordings', 'totalSeconds', 'REAL');
-        _durationBackfillNeeded = true;
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 11) {
-        await _ensureColumn(
-            db, 'DetectedDialects', 'predictedDialectId', 'INTEGER');
-        await _ensureColumn(db, 'DetectedDialects', 'predictedDialect', 'TEXT');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 12) {
-        await _ensureColumn(db, 'recordings', 'uploadLease', 'TEXT');
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 13) {
-        await _ensureColumn(db, 'recordings', 'userId', 'INTEGER');
-        await _ensureColumn(db, 'recordings', 'uploadKey', 'TEXT');
-        await _ensureColumn(
-          db,
-          'recordings',
-          'uploadLeaseUpdatedAt',
-          'INTEGER',
-        );
-        await _ensureColumn(db, 'recordingParts', 'uploadKey', 'TEXT');
-        await _backfillUploadKeys(db);
-        await db.execute(
-          'CREATE UNIQUE INDEX IF NOT EXISTS '
-          'idx_recordings_upload_key ON recordings(uploadKey)',
-        );
-        await db.execute(
-          'CREATE UNIQUE INDEX IF NOT EXISTS '
-          'idx_recording_parts_upload_key ON recordingParts(uploadKey)',
-        );
-        // No worker from the previous schema can own a timestamped lease.
-        // Clear legacy flags once so new workers can acquire safely.
-        await db.rawUpdate(
-          'UPDATE recordings SET sending = 0, uploadLease = NULL, '
-          'uploadLeaseUpdatedAt = NULL WHERE COALESCE(sending, 0) = 1',
-        );
-        await db.rawUpdate(
-          'UPDATE recordingParts SET sending = 0 '
-          'WHERE COALESCE(sending, 0) = 1',
-        );
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 14) {
-        await _ensureColumn(
-          db,
-          'recordings',
-          'parentUploadAttempted',
-          'INTEGER DEFAULT 0',
-        );
-        await _ensureColumn(db, 'recordings', 'uploadDeviceId', 'TEXT');
-        await _ensureColumn(
-          db,
-          'recordingParts',
-          'uploadAttempted',
-          'INTEGER DEFAULT 0',
-        );
-        await _ensureColumn(db, 'Dialects', 'uploadKey', 'TEXT');
-        await _ensureColumn(
-          db,
-          'Dialects',
-          'uploadAttempted',
-          'INTEGER DEFAULT 0',
-        );
-        await db.rawUpdate(
-          'UPDATE recordings SET parentUploadAttempted = 1 '
-          'WHERE BEId IS NOT NULL',
-        );
-        await db.rawUpdate(
-          'UPDATE recordingParts SET uploadAttempted = 1 '
-          'WHERE BEId IS NOT NULL',
-        );
-        await db.rawUpdate(
-          'UPDATE Dialects SET uploadAttempted = 1 '
-          'WHERE BEID IS NOT NULL',
-        );
-        await _backfillUploadKeys(db);
-        await _rebuildUploadTablesForScopedBackendIds(db);
-        await db.execute(
-          'CREATE UNIQUE INDEX IF NOT EXISTS '
-          'idx_dialects_upload_key ON Dialects(uploadKey)',
-        );
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 15) {
-        await _ensureColumn(
-          db,
-          'recordings',
-          'captureReviewed',
-          'INTEGER NOT NULL DEFAULT 1',
-        );
-        await db.rawUpdate(
-          'UPDATE recordings SET captureReviewed = 1 '
-          'WHERE captureReviewed IS NULL',
-        );
-        await db.setVersion(newVersion);
-      }
-      if (oldVersion <= 16) {
-        // Legacy notification rows have no trustworthy owner. Keep both
-        // columns nullable on upgraded databases so those rows remain
-        // quarantined by every owner-scoped query instead of guessing.
-        await _ensureColumn(db, 'Notifications', 'ownerUserId', 'TEXT');
-        await _ensureColumn(db, 'Notifications', 'env', 'TEXT');
-        await _ensureColumn(
-          db,
-          'Notifications',
-          'providerMessageId',
-          'TEXT',
-        );
-        await _ensureColumn(
-          db,
-          'recordingParts',
-          'uploadContentSha256',
-          'TEXT',
-        );
-        await _ensureColumn(
-          db,
-          'recordingParts',
-          'uploadContentBytes',
-          'INTEGER',
-        );
-        await _createNotificationScopeIndex(db);
-        await db.setVersion(newVersion);
-      }
-    });
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 9) {
+          await _ensureColumn(
+            db,
+            'recordings',
+            'env',
+            'STRING DEFAULT \'prod\'',
+          );
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 10) {
+          await _ensureColumn(db, 'recordings', 'totalSeconds', 'REAL');
+          _durationBackfillNeeded = true;
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 11) {
+          await _ensureColumn(
+            db,
+            'DetectedDialects',
+            'predictedDialectId',
+            'INTEGER',
+          );
+          await _ensureColumn(
+            db,
+            'DetectedDialects',
+            'predictedDialect',
+            'TEXT',
+          );
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 12) {
+          await _ensureColumn(db, 'recordings', 'uploadLease', 'TEXT');
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 13) {
+          await _ensureColumn(db, 'recordings', 'userId', 'INTEGER');
+          await _ensureColumn(db, 'recordings', 'uploadKey', 'TEXT');
+          await _ensureColumn(
+            db,
+            'recordings',
+            'uploadLeaseUpdatedAt',
+            'INTEGER',
+          );
+          await _ensureColumn(db, 'recordingParts', 'uploadKey', 'TEXT');
+          await _backfillUploadKeys(db);
+          await db.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'idx_recordings_upload_key ON recordings(uploadKey)',
+          );
+          await db.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'idx_recording_parts_upload_key ON recordingParts(uploadKey)',
+          );
+          // No worker from the previous schema can own a timestamped lease.
+          // Clear legacy flags once so new workers can acquire safely.
+          await db.rawUpdate(
+            'UPDATE recordings SET sending = 0, uploadLease = NULL, '
+            'uploadLeaseUpdatedAt = NULL WHERE COALESCE(sending, 0) = 1',
+          );
+          await db.rawUpdate(
+            'UPDATE recordingParts SET sending = 0 '
+            'WHERE COALESCE(sending, 0) = 1',
+          );
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 14) {
+          await _ensureColumn(
+            db,
+            'recordings',
+            'parentUploadAttempted',
+            'INTEGER DEFAULT 0',
+          );
+          await _ensureColumn(db, 'recordings', 'uploadDeviceId', 'TEXT');
+          await _ensureColumn(
+            db,
+            'recordingParts',
+            'uploadAttempted',
+            'INTEGER DEFAULT 0',
+          );
+          await _ensureColumn(db, 'Dialects', 'uploadKey', 'TEXT');
+          await _ensureColumn(
+            db,
+            'Dialects',
+            'uploadAttempted',
+            'INTEGER DEFAULT 0',
+          );
+          await db.rawUpdate(
+            'UPDATE recordings SET parentUploadAttempted = 1 '
+            'WHERE BEId IS NOT NULL',
+          );
+          await db.rawUpdate(
+            'UPDATE recordingParts SET uploadAttempted = 1 '
+            'WHERE BEId IS NOT NULL',
+          );
+          await db.rawUpdate(
+            'UPDATE Dialects SET uploadAttempted = 1 '
+            'WHERE BEID IS NOT NULL',
+          );
+          await _backfillUploadKeys(db);
+          await _rebuildUploadTablesForScopedBackendIds(db);
+          await db.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'idx_dialects_upload_key ON Dialects(uploadKey)',
+          );
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 15) {
+          await _ensureColumn(
+            db,
+            'recordings',
+            'captureReviewed',
+            'INTEGER NOT NULL DEFAULT 1',
+          );
+          await db.rawUpdate(
+            'UPDATE recordings SET captureReviewed = 1 '
+            'WHERE captureReviewed IS NULL',
+          );
+          await db.setVersion(newVersion);
+        }
+        if (oldVersion <= 16) {
+          // Legacy notification rows have no trustworthy owner. Keep both
+          // columns nullable on upgraded databases so those rows remain
+          // quarantined by every owner-scoped query instead of guessing.
+          await _ensureColumn(db, 'Notifications', 'ownerUserId', 'TEXT');
+          await _ensureColumn(db, 'Notifications', 'env', 'TEXT');
+          await _ensureColumn(db, 'Notifications', 'providerMessageId', 'TEXT');
+          await _ensureColumn(
+            db,
+            'recordingParts',
+            'uploadContentSha256',
+            'TEXT',
+          );
+          await _ensureColumn(
+            db,
+            'recordingParts',
+            'uploadContentBytes',
+            'INTEGER',
+          );
+          await _createNotificationScopeIndex(db);
+          await db.setVersion(newVersion);
+        }
+      },
+    );
   }
 
   static Future<void> runPostMigrationBackfills() async {
@@ -2623,8 +2665,11 @@ class DatabaseNew {
       await fetchAndUpdateDurationsFromBackend();
       await updateAllRecordingsDurations(DatabaseNew());
     } catch (e, stackTrace) {
-      logger.w('Post-migration duration backfill failed',
-          error: e, stackTrace: stackTrace);
+      logger.w(
+        'Post-migration duration backfill failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
     } finally {
       _durationBackfillNeeded = false;
@@ -2662,9 +2707,9 @@ class DatabaseNew {
         );
         final NotificationRetentionDeletePlan retention =
             notificationRetentionDeletePlan(
-          ownerUserId: scope.ownerUserId,
-          environment: scope.environment,
-        );
+              ownerUserId: scope.ownerUserId,
+              environment: scope.environment,
+            );
         return db.transaction<int>((Transaction transaction) async {
           final int insertedId = await transaction.insert(
             'Notifications',
@@ -2679,10 +2724,7 @@ class DatabaseNew {
           return insertedId;
         });
       },
-      removeInserted: (
-        NotificationCacheScope scope,
-        int insertedId,
-      ) async {
+      removeInserted: (NotificationCacheScope scope, int insertedId) async {
         final Database db = await database;
         await db.delete(
           'Notifications',
@@ -2700,7 +2742,9 @@ class DatabaseNew {
 
   // New helper method to insert a custom local notification.
   static Future<void> sendLocalNotification(
-      String title, String message) async {
+    String title,
+    String message,
+  ) async {
     await showLocalNotification(title, message);
     // final db = await database;
     // await db.insert('Notifications', {
@@ -2716,24 +2760,26 @@ class DatabaseNew {
   static Future<List<NotificationItem>> getNotificationList() async {
     final List<Map<String, Object?>> notifications =
         await _notificationCacheIsolation().readList<Map<String, Object?>>(
-      read: (NotificationCacheScope scope) async {
-        final Database db = await database;
-        return db.query(
-          'Notifications',
-          where: 'ownerUserId = ? AND env = ?',
-          whereArgs: <Object?>[scope.ownerUserId, scope.environment],
-          orderBy: 'receivedAt DESC',
+          read: (NotificationCacheScope scope) async {
+            final Database db = await database;
+            return db.query(
+              'Notifications',
+              where: 'ownerUserId = ? AND env = ?',
+              whereArgs: <Object?>[scope.ownerUserId, scope.environment],
+              orderBy: 'receivedAt DESC',
+            );
+          },
         );
-      },
-    );
     final List<NotificationItem> messages = <NotificationItem>[];
     for (final Map<String, Object?> notification in notifications) {
-      messages.add(NotificationItem(
-        title: notification['title'] as String? ?? '',
-        message: notification['body'] as String? ?? '',
-        time: notification['receivedAt'] as String? ?? '',
-        unread: notification['read'] == 0,
-      ));
+      messages.add(
+        NotificationItem(
+          title: notification['title'] as String? ?? '',
+          message: notification['body'] as String? ?? '',
+          time: notification['receivedAt'] as String? ?? '',
+          unread: notification['read'] == 0,
+        ),
+      );
     }
     return messages;
   }
@@ -2790,18 +2836,21 @@ class DatabaseNew {
         await _captureRecordingOwnerSnapshot();
     final List<Recording> recordings =
         await _getVisibleRecordingsForOwnerSnapshot(
-      ownerSnapshot,
-      recordingId: recordingId,
-    );
+          ownerSnapshot,
+          recordingId: recordingId,
+        );
     return recordings.isEmpty ? null : recordings.single;
   }
 
   static Future<Recording?> getRecordingFromDbByIdNoMail(
-      int recordingId) async {
+    int recordingId,
+  ) async {
     final db = await database;
-    final List<Map<String, dynamic>> results = await db.query("recordings",
-        where: "id = ? AND env = ?",
-        whereArgs: [recordingId, Config.hostEnvironment.name.toString()]);
+    final List<Map<String, dynamic>> results = await db.query(
+      "recordings",
+      where: "id = ? AND env = ?",
+      whereArgs: [recordingId, Config.dataEnvironment.toString()],
+    );
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
     }
@@ -2819,19 +2868,21 @@ class DatabaseNew {
     ];
     late final String where;
     if (snapshot.isGuest) {
-      where = '${idPredicate}env = ? AND userId IS NULL '
+      where =
+          '${idPredicate}env = ? AND userId IS NULL '
           'AND (mail IS NULL OR TRIM(mail) = ?) '
           'AND captureReviewed = 1 '
           'AND COALESCE(sent, 0) = 0 AND BEId IS NULL';
       whereArgs.addAll(<Object?>[snapshot.environment, '']);
     } else {
-      where = '${idPredicate}mail = ? AND env = ? '
+      where =
+          '${idPredicate}mail = ? AND env = ? '
           'AND captureReviewed = 1 '
           'AND (userId IS NULL OR userId = ?)';
       whereArgs.addAll(<Object?>[
         snapshot.accountEmail,
         snapshot.environment,
-        int.parse(snapshot.userId!),
+        requireUserId(snapshot.userId!),
       ]);
     }
     final List<Map<String, Object?>> rows = await db.query(
@@ -2860,8 +2911,11 @@ class DatabaseNew {
     } on RecordingUploadSessionChangedException {
       rethrow;
     } catch (e, stackTrace) {
-      logger.w('Could not load recordings for incomplete upload check: $e',
-          error: e, stackTrace: stackTrace);
+      logger.w(
+        'Could not load recordings for incomplete upload check: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return const <IncompleteRecordingUpload>[];
     }
 
@@ -2871,8 +2925,8 @@ class DatabaseNew {
 
     final BackendIncompleteUploadSnapshot backendSnapshot =
         includeBackendCheck && !ownerSnapshot.isGuest
-            ? await _fetchIncompleteRecordingsFromBE(ownerSnapshot)
-            : const BackendIncompleteUploadSnapshot.unavailable();
+        ? await _fetchIncompleteRecordingsFromBE(ownerSnapshot)
+        : const BackendIncompleteUploadSnapshot.unavailable();
     await _requireRecordingOwnerSnapshotCurrent(ownerSnapshot);
 
     final List<IncompleteRecordingUpload> result =
@@ -2890,13 +2944,14 @@ class DatabaseNew {
       if (backendSnapshot.authoritativelyConfirmsComplete(recording.BEId)) {
         continue;
       }
-      final BackendIncompleteUploadEntry? backend =
-          backendSnapshot.entryFor(recording.BEId);
+      final BackendIncompleteUploadEntry? backend = backendSnapshot.entryFor(
+        recording.BEId,
+      );
 
       final int localExpected =
           recording.partCount != null && recording.partCount! > 0
-              ? recording.partCount!
-              : parts.length;
+          ? recording.partCount!
+          : parts.length;
       final int expectedParts = backend?.expectedPartsCount ?? localExpected;
       final int localUploadedParts = parts
           .where(
@@ -2910,10 +2965,12 @@ class DatabaseNew {
           .length;
       final int uploadedParts =
           backend?.uploadedPartsCount ?? localUploadedParts;
-      final bool backendSaysIncomplete = backend != null &&
+      final bool backendSaysIncomplete =
+          backend != null &&
           (!backend.hasExactPartCounts || expectedParts > uploadedParts);
       final bool localRowsAreMissing = parts.length < expectedParts;
-      final bool localSaysIncomplete = localRowsAreMissing ||
+      final bool localSaysIncomplete =
+          localRowsAreMissing ||
           ((recording.sent || recording.BEId != null) &&
               localUploadedParts != parts.length);
       final bool needsAttention = aggregateUploadNeedsAttention(
@@ -3026,7 +3083,7 @@ class DatabaseNew {
         ]);
         identityArgs.addAll(<Object?>[
           ownerSnapshot.accountEmail,
-          int.parse(ownerSnapshot.userId!),
+          requireUserId(ownerSnapshot.userId!),
         ]);
       }
 
@@ -3064,22 +3121,16 @@ class DatabaseNew {
             // Keep an ambiguous backend id. The aggregate upload service will
             // reconcile it with the captured session before replacing it.
           },
-          where: 'id = ? AND recordingId = ? AND EXISTS ('
+          where:
+              'id = ? AND recordingId = ? AND EXISTS ('
               'SELECT 1 FROM recordings r WHERE $identityWhere '
               'AND r.id = recordingParts.recordingId '
               'AND (r.uploadLease IS NULL OR TRIM(r.uploadLease) = ?)'
               ')',
-          whereArgs: <Object?>[
-            part.id,
-            recordingId,
-            ...identityArgs,
-            '',
-          ],
+          whereArgs: <Object?>[part.id, recordingId, ...identityArgs, ''],
         );
         if (changed != 1) {
-          throw StateError(
-            'Recording part changed while preparing its retry.',
-          );
+          throw StateError('Recording part changed while preparing its retry.');
         }
       }
       await _requireRecordingOwnerSnapshotCurrent(ownerSnapshot);
@@ -3108,11 +3159,13 @@ class DatabaseNew {
     required bool reconcileAllBackendParts,
   }) {
     return parts
-        .where((RecordingPart part) => _shouldResendMissingPart(
-              part,
-              uploadedBackendPartIds,
-              reconcileAllBackendParts: reconcileAllBackendParts,
-            ))
+        .where(
+          (RecordingPart part) => _shouldResendMissingPart(
+            part,
+            uploadedBackendPartIds,
+            reconcileAllBackendParts: reconcileAllBackendParts,
+          ),
+        )
         .length;
   }
 
@@ -3131,10 +3184,7 @@ class DatabaseNew {
     );
   }
 
-  static int? _readInt(
-    Map<String, dynamic> map,
-    List<String> keys,
-  ) {
+  static int? _readInt(Map<String, dynamic> map, List<String> keys) {
     for (final String key in keys) {
       if (!map.containsKey(key)) continue;
       final dynamic value = map[key];
@@ -3154,9 +3204,7 @@ class DatabaseNew {
   }
 
   static Future<BackendIncompleteUploadSnapshot>
-      _fetchIncompleteRecordingsFromBE(
-    RecordingOwnerSnapshot ownerSnapshot,
-  ) async {
+  _fetchIncompleteRecordingsFromBE(RecordingOwnerSnapshot ownerSnapshot) async {
     if (ownerSnapshot.isGuest) {
       return const BackendIncompleteUploadSnapshot.unavailable();
     }
@@ -3175,27 +3223,31 @@ class DatabaseNew {
       await _requireRecordingOwnerSnapshotCurrent(ownerSnapshot);
       if (response.statusCode != 200 && response.statusCode != 204) {
         logger.i(
-            'Incomplete recordings check skipped with status ${response.statusCode}.');
+          'Incomplete recordings check skipped with status ${response.statusCode}.',
+        );
         return const BackendIncompleteUploadSnapshot.unavailable();
       }
 
       final dynamic decoded = response.statusCode == 204
           ? null
           : response.data is String
-              ? jsonDecode(response.data as String)
-              : response.data;
+          ? jsonDecode(response.data as String)
+          : response.data;
       final BackendIncompleteUploadSnapshot snapshot =
           backendIncompleteUploadSnapshotFromResponse(
-        statusCode: response.statusCode,
-        payload: decoded,
-      );
+            statusCode: response.statusCode,
+            payload: decoded,
+          );
       await _requireRecordingOwnerSnapshotCurrent(ownerSnapshot);
       return snapshot;
     } on RecordingUploadSessionChangedException {
       rethrow;
     } catch (e, stackTrace) {
-      logger.w('Failed to fetch incomplete recordings: $e',
-          error: e, stackTrace: stackTrace);
+      logger.w(
+        'Failed to fetch incomplete recordings: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return const BackendIncompleteUploadSnapshot.unavailable();
     }
   }
@@ -3241,7 +3293,8 @@ class DatabaseNew {
   }
 
   static Future<void> _resendUnsentPartRows(
-      List<Map<String, dynamic>> unsent) async {
+    List<Map<String, dynamic>> unsent,
+  ) async {
     if (unsent.isEmpty) return;
 
     // Group parts by local recordingId to make sure we send the parent
@@ -3294,8 +3347,11 @@ class DatabaseNew {
           // after every persisted part is confirmed.
           await sendRecordingNew(recording, const <RecordingPart>[]);
         } catch (e, st) {
-          logger.e('resendUnsentParts: failure in group for recordingId=$recId',
-              error: e, stackTrace: st);
+          logger.e(
+            'resendUnsentParts: failure in group for recordingId=$recId',
+            error: e,
+            stackTrace: st,
+          );
           Sentry.captureException(e, stackTrace: st);
           rethrow;
         }
@@ -3328,7 +3384,8 @@ class DatabaseNew {
         'adminDialect': dialectJson['adminDialect'],
         'uploadAttempted': 1,
       },
-      where: 'id = ? AND BEID = ? '
+      where:
+          'id = ? AND BEID = ? '
           'AND NOT EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = Dialects.recordingId '
@@ -3338,9 +3395,7 @@ class DatabaseNew {
       whereArgs: <Object?>[dialectId, backendDialectId, ''],
     );
     if (changed != 1) {
-      throw StateError(
-        'Dialect is missing or owned by an active workflow.',
-      );
+      throw StateError('Dialect is missing or owned by an active workflow.');
     }
     dialect.uploadAttempted = true;
   }
@@ -3359,12 +3414,12 @@ class DatabaseNew {
       }
       final Map<String, Object?> parent =
           await _requireCurrentEnvironmentRecordingParent(
-        db,
-        localRecordingId: dialect.recordingId,
-        backendRecordingId: dialect.recordingBEID,
-        environment: Config.hostEnvironment.name,
-        childLabel: 'A backend dialect',
-      );
+            db,
+            localRecordingId: dialect.recordingId,
+            backendRecordingId: dialect.recordingBEID,
+            environment: Config.dataEnvironment,
+            childLabel: 'A backend dialect',
+          );
       final int recordingId = parent['id'] as int;
       dialect
         ..recordingId = recordingId
@@ -3417,7 +3472,8 @@ class DatabaseNew {
         'startDate': dialectJson['startDate'],
         'endDate': dialectJson['endDate'],
       },
-      where: 'id = ? AND COALESCE(uploadAttempted, 0) = 0 '
+      where:
+          'id = ? AND COALESCE(uploadAttempted, 0) = 0 '
           'AND NOT EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = Dialects.recordingId '
@@ -3443,7 +3499,8 @@ class DatabaseNew {
     final db = await database;
     final int changed = await db.delete(
       'Dialects',
-      where: 'id = ? AND BEID IS NULL '
+      where:
+          'id = ? AND BEID IS NULL '
           'AND COALESCE(uploadAttempted, 0) = 0 '
           'AND NOT EXISTS ('
           'SELECT 1 FROM recordings r '
@@ -3464,8 +3521,11 @@ class DatabaseNew {
   static Future<List<Dialect>> getDialectsByRecordingId(int recordingId) async {
     logger.i('Loading dialects for recording: $recordingId');
     final db = await database;
-    final List<Map<String, dynamic>> results = await db
-        .query("Dialects", where: "recordingId = ?", whereArgs: [recordingId]);
+    final List<Map<String, dynamic>> results = await db.query(
+      "Dialects",
+      where: "recordingId = ?",
+      whereArgs: [recordingId],
+    );
     if (results.isEmpty) {
       logger.i('No dialects found for recording: $recordingId');
       return [];
@@ -3474,13 +3534,14 @@ class DatabaseNew {
   }
 
   static Future<List<Dialect>> getDialectsByRecordingBEID(
-      int recordingBEID) async {
+    int recordingBEID,
+  ) async {
     final db = await database;
     final List<Map<String, dynamic>> results = await db.rawQuery(
       'SELECT d.* FROM Dialects d '
       'JOIN recordings r ON r.id = d.recordingId '
       'WHERE d.recordingBEID = ? AND r.env = ?',
-      <Object?>[recordingBEID, Config.hostEnvironment.name],
+      <Object?>[recordingBEID, Config.dataEnvironment],
     );
     return List.generate(results.length, (i) => Dialect.fromJson(results[i]));
   }
@@ -3491,12 +3552,12 @@ class DatabaseNew {
   ) async {
     final Map<String, Object?> recording =
         await _requireCurrentEnvironmentRecordingParent(
-      executor,
-      localRecordingId: frp.recordingLocalId,
-      backendRecordingId: frp.recordingBEID,
-      environment: Config.hostEnvironment.name,
-      childLabel: 'A backend filtered recording part',
-    );
+          executor,
+          localRecordingId: frp.recordingLocalId,
+          backendRecordingId: frp.recordingBEID,
+          environment: Config.dataEnvironment,
+          childLabel: 'A backend filtered recording part',
+        );
     final int recordingLocalId = recording['id'] as int;
     final int recordingBackendId = recording['BEId'] as int;
     frp
@@ -3524,10 +3585,7 @@ class DatabaseNew {
       'FilteredRecordingParts',
       columns: const <String>['id', 'BEId'],
       where: 'recordingLocalId = ? AND id = ?',
-      whereArgs: <Object?>[
-        recordingLocalId,
-        parentLocalId,
-      ],
+      whereArgs: <Object?>[recordingLocalId, parentLocalId],
       limit: 1,
     );
     if (parents.isEmpty) {
@@ -3590,7 +3648,7 @@ class DatabaseNew {
       'LIMIT 1',
       <Object?>[
         localParentId ?? backendParentId,
-        Config.hostEnvironment.name,
+        Config.dataEnvironment,
         if (dialect.recordingBEID != null) dialect.recordingBEID,
       ],
     );
@@ -3618,7 +3676,8 @@ class DatabaseNew {
 
   // === Filtered Recording Parts CRUD ===
   static Future<int> insertFilteredRecordingPart(
-      FilteredRecordingPart frp) async {
+    FilteredRecordingPart frp,
+  ) async {
     final db = await database;
     if (frp.BEId != null) {
       if (frp.BEId! <= 0) {
@@ -3636,8 +3695,12 @@ class DatabaseNew {
       );
       if (existing.isNotEmpty) {
         frp.id = existing.first['id'] as int?;
-        await db.update('FilteredRecordingParts', frp.toDbJson(),
-            where: 'id = ?', whereArgs: [frp.id]);
+        await db.update(
+          'FilteredRecordingParts',
+          frp.toDbJson(),
+          where: 'id = ?',
+          whereArgs: [frp.id],
+        );
         return frp.id ?? -1;
       }
     }
@@ -3647,7 +3710,8 @@ class DatabaseNew {
   }
 
   static Future<void> updateFilteredRecordingPart(
-      FilteredRecordingPart frp) async {
+    FilteredRecordingPart frp,
+  ) async {
     final int? filteredPartId = frp.id;
     if (filteredPartId == null || filteredPartId <= 0) {
       throw const RecordingUploadValidationException(
@@ -3674,7 +3738,7 @@ class DatabaseNew {
     }
   }
 
-// === Detected Dialects CRUD ===
+  // === Detected Dialects CRUD ===
   static Future<int> insertDetectedDialect(DetectedDialect dd) async {
     final db = await database;
     if (dd.BEId != null) {
@@ -3693,8 +3757,12 @@ class DatabaseNew {
       );
       if (existing.isNotEmpty) {
         dd.id = existing.first['id'] as int?;
-        await db.update('DetectedDialects', dd.toDbJson(),
-            where: 'id = ?', whereArgs: [dd.id]);
+        await db.update(
+          'DetectedDialects',
+          dd.toDbJson(),
+          where: 'id = ?',
+          whereArgs: [dd.id],
+        );
         return dd.id ?? -1;
       }
     }
@@ -3731,24 +3799,30 @@ class DatabaseNew {
   }
 
   static Future<List<DetectedDialect>> getDetectedDialectsByRecordingLocalId(
-      int recordingLocalId) async {
+    int recordingLocalId,
+  ) async {
     final db = await database;
-    final List<Map<String, Object?>> rows = await db.rawQuery('''
+    final List<Map<String, Object?>> rows = await db.rawQuery(
+      '''
     SELECT dd.*, frp.startDate AS filteredPartStartDate, frp.endDate AS filteredPartEndDate
     FROM FilteredRecordingParts frp
     JOIN DetectedDialects dd ON dd.filteredPartLocalId = frp.id
     WHERE frp.recordingLocalId = ?
     ORDER BY frp.startDate ASC, dd.id ASC
-  ''', [recordingLocalId]);
+  ''',
+      [recordingLocalId],
+    );
 
     return rows.map((row) => DetectedDialect.fromDb(row)).toList();
   }
 
   /// Representative dialects for a local recording (prefers confirmed, else user guess)
   static Future<List<String>> getRepresentativeDialectCodesForRecording(
-      int recordingLocalId) async {
+    int recordingLocalId,
+  ) async {
     final db = await database;
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
     SELECT DISTINCT COALESCE(dd.confirmedDialect, dd.userGuessDialect) AS code
     FROM FilteredRecordingParts frp
     JOIN DetectedDialects dd ON dd.filteredPartLocalId = frp.id
@@ -3756,11 +3830,14 @@ class DatabaseNew {
       AND frp.representant = 1
       AND COALESCE(dd.confirmedDialect, dd.userGuessDialect) IS NOT NULL
       AND COALESCE(dd.confirmedDialect, dd.userGuessDialect) <> ''
-  ''', [recordingLocalId]);
+  ''',
+      [recordingLocalId],
+    );
 
     final codes = rows
-        .map((r) =>
-            DialectKeywordTranslator.toEnglish(r['code'] as String?) ?? '')
+        .map(
+          (r) => DialectKeywordTranslator.toEnglish(r['code'] as String?) ?? '',
+        )
         .where((s) => s.trim().isNotEmpty)
         .map((s) => s.trim())
         .toSet()
@@ -3771,7 +3848,8 @@ class DatabaseNew {
 
   /// Returns all parts for a given recordingId from the DB.
   static Future<List<RecordingPart>> getRecordingPartsByRecordingId(
-      int recordingId) async {
+    int recordingId,
+  ) async {
     final db = await database;
     final List<Map<String, dynamic>> parts = await db.query(
       'recordingParts',
@@ -3787,9 +3865,11 @@ class DatabaseNew {
 
   static Future<Recording?> getRecordingFromDbByBEId(int id) async {
     final db = await database;
-    final List<Map<String, dynamic>> results = await db.query("recordings",
-        where: "BEId = ? AND env = ?",
-        whereArgs: [id, Config.hostEnvironment.name.toString()]);
+    final List<Map<String, dynamic>> results = await db.query(
+      "recordings",
+      where: "BEId = ? AND env = ?",
+      whereArgs: [id, Config.dataEnvironment.toString()],
+    );
     if (results.isNotEmpty) {
       return Recording.fromJson(results.first);
     }
@@ -3802,10 +3882,13 @@ class DatabaseNew {
 
   static Future<void> checkSendingRecordings() async {
     final db = await database;
-    final List<Map<String, dynamic>> result =
-        await db.query("recordings", where: "sending = 1");
-    final List<Recording> recordings =
-        result.map((row) => Recording.fromJson(row)).toList();
+    final List<Map<String, dynamic>> result = await db.query(
+      "recordings",
+      where: "sending = 1",
+    );
+    final List<Recording> recordings = result
+        .map((row) => Recording.fromJson(row))
+        .toList();
     final int staleBefore = DateTime.now()
         .subtract(const Duration(minutes: 5))
         .millisecondsSinceEpoch;
@@ -3826,8 +3909,9 @@ class DatabaseNew {
         final receive = ReceivePort();
         port.send({'replyTo': receive.sendPort, 'cmd': 'ping'});
         try {
-          final response =
-              await receive.first.timeout(const Duration(seconds: 2));
+          final response = await receive.first.timeout(
+            const Duration(seconds: 2),
+          );
           if (response is Map && response['status'] == 'uploading') {
             workerResponded = true;
             logger.i('Recording ${recording.id} still uploading.');
@@ -3846,7 +3930,8 @@ class DatabaseNew {
 
       final bool hasNoLease =
           recording.uploadLease == null || recording.uploadLease!.isEmpty;
-      final bool leaseExpired = recording.uploadLeaseUpdatedAt == null ||
+      final bool leaseExpired =
+          recording.uploadLeaseUpdatedAt == null ||
           recording.uploadLeaseUpdatedAt! < staleBefore;
       if (!hasNoLease && !leaseExpired) {
         logger.i(
@@ -3865,9 +3950,7 @@ class DatabaseNew {
         continue;
       }
       _inflightRecordingIds.remove(recording.id);
-      logger.i(
-        'Recording ${recording.id} stale upload lease was cleared.',
-      );
+      logger.i('Recording ${recording.id} stale upload lease was cleared.');
     }
   }
 

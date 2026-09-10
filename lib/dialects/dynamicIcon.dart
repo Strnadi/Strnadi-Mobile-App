@@ -65,7 +65,7 @@ class DialectColorCache {
       host = 'unconfigured';
     }
     return preferencesKeyForScope(
-      environment: Config.hostEnvironment.name,
+      environment: Config.dataEnvironment,
       host: host,
     );
   }
@@ -322,7 +322,7 @@ class DynamicIcon extends StatelessWidget {
   static Future<void> refreshDialects(
       [List<String> dialects = const []]) async {
     try {
-      final String environment = Config.hostEnvironment.name;
+      final String environment = Config.dataEnvironment;
       final String host = Config.host;
       final String preferencesKey = DialectColorCache.preferencesKeyForScope(
         environment: environment,

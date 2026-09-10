@@ -126,7 +126,7 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
       return;
     }
 
-    final String environment = Config.hostEnvironment.name;
+    final String environment = Config.dataEnvironment;
     final String backendHost = Config.host;
     final Map<int, Recording> recordingsByLocalId = <int, Recording>{};
     const RecordingsController controller = RecordingsController();
@@ -140,7 +140,7 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
           current.userId == session.userId &&
           current.subject == session.subject &&
           current.sessionId == session.sessionId &&
-          Config.hostEnvironment.name == environment &&
+          Config.dataEnvironment == environment &&
           Config.host == backendHost;
     }
 

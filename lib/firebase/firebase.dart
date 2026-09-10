@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -132,8 +133,10 @@ Future<DeviceRegistrationScope?> _captureVerifiedDeviceScope() async {
     final ActivatedAuthSessionSnapshot? session =
         await activatedAuthSessions.capture();
     if (session == null || !session.verified) return null;
-    final int? userId = int.tryParse(session.userId.trim());
-    if (userId == null || userId <= 0 || !Config.isHostEnvironmentLoaded) {
+    final Object? userId = parseUserId(session.userId.trim());
+    if (userId == null ||
+        parseUserId(userId) == null ||
+        !Config.isHostEnvironmentLoaded) {
       return null;
     }
     return DeviceRegistrationScope(
@@ -141,7 +144,7 @@ Future<DeviceRegistrationScope?> _captureVerifiedDeviceScope() async {
       accessToken: session.accessToken,
       userId: userId,
       subject: session.subject,
-      environment: Config.hostEnvironment.name,
+      environment: Config.dataEnvironment,
       apiHost: Config.host,
     );
   } catch (_) {
@@ -160,7 +163,7 @@ Future<bool> _isDeviceScopeCurrent(DeviceRegistrationScope scope) async {
         current.userId == scope.userId.toString() &&
         current.subject == scope.subject &&
         Config.isHostEnvironmentLoaded &&
-        Config.hostEnvironment.name == scope.environment &&
+        Config.dataEnvironment == scope.environment &&
         Config.host == scope.apiHost;
   } catch (_) {
     return false;

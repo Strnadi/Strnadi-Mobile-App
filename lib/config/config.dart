@@ -23,6 +23,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'host_environment.dart';
+import 'package:strnadi/config/oauth_configuration.dart';
+export 'host_environment.dart';
 
 /// User preference for mobile data usage
 enum DataUsageOption { wifiOnly, wifiAndMobile }
@@ -40,8 +43,6 @@ enum LanguagePreference {
   @override
   String toString() => this.name;
 }
-
-enum HostEnvironment { prod, dev }
 
 Logger logger = Logger();
 const HealthController _healthController = HealthController();
@@ -69,6 +70,12 @@ class Config {
   );
   static const bool _hasDefaultDevHost =
       bool.hasEnvironment('STRNADI_DEV_API_HOST');
+  static const String _defaultPreprodHost = String.fromEnvironment(
+    'STRNADI_PREPROD_API_HOST',
+    defaultValue: 'preprod-api.strnadi.cz',
+  );
+  static const bool _hasDefaultPreprodHost =
+      bool.hasEnvironment('STRNADI_PREPROD_API_HOST');
   static const String _defaultMapyCzKey = String.fromEnvironment(
     'STRNADI_MAPY_CZ_KEY',
     defaultValue: '',
@@ -76,11 +83,39 @@ class Config {
   static const bool _hasDefaultMapyCzKey =
       bool.hasEnvironment('STRNADI_MAPY_CZ_KEY');
 
+  static const _administrationDefaults = <String, String>{
+    'administrationurl':
+        String.fromEnvironment('STRNADI_ADMINISTRATION_URL', defaultValue: ''),
+    'projectid': String.fromEnvironment('STRNADI_PROJECT_ID', defaultValue: ''),
+    'devadministrationurl': String.fromEnvironment(
+        'STRNADI_DEV_ADMINISTRATION_URL',
+        defaultValue: ''),
+    'devprojectid':
+        String.fromEnvironment('STRNADI_DEV_PROJECT_ID', defaultValue: ''),
+    'preprodadministrationurl': String.fromEnvironment(
+        'STRNADI_PREPROD_ADMINISTRATION_URL',
+        defaultValue: 'https://preprod-administration.strnadi.cz/'),
+    'preprodprojectid': String.fromEnvironment('STRNADI_PREPROD_PROJECT_ID',
+        defaultValue: '01a08608-44b7-7aba-8d0c-542148b30bf2'),
+  };
+  static const _administrationOverrides = <String, bool>{
+    'administrationurl': bool.hasEnvironment('STRNADI_ADMINISTRATION_URL'),
+    'projectid': bool.hasEnvironment('STRNADI_PROJECT_ID'),
+    'devadministrationurl':
+        bool.hasEnvironment('STRNADI_DEV_ADMINISTRATION_URL'),
+    'devprojectid': bool.hasEnvironment('STRNADI_DEV_PROJECT_ID'),
+    'preprodadministrationurl':
+        bool.hasEnvironment('STRNADI_PREPROD_ADMINISTRATION_URL'),
+    'preprodprojectid': bool.hasEnvironment('STRNADI_PREPROD_PROJECT_ID'),
+  };
+
   // Load public config defaults. Sensitive values must come from dart-define.
   static Future<void> loadConfig() async {
     final assetConfig = await _loadJsonAsset('assets/config.json');
     _config = <String, dynamic>{
+      ..._administrationDefaults,
       'host': _defaultHost,
+      'preprodhost': _defaultPreprodHost,
       if (_defaultDevHost.isNotEmpty) 'devhost': _defaultDevHost,
       'mapy.cz-key': _defaultMapyCzKey,
       ...assetConfig,
@@ -97,6 +132,9 @@ class Config {
   }
 
   static void _applyDartDefineOverrides(Map<String, dynamic> config) {
+    for (final entry in _administrationOverrides.entries) {
+      if (entry.value) config[entry.key] = _administrationDefaults[entry.key];
+    }
     if (_hasDefaultHost) {
       config['host'] = _defaultHost;
     }
@@ -109,6 +147,10 @@ class Config {
     }
     if (_hasDefaultMapyCzKey) {
       config['mapy.cz-key'] = _defaultMapyCzKey;
+    }
+    if (_hasDefaultPreprodHost) {
+      // Keep an explicitly empty override: resolving preprod must fail closed.
+      config['preprodhost'] = _defaultPreprodHost;
     }
   }
 
@@ -161,7 +203,7 @@ class Config {
     }
   }
 
-  /// Loads the selected host environment (prod/dev) from SharedPreferences
+  /// Loads the selected host environment from SharedPreferences.
   static Future<void> loadHostEnvironment() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_hostEnvPrefKey);
@@ -169,10 +211,7 @@ class Config {
       _hostEnv = HostEnvironment.prod; // default
       await prefs.setString(_hostEnvPrefKey, _hostEnv.toString());
     } else {
-      _hostEnv = HostEnvironment.values.firstWhere(
-        (e) => e.toString() == raw,
-        orElse: () => HostEnvironment.prod,
-      );
+      _hostEnv = HostEnvironment.fromPreference(raw);
     }
   }
 
@@ -181,7 +220,7 @@ class Config {
     return _dataUsageOption ?? DataUsageOption.wifiOnly;
   }
 
-  /// Gets the current host environment (prod/dev)
+  /// Gets the current host environment (prod/dev/preprod).
   static HostEnvironment get hostEnvironment {
     return _hostEnv ?? HostEnvironment.prod;
   }
@@ -194,8 +233,14 @@ class Config {
 
   /// Sets the host environment and persists it
   static Future<void> setHostEnvironment(HostEnvironment env) async {
+    hostForEnvironment(env); // Validate before changing persisted state.
+    if (env == HostEnvironment.preprod) {
+      administrationForEnvironment(env);
+    }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_hostEnvPrefKey, env.toString());
+    if (!await prefs.setString(_hostEnvPrefKey, env.toString())) {
+      throw StateError('Could not persist the server environment.');
+    }
     _hostEnv = env;
     onHostEnvironmentChanged?.call();
   }
@@ -243,16 +288,55 @@ class Config {
     return _config!["mapy.cz-key"] as String? ?? '';
   }
 
-  static String get host {
+  static String get host => hostForEnvironment(hostEnvironment);
+
+  static bool get usesAdministration =>
+      hostEnvironment == HostEnvironment.preprod;
+
+  static OAuthConfiguration? get administration =>
+      administrationForEnvironment(hostEnvironment);
+
+  static OAuthConfiguration? administrationForEnvironment(
+      HostEnvironment environment) {
+    if (_config == null) {
+      throw StateError('Config not loaded. Call loadConfig() first.');
+    }
+    final prefix = environment == HostEnvironment.prod ? '' : environment.name;
+    final issuer = _config!['${prefix}administrationurl'];
+    final project = _config!['${prefix}projectid'];
+    if (issuer == '' && project == '') {
+      if (environment == HostEnvironment.preprod) {
+        throw StateError('Preprod Administration configuration is required.');
+      }
+      return null;
+    }
+    if (issuer is! String || project is! String) {
+      throw StateError('Invalid Administration configuration.');
+    }
+    return OAuthConfiguration(
+        environment: environment.name,
+        issuer: Uri.parse(issuer),
+        tenantOrigin: Uri.https(hostForEnvironment(environment)),
+        projectId: project);
+  }
+
+  /// OAuth data remains separate from legacy integer-owned preprod data.
+  static String get dataEnvironment {
+    if (!usesAdministration) return hostEnvironment.name;
+    final configuration = administration!;
+    return 'preprod|${configuration.issuer.origin}|${configuration.tenantOrigin.origin}|${configuration.projectId}';
+  }
+
+  static Uri get administrationOrigin =>
+      usesAdministration ? administration!.issuer : Uri.https(host);
+
+  static String get administrationHost => administrationOrigin.host;
+
+  static String hostForEnvironment(HostEnvironment environment) {
     if (_config == null) {
       throw Exception("Config not loaded. Call loadConfig() first.");
     }
-    final useDev = (hostEnvironment == HostEnvironment.dev);
-    final devHost = _config!["devhost"] as String?;
-    if (useDev && devHost != null && devHost.isNotEmpty) {
-      return devHost;
-    }
-    return _config!["host"] as String;
+    return resolveApiHost(environment, _config!);
   }
 
   /// Checks the server health via a HEAD request to {host}/utils/health

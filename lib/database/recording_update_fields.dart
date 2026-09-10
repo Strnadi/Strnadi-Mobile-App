@@ -8,8 +8,8 @@ import 'package:strnadi/database/Models/recordingPart.dart';
 /// that account; a missing owner remains public/unowned.
 bool recordingBelongsToCapturedAccount({
   required bool sent,
-  required int? ownerUserId,
-  required int capturedUserId,
+  required Object? ownerUserId,
+  required Object capturedUserId,
 }) {
   return !sent || ownerUserId == capturedUserId;
 }

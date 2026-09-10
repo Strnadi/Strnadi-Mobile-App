@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 import 'package:strnadi/database/recording_upload_service.dart';
 
 /// The exact activated owner and backend environment allowed to inspect or
@@ -16,10 +17,13 @@ class RecordingCacheOwner {
 
   factory RecordingCacheOwner.fromSession(RecordingUploadSession session) {
     validateRecordingUploadSession(session);
-    final int? userId = int.tryParse(session.userId.trim());
+    final Object? userId = parseUserId(session.userId.trim());
     final String email = session.accountEmail?.trim() ?? '';
     final String environment = session.environment.trim();
-    if (userId == null || userId <= 0 || email.isEmpty || environment.isEmpty) {
+    if (userId == null ||
+        parseUserId(userId) == null ||
+        email.isEmpty ||
+        environment.isEmpty) {
       throw const RecordingUploadSessionChangedException();
     }
     return RecordingCacheOwner._(
@@ -32,7 +36,7 @@ class RecordingCacheOwner {
   }
 
   final RecordingUploadSession session;
-  final int userId;
+  final Object userId;
   final String email;
   final String normalizedEmail;
   final String environment;
@@ -98,7 +102,7 @@ Future<void> deleteDownloadedRecordingCacheForActivatedOwner({
 
 bool recordingCacheEntryMatchesOwner({
   required String? entryEnvironment,
-  required int? entryUserId,
+  required Object? entryUserId,
   required String? entryEmail,
   required RecordingCacheOwner owner,
 }) {

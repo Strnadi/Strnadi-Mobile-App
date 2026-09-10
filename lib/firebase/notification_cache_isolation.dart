@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 
 typedef CaptureActivatedNotificationSession
@@ -49,9 +50,11 @@ class NotificationCacheIsolation {
       if (session == null || !session.verified) return null;
 
       final String ownerUserId = session.userId.trim();
-      final int? numericUserId = int.tryParse(ownerUserId);
+      final Object? numericUserId = parseUserId(ownerUserId);
       final String environment = _currentEnvironment().trim();
-      if (numericUserId == null || numericUserId <= 0 || environment.isEmpty) {
+      if (numericUserId == null ||
+          parseUserId(numericUserId) == null ||
+          environment.isEmpty) {
         return null;
       }
 

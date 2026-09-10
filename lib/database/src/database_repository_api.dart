@@ -62,9 +62,8 @@ Future<void> _sendRecordingNew(
           409,
         );
       case RecordingUploadStatus.deferred:
-        throw UploadException(
+        throw RecordingUploadDeferredException(
           result.reason ?? 'Recording upload was deferred.',
-          503,
         );
     }
   } catch (e, stackTrace) {
@@ -73,8 +72,10 @@ Future<void> _sendRecordingNew(
         UploadProgressBus.clear(part.id!);
       }
     }
-    logger.e('Error sending recording: $e', error: e, stackTrace: stackTrace);
-    Sentry.captureException(e, stackTrace: stackTrace);
+    if (e is! RecordingUploadDeferredException) {
+      logger.e('Error sending recording: $e', error: e, stackTrace: stackTrace);
+      Sentry.captureException(e, stackTrace: stackTrace);
+    }
     rethrow;
   }
 }
@@ -553,7 +554,7 @@ class _SecureStorageRecordingUploadSessions
     return captureActivatedRecordingUploadSession(
       captureActivatedSession: activatedAuthSessions.capture,
       readOptionalDeviceId: () => _storage.read(key: 'fcmToken'),
-      environment: Config.hostEnvironment.name,
+      environment: Config.dataEnvironment,
       backendHost: Config.host,
     );
   }
@@ -570,7 +571,7 @@ class _SecureStorageRecordingUploadSessions
       ),
     );
     return sameLogicalSession &&
-        Config.hostEnvironment.name == session.environment &&
+        Config.dataEnvironment == session.environment &&
         Config.host == session.backendHost;
   }
 }
@@ -761,8 +762,8 @@ Future<void> _fetchRecordingsFromBE() async {
       throw FetchException('Failed to fetch recordings from backend', 401);
     }
     validateRecordingUploadSession(session);
-    final int? numericUserId = int.tryParse(session.userId.trim());
-    if (numericUserId == null || numericUserId <= 0) {
+    final Object? numericUserId = parseUserId(session.userId.trim());
+    if (numericUserId == null || parseUserId(numericUserId) == null) {
       throw FetchException(
         'Failed to fetch recordings from backend: invalid userId',
         401,
@@ -971,8 +972,8 @@ Future<int?> _fetchRecordingFromBE(int id) async {
     throw FetchException('Failed to fetch recording from backend', 401);
   }
   validateRecordingUploadSession(session);
-  final int? capturedUserId = int.tryParse(session.userId.trim());
-  if (capturedUserId == null || capturedUserId <= 0) {
+  final Object? capturedUserId = parseUserId(session.userId.trim());
+  if (capturedUserId == null || parseUserId(capturedUserId) == null) {
     throw const RecordingUploadSessionChangedException();
   }
   await _requireRecordingSessionCurrent(sessionProvider, session);
@@ -1007,11 +1008,10 @@ Future<int?> _fetchRecordingFromBE(int id) async {
       'Fetched recording identity does not match the requested recording.',
     );
   }
-  final int? responseOwnerId = body['userId'] == null
-      ? null
-      : DatabaseNew._readInt(body, const <String>['userId']);
+  final Object? responseOwnerId =
+      body['userId'] == null ? null : parseUserId(body['userId']);
   if (body['userId'] != null &&
-      (responseOwnerId == null || responseOwnerId <= 0)) {
+      (responseOwnerId == null || parseUserId(responseOwnerId) == null)) {
     throw const RecordingUploadValidationException(
       'Fetched recording has an invalid owner identity.',
     );

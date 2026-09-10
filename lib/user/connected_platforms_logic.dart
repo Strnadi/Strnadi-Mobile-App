@@ -1,3 +1,5 @@
+import 'package:strnadi/auth/user_identity.dart';
+
 class ConnectedAccountsException implements Exception {
   const ConnectedAccountsException(this.message);
 
@@ -16,7 +18,7 @@ class ConnectedAccountSession {
     required this.verified,
   });
 
-  final int userId;
+  final Object userId;
   final String accessToken;
   final String sessionId;
   final String host;
@@ -75,7 +77,7 @@ class ConnectedPlatformsCoordinator {
     final ConnectedAccountSession? session = await _captureSession();
     if (session == null ||
         !session.verified ||
-        session.userId <= 0 ||
+        parseUserId(session.userId) == null ||
         session.accessToken.trim().isEmpty ||
         session.sessionId.trim().isEmpty ||
         session.host.trim().isEmpty) {

@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 import 'dart:async';
 
 import 'package:strnadi/auth/activated_auth_session.dart';
@@ -418,8 +419,8 @@ void validateRecordingSessionBinding(
     throw const RecordingUploadSessionChangedException();
   }
 
-  final int? ownerId = recording.userId;
-  final int sessionUserId = int.parse(session.userId.trim());
+  final Object? ownerId = recording.userId;
+  final Object sessionUserId = requireUserId(session.userId.trim());
   if (ownerId != null && ownerId != sessionUserId) {
     throw const RecordingUploadSessionChangedException();
   }
@@ -436,9 +437,9 @@ void validateRecordingSessionBinding(
 }
 
 void validateRecordingUploadSession(RecordingUploadSession session) {
-  final int? userId = int.tryParse(session.userId.trim());
+  final Object? userId = parseUserId(session.userId.trim());
   if (userId == null ||
-      userId <= 0 ||
+      parseUserId(userId) == null ||
       session.accessToken.trim().isEmpty ||
       session.logicalSessionId.trim().isEmpty ||
       session.environment.trim().isEmpty ||
@@ -575,7 +576,7 @@ class RecordingUploadService {
         recording.mail = sessionEmail;
         sessionBindingChanged = true;
       }
-      final int sessionUserId = int.parse(session.userId.trim());
+      final Object sessionUserId = requireUserId(session.userId.trim());
       if (recording.userId == null) {
         recording.userId = sessionUserId;
         sessionBindingChanged = true;

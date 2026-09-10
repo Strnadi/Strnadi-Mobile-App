@@ -100,7 +100,7 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
       localId: localId,
       backendId: backendId,
       environment: row['env'] as String? ?? '',
-      ownerUserId: row['userId'] as int?,
+      ownerUserId: row['userId'] == null ? null : requireUserId(row['userId']),
       ownerEmail: row['mail'] as String?,
       expectedPartCount: row['partCount'] as int?,
       downloaded: row['downloaded'] == 1 || row['downloaded'] == true,

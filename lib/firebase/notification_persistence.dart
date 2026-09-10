@@ -1,3 +1,5 @@
+import 'package:strnadi/auth/user_identity.dart';
+
 String _firstNonEmpty(Iterable<Object?> values, {required String fallback}) {
   for (final Object? value in values) {
     final String text = value?.toString().trim() ?? '';
@@ -42,8 +44,8 @@ NotificationRetentionDeletePlan notificationRetentionDeletePlan({
 }) {
   final String normalizedOwnerUserId = ownerUserId.trim();
   final String normalizedEnvironment = environment.trim();
-  final int? numericOwnerUserId = int.tryParse(normalizedOwnerUserId);
-  if (numericOwnerUserId == null || numericOwnerUserId <= 0) {
+  final Object? numericOwnerUserId = parseUserId(normalizedOwnerUserId);
+  if (numericOwnerUserId == null || parseUserId(numericOwnerUserId) == null) {
     throw ArgumentError.value(ownerUserId, 'ownerUserId');
   }
   if (normalizedEnvironment.isEmpty) {
@@ -108,8 +110,8 @@ Map<String, Object> notificationPersistenceValues({
 }) {
   final String normalizedOwnerUserId = ownerUserId.trim();
   final String normalizedEnvironment = environment.trim();
-  final int? numericOwnerUserId = int.tryParse(normalizedOwnerUserId);
-  if (numericOwnerUserId == null || numericOwnerUserId <= 0) {
+  final Object? numericOwnerUserId = parseUserId(normalizedOwnerUserId);
+  if (numericOwnerUserId == null || parseUserId(numericOwnerUserId) == null) {
     throw ArgumentError.value(
       ownerUserId,
       'ownerUserId',

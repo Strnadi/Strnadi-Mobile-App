@@ -99,7 +99,7 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
    ```
 
 3. **Configure environment values** (for development):
-   - Pass build-time values with `--dart-define-from-file=build.env.json`, or with individual `--dart-define` flags such as `STRNADI_MAPY_CZ_KEY`, `STRNADI_API_HOST`, or `STRNADI_DEV_API_HOST`.
+   - Pass build-time values with `--dart-define-from-file=build.env.json`, or with individual `--dart-define` flags such as `STRNADI_MAPY_CZ_KEY`, `STRNADI_API_HOST`, `STRNADI_DEV_API_HOST`, or `STRNADI_PREPROD_API_HOST`.
    - Do not add secret JSON files to Flutter assets; asset-bundled files are shipped with the app.
    - Do not put Firebase service-account JSON in the app. Send push notifications from a backend service instead.
 
@@ -107,6 +107,21 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
    ```sh
    flutter run --dart-define-from-file=build.env.json
    ```
+
+### Preprod environment (2.1.0)
+
+- Production remains the default. Admin/tester accounts can select **Preprod** in Settings → Developer settings → Server environment. Switching signs out on the old backend before activating the new one. Non-production sessions can return to production through the same selector.
+- Preprod defaults to `https://preprod-api.strnadi.cz`. Its public `preprodhost` asset default can be overridden with `STRNADI_PREPROD_API_HOST` (a hostname only, without `https://`, port, or path). An explicitly empty/invalid value or a production hostname is rejected, never silently routed to production.
+- The selection survives restart, including background uploads. Existing `prod`/`dev` recording scopes stay unchanged; preprod recordings use the separate `preprod` scope. A switch does not move queued recordings between environments.
+- Both existing Android and iOS Fastlane builds already pass `build.env.json` to Flutter. No new flavor, bundle ID, store track, or Firebase project is introduced. Setting a preprod **host** does not make it the default selected environment.
+
+```sh
+flutter run --dart-define-from-file=build.env.json --dart-define=STRNADI_PREPROD_API_HOST=preprod-api.strnadi.cz
+flutter build appbundle --release --dart-define-from-file=build.env.json
+flutter build ios --release --dart-define-from-file=build.env.json
+```
+
+Before release, manually verify on Android and iOS: select preprod as a tester, confirm logout and the PREPROD banner, log in with a preprod test account, record offline, restart, upload on reconnect, and switch back to prod/dev without moving queued data. Check microphone/location permissions, cache/notifications, and cs/en/de labels. Backend DNS/TLS, credentials/integrations, signed builds, and device QA are separate release gates; unit tests do not prove those are ready.
 
 ### Build for Production
 
@@ -246,3 +261,12 @@ Thank you to all citizen scientists who contribute recordings and help advance o
 ---
 
 *Strnad obecný zpívá jednoduše, ale zajímavě. Pojďte nám pomoci zmapovat nářečí českých strnadů!*
+
+### Preprod Administration
+
+Preprod login uses the system browser and Administration OAuth with Strnadi project
+`01a08608-44b7-7aba-8d0c-542148b30bf2`; recordings and maps stay on the Tenant API.
+New GUID-owned preprod data is isolated from legacy preprod recordings. See
+[the migration notes](docs/preprod-administration-migration.md) for routing,
+configuration, verified backend source contracts and remaining live/device QA. Release readiness
+still requires authenticated testing against the deployed backend.

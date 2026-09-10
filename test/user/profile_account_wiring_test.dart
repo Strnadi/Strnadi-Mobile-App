@@ -9,7 +9,7 @@ void main() {
 
       expect(source, contains('profilePhotoCacheKey('));
       expect(source, contains('ownerUserId: session.userId'));
-      expect(source, contains('environment: Config.hostEnvironment.name'));
+      expect(source, contains('environment: Config.dataEnvironment'));
       expect(source, contains('ProfilePhotoPublishCoordinator'));
       expect(source, contains('publishBoundedCandidate('));
       expect(source, contains('candidateLength: candidateFile.length'));

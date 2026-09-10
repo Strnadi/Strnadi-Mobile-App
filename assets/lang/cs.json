@@ -1,5 +1,20 @@
 {
   "auth": {
+    "administration": {
+      "continue": "Přihlásit se přes Administration",
+      "description": "Přihlaste se bezpečně v prohlížeči.",
+      "errors": {
+        "cancelled": "Přihlášení bylo zrušeno. Můžete to zkusit znovu.",
+        "denied": "Přihlášení nebylo povoleno. Zkuste to prosím znovu.",
+        "invalidCallback": "Odpověď přihlášení nebyla platná. Zkuste to prosím znovu.",
+        "staleSession": "Účet nebo prostředí se změnilo. Přihlaste se prosím znovu.",
+        "network": "Připojení se nezdařilo. Zkontrolujte připojení a zkuste to znovu.",
+        "server": "Přihlašovací služba není dostupná. Zkuste to prosím později.",
+        "invalidResponse": "Přihlašovací služba vrátila neplatnou odpověď. Zkuste to prosím znovu.",
+        "loginRequired": "Platnost relace skončila. Přihlaste se prosím znovu.",
+        "exchangeDenied": "Přístup k tomuto projektu byl zamítnut. Obraťte se prosím na správce projektu."
+      }
+    },
     "title": "Nářečí českých strnadů",
     "subtitle": "Nahrávejte, mapujte, dobývejte",
     "apple": {
@@ -404,6 +419,21 @@
     "no_nickname": "Uzivatel nema prezdivku"
   },
   "map": {
+    "clusterPicker": {
+      "title": "Nahrávky",
+      "recording": "Nahrávka",
+      "failed": "Další nahrávky se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "more": "Načíst další",
+      "expired": "Cluster se změnil. Mapa byla obnovena.",
+      "sources": {
+        "confirmed": "Potvrzeno administrátorem",
+        "ai": "Predikce AI",
+        "user": "Tip uživatele",
+        "unknown": "Neznámé",
+        "mixed": "Různé zdroje"
+      }
+    },
     "notifications": {
       "enableLocation": "Please enable location services",
       "locationDenied": "Location permissions are denied",
@@ -439,6 +469,20 @@
       "hint": "Hledat místo nebo souřadnice (např. 50.087, 14.421)"
     },
     "filters": {
+      "features": {
+        "advanced": "Pokročilé",
+        "mixDialects": "Míchat nářečí ve shlucích",
+        "mixDialectsHelp": "Spojit nahrávky s různými nářečími do jednoho shluku.",
+        "mixSources": "Míchat zdroje určení ve shlucích",
+        "mixSourcesHelp": "Spojit potvrzená určení, určení AI a tipy uživatelů.",
+        "enableClustering": "Pro změnu těchto možností zapněte shlukování.",
+        "onlyMeaningfulDialects": "Jen nahrávky s nářečím",
+        "onlyMeaningfulDialectsHelp": "Skrýt nahrávky pouze s neznámým nebo nenářečním označením.",
+        "hideOthersWithoutMeaningfulDialect": "Skrýt cizí nahrávky bez nářečí",
+        "hideOthersHelp": "Moje nahrávky ponechat i bez určeného nářečí.",
+        "onlyMeaningfulOverrides": "Volba „Jen nahrávky s nářečím“ skryje i moje nahrávky bez nářečí.",
+        "signInRequired": "Pro filtrování podle svého účtu se přihlaste."
+      },
       "clustering": {
         "title": "Seskupování nahrávek",
         "on": "Zapnuto",
@@ -450,6 +494,7 @@
         "satellite": "Letecké"
       },
       "recordingAuthor": {
+        "others": "Ostatní",
         "title": "Autor nahrávky",
         "all": "Všichni",
         "me": "Pouze já"
@@ -607,11 +652,11 @@
         "error": {
           "noInternet": {
             "title": "Chyba připojení",
-            "message": "Pro uložení nahrávky je potřeba připojení k internetu"
+            "message": "Nahrávka je uložená a čeká na automatické odeslání po obnovení připojení."
           },
           "wifiOnly": {
             "title": "Chyba připojení",
-            "message": "Nahrávání je povoleno pouze na Wi-Fi"
+            "message": "Nahrávka je uložená a čeká na automatické odeslání, až bude připojení vyhovovat nastavení a server bude dostupný."
           },
           "login": "Před odesláním nahrávky se prosím přihlaste.",
           "invalidParts": "Nahrávka není úplná a nebylo možné ji uložit. Nahrajte ji prosím znovu.",
@@ -727,6 +772,20 @@
       }
     },
     "settings": {
+      "environment": {
+        "section": "Vývojářská nastavení",
+        "label": "Prostředí serveru",
+        "production": "Produkce",
+        "development": "Vývoj",
+        "preprod": "Preprod",
+        "devBadge": "DEV",
+        "preprodBadge": "PREPROD",
+        "confirmTitle": "Změnit prostředí?",
+        "confirmMessage": "Změna prostředí vás odhlásí. Nahrávky zůstanou v původním prostředí. Pokračovat?",
+        "cancel": "Zrušit",
+        "continue": "Pokračovat",
+        "failed": "Prostředí se nepodařilo změnit. Zkontrolujte konfiguraci a zkuste to znovu."
+      },
       "title": "Nastavení",
       "app": "Aplikace",
       "fields": {

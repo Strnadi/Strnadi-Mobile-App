@@ -57,17 +57,27 @@ void main() {
 
       await Config.setHostEnvironment(HostEnvironment.prod);
       final String productionKey = DialectColorCache.preferencesKeyForScope(
-        environment: Config.hostEnvironment.name,
+        environment: Config.dataEnvironment,
         host: Config.host,
       );
       await preferences.setString(productionKey, '{"BC":"#112233"}');
 
       await Config.setHostEnvironment(HostEnvironment.dev);
       final String developmentKey = DialectColorCache.preferencesKeyForScope(
-        environment: Config.hostEnvironment.name,
+        environment: Config.dataEnvironment,
         host: Config.host,
       );
       await preferences.setString(developmentKey, '{"BC":"#445566"}');
+
+      await Config.setHostEnvironment(HostEnvironment.preprod);
+      final preprodKey = DialectColorCache.preferencesKeyForScope(
+        environment: Config.dataEnvironment,
+        host: Config.host,
+      );
+      await preferences.setString(preprodKey, '{"BC":"#778899"}');
+      expect({productionKey, developmentKey, preprodKey}, hasLength(3));
+      expect(await DialectColorCache.getColors(<String>['BC']),
+          <Color>[const Color(0xff778899)]);
 
       await Config.setHostEnvironment(HostEnvironment.prod);
       expect(
@@ -90,16 +100,19 @@ void main() {
         File('lib/user/settingsPages/appSettings.dart').readAsStringSync();
     final int switchStart =
         settingsSource.indexOf('await Config.setHostEnvironment(newVal);');
-    final int logoutStart =
-        settingsSource.indexOf('await widget.logout(', switchStart);
-    final String switchBody =
-        settingsSource.substring(switchStart, logoutStart);
+    final int logoutStart = settingsSource.indexOf('await widget.logout(');
+    final int cleanupHook =
+        settingsSource.indexOf('afterCleanup:', logoutStart);
+    final String switchBody = settingsSource.substring(switchStart);
 
     expect(switchStart, greaterThanOrEqualTo(0));
+    expect(logoutStart, greaterThanOrEqualTo(0));
+    expect(cleanupHook, greaterThan(logoutStart));
+    expect(switchStart, greaterThan(cleanupHook));
     expect(
       switchBody,
       contains(
-        'await DynamicIcon.refreshAllDialects(clearExisting: true);',
+        'await DynamicIcon.refreshAllDialects(clearExisting: true)',
       ),
     );
   });

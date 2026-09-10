@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -20,7 +21,7 @@ import 'package:strnadi/exceptions.dart';
 
 class Recording {
   int? id;
-  int? userId;
+  Object? userId;
   int? BEId;
   String? mail;
   DateTime createdAt;
@@ -72,7 +73,7 @@ class Recording {
   factory Recording.fromJson(Map<String, Object?> json) {
     return Recording(
       id: json['id'] as int?,
-      userId: json['userId'] as int?,
+      userId: (json['userId'] == null ? null : requireUserId(json['userId'])),
       BEId: json['BEId'] as int?,
       mail: json['mail'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -124,17 +125,18 @@ class Recording {
         sending: false,
         totalSeconds: -1.0,
         partCount: partCount,
-        env: Config.hostEnvironment.name.toString());
+        env: Config.dataEnvironment.toString());
   }
 
   factory Recording.fromBEJson(
     Map<String, Object?> json,
-    int? userId, {
+    Object? userId, {
     String? environment,
   }) {
     return Recording(
       BEId: json['id'] as int?,
-      userId: userId ?? json['userId'] as int?,
+      userId: userId ??
+          (json['userId'] == null ? null : requireUserId(json['userId'])),
       createdAt: DateTime.parse(json['createdAt'] as String),
       estimatedBirdsCount: json['estimatedBirdsCount'] as int,
       device: json['device'] as String?,
@@ -148,7 +150,7 @@ class Recording {
       parentUploadAttempted: true,
       captureReviewed: true,
       partCount: int.tryParse(json['expectedPartsCount'].toString()),
-      env: environment ?? Config.hostEnvironment.name.toString(),
+      env: environment ?? Config.dataEnvironment.toString(),
       totalSeconds: double.parse(json['totalSeconds'].toString()),
     );
   }

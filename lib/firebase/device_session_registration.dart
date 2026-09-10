@@ -1,3 +1,4 @@
+import 'package:strnadi/auth/user_identity.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -21,7 +22,7 @@ class DeviceRegistrationScope {
         apiHost = apiHost.trim() {
     if (this.sessionId.isEmpty ||
         this.accessToken.isEmpty ||
-        userId <= 0 ||
+        parseUserId(userId) == null ||
         this.subject.isEmpty ||
         this.environment.isEmpty ||
         this.apiHost.isEmpty) {
@@ -31,7 +32,7 @@ class DeviceRegistrationScope {
 
   final String sessionId;
   final String accessToken;
-  final int userId;
+  final Object userId;
   final String subject;
   final String environment;
   final String apiHost;
@@ -71,7 +72,7 @@ class DeviceTokenBinding {
         sessionId = sessionId.trim(),
         environment = environment.trim(),
         apiHost = apiHost.trim() {
-    if (userId <= 0 ||
+    if (parseUserId(userId) == null ||
         this.subject.isEmpty ||
         this.sessionId.isEmpty ||
         this.environment.isEmpty ||
@@ -81,7 +82,7 @@ class DeviceTokenBinding {
   }
 
   final String token;
-  final int userId;
+  final Object userId;
   final String subject;
   final String sessionId;
   final String environment;
@@ -133,7 +134,7 @@ class DeviceTokenBinding {
       final Map<String, dynamic> values = decoded.cast<String, dynamic>();
       if (values['version'] != 1 ||
           values['token'] is! String ||
-          values['userId'] is! int ||
+          parseUserId(values['userId']) == null ||
           values['subject'] is! String ||
           values['sessionId'] is! String ||
           values['environment'] is! String ||
@@ -142,7 +143,7 @@ class DeviceTokenBinding {
       }
       return DeviceTokenBinding(
         token: values['token'] as String,
-        userId: values['userId'] as int,
+        userId: requireUserId(values['userId']),
         subject: values['subject'] as String,
         sessionId: values['sessionId'] as String,
         environment: values['environment'] as String,

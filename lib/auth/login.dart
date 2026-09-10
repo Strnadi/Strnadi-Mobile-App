@@ -1,3 +1,5 @@
+import 'package:strnadi/config/config.dart' show Config, HostEnvironment;
+import 'package:strnadi/auth/administration/administration_login.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -14,7 +16,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/auth/user_profile_payload.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/email_input_formatter.dart';
 import 'package:strnadi/auth/email_validator.dart';
@@ -130,23 +132,11 @@ class _LoginState extends State<Login> {
     try {
       final response = await _userController.getUserById(userID);
       if (response.statusCode == 200) {
-        final dynamic raw = response.data is String
-            ? jsonDecode(response.data as String)
-            : response.data;
-        if (raw is! Map) {
-          logger.w('Failed to parse user profile payload: ${raw.runtimeType}');
-          return;
-        }
-        final Map<String, dynamic> jsonResponse = raw.cast<String, dynamic>();
-        String firstName = jsonResponse['firstName'];
-        String lastName = jsonResponse['lastName'];
-        String nick = jsonResponse['nickname'];
-        String role = jsonResponse['role'];
-        FlutterSecureStorage secureStorage = FlutterSecureStorage();
-        await secureStorage.write(key: 'firstName', value: firstName);
-        await secureStorage.write(key: 'lastName', value: lastName);
-        await secureStorage.write(key: 'nick', value: nick);
-        await secureStorage.write(key: 'role', value: role);
+        const secureStorage = FlutterSecureStorage();
+        await cacheUserProfileMetadata(
+          response.data,
+          write: (key, value) => secureStorage.write(key: key, value: value),
+        );
 
         logger.i('Fetched user profile metadata.');
       } else {
@@ -350,6 +340,8 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
+    if (Config.hostEnvironment == HostEnvironment.preprod)
+      return const AdministrationLogin();
     const Color yellowishBlack = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
 

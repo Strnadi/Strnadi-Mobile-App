@@ -16,6 +16,10 @@ class LogRedactor {
     'deviceid',
     'fcmtoken',
     'idtoken',
+    'code',
+    'verifier',
+    'challenge',
+    'state',
   };
 
   static bool isSensitiveKey(String key) {

@@ -24,7 +24,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 class MenuScreen extends StatelessWidget {
   final Function() refreshUserCallback;
-  final Future<void> Function(BuildContext, {bool popUp}) logout;
+  final Future<void> Function(BuildContext,
+      {bool popUp, Future<void> Function()? afterCleanup}) logout;
 
   MenuScreen(
       {Key? key, required this.refreshUserCallback, required this.logout})

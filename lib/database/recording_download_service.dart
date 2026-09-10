@@ -23,7 +23,7 @@ class RecordingDownloadTarget {
   final int localId;
   final int backendId;
   final String environment;
-  final int? ownerUserId;
+  final Object? ownerUserId;
   final String? ownerEmail;
   final int? expectedPartCount;
   final bool downloaded;
