@@ -28,12 +28,14 @@ import 'package:logger/logger.dart';
 import '../../navigation/scaffold_with_bottom_bar.dart';
 import '../settingsManager.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/user/environment_dropdown.dart';
 
 final _logger = Logger();
 
 class SettingsPage extends StatefulWidget {
   SettingsPage({super.key, required this.logout});
-  final Future<void> Function(BuildContext, {bool popUp}) logout;
+  final Future<void> Function(BuildContext,
+      {bool popUp, Future<void> Function()? afterCleanup}) logout;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -205,13 +207,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadEnvAccessAndValue() async {
     try {
       final role = await _secure.read(key: 'role') ?? '';
-      final allowed = role == 'admin' ||
-          role == 'tester' ||
-          Config.hostEnvironment == HostEnvironment.dev;
+      final allowed = canEditEnvironment(role, Config.hostEnvironment);
       _canEditEnv = allowed;
       _env = Config.hostEnvironment;
     } catch (e) {
-      _canEditEnv = false;
+      _canEditEnv = Config.hostEnvironment.isNonProduction;
       _env = Config.hostEnvironment;
     }
     if (mounted) setState(() {});
@@ -289,8 +289,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (context, index) {
                     final item = _cachedRecordings[index];
-                    final isDev =
-                        item.recording.env == HostEnvironment.dev.name;
+                    final environment = HostEnvironment.fromPreference(
+                        item.recording.env.split('|').first);
                     return ListTile(
                       tileColor: Colors.grey.shade100,
                       shape: RoundedRectangleBorder(
@@ -305,7 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isDev)
+                          if (environment.isNonProduction)
                             Container(
                               margin: const EdgeInsets.only(right: 8),
                               padding: const EdgeInsets.symmetric(
@@ -314,9 +314,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 color: Colors.orange.shade100,
                                 borderRadius: BorderRadius.circular(999),
                               ),
-                              child: const Text(
-                                'DEV',
-                                style: TextStyle(
+                              child: Text(
+                                t(environment.badgeKey),
+                                style: const TextStyle(
                                     fontSize: 11, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -332,7 +332,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               if (_canEditEnv) ...[
                 const SizedBox(height: 20),
-                _buildSectionTitle('Developer settings'),
+                _buildSectionTitle(t('user.settings.environment.section')),
                 _buildEnvDropdown(),
               ],
               const SizedBox(height: 20),
@@ -373,77 +373,57 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildEnvDropdown() {
-    return DropdownButtonFormField<HostEnvironment>(
-      value: _env,
-      decoration: InputDecoration(
-        labelText: 'Server environment',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      items: const [
-        DropdownMenuItem(
-          value: HostEnvironment.prod,
-          child: Text('Production'),
-        ),
-        DropdownMenuItem(
-          value: HostEnvironment.dev,
-          child: Text('Development'),
-        ),
-      ],
+    return EnvironmentDropdown(
+      key: ValueKey(_env),
+      environment: _env,
       onChanged: _envChanging
           ? null
           : (HostEnvironment? newVal) async {
               if (newVal == null || newVal == _env) return;
 
-              final confirmed = await showDialog<bool>(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Change environment?'),
-                      content: const Text(
-                        'Switching environment will sign you out immediately. Continue?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(ctx).pop(true),
-                          child: const Text('Continue'),
-                        ),
-                      ],
-                    ),
-                  ) ??
-                  false;
+              final confirmed = await confirmEnvironmentChange(context);
 
-              if (!confirmed) return;
+              if (!confirmed) {
+                // The controlled selector keeps the committed value on cancel.
+                if (mounted) setState(() {});
+                return;
+              }
               if (!mounted) return;
 
               setState(() => _envChanging = true);
               try {
-                await Config.setHostEnvironment(newVal);
-                await DynamicIcon.refreshAllDialects(clearExisting: true);
-
-                // Reload local env + role access (role likely wiped on logout)
-                await _loadEnvAccessAndValue();
-
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      newVal == HostEnvironment.dev
-                          ? 'Environment set to Development. You have been signed out.'
-                          : 'Environment set to Production. You have been signed out.',
-                    ),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-
-                await widget.logout(context, popUp: false);
-                // Return to app root so auth guard can redirect to sign-in
-                //Navigator.of(context).popUntil((route) => route.isFirst);
+                Config.hostForEnvironment(newVal);
+                await widget.logout(context, popUp: false,
+                    afterCleanup: () async {
+                  await Config.setHostEnvironment(newVal);
+                  // Cache refresh is best-effort; an offline preprod must not
+                  // prevent navigation after credentials have been cleared.
+                  try {
+                    await DynamicIcon.refreshAllDialects(clearExisting: true)
+                        .timeout(const Duration(seconds: 5));
+                  } catch (error, stackTrace) {
+                    _logger.w(
+                        'Could not refresh dialects after environment change',
+                        error: error,
+                        stackTrace: stackTrace);
+                  }
+                });
+              } catch (error, stackTrace) {
+                _logger.w('Could not change environment',
+                    error: error, stackTrace: stackTrace);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(t('user.settings.environment.failed'))),
+                  );
+                }
               } finally {
-                if (mounted) setState(() => _envChanging = false);
+                if (mounted) {
+                  setState(() {
+                    _env = Config.hostEnvironment;
+                    _envChanging = false;
+                  });
+                }
               }
             },
     );
