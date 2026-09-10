@@ -203,7 +203,7 @@ jobs:
         if: ${{ env.ANDROID_PROMOTE_ONLY != 'true' }}
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ vars.FLUTTER_VERSION || '3.41.2' }}
+          flutter-version: ${{ vars.FLUTTER_VERSION || '3.44.0' }}
           channel: stable
           cache: true
 
@@ -380,7 +380,7 @@ jobs:
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ vars.FLUTTER_VERSION || '3.41.2' }}
+          flutter-version: ${{ vars.FLUTTER_VERSION || '3.44.0' }}
           channel: stable
           cache: true
 

@@ -24,13 +24,13 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 const AndroidNotificationDetails _androidNotificationDetails =
     AndroidNotificationDetails(
-  'com.delta.strnadi',
-  'Strnadi',
-  channelDescription: 'Aplikace Strnadi',
-  importance: Importance.max,
-  priority: Priority.high,
-  ticker: 'ticker',
-);
+      'com.delta.strnadi',
+      'Strnadi',
+      channelDescription: 'Aplikace Strnadi',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
 
 const NotificationDetails _notificationDetails = NotificationDetails(
   android: _androidNotificationDetails,
@@ -43,10 +43,10 @@ Future<void> initLocalNotifications() async {
 
   const DarwinInitializationSettings initializationSettingsIOS =
       DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
-  );
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
   const InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
@@ -54,7 +54,7 @@ Future<void> initLocalNotifications() async {
   );
 
   await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
+    settings: initializationSettings,
   );
 }
 
@@ -65,10 +65,10 @@ Future<void> showLocalNotification(
 }) async {
   try {
     await flutterLocalNotificationsPlugin.show(
-      id ?? _notificationId(),
-      title,
-      body,
-      _notificationDetails,
+      id: id ?? _notificationId(),
+      title: title,
+      body: body,
+      notificationDetails: _notificationDetails,
     );
   } catch (e, st) {
     _logger.e('Failed to show local notification', error: e, stackTrace: st);
