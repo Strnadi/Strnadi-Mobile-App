@@ -148,11 +148,17 @@ platform :ios do
           BUNDLE_IDENTIFIER => profile_specifier
         }
       }
-      signing_xcargs += [
-        shell_arg("CODE_SIGN_STYLE", "Manual"),
-        shell_arg("CODE_SIGN_IDENTITY", code_sign_identity),
-        shell_arg("PROVISIONING_PROFILE_SPECIFIER", profile_specifier)
-      ]
+      # Command-line signing settings also reach Swift Package resource bundles,
+      # which cannot use provisioning profiles. Configure only the app target.
+      update_code_signing_settings(
+        path: File.join(root, "ios/Runner.xcodeproj"),
+        targets: ["Runner"],
+        build_configurations: ["Release"],
+        use_automatic_signing: false,
+        team_id: team_id,
+        code_sign_identity: code_sign_identity,
+        profile_name: profile_specifier
+      )
       signing_xcargs << shell_arg("OTHER_CODE_SIGN_FLAGS", "--keychain #{signing_keychain_path}") unless signing_keychain_path.empty?
     end
 

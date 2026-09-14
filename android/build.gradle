@@ -14,6 +14,18 @@ subprojects {
 ext.kotlin_version = '2.1.10'
 ext.gradle_version = '3.1.3'
 
+// flutter_rotation_sensor 0.2.0 uses SDK 35, but native_device_orientation
+// requires SDK 36+. CI can resolve this older plugin with Flutter stable.
+subprojects { subproject ->
+    if (subproject.name == "flutter_rotation_sensor") {
+        subproject.pluginManager.withPlugin("com.android.library") {
+            subproject.extensions.getByName("androidComponents").finalizeDsl { android ->
+                android.compileSdk = Math.max(android.compileSdk ?: 0, 37)
+            }
+        }
+    }
+}
+
 // Flutter registers plugin extensions while configuring the app.
 subprojects {
     project.evaluationDependsOn(":app")
