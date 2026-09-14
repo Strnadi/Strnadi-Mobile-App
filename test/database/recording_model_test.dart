@@ -2,6 +2,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/database/Models/recording.dart';
 
 void main() {
+  group('Recording.fromBEJson duration compatibility', () {
+    Map<String, Object?> response() => <String, Object?>{
+      'id': 42,
+      'userId': '019a0000-0000-7000-8000-000000000001',
+      'createdAt': '2026-09-14T10:00:00Z',
+      'estimatedBirdsCount': 1,
+      'byApp': true,
+      'expectedPartsCount': 1,
+      'uploadConfirmed': true,
+      'parts': <Object?>[],
+    };
+
+    test('opens v2 metadata without the legacy duration aggregate', () {
+      final recording = Recording.fromBEJson(response(), null);
+
+      expect(recording.BEId, 42);
+      expect(recording.userId, '019a0000-0000-7000-8000-000000000001');
+      expect(recording.totalSeconds, isNull);
+      expect(recording.downloaded, isFalse);
+      expect(recording.sent, isTrue);
+    });
+
+    test('accepts an explicitly unavailable duration', () {
+      final recording = Recording.fromBEJson(
+        response()..['totalSeconds'] = null,
+        null,
+      );
+      expect(recording.totalSeconds, isNull);
+    });
+
+    for (final duration in <Object>[60, 60.5, '60.5']) {
+      test('preserves legacy duration $duration', () {
+        final recording = Recording.fromBEJson(
+          response()..['totalSeconds'] = duration,
+          null,
+        );
+        expect(recording.totalSeconds, double.parse(duration.toString()));
+      });
+    }
+  });
+
   group('Recording.fromJson totalSeconds', () {
     test('normalizes an integer SQLite value to double', () {
       final Recording recording = Recording.fromJson(
