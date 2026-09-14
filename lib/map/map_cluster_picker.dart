@@ -5,13 +5,14 @@ import 'map_clusters.dart';
 class ClusterSnapshotExpired implements Exception {}
 
 class MapClusterPicker extends StatefulWidget {
-  const MapClusterPicker(
-      {super.key,
-      required this.cluster,
-      required this.loadPage,
-      required this.isCurrent,
-      required this.onExpired,
-      required this.onSelect});
+  const MapClusterPicker({
+    super.key,
+    required this.cluster,
+    required this.loadPage,
+    required this.isCurrent,
+    required this.onExpired,
+    required this.onSelect,
+  });
   final MapCluster cluster;
   final Future<MapClusterItemsPage> Function(String cursor) loadPage;
   final bool Function() isCurrent;
@@ -68,45 +69,70 @@ class _MapClusterPickerState extends State<MapClusterPicker> {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-          child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .65,
-        child: Column(children: [
+    child: SizedBox(
+      height: MediaQuery.sizeOf(context).height * .65,
+      child: Column(
+        children: [
           Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                  '${t('map.clusterPicker.title')} (${widget.cluster.count})',
-                  style: Theme.of(context).textTheme.titleLarge)),
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              '${t('map.clusterPicker.title')} (${widget.cluster.count})',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
           Expanded(
-              child: ListView.builder(
-                  itemCount: _items.length,
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    return ListTile(
-                        key: ValueKey(item.recordingId),
-                        title: Text(item.name?.trim().isNotEmpty == true
-                            ? item.name!
-                            : '${t('map.clusterPicker.recording')} ${item.recordingId}'),
-                        subtitle:
-                            Text(t('map.clusterPicker.sources.${item.source}')),
-                        onTap: () {
-                          if (widget.isCurrent()) {
-                            widget.onSelect(item.recordingId);
-                          } else {
-                            widget.onExpired();
-                          }
-                        });
-                  })),
+            child: ListView.builder(
+              itemCount: _items.length,
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                return ListTile(
+                  key: ValueKey(item.recordingId),
+                  title: Text(
+                    item.name?.trim().isNotEmpty == true
+                        ? item.name!
+                        : '${t('map.clusterPicker.recording')} ${item.recordingId}',
+                  ),
+                  subtitle: Text(
+                    '${_sourceLabel(item.source)} • '
+                    '${MaterialLocalizations.of(context).formatShortDate(item.createdAt.toLocal())}',
+                  ),
+                  onTap: () {
+                    if (widget.isCurrent()) {
+                      widget.onSelect(item.recordingId);
+                    } else {
+                      widget.onExpired();
+                    }
+                  },
+                );
+              },
+            ),
+          ),
           if (_failed) Text(t('map.clusterPicker.failed')),
           if (_cursor != null)
             Padding(
-                padding: const EdgeInsets.all(12),
-                child: _loading
-                    ? const CircularProgressIndicator()
-                    : TextButton(
-                        onPressed: _more,
-                        child: Text(t(_failed
-                            ? 'map.clusterPicker.retry'
-                            : 'map.clusterPicker.more')))),
-        ]),
-      ));
+              padding: const EdgeInsets.all(12),
+              child: _loading
+                  ? const CircularProgressIndicator()
+                  : TextButton(
+                      onPressed: _more,
+                      child: Text(
+                        t(
+                          _failed
+                              ? 'map.clusterPicker.retry'
+                              : 'map.clusterPicker.more',
+                        ),
+                      ),
+                    ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
+
+String _sourceLabel(String source) => t(switch (source) {
+  'confirmed' => 'map.clusterPicker.sources.confirmed',
+  'ai' => 'map.clusterPicker.sources.ai',
+  'user' => 'map.clusterPicker.sources.user',
+  _ => 'map.clusterPicker.sources.unknown',
+});

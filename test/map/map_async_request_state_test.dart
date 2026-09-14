@@ -174,7 +174,9 @@ void main() {
         expect(
           method,
           contains(
-            '_recordingsController.fetchMapClusters(request, host: host)',
+            RegExp(
+              r'_recordingsController\.fetchMapClusters\(\s*request,\s*host: host,?\s*\)',
+            ),
           ),
         );
         expect(
