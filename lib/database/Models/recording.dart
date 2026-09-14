@@ -151,7 +151,11 @@ class Recording {
       captureReviewed: true,
       partCount: int.tryParse(json['expectedPartsCount'].toString()),
       env: environment ?? Config.dataEnvironment.toString(),
-      totalSeconds: double.parse(json['totalSeconds'].toString()),
+      // The v2 recording response omits this legacy aggregate. Keep an
+      // unavailable duration nullable instead of preventing detail navigation.
+      totalSeconds: json['totalSeconds'] == null
+          ? null
+          : double.parse(json['totalSeconds'].toString()),
     );
   }
 
