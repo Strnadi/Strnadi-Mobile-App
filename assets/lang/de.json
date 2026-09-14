@@ -281,6 +281,12 @@
     }
   },
   "bottomBar": {
+    "tabs": {
+      "map": "Karte",
+      "list": "Aufnahmen",
+      "recorder": "Aufnehmen",
+      "user": "Profil"
+    },
     "errors": {
       "noInternetMap": "Keine Internetverbindung. Karte nicht verfügbar.",
       "guest_user": "Funktion ist für Benutzer ohne Konto nicht verfügbar.",

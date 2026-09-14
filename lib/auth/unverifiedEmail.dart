@@ -17,6 +17,7 @@ import 'dart:async';
 
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
@@ -30,9 +31,11 @@ Logger logger = Logger();
 class EmailNotVerified extends StatefulWidget {
   final int userId;
   final String userEmail;
-  const EmailNotVerified(
-      {Key? key, required this.userId, required this.userEmail})
-      : super(key: key);
+  const EmailNotVerified({
+    Key? key,
+    required this.userId,
+    required this.userEmail,
+  }) : super(key: key);
 
   @override
   State<EmailNotVerified> createState() => _EmailNotVerifiedState();
@@ -113,9 +116,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
               t('signup.emailVerify.emailSent.dialogs.alreadyVerified.title'),
             ),
             content: Text(
-              t(
-                'signup.emailVerify.emailSent.dialogs.alreadyVerified.message',
-              ),
+              t('signup.emailVerify.emailSent.dialogs.alreadyVerified.message'),
             ),
             actions: [
               TextButton(
@@ -140,10 +141,7 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
 
   /// Opens the email app using url_launcher with externalApplication mode.
   void _openEmailApp() async {
-    final Uri emailLaunchUri = Uri(
-      scheme: 'mailto',
-      path: widget.userEmail,
-    );
+    final Uri emailLaunchUri = Uri(scheme: 'mailto', path: widget.userEmail);
     final bool canLaunch = await canLaunchUrl(emailLaunchUri);
     if (!mounted) return;
     if (canLaunch) {
@@ -156,8 +154,8 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
   }
 
   Future<void> _handleBackNavigation() async {
-    final ActivatedAuthSessionSnapshot? session =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? session = await activatedAuthSessions
+        .capture();
     if (session?.verified != true) {
       await activatedAuthSessions.invalidate();
     }
@@ -179,7 +177,9 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           backgroundColor: Colors.white,
           elevation: 0,
           title: const SizedBox.shrink(),
-          leading: IconButton(
+          leading: GlassIconButton(
+            nativeSymbol: 'chevron.left',
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: Image.asset(
               'assets/icons/backButton.png',
               width: 30,
@@ -207,12 +207,10 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  t('signup.emailVerify.emailSent.dialogs.info')
-                      .replaceFirst('{email}', widget.userEmail),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: textColor,
-                  ),
+                  t(
+                    'signup.emailVerify.emailSent.dialogs.info',
+                  ).replaceFirst('{email}', widget.userEmail),
+                  style: TextStyle(fontSize: 14, color: textColor),
                 ),
                 const SizedBox(height: 32),
                 const Spacer(),
@@ -220,15 +218,18 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed:
-                        _counter > 0 || _resendInProgress ? null : resendEmail,
+                    onPressed: _counter > 0 || _resendInProgress
+                        ? null
+                        : resendEmail,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: yellow,
                       foregroundColor: textColor,
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16.0),
                       ),
@@ -252,8 +253,10 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                       foregroundColor: textColor,
                       side: const BorderSide(color: yellow, width: 2),
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16.0),
                       ),
@@ -274,8 +277,10 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
                       backgroundColor: yellow,
                       foregroundColor: textColor,
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      textStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16.0),
                       ),
@@ -290,8 +295,12 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
         ),
         // Bottom segmented progress bar
         bottomNavigationBar: Padding(
-          padding:
-              const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 32,
+          ),
           child: Row(
             children: List.generate(5, (index) {
               // All segments shown as complete

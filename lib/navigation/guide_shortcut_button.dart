@@ -15,6 +15,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/navigation/guide_page.dart';
 import 'package:strnadi/navigation/recorder_exit_policy.dart';
@@ -53,7 +54,8 @@ class GuideShortcutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    return GlassIconButton(
+      nativeSymbol: 'questionmark',
       tooltip: t('user.menu.items.guide'),
       icon: const Icon(Icons.help_outline),
       onPressed: () => openGuideScreen(

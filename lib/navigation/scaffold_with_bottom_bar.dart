@@ -15,6 +15,8 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
+import 'package:strnadi/components/native_ios_controls.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/articles/blog_explorer_content.dart';
 import 'package:strnadi/config/config.dart';
@@ -55,18 +57,15 @@ class ScaffoldWithBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool guestUser = isGuestUser ?? false;
-    final bool shouldRedirectAndroidBackToSessionLanding = !allowArrowBack &&
+    final bool shouldRedirectAndroidBackToSessionLanding =
+        !allowArrowBack &&
         (selectedPage == BottomBarItem.map ||
             selectedPage == BottomBarItem.blog ||
             selectedPage == BottomBarItem.user);
-    final Widget pageContent = SizedBox(
-      height: MediaQuery.of(context).size.height -
-          kToolbarHeight -
-          kBottomNavigationBarHeight,
-      child: content,
-    );
+    final Widget pageContent = content;
 
     final scaffold = Scaffold(
+      extendBody: selectedPage == BottomBarItem.map,
       appBar: appBarTitle != null
           ? AppBar(
               title: appBarTitle!.isNotEmpty
@@ -81,11 +80,26 @@ class ScaffoldWithBottomBar extends StatelessWidget {
                     isSelected: selectedPage == BottomBarItem.notification,
                   ),
                 if (logout != null)
-                  IconButton(
+                  GlassIconButton(
+                    nativeSymbol: 'rectangle.portrait.and.arrow.right',
+                    tooltip: t('logout.logout'),
                     icon: icon != null ? Icon(icon) : const Icon(Icons.logout),
                     onPressed: logout,
                   ),
               ],
+              leading: allowArrowBack
+                  ? GlassIconButton(
+                      nativeSymbol: 'chevron.left',
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 22,
+                      ),
+                      onPressed: () => Navigator.maybePop(context),
+                    )
+                  : null,
               automaticallyImplyLeading: allowArrowBack,
             )
           : null,
@@ -93,28 +107,22 @@ class ScaffoldWithBottomBar extends StatelessWidget {
       body: appBarTitle != null
           ? pageContent
           : showNotificationBell
-              ? Stack(
-                  children: [
-                    pageContent,
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: SafeArea(
-                        child: Material(
-                          elevation: 2,
-                          shape: const CircleBorder(),
-                          color: Colors.white,
-                          child: NotificationBellButton(
-                            isGuestUser: guestUser,
-                            isSelected:
-                                selectedPage == BottomBarItem.notification,
-                          ),
-                        ),
-                      ),
+          ? Stack(
+              children: [
+                pageContent,
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: SafeArea(
+                    child: NotificationBellButton(
+                      isGuestUser: guestUser,
+                      isSelected: selectedPage == BottomBarItem.notification,
                     ),
-                  ],
-                )
-              : pageContent,
+                  ),
+                ),
+              ],
+            )
+          : pageContent,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: ReusableBottomAppBar(
         currentPage: selectedPage,
@@ -162,204 +170,242 @@ class ReusableBottomAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BottomAppBar(
-      color: Colors.white,
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8.0,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: Image.asset(
-              _iconAsset(
-                on: 'assets/icons/mapOn.png',
-                off: 'assets/icons/mapOff.png',
-                isSelected: currentPage == BottomBarItem.map,
-              ),
-              width: 40,
-              height: 40,
-            ),
-            iconSize: 30.0,
-            onPressed: () async {
-              if (!await Config.hasBasicInternet) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(t('bottomBar.errors.noInternetMap')),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-                return;
-              }
-              // Do not destroy an active recording unless the destination is
-              // actually available. Offline map navigation is rejected above.
-              if (!await permitsRecorderExit(changeConfirmation)) return;
-              if (!context.mounted) return;
-
-              if (ModalRoute.of(context)?.settings.name != '/map') {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        const MapScreenV2(),
-                    settings: const RouteSettings(name: '/map'),
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                  ),
-                );
-              }
-            },
+    final destinations = <_BottomBarDestination>[
+      _BottomBarDestination(
+        label: t('bottomBar.tabs.map'),
+        selected: currentPage == BottomBarItem.map,
+        icon: Image.asset(
+          _iconAsset(
+            on: 'assets/icons/mapOn.png',
+            off: 'assets/icons/mapOff.png',
+            isSelected: currentPage == BottomBarItem.map,
           ),
-          IconButton(
-            icon: Image.asset(
-              _iconAsset(
-                on: 'assets/icons/listOn.png',
-                off: 'assets/icons/listOff.png',
-                disabled: 'assets/icons/listDisabled.png',
-                isSelected: currentPage == BottomBarItem.list,
+          width: 40,
+          height: 40,
+        ),
+        onTap: () async {
+          if (!await Config.hasBasicInternet) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(t('bottomBar.errors.noInternetMap')),
+                duration: const Duration(seconds: 3),
               ),
-              width: 40,
-              height: 40,
-            ),
-            iconSize: 30.0,
-            onPressed: () async {
-              const FlutterSecureStorage storage = FlutterSecureStorage();
-              final String? userId = await storage.read(key: 'userId');
-              if (!context.mounted) return;
-              if (userId == null || userId.isEmpty) {
-                await showGuestUserPopup(
-                  context,
-                  recorderExitPolicy: changeConfirmation,
-                );
-                return;
-              }
-              if (!await permitsRecorderExit(changeConfirmation)) return;
-              if (!context.mounted) return;
+            );
+            return;
+          }
+          // Do not destroy an active recording unless the destination is
+          // actually available. Offline map navigation is rejected above.
+          if (!await permitsRecorderExit(changeConfirmation)) return;
+          if (!context.mounted) return;
 
-              if (ModalRoute.of(context)?.settings.name != '/list') {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        const RecordingScreen(),
-                    settings: const RouteSettings(name: '/list'),
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                  ),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: Image.asset(
-              _iconAsset(
-                on: 'assets/icons/micOn.png',
-                off: 'assets/icons/micOff.png',
-                isSelected: currentPage == BottomBarItem.recorder,
+          if (ModalRoute.of(context)?.settings.name != '/map') {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const MapScreenV2(),
+                settings: const RouteSettings(name: '/map'),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
               ),
-              width: 40,
-              height: 40,
-            ),
-            iconSize: 30.0,
-            onPressed: () async {
-              // Tapping the selected recorder tab is a no-op. Asking the
-              // recorder exit policy here would discard audio without
-              // navigating anywhere.
-              if (currentPage == BottomBarItem.recorder ||
-                  ModalRoute.of(context)?.settings.name == '/Recorder') {
-                return;
-              }
-              if (!await permitsRecorderExit(changeConfirmation)) return;
-              if (!context.mounted) return;
-
-              Navigator.pushReplacement(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      const LiveRec(),
-                  settings: const RouteSettings(name: '/Recorder'),
-                  transitionDuration: Duration.zero,
-                  reverseTransitionDuration: Duration.zero,
-                ),
-              );
-            },
+            );
+          }
+        },
+      ),
+      _BottomBarDestination(
+        label: t('bottomBar.tabs.list'),
+        selected: currentPage == BottomBarItem.list,
+        icon: Image.asset(
+          _iconAsset(
+            on: 'assets/icons/listOn.png',
+            off: 'assets/icons/listOff.png',
+            disabled: 'assets/icons/listDisabled.png',
+            isSelected: currentPage == BottomBarItem.list,
           ),
-          IconButton(
-            tooltip: t('blogExplorer.title'),
-            icon: Icon(
-              currentPage == BottomBarItem.blog
-                  ? Icons.menu_book_rounded
-                  : Icons.menu_book_outlined,
-              size: 28,
-              color: currentPage == BottomBarItem.blog
-                  ? const Color(0xFF2D2B18)
-                  : const Color(0xFFADADAD),
-            ),
-            onPressed: () async {
-              if (!await permitsRecorderExit(changeConfirmation)) return;
-              if (!context.mounted) return;
+          width: 40,
+          height: 40,
+        ),
+        onTap: () async {
+          const FlutterSecureStorage storage = FlutterSecureStorage();
+          final String? userId = await storage.read(key: 'userId');
+          if (!context.mounted) return;
+          if (userId == null || userId.isEmpty) {
+            await showGuestUserPopup(
+              context,
+              recorderExitPolicy: changeConfirmation,
+            );
+            return;
+          }
+          if (!await permitsRecorderExit(changeConfirmation)) return;
+          if (!context.mounted) return;
 
-              if (ModalRoute.of(context)?.settings.name != '/blog') {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        ScaffoldWithBottomBar(
+          if (ModalRoute.of(context)?.settings.name != '/list') {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const RecordingScreen(),
+                settings: const RouteSettings(name: '/list'),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }
+        },
+      ),
+      _BottomBarDestination(
+        label: t('bottomBar.tabs.recorder'),
+        selected: currentPage == BottomBarItem.recorder,
+        icon: Image.asset(
+          _iconAsset(
+            on: 'assets/icons/micOn.png',
+            off: 'assets/icons/micOff.png',
+            isSelected: currentPage == BottomBarItem.recorder,
+          ),
+          width: 40,
+          height: 40,
+        ),
+        onTap: () async {
+          // Tapping the selected recorder tab is a no-op. Asking the
+          // recorder exit policy here would discard audio without
+          // navigating anywhere.
+          if (currentPage == BottomBarItem.recorder ||
+              ModalRoute.of(context)?.settings.name == '/Recorder') {
+            return;
+          }
+          if (!await permitsRecorderExit(changeConfirmation)) return;
+          if (!context.mounted) return;
+
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const LiveRec(),
+              settings: const RouteSettings(name: '/Recorder'),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
+        },
+      ),
+      _BottomBarDestination(
+        selected: currentPage == BottomBarItem.blog,
+        label: t('blogExplorer.title'),
+        icon: Icon(
+          currentPage == BottomBarItem.blog
+              ? Icons.menu_book_rounded
+              : Icons.menu_book_outlined,
+          size: 28,
+          color: currentPage == BottomBarItem.blog
+              ? const Color(0xFF2D2B18)
+              : const Color(0xFFADADAD),
+        ),
+        onTap: () async {
+          if (!await permitsRecorderExit(changeConfirmation)) return;
+          if (!context.mounted) return;
+
+          if (ModalRoute.of(context)?.settings.name != '/blog') {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    ScaffoldWithBottomBar(
                       selectedPage: BottomBarItem.blog,
                       appBarTitle: t('blogExplorer.title'),
                       content: const BlogExplorerContent(),
                     ),
-                    settings: const RouteSettings(name: '/blog'),
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                  ),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: Image.asset(
-              _iconAsset(
-                on: 'assets/icons/userOn.png',
-                off: 'assets/icons/userOff.png',
-                disabled: 'assets/icons/userDisabled.png',
-                isSelected: currentPage == BottomBarItem.user,
+                settings: const RouteSettings(name: '/blog'),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
               ),
-              width: 40,
-              height: 40,
-            ),
-            iconSize: 30.0,
-            onPressed: () async {
-              const FlutterSecureStorage storage = FlutterSecureStorage();
-              final String? userId = await storage.read(key: 'userId');
-              if (!context.mounted) return;
-              if (userId == null || userId.isEmpty) {
-                await showGuestUserPopup(
-                  context,
-                  recorderExitPolicy: changeConfirmation,
-                );
-                return;
-              }
-              if (!await permitsRecorderExit(changeConfirmation)) return;
-              if (!context.mounted) return;
-
-              if (ModalRoute.of(context)?.settings.name != '/user') {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        const UserPage(),
-                    settings: const RouteSettings(name: '/user'),
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                  ),
-                );
-              }
-            },
-          ),
-        ],
+            );
+          }
+        },
       ),
+      _BottomBarDestination(
+        label: t('bottomBar.tabs.user'),
+        selected: currentPage == BottomBarItem.user,
+        icon: Image.asset(
+          _iconAsset(
+            on: 'assets/icons/userOn.png',
+            off: 'assets/icons/userOff.png',
+            disabled: 'assets/icons/userDisabled.png',
+            isSelected: currentPage == BottomBarItem.user,
+          ),
+          width: 40,
+          height: 40,
+        ),
+        onTap: () async {
+          const FlutterSecureStorage storage = FlutterSecureStorage();
+          final String? userId = await storage.read(key: 'userId');
+          if (!context.mounted) return;
+          if (userId == null || userId.isEmpty) {
+            await showGuestUserPopup(
+              context,
+              recorderExitPolicy: changeConfirmation,
+            );
+            return;
+          }
+          if (!await permitsRecorderExit(changeConfirmation)) return;
+          if (!context.mounted) return;
+
+          if (ModalRoute.of(context)?.settings.name != '/user') {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const UserPage(),
+                settings: const RouteSettings(name: '/user'),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }
+        },
+      ),
+    ];
+    if (usesNativeIOSControls) {
+      return NativeIOSTabBar(
+        labels: destinations.map((item) => item.label).toList(),
+        selectedIndex: destinations.indexWhere((item) => item.selected),
+        onTap: (index) async {
+          if (index < 0 || index >= destinations.length) return;
+          if (destinations[index].selected) return;
+          await destinations[index].onTap();
+        },
+      );
+    }
+    return GlassNavigationBar(
+      children: [
+        for (final item in destinations)
+          IconButton(
+            tooltip: item.label,
+            isSelected: item.selected,
+            icon: item.icon,
+            onPressed: item.onTap,
+            style: IconButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              backgroundColor: item.selected
+                  ? const Color(0xFFE4EBDB)
+                  : Colors.transparent,
+              shape: const StadiumBorder(),
+            ),
+          ),
+      ],
     );
   }
+}
+
+class _BottomBarDestination {
+  const _BottomBarDestination({
+    required this.label,
+    required this.selected,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final Widget icon;
+  final Future<void> Function() onTap;
 }

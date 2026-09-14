@@ -17,6 +17,7 @@ import 'dart:async';
 
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/email_validator.dart';
@@ -27,10 +28,8 @@ Logger logger = Logger();
 typedef PasswordResetRequester = Future<int?> Function(String email);
 
 class ForgottenPassword extends StatefulWidget {
-  const ForgottenPassword({
-    Key? key,
-    this.requestPasswordReset,
-  }) : super(key: key);
+  const ForgottenPassword({Key? key, this.requestPasswordReset})
+    : super(key: key);
 
   final PasswordResetRequester? requestPasswordReset;
 
@@ -58,7 +57,9 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
+        leading: GlassIconButton(
+          nativeSymbol: 'chevron.left',
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: Image.asset(
             'assets/icons/backButton.png',
             width: 30,
@@ -82,20 +83,14 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 // Heading
                 Text(
                   t('signup.passwordReset.request.title'),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
 
                 // Subheading
                 Text(
                   t('signup.passwordReset.request.subtitle'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
 
                 const SizedBox(height: 40),
@@ -131,7 +126,8 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return t(
-                          'signup.passwordReset.request.errors.emptyEmail');
+                        'signup.passwordReset.request.errors.emptyEmail',
+                      );
                     }
                     if (!EmailValidator.isValid(value)) {
                       return t('login.errors.invalidEmailFormat');
@@ -165,12 +161,13 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
                 ? null
                 : () {
                     if (_GlobalKey.currentState?.validate() ?? false) {
-                      unawaited(
-                        requestPasswordReset(_emailController.text),
-                      );
+                      unawaited(requestPasswordReset(_emailController.text));
                     } else {
-                      _showMessage(t(
-                          'signup.passwordReset.request.errors.sendBeforeValid'));
+                      _showMessage(
+                        t(
+                          'signup.passwordReset.request.errors.sendBeforeValid',
+                        ),
+                      );
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -179,10 +176,7 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
               backgroundColor: yellow,
               foregroundColor: yellowishBlack,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16.0),
               ),
@@ -200,8 +194,9 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
     try {
       final String normalizedEmail = email.trim();
       final int? status = widget.requestPasswordReset == null
-          ? (await _authController.requestPasswordReset(normalizedEmail))
-              .statusCode
+          ? (await _authController.requestPasswordReset(
+              normalizedEmail,
+            )).statusCode
           : await widget.requestPasswordReset!(normalizedEmail);
       if (!mounted) return;
 
@@ -224,11 +219,15 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
         _showMessage(t('signup.passwordReset.request.messages.genericFail'));
       }
     } catch (e, stackTrace) {
-      logger.e('Error sending password reset request: $e',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Error sending password reset request: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         _showMessage(
-            t('signup.passwordReset.request.messages.connectionError'));
+          t('signup.passwordReset.request.messages.connectionError'),
+        );
       }
     } finally {
       if (mounted) {

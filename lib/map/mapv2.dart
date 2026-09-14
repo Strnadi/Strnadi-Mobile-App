@@ -35,6 +35,7 @@ import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
@@ -1674,8 +1675,8 @@ class _MapScreenV2State extends State<MapScreenV2> {
   @override
   Widget build(BuildContext context) {
     final double bottomSystemInset = MediaQuery.of(context).viewPadding.bottom;
-    final double controlsBottomOffset = 20 + bottomSystemInset;
-    final double mapyLegendBottomOffset = 10 + bottomSystemInset;
+    final double controlsBottomOffset = 108 + bottomSystemInset;
+    final double mapyLegendBottomOffset = 98 + bottomSystemInset;
 
     return ScaffoldWithBottomBar(
       selectedPage: BottomBarItem.map,
@@ -1867,16 +1868,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
                         return SizedBox(
                           width: height,
                           height: height,
-                          child: FloatingActionButton(
-                            heroTag: 'info',
-                            mini: true,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            backgroundColor: Colors.white,
+                          child: GlassIconButton(
+                            padding: EdgeInsets.zero,
+                            nativeSymbol: 'info',
                             onPressed: _showLegendDialog,
                             tooltip: t('map.buttons.info'),
-                            child: Image.asset(
+                            icon: Image.asset(
                               'assets/icons/info.png',
                               width: 30,
                               height: 30,
@@ -1905,16 +1902,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     SizedBox(
                       width: 48,
                       height: 48,
-                      child: FloatingActionButton(
-                        heroTag: 'mapSettings',
-                        mini: true,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        backgroundColor: Colors.white,
+                      child: GlassIconButton(
+                        padding: EdgeInsets.zero,
+                        nativeSymbol: 'slider.horizontal.3',
                         onPressed: _openMapFilter,
                         tooltip: t('map.buttons.mapSettings'),
-                        child: Image.asset(
+                        icon: Image.asset(
                           'assets/icons/sort.png',
                           width: 24,
                           height: 24,
@@ -1925,18 +1918,14 @@ class _MapScreenV2State extends State<MapScreenV2> {
                     SizedBox(
                       width: 48,
                       height: 48,
-                      child: FloatingActionButton(
-                        heroTag: 'reset',
-                        mini: true,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      child: GlassIconButton(
+                        padding: EdgeInsets.zero,
+                        nativeSymbol: 'location',
                         tooltip: t('map.buttons.reset'),
                         onPressed: () async {
                           await _getCurrentLocation();
                         },
-                        backgroundColor: Colors.white,
-                        child: Image.asset(
+                        icon: Image.asset(
                           'assets/icons/location.png',
                           width: 24,
                           height: 24,

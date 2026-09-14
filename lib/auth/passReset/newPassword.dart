@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/passReset/password_reset_flow.dart';
@@ -28,11 +29,12 @@ import 'changedPassword.dart';
 final logger = Logger();
 const AuthController _authController = AuthController();
 
-typedef PasswordResetSubmitter = Future<int?> Function({
-  required String email,
-  required String token,
-  required String password,
-});
+typedef PasswordResetSubmitter =
+    Future<int?> Function({
+      required String email,
+      required String token,
+      required String password,
+    });
 
 class ChangePassword extends StatefulWidget {
   final String jwt;
@@ -111,7 +113,9 @@ class _RegPasswordState extends State<ChangePassword> {
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
-          leading: IconButton(
+          leading: GlassIconButton(
+            nativeSymbol: 'chevron.left',
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
               await navigateToSessionLanding(context);
@@ -160,19 +164,25 @@ class _RegPasswordState extends State<ChangePassword> {
                       hintText: t('signup.password.password_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       suffixIcon: IconButton(
@@ -222,19 +232,25 @@ class _RegPasswordState extends State<ChangePassword> {
                       hintText: t('signup.password.password_again_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       suffixIcon: IconButton(
@@ -320,8 +336,9 @@ class _RegPasswordState extends State<ChangePassword> {
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         backgroundColor: _isFormValid ? yellow : Colors.grey,
-                        foregroundColor:
-                            _isFormValid ? textColor : Colors.white,
+                        foregroundColor: _isFormValid
+                            ? textColor
+                            : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         textStyle: TextStyle(
                           fontSize: 16,
@@ -342,8 +359,12 @@ class _RegPasswordState extends State<ChangePassword> {
 
         // Bottom segmented progress bar with extra bottom padding
         bottomNavigationBar: Padding(
-          padding:
-              const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 48,
+          ),
           child: Row(
             children: List.generate(5, (index) {
               // Fill first 2 segments to show "2 out of 6" progress
@@ -373,9 +394,7 @@ class _RegPasswordState extends State<ChangePassword> {
     try {
       final String? email = passwordResetEmailFromToken(widget.jwt);
       if (email == null) {
-        _showMessage(
-          t('signup.passwordReset.change.errors.invalidLink'),
-        );
+        _showMessage(t('signup.passwordReset.change.errors.invalidLink'));
         return;
       }
 
@@ -384,8 +403,7 @@ class _RegPasswordState extends State<ChangePassword> {
               email: email,
               token: widget.jwt,
               password: _passwordController.text,
-            ))
-              .statusCode
+            )).statusCode
           : await widget.submitPasswordReset!(
               email: email,
               token: widget.jwt,
@@ -403,9 +421,7 @@ class _RegPasswordState extends State<ChangePassword> {
         );
       } else {
         logger.e('Failed to reset password ($status).');
-        _showMessage(
-          t('signup.passwordReset.change.errors.failed'),
-        );
+        _showMessage(t('signup.passwordReset.change.errors.failed'));
       }
     } catch (error, stackTrace) {
       logger.e(
@@ -414,9 +430,7 @@ class _RegPasswordState extends State<ChangePassword> {
         stackTrace: stackTrace,
       );
       if (mounted) {
-        _showMessage(
-          t('signup.passwordReset.change.errors.connection'),
-        );
+        _showMessage(t('signup.passwordReset.change.errors.connection'));
       }
     } finally {
       if (mounted) {

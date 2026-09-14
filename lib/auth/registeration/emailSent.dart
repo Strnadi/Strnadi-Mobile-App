@@ -17,6 +17,7 @@ import 'dart:async';
 
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
@@ -31,10 +32,7 @@ Logger logger = Logger();
 class VerifyEmail extends StatefulWidget {
   final String userEmail;
 
-  const VerifyEmail({
-    Key? key,
-    required this.userEmail,
-  }) : super(key: key);
+  const VerifyEmail({Key? key, required this.userEmail}) : super(key: key);
 
   @override
   State<VerifyEmail> createState() => _VerifyEmailState();
@@ -104,8 +102,8 @@ class _VerifyEmailState extends State<VerifyEmail> {
           ? int.tryParse(currentSession!.userId) ?? -1
           : -1;
       if (userId <= 0) {
-        final AuthSessionTransition transition =
-            await activatedAuthSessions.beginTokenTransition(jwt);
+        final AuthSessionTransition transition = await activatedAuthSessions
+            .beginTokenTransition(jwt);
         final idResponse = await _userController.getUserIdFromToken();
         if (idResponse.statusCode == 200) {
           final dynamic raw = idResponse.data;
@@ -135,18 +133,18 @@ class _VerifyEmailState extends State<VerifyEmail> {
       } else if (response.statusCode == 208) {
         logger.i('Email already verified');
         showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-                  title: Text(t('signup.emailVerify.alreadyVerified.title')),
-                  content:
-                      Text(t('signup.emailVerify.alreadyVerified.message')),
-                  actions: [
-                    TextButton(
-                      onPressed: alreadyVerified,
-                      child: Text(t('auth.buttons.ok')),
-                    ),
-                  ],
-                ));
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text(t('signup.emailVerify.alreadyVerified.title')),
+            content: Text(t('signup.emailVerify.alreadyVerified.message')),
+            actions: [
+              TextButton(
+                onPressed: alreadyVerified,
+                child: Text(t('auth.buttons.ok')),
+              ),
+            ],
+          ),
+        );
       } else {
         logger.e('Failed to send verification email (${response.statusCode}).');
       }
@@ -166,10 +164,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
-    final Uri emailLaunchUri = Uri(
-      scheme: 'mailto',
-      path: widget.userEmail,
-    );
+    final Uri emailLaunchUri = Uri(scheme: 'mailto', path: widget.userEmail);
     final bool canLaunch = await canLaunchUrl(emailLaunchUri);
     if (!mounted) return;
     if (canLaunch) {
@@ -197,7 +192,9 @@ class _VerifyEmailState extends State<VerifyEmail> {
           backgroundColor: Colors.white,
           elevation: 0,
           title: const SizedBox.shrink(),
-          leading: IconButton(
+          leading: GlassIconButton(
+            nativeSymbol: 'chevron.left',
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: Image.asset(
               'assets/icons/backButton.png',
               width: 30,
@@ -210,10 +207,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
         ),
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -228,12 +222,10 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  t('signup.emailVerify.info')
-                      .replaceFirst('{email}', widget.userEmail),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: textColor,
-                  ),
+                  t(
+                    'signup.emailVerify.info',
+                  ).replaceFirst('{email}', widget.userEmail),
+                  style: TextStyle(fontSize: 14, color: textColor),
                 ),
                 const SizedBox(height: 32),
                 const Spacer(),
@@ -242,8 +234,9 @@ class _VerifyEmailState extends State<VerifyEmail> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed:
-                        _counter > 0 || _resendInProgress ? null : resendEmail,
+                    onPressed: _counter > 0 || _resendInProgress
+                        ? null
+                        : resendEmail,
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: yellow,
@@ -275,10 +268,7 @@ class _VerifyEmailState extends State<VerifyEmail> {
                       elevation: 0,
                       backgroundColor: Colors.white,
                       foregroundColor: textColor,
-                      side: const BorderSide(
-                        color: yellow,
-                        width: 2,
-                      ),
+                      side: const BorderSide(color: yellow, width: 2),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       textStyle: TextStyle(
                         fontSize: 16,

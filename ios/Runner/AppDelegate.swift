@@ -43,6 +43,10 @@ func registerPlugins(registry: FlutterPluginRegistry) {
 
     func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
         GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+        engineBridge.applicationRegistrar.register(
+            NativeControlsFactory(messenger: engineBridge.applicationRegistrar.messenger()),
+            withId: "com.delta.strnadi/native-controls"
+        )
 
         let audioChannel = FlutterMethodChannel(
             name: "com.delta.strnadi/audio",

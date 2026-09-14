@@ -15,6 +15,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/dialects/dialect_definition.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
@@ -100,8 +101,9 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
 
     // Dialect color from cache, with defaults fallback
     try {
-      final List<Color> colors =
-          await DialectColorCache.getColors(<String>[canonical]);
+      final List<Color> colors = await DialectColorCache.getColors(<String>[
+        canonical,
+      ]);
       if (colors.isNotEmpty) {
         return colors.first;
       }
@@ -145,9 +147,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
         Navigator.pop(context);
       },
       child: Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Stack(
           children: [
             ConstrainedBox(
@@ -201,8 +201,8 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         builder: (context, snapshot) {
                           final dialectOptions =
                               snapshot.hasData && snapshot.data!.isNotEmpty
-                                  ? snapshot.data!
-                                  : fallbackDialectHintCodes;
+                              ? snapshot.data!
+                              : fallbackDialectHintCodes;
 
                           return GridView.count(
                             shrinkWrap: true,
@@ -234,9 +234,12 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: t(
-                                'postRecordingForm.addDialect.note.placeholder'),
+                              'postRecordingForm.addDialect.note.placeholder',
+                            ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 15, vertical: 12),
+                              horizontal: 15,
+                              vertical: 12,
+                            ),
                           ),
                           keyboardType: TextInputType.multiline,
                           maxLines: 3,
@@ -255,23 +258,28 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
                         onPressed: selectedDialect != null
                             ? () async {
                                 final color = await _resolveDialectColor(
-                                    selectedDialect!);
+                                  selectedDialect!,
+                                );
                                 final canonical =
                                     DialectKeywordTranslator.toEnglish(
-                                            selectedDialect!) ??
-                                        selectedDialect!;
-                                final displayLabel =
-                                    _displayLabelForType(canonical);
-                                widget.onDialectAdded(DialectModel(
-                                  type: canonical,
-                                  label: displayLabel,
-                                  color: color,
-                                  startTime: startTime,
-                                  endTime: endTime,
-                                  note: _noteController.text.trim().isEmpty
-                                      ? null
-                                      : _noteController.text.trim(),
-                                ));
+                                      selectedDialect!,
+                                    ) ??
+                                    selectedDialect!;
+                                final displayLabel = _displayLabelForType(
+                                  canonical,
+                                );
+                                widget.onDialectAdded(
+                                  DialectModel(
+                                    type: canonical,
+                                    label: displayLabel,
+                                    color: color,
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    note: _noteController.text.trim().isEmpty
+                                        ? null
+                                        : _noteController.text.trim(),
+                                  ),
+                                );
                                 if (!context.mounted) return;
                                 Navigator.pop(context);
                               }
@@ -286,8 +294,10 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
             Positioned(
               top: 8,
               right: 8,
-              child: IconButton(
-                icon: Icon(Icons.close),
+              child: GlassIconButton(
+                nativeSymbol: 'xmark',
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                icon: const Icon(Icons.close_rounded),
                 onPressed: () {
                   widget.onDialectAdded(null);
                   Navigator.pop(context);
@@ -334,10 +344,7 @@ class _DialectSelectionDialogState extends State<DialectSelectionDialog> {
             ),
             SizedBox(width: 6),
             Expanded(
-              child: Text(
-                displayLabel,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(displayLabel, overflow: TextOverflow.ellipsis),
             ),
             if (hasSpectrogramAsset) ...[
               SizedBox(width: 4),

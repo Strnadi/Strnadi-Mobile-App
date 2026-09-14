@@ -281,6 +281,12 @@
     }
   },
   "bottomBar": {
+    "tabs": {
+      "map": "Map",
+      "list": "Recordings",
+      "recorder": "Record",
+      "user": "Profile"
+    },
     "errors": {
       "noInternetMap": "No internet connection. The map is unavailable.",
       "close": "Close",

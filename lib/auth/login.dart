@@ -19,6 +19,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
@@ -82,10 +83,12 @@ class _LoginState extends State<Login> {
     required bool verified,
   }) {
     unawaited(TrackingConsentManager.identifyUser(userId.toString()));
-    unawaited(TrackingConsentManager.captureEvent(
-      verified ? 'login_success' : 'login_requires_verification',
-      properties: {'method': method},
-    ));
+    unawaited(
+      TrackingConsentManager.captureEvent(
+        verified ? 'login_success' : 'login_requires_verification',
+        properties: {'method': method},
+      ),
+    );
   }
 
   void _finishCredentialAutofill() {
@@ -141,11 +144,15 @@ class _LoginState extends State<Login> {
         logger.i('Fetched user profile metadata.');
       } else {
         logger.w(
-            'Failed to fetch user name. Status code: ${response.statusCode}');
+          'Failed to fetch user name. Status code: ${response.statusCode}',
+        );
       }
     } catch (error, stackTrace) {
-      logger.e('Error fetching user name: $error',
-          error: error, stackTrace: stackTrace);
+      logger.e(
+        'Error fetching user name: $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
       await Sentry.captureException(error, stackTrace: stackTrace);
     }
   }
@@ -205,8 +212,8 @@ class _LoginState extends State<Login> {
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         logger.i("user has logged in with status code ${response.statusCode}");
-        final AuthSessionTransition transition =
-            await activatedAuthSessions.beginTokenTransition(token);
+        final AuthSessionTransition transition = await activatedAuthSessions
+            .beginTokenTransition(token);
 
         final verifyResponse = await _authController.verifyJwt(token);
         final JwtVerificationDisposition verification =
@@ -215,7 +222,8 @@ class _LoginState extends State<Login> {
         int? userId;
         if (verification == JwtVerificationDisposition.rejected) {
           logger.w(
-              'Password JWT verification rejected status ${verifyResponse.statusCode}.');
+            'Password JWT verification rejected status ${verifyResponse.statusCode}.',
+          );
           await activatedAuthSessions.invalidate();
           _showMessage(t('login.errors.loginFailed'));
           return;
@@ -244,10 +252,8 @@ class _LoginState extends State<Login> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => EmailNotVerified(
-                userEmail: email,
-                userId: userId!,
-              ),
+              builder: (_) =>
+                  EmailNotVerified(userEmail: email, userId: userId!),
             ),
           );
           return;
@@ -277,8 +283,8 @@ class _LoginState extends State<Login> {
         if (!mounted) return;
         await navigateToSessionLanding(context);
       } else if (response.statusCode == 403) {
-        final AuthSessionTransition transition =
-            await activatedAuthSessions.beginTokenTransition(token);
+        final AuthSessionTransition transition = await activatedAuthSessions
+            .beginTokenTransition(token);
         final idResponse = await _userController.getUserIdFromToken();
         if (idResponse.statusCode != 200) {
           _showMessage(t('login.errors.idGetError'));
@@ -301,10 +307,7 @@ class _LoginState extends State<Login> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailNotVerified(
-              userEmail: email,
-              userId: userId,
-            ),
+            builder: (_) => EmailNotVerified(userEmail: email, userId: userId),
           ),
         );
       } else if (response.statusCode == 401) {
@@ -314,8 +317,11 @@ class _LoginState extends State<Login> {
         _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
-      logger.e('An error has occured when logging in $error',
-          error: error, stackTrace: stackTrace);
+      logger.e(
+        'An error has occured when logging in $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(error, stackTrace: stackTrace);
       _showMessage(t('login.errors.connection'));
     }
@@ -329,8 +335,9 @@ class _LoginState extends State<Login> {
         content: Text(message),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(t('auth.buttons.ok')))
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('auth.buttons.ok')),
+          ),
         ],
       ),
     );
@@ -357,10 +364,7 @@ class _LoginState extends State<Login> {
             // Title: "Přihlášení"
             Text(
               t('login.title'),
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 40),
@@ -488,20 +492,14 @@ class _LoginState extends State<Login> {
             Row(
               children: [
                 Expanded(
-                  child: Divider(
-                    color: Colors.grey.shade300,
-                    thickness: 1,
-                  ),
+                  child: Divider(color: Colors.grey.shade300, thickness: 1),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(t('login.or')),
                 ),
                 Expanded(
-                  child: Divider(
-                    color: Colors.grey.shade300,
-                    thickness: 1,
-                  ),
+                  child: Divider(color: Colors.grey.shade300, thickness: 1),
                 ),
               ],
             ),
@@ -521,26 +519,32 @@ class _LoginState extends State<Login> {
                     }
                     if (data['status'] == 200) {
                       logger.i(
-                          'Google sign in succeeded; existing=${data['exists']}.');
+                        'Google sign in succeeded; existing=${data['exists']}.',
+                      );
                       if (data['exists'] == false) {
                         // New user, proceed with registration
-                        unawaited(TrackingConsentManager.captureEvent(
+                        unawaited(
+                          TrackingConsentManager.captureEvent(
                             'signup_start',
-                            properties: {'method': 'google'}));
+                            properties: {'method': 'google'},
+                          ),
+                        );
                         logger.i(
-                            'Google sign in: new user, proceeding to registration');
+                          'Google sign in: new user, proceeding to registration',
+                        );
                         if (!context.mounted) return;
                         Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => RegName(
-                                      name: data['firstName'] as String? ?? '',
-                                      surname:
-                                          data['lastName'] as String? ?? '',
-                                      email: data['email'] as String? ?? '',
-                                      jwt: data['jwt'] as String,
-                                      consent: true,
-                                    )));
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              name: data['firstName'] as String? ?? '',
+                              surname: data['lastName'] as String? ?? '',
+                              email: data['email'] as String? ?? '',
+                              jwt: data['jwt'] as String,
+                              consent: true,
+                            ),
+                          ),
+                        );
                         return;
                       }
                       final String? jwt = data['jwt'] as String?;
@@ -552,16 +556,18 @@ class _LoginState extends State<Login> {
                           await activatedAuthSessions.beginTokenTransition(jwt);
 
                       // Retrieve user‑id from backend
-                      final idResponse =
-                          await _userController.getUserIdFromToken();
+                      final idResponse = await _userController
+                          .getUserIdFromToken();
                       if (idResponse.statusCode != 200) {
                         logger.e(
-                            'Failed to retrieve user ID; status ${idResponse.statusCode}.');
+                          'Failed to retrieve user ID; status ${idResponse.statusCode}.',
+                        );
                         _showMessage(t('login.errors.idGetError'));
                         return;
                       }
-                      final int? userId =
-                          int.tryParse(idResponse.data.toString());
+                      final int? userId = int.tryParse(
+                        idResponse.data.toString(),
+                      );
                       if (userId == null || userId <= 0) {
                         _showMessage(t('login.errors.idGetError'));
                         return;
@@ -583,13 +589,17 @@ class _LoginState extends State<Login> {
                       await navigateToSessionLanding(context);
                     } else {
                       logger.w(
-                          'Google sign in failed with status ${data['status']}.');
+                        'Google sign in failed with status ${data['status']}.',
+                      );
                       _showMessage(t('login.errors.loginFailed'));
                       return;
                     }
                   } catch (e, stackTrace) {
-                    logger.e('Google sign-in error: $e',
-                        error: e, stackTrace: stackTrace);
+                    logger.e(
+                      'Google sign-in error: $e',
+                      error: e,
+                      stackTrace: stackTrace,
+                    );
                     await Sentry.captureException(e, stackTrace: stackTrace);
                     _showMessage(t('login.errors.loginFailed'));
                     return;
@@ -637,30 +647,34 @@ class _LoginState extends State<Login> {
                       return;
                     } else if (data['status'] == 200) {
                       logger.i(
-                          'Apple sign in succeeded; existing=${data['exists']}.');
+                        'Apple sign in succeeded; existing=${data['exists']}.',
+                      );
                       if (data['exists'] == false) {
                         // New user, proceed with registration
-                        unawaited(TrackingConsentManager.captureEvent(
+                        unawaited(
+                          TrackingConsentManager.captureEvent(
                             'signup_start',
-                            properties: {'method': 'apple'}));
+                            properties: {'method': 'apple'},
+                          ),
+                        );
                         _hideLoader();
                         logger.i(
-                            'Apple sign in: new user, proceeding to registration');
+                          'Apple sign in: new user, proceeding to registration',
+                        );
                         if (!context.mounted) return;
                         Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => RegName(
-                                      name: data['firstName'] as String? ?? '',
-                                      surname:
-                                          data['lastName'] as String? ?? '',
-                                      email: data['email'] as String? ?? '',
-                                      jwt: data['jwt'] as String,
-                                      appleId:
-                                          data['userIdentifier'] as String? ??
-                                              '',
-                                      consent: true,
-                                    )));
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegName(
+                              name: data['firstName'] as String? ?? '',
+                              surname: data['lastName'] as String? ?? '',
+                              email: data['email'] as String? ?? '',
+                              jwt: data['jwt'] as String,
+                              appleId: data['userIdentifier'] as String? ?? '',
+                              consent: true,
+                            ),
+                          ),
+                        );
                         return;
                       } else if (data['exists'] == true) {
                         // User exists, proceed with login
@@ -672,7 +686,8 @@ class _LoginState extends State<Login> {
                       return;
                     } else {
                       logger.w(
-                          'Apple sign in failed with status ${data['status']}.');
+                        'Apple sign in failed with status ${data['status']}.',
+                      );
                       _hideLoader();
                       _showMessage(t('auth.apple.error.login_failed'));
                       return;
@@ -712,17 +727,19 @@ class _LoginState extends State<Login> {
                         await activatedAuthSessions.beginTokenTransition(jwt);
 
                     // Retrieve user‑id from backend
-                    final idResponse =
-                        await _userController.getUserIdFromToken();
+                    final idResponse = await _userController
+                        .getUserIdFromToken();
                     if (idResponse.statusCode != 200) {
                       _hideLoader();
                       logger.w(
-                          'Failed to retrieve user ID; status ${idResponse.statusCode}.');
+                        'Failed to retrieve user ID; status ${idResponse.statusCode}.',
+                      );
                       _showMessage(t('login.errors.idGetError'));
                       return;
                     }
-                    final int? userId =
-                        int.tryParse(idResponse.data.toString());
+                    final int? userId = int.tryParse(
+                      idResponse.data.toString(),
+                    );
                     if (userId == null || userId <= 0) {
                       _showMessage(t('login.errors.idGetError'));
                       return;
@@ -749,8 +766,11 @@ class _LoginState extends State<Login> {
                     if (!context.mounted) return;
                     await navigateToSessionLanding(context);
                   } catch (e, stackTrace) {
-                    logger.e('Apple sign-in error: $e',
-                        error: e, stackTrace: stackTrace);
+                    logger.e(
+                      'Apple sign-in error: $e',
+                      error: e,
+                      stackTrace: stackTrace,
+                    );
                     await Sentry.captureException(e, stackTrace: stackTrace);
                     _hideLoader();
                     _showMessage(t('auth.apple.error.login_failed'));
@@ -790,9 +810,14 @@ class _LoginState extends State<Login> {
           appBar: AppBar(
             backgroundColor: Colors.white,
             elevation: 0,
-            leading: IconButton(
-              icon: Image.asset('assets/icons/backButton.png',
-                  width: 30, height: 30),
+            leading: GlassIconButton(
+              nativeSymbol: 'chevron.left',
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              icon: Image.asset(
+                'assets/icons/backButton.png',
+                width: 30,
+                height: 30,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -809,8 +834,10 @@ class _LoginState extends State<Login> {
                   backgroundColor: yellow,
                   foregroundColor: yellowishBlack,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textStyle: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16.0),
                   ),
@@ -826,9 +853,7 @@ class _LoginState extends State<Login> {
               absorbing: true,
               child: Container(
                 color: Colors.black.withOpacity(0.5),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: const Center(child: CircularProgressIndicator()),
               ),
             ),
           ),

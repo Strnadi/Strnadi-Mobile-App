@@ -15,6 +15,7 @@
  */
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 
@@ -31,15 +32,16 @@ class RegName extends StatefulWidget {
   final String? appleId;
   final bool consent;
 
-  const RegName(
-      {super.key,
-      required this.email,
-      required this.consent,
-      required this.jwt,
-      this.password,
-      this.name,
-      this.surname,
-      this.appleId});
+  const RegName({
+    super.key,
+    required this.email,
+    required this.consent,
+    required this.jwt,
+    this.password,
+    this.name,
+    this.surname,
+    this.appleId,
+  });
 
   @override
   State<RegName> createState() => _RegNameState();
@@ -103,7 +105,9 @@ class _RegNameState extends State<RegName> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          leading: IconButton(
+          leading: GlassIconButton(
+            nativeSymbol: 'chevron.left',
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: Image.asset(
               'assets/icons/backButton.png',
               width: 30,
@@ -156,19 +160,25 @@ class _RegNameState extends State<RegName> {
                       fillColor: Colors.grey[200],
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
@@ -199,19 +209,25 @@ class _RegNameState extends State<RegName> {
                       fillColor: Colors.grey[200],
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                     ),
@@ -243,7 +259,9 @@ class _RegNameState extends State<RegName> {
                       fillColor: Colors.grey[200],
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
@@ -253,10 +271,7 @@ class _RegNameState extends State<RegName> {
                   const SizedBox(height: 8),
                   Text(
                     t('signup.name.real_name_warning'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 32),
 
@@ -288,8 +303,9 @@ class _RegNameState extends State<RegName> {
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         backgroundColor: _isFormValid ? yellow : Colors.grey,
-                        foregroundColor:
-                            _isFormValid ? textColor : Colors.white,
+                        foregroundColor: _isFormValid
+                            ? textColor
+                            : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         textStyle: TextStyle(
                           fontSize: 16,
@@ -309,8 +325,12 @@ class _RegNameState extends State<RegName> {
         ),
         // Bottom segmented progress bar with larger bottom padding
         bottomNavigationBar: Padding(
-          padding:
-              const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 48,
+          ),
           child: Row(
             children: List.generate(5, (index) {
               bool completed = index < 3;
