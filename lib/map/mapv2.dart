@@ -50,7 +50,7 @@ import 'package:strnadi/map/filtered_parts_api_loader.dart';
 import 'package:strnadi/map/map_data_cache.dart';
 import 'package:strnadi/map/map_clusters.dart';
 import 'package:strnadi/map/kfme_grid.dart';
-import 'package:strnadi/map/map_feature_marker.dart';
+import 'package:strnadi/map/map_marker_layout.dart';
 import 'package:strnadi/map/map_feature_filters.dart';
 import 'package:strnadi/map/map_feature_filter_controls.dart';
 import 'package:strnadi/map/map_cluster_picker.dart';
@@ -145,7 +145,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
   int _recordingDataGeneration = 0;
   Timer? _mapClustersDebounce;
   List<MapCluster> _mapClusters = const <MapCluster>[];
-  String? _lastExpandedClusterId;
+  Timer? _clusterZoomAnimation;
   String? _mapSessionId;
   String? _mapHost;
 
@@ -467,7 +467,22 @@ class _MapScreenV2State extends State<MapScreenV2> {
 
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
       if (!mounted) return;
-      if (event is MapEventMoveEnd) {
+      if (event is MapEventWithMove) {
+        if (event.source == MapEventSource.mapController &&
+            _clusterZoomAnimation?.isActive == true) {
+          return;
+        }
+        _clusterZoomAnimation?.cancel();
+        // Cover drag, fling, double-tap, wheel, keyboard, and programmatic
+        // movement; only the settled viewport is requested from the API.
+        _activeRecordingsRequestId++;
+        _currentCenter = event.camera.center;
+        _currentZoom = event.camera.zoom;
+        _scheduleMapClustersRefresh();
+      }
+      if (event is MapEventMoveEnd ||
+          event is MapEventFlingAnimationEnd ||
+          event is MapEventDoubleTapZoomEnd) {
         _currentCenter = event.camera.center;
         _currentZoom = event.camera.zoom;
         _updateGrid();
@@ -879,7 +894,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _recLocalToBE.clear();
     _recordingsByBeId.clear();
     _mapClusters = const <MapCluster>[];
-    _lastExpandedClusterId = null;
+    _clusterZoomAnimation?.cancel();
     _mapSessionId = null;
     _mapHost = null;
   }
@@ -1436,23 +1451,6 @@ class _MapScreenV2State extends State<MapScreenV2> {
     );
   }
 
-  List<Marker> _buildServerClusterMarkers() {
-    return _mapClusters
-        .map(
-          (feature) => Marker(
-            point: feature.center,
-            width: MapFeatureMarker.extent(feature),
-            height: MapFeatureMarker.extent(feature),
-            child: MapFeatureMarker(
-              key: ValueKey('server-feature-${feature.id}'),
-              feature: feature,
-              onTap: () => _selectMapFeature(feature),
-            ),
-          ),
-        )
-        .toList(growable: false);
-  }
-
   Future<void> _selectMapFeature(MapCluster feature) async {
     final requestId = _activeRecordingsRequestId;
     if (!await _isMapScopeCurrent()) {
@@ -1463,104 +1461,52 @@ class _MapScreenV2State extends State<MapScreenV2> {
       return;
     }
     if (!mounted || requestId != _activeRecordingsRequestId) return;
-    final point = _mapController.camera.latLngToScreenOffset(feature.center);
-    final overlapping = _mapClusters
-        .where(
-          (other) =>
-              (_mapController.camera.latLngToScreenOffset(other.center) - point)
-                  .distance <
-              (MapFeatureMarker.extent(feature) +
-                      MapFeatureMarker.extent(other)) /
-                  2,
-        )
-        .toList();
-    if (overlapping.length > 1) {
-      final selected = await showModalBottomSheet<MapCluster>(
-        context: context,
-        builder: (context) => SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * .5,
-            child: ListView(
-              children: overlapping
-                  .map(
-                    (f) => ListTile(
-                      title: Text(
-                        f.recording?.name ??
-                            '${t('map.clusterPicker.title')} (${f.count})',
-                      ),
-                      subtitle: Text(
-                        f.dialects
-                            .map((d) => '${d.code} ${d.percentage}%')
-                            .join(', '),
-                      ),
-                      onTap: () => Navigator.pop(context, f),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ),
-      );
-      if (!mounted ||
-          requestId != _activeRecordingsRequestId ||
-          selected == null) {
-        return;
-      }
-      // A chooser must allow selection even if groups cannot separate spatially.
-      if (selected.isRecording) {
-        unawaited(_openClusterRecording(selected.recording!.recordingId));
-      } else {
-        unawaited(_showClusterPicker(selected));
-      }
-      return;
-    }
-    _onMapClusterTap(feature);
-  }
-
-  void _onMapClusterTap(MapCluster feature) {
     if (feature.isRecording) {
       unawaited(_openClusterRecording(feature.recording!.recordingId));
       return;
     }
-    final bounds = feature.bounds!;
-    if (bounds.coincident ||
-        _currentZoom >= 19 ||
-        _lastExpandedClusterId == feature.id) {
+    final camera = _mapController.camera;
+    final target = clusterZoomTarget(
+      feature,
+      camera.zoom,
+      _mapSize ?? Size.zero,
+    );
+    if (target == null) {
       unawaited(_showClusterPicker(feature));
       return;
     }
-    _lastExpandedClusterId = feature.id;
-    final size = _mapSize;
-    if (size == null) return;
-    // Fit unwrapped longitude span, including antimeridian-crossing bounds.
-    double mercatorY(double lat) {
-      final sin = math.sin(
-        lat.clamp(-85.05112878, 85.05112878) * math.pi / 180,
+    _clusterZoomAnimation?.cancel();
+    _mapClustersDebounce?.cancel();
+    _activeRecordingsRequestId++;
+    final start = camera.center;
+    final startZoom = camera.zoom;
+    final longitudeDelta =
+        ((target.longitude - start.longitude + 540) % 360) - 180;
+    final watch = Stopwatch()..start();
+    _clusterZoomAnimation = Timer.periodic(const Duration(milliseconds: 16), (
+      timer,
+    ) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final progress = (watch.elapsedMilliseconds / 300).clamp(0.0, 1.0);
+      final eased = Curves.easeInOut.transform(progress);
+      _mapController.move(
+        LatLng(
+          start.latitude + (target.latitude - start.latitude) * eased,
+          ((start.longitude + longitudeDelta * eased + 540) % 360) - 180,
+        ),
+        startZoom + (target.zoom - startZoom) * eased,
       );
-      return .5 - math.log((1 + sin) / (1 - sin)) / (4 * math.pi);
-    }
-
-    final xSpan = math.max(bounds.longitudeSpan / 360, 1e-10);
-    final ySpan = math.max(
-      (mercatorY(bounds.north) - mercatorY(bounds.south)).abs(),
-      1e-10,
-    );
-    final fitZoom = math.min(
-      math.log(math.max(size.width - 96, 1) / (256 * xSpan)) / math.ln2,
-      math.log(math.max(size.height - 96, 1) / (256 * ySpan)) / math.ln2,
-    );
-    if (fitZoom <= _currentZoom + .1) {
-      unawaited(_showClusterPicker(feature));
-      return;
-    }
-    final lng = ((bounds.west + bounds.longitudeSpan / 2 + 180) % 360) - 180;
-    final y = (mercatorY(bounds.north) + mercatorY(bounds.south)) / 2;
-    final n = math.pi * (1 - 2 * y);
-    final lat = math.atan((math.exp(n) - math.exp(-n)) / 2) * 180 / math.pi;
-    _mapController.move(LatLng(lat, lng), fitZoom.clamp(1, 19).toDouble());
-    _currentCenter = _mapController.camera.center;
-    _currentZoom = _mapController.camera.zoom;
-    _scheduleMapClustersRefresh(immediate: true);
+      _currentCenter = _mapController.camera.center;
+      _currentZoom = _mapController.camera.zoom;
+      if (progress >= 1) {
+        timer.cancel();
+        _updateGrid();
+        _scheduleMapClustersRefresh(immediate: true);
+      }
+    });
   }
 
   Future<void> _showClusterPicker(MapCluster feature) async {
@@ -1668,6 +1614,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     _recordingDataGeneration++;
     _mapClustersDebounce?.cancel();
     _mapEventSubscription?.cancel();
+    _clusterZoomAnimation?.cancel();
     _positionStreamSubscription?.cancel();
     super.dispose();
   }
@@ -1735,7 +1682,11 @@ class _MapScreenV2State extends State<MapScreenV2> {
                       ),
                     ],
                   ),
-                  MarkerLayer(markers: _buildServerClusterMarkers()),
+                  MapFeatureLayer(
+                    key: ValueKey('$_mapHost|$_mapSessionId'),
+                    features: _mapClusters,
+                    onTap: _selectMapFeature,
+                  ),
                 ],
               ),
               if (_isLoadingRecordings)

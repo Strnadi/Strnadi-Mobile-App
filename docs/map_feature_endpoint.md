@@ -55,3 +55,28 @@ Manual device QA against an implementation of this contract:
 7. Check Czech, English and German text with large accessibility fonts.
 
 This change does not modify recording capture, offline uploads or local database data.
+
+## APP-39 / APP-40 interaction checks
+
+Map markers remain at the geographic coordinates returned by the server, without
+client-side displacement or connector lines. A tap uses the selected feature.
+Non-coincident clusters animate inward for 300 ms; even a bounds fit that would
+zoom out instead advances by one zoom level. Repeated taps continue inward up to
+zoom 19. Coincident or maximum-zoom clusters use the existing paginated picker.
+The picker shows the recording name, classification source, and localized date;
+the item endpoint does not provide per-recording dialect aggregates, so cluster
+percentages are not attributed to individual recordings.
+
+Manual device QA (not yet performed):
+
+- Pan and pinch through dense areas with clustering enabled and disabled. Check
+  geographic marker positions and stable rendering after refresh.
+- Tap a cluster several times; verify inward animation and server subdivision.
+  Interrupt an animation with a drag and check that the gesture takes control.
+- At coincident coordinates or zoom 19, open the picker, load beyond five items,
+  retry after a network failure, and open a recording's existing detail.
+- Dismiss the picker and verify map center, zoom, and filters remain unchanged.
+- Change account/environment or filters during a request; old responses and
+  picker continuations must not expose the prior scope's recordings.
+- Exercise empty and failed viewport responses. An empty success clears markers;
+  a failed refresh retains the last successful same-scope result and error UI.

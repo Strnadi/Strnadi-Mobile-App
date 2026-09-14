@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/localization/localization.dart';
@@ -8,6 +11,23 @@ import 'package:strnadi/map/map_feature_marker.dart';
 import 'map_feature_fixtures.dart';
 
 void main() {
+  setUpAll(() async {
+    final config = File('.dart_tool/package_config.json').absolute;
+    final packages =
+        jsonDecode(await config.readAsString())['packages'] as List;
+    final flutter = packages.cast<Map>().firstWhere(
+      (p) => p['name'] == 'flutter',
+    );
+    final root = config.uri.resolve(flutter['rootUri'] as String);
+    final font = File.fromUri(
+      Uri.directory(
+        File.fromUri(root).path,
+      ).resolve('../../bin/cache/artifacts/material_fonts/Roboto-Regular.ttf'),
+    );
+    await (FontLoader(
+      'PickerRoboto',
+    )..addFont(font.readAsBytes().then(ByteData.sublistView))).load();
+  });
   setUp(() => Localization.load('assets/lang/en.json'));
   testWidgets(
     'picker loads remaining items, retries failures and selects the sixth',
@@ -147,6 +167,55 @@ void main() {
       expect(taps, 1);
     },
   );
+
+  testWidgets('mobile picker metadata golden and dismiss preserves map', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(fontFamily: 'PickerRoboto'),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () {
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => RepaintBoundary(
+                    key: const Key('picker-golden'),
+                    child: Material(
+                      child: MapClusterPicker(
+                        cluster: MapCluster.fromJson(clusterJson()),
+                        isCurrent: () => true,
+                        onExpired: () {},
+                        onSelect: (_) {},
+                        loadPage: (_) async =>
+                            MapClusterItemsPage.fromResponseData(pageJson()),
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Filtered map'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Filtered map'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sep 8, 2026'), findsWidgets);
+    await expectLater(
+      find.byKey(const Key('picker-golden')),
+      matchesGoldenFile('goldens/cluster_picker_mobile.png'),
+    );
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(find.byType(MapClusterPicker), findsNothing);
+    expect(find.text('Filtered map'), findsOneWidget);
+  });
 
   testWidgets('server percentage markers golden', (tester) async {
     await tester.pumpWidget(
