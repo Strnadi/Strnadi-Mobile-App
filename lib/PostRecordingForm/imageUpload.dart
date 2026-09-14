@@ -164,17 +164,18 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
 
         const SizedBox(height: 15),
 
-        // Image grid
+        // One row keeps each thumbnail large enough for the 48-point delete target.
         if (_images.isNotEmpty)
           Container(
-            height: 120, // Fixed height for the grid
+            height: 120,
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
+                crossAxisCount: 1,
                 crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
+                mainAxisSpacing: 8,
                 childAspectRatio: 1,
               ),
+              padding: EdgeInsets.zero,
               scrollDirection: Axis.horizontal,
               itemCount: _images.length,
               itemBuilder: (context, index) {

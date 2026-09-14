@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -79,7 +80,7 @@ class GlassIconButton extends StatelessWidget {
   });
 
   final Widget icon;
-  final VoidCallback? onPressed;
+  final FutureOr<void> Function()? onPressed;
   final String? tooltip;
   final String? nativeSymbol;
   final bool hasBadge;
@@ -108,7 +109,7 @@ class GlassIconButton extends StatelessWidget {
               'badge': hasBadge,
             },
             onAction: (_) async {
-              onPressed?.call();
+              await onPressed?.call();
             },
           ),
         ),
@@ -120,7 +121,7 @@ class GlassIconButton extends StatelessWidget {
       child: LiquidGlass(
         child: IconButton(
           tooltip: tooltip,
-          onPressed: onPressed,
+          onPressed: onPressed == null ? null : () async => await onPressed!(),
           icon: icon,
           style: IconButton.styleFrom(
             minimumSize: const Size(48, 48),

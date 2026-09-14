@@ -180,6 +180,43 @@ void main() {
   );
 
   testNativeWidgets(
+    'glass button awaits async work and suppresses repeat taps',
+    (tester) async {
+      final gate = Completer<void>();
+      var actions = 0;
+      var finished = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GlassIconButton(
+            icon: const Icon(Icons.close),
+            nativeSymbol: 'xmark',
+            onPressed: () async {
+              actions++;
+              await gate.future;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final pending = activate(0).then((value) {
+        finished = true;
+        return value;
+      });
+      await tester.pumpAndSettle();
+      expect(actions, 1);
+      expect(finished, isFalse);
+      await tapNative(tester, 0);
+      expect(actions, 1);
+      gate.complete();
+      await tester.pumpAndSettle();
+      await pending;
+      expect(finished, isTrue);
+      await tapNative(tester, 0);
+      expect(actions, 2);
+    },
+  );
+
+  testNativeWidgets(
     'pending tab guard runs once and cancellation restores committed selection',
     (tester) async {
       final gate = Completer<void>();
