@@ -15,6 +15,7 @@
  */
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
@@ -108,8 +109,9 @@ class _RegOverviewState extends State<RegOverview> {
       'LastName': widget.surname,
       'nickname': widget.nickname.isEmpty ? null : widget.nickname,
       'city': widget.city.isNotEmpty ? widget.city : null,
-      'postCode':
-          widget.postCode.isNotEmpty ? int.tryParse(widget.postCode) : null,
+      'postCode': widget.postCode.isNotEmpty
+          ? int.tryParse(widget.postCode)
+          : null,
       'appleId': widget.appleId,
       'consent': widget.consent && _marketingConsent,
     };
@@ -126,13 +128,14 @@ class _RegOverviewState extends State<RegOverview> {
 
       if ([200, 201, 202].contains(response.statusCode)) {
         final String token = response.data.toString();
-        final AuthSessionTransition transition =
-            await activatedAuthSessions.beginTokenTransition(token);
+        final AuthSessionTransition transition = await activatedAuthSessions
+            .beginTokenTransition(token);
 
         final idResponse = await _userController.getUserIdFromToken();
         if (idResponse.statusCode != 200) {
           logger.e(
-              'Failed to retrieve user ID after sign-up; status ${idResponse.statusCode}.');
+            'Failed to retrieve user ID after sign-up; status ${idResponse.statusCode}.',
+          );
           _showMessage(t('login.errors.idGetError'));
           return;
         }
@@ -195,10 +198,7 @@ class _RegOverviewState extends State<RegOverview> {
           Expanded(
             child: Text(
               value.isNotEmpty ? value : '-',
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-              ),
+              style: TextStyle(fontSize: 16, color: textColor),
             ),
           ),
         ],
@@ -217,7 +217,9 @@ class _RegOverviewState extends State<RegOverview> {
             appBar: AppBar(
               backgroundColor: Colors.white,
               elevation: 0,
-              leading: IconButton(
+              leading: GlassIconButton(
+                nativeSymbol: 'chevron.left',
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 icon: Image.asset(
                   'assets/icons/backButton.png',
                   width: 30,
@@ -228,8 +230,10 @@ class _RegOverviewState extends State<RegOverview> {
             ),
             body: SafeArea(
               child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -244,24 +248,33 @@ class _RegOverviewState extends State<RegOverview> {
                     const SizedBox(height: 8),
                     Text(
                       t('signup.overview.check_details'),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: textColor,
-                      ),
+                      style: TextStyle(fontSize: 14, color: textColor),
                     ),
                     const SizedBox(height: 32),
                     _buildInfoItem(
-                        t('signup.overview.items.email'), widget.email),
+                      t('signup.overview.items.email'),
+                      widget.email,
+                    ),
                     _buildInfoItem(
-                        t('signup.overview.items.name'), widget.name),
+                      t('signup.overview.items.name'),
+                      widget.name,
+                    ),
                     _buildInfoItem(
-                        t('signup.overview.items.last_name'), widget.surname),
-                    _buildInfoItem(t('signup.overview.items.nickname'),
-                        widget.nickname.isNotEmpty ? widget.nickname : '-'),
+                      t('signup.overview.items.last_name'),
+                      widget.surname,
+                    ),
                     _buildInfoItem(
-                        t('signup.overview.items.post_code'), widget.postCode),
+                      t('signup.overview.items.nickname'),
+                      widget.nickname.isNotEmpty ? widget.nickname : '-',
+                    ),
                     _buildInfoItem(
-                        t('signup.overview.items.city'), widget.city),
+                      t('signup.overview.items.post_code'),
+                      widget.postCode,
+                    ),
+                    _buildInfoItem(
+                      t('signup.overview.items.city'),
+                      widget.city,
+                    ),
                     const SizedBox(height: 32),
                     Row(
                       children: [
@@ -318,7 +331,11 @@ class _RegOverviewState extends State<RegOverview> {
             ),
             bottomNavigationBar: Padding(
               padding: const EdgeInsets.only(
-                  left: 16, right: 16, top: 16, bottom: 48),
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 48,
+              ),
               child: Row(
                 children: List.generate(5, (index) {
                   bool completed = index < 5;

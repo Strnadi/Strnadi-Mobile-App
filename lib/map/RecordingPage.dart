@@ -27,6 +27,7 @@ import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
@@ -167,13 +168,15 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<void> _resolvePlaybackAccess() async {
-    final String role =
-        (await _secureStorage.read(key: 'role') ?? '').toLowerCase();
-    final Object? currentUserId =
-        parseUserId((await _secureStorage.read(key: 'userId') ?? '').trim());
+    final String role = (await _secureStorage.read(key: 'role') ?? '')
+        .toLowerCase();
+    final Object? currentUserId = parseUserId(
+      (await _secureStorage.read(key: 'userId') ?? '').trim(),
+    );
     final Object? ownerUserId = _recording.userId;
     final bool isAdmin = role == 'admin';
-    final bool isOwner = ownerUserId != null &&
+    final bool isOwner =
+        ownerUserId != null &&
         currentUserId != null &&
         ownerUserId == currentUserId;
     if (!mounted) return;
@@ -222,7 +225,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final int? fetchedLocalId = await DatabaseNew.fetchRecordingFromBE(beId);
     if (fetchedLocalId == null) {
       logger.w(
-          "[RecordingItem] Failed to resolve local id for recording BEId: $beId");
+        "[RecordingItem] Failed to resolve local id for recording BEId: $beId",
+      );
       return null;
     }
     final Recording? fetchedRecording =
@@ -244,8 +248,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
           totalDuration = player.duration ?? Duration.zero;
         });
       } catch (e, stackTrace) {
-        logger.e("Error loading audio file: $e",
-            error: e, stackTrace: stackTrace);
+        logger.e(
+          "Error loading audio file: $e",
+          error: e,
+          stackTrace: stackTrace,
+        );
         Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
@@ -294,7 +301,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final RecordingPart? firstPart = updated.isEmpty ? null : updated.first;
     if (firstPart != null) {
       await reverseGeocode(
-          firstPart.gpsLatitudeStart, firstPart.gpsLongitudeStart);
+        firstPart.gpsLatitudeStart,
+        firstPart.gpsLongitudeStart,
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _mapController.move(
@@ -329,7 +338,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         return;
       }
       final Duration total = _effectivePlaybackDuration();
-      final bool atEnd = total > Duration.zero &&
+      final bool atEnd =
+          total > Duration.zero &&
           currentPosition >= total - const Duration(milliseconds: 300);
       if (player.playing) {
         await player.pause();
@@ -466,8 +476,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     } catch (e, stackTrace) {
       final bool wasCanceled =
           e is DioException && e.type == DioExceptionType.cancel;
-      logger.e("Error downloading recording: $e",
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        "Error downloading recording: $e",
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!wasCanceled) {
         Sentry.captureException(e, stackTrace: stackTrace);
       }
@@ -524,8 +537,11 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     try {
       entries = await _fetchDialectsFromBackend(beId);
     } catch (e, stackTrace) {
-      logger.e('Failed to load dialects for recording $beId',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to load dialects for recording $beId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       error = e is Exception ? e.toString() : 'Failed to load dialects';
     }
 
@@ -539,7 +555,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   Future<List<_DialectDisplayEntry>> _fetchDialectsFromBackend(
-      int recordingBeId) async {
+    int recordingBeId,
+  ) async {
     final response = await _filteredRecordingsController.fetchFilteredParts(
       recordingId: recordingBeId,
       verified: false,
@@ -560,28 +577,31 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       return const [];
     }
 
-    final List<Map<String, dynamic>> filteredParts =
-        decoded.whereType<Map<String, dynamic>>().toList(growable: false);
+    final List<Map<String, dynamic>> filteredParts = decoded
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
     final List<Map<String, dynamic>> sourceParts =
         selectDialectSourceParts<Map<String, dynamic>>(
-      parts: filteredParts,
-      isRepresentant: (Map<String, dynamic> item) =>
-          _parseBool(item['representantFlag']),
-      hasSubstantiveConfirmedDialect: (Map<String, dynamic> item) =>
-          _hasConfirmedDialect(item['detectedDialects']),
-      hasAuthoritativeNoDialect: (Map<String, dynamic> item) =>
-          _hasAuthoritativeNoDialect(item['detectedDialects']),
-    );
+          parts: filteredParts,
+          isRepresentant: (Map<String, dynamic> item) =>
+              _parseBool(item['representantFlag']),
+          hasSubstantiveConfirmedDialect: (Map<String, dynamic> item) =>
+              _hasConfirmedDialect(item['detectedDialects']),
+          hasAuthoritativeNoDialect: (Map<String, dynamic> item) =>
+              _hasAuthoritativeNoDialect(item['detectedDialects']),
+        );
 
     final List<
-        ({
-          String code,
-          String label,
-          bool representant,
-          Duration start,
-          Duration end,
-          _DialectConfidence confidence,
-        })> drafts = [];
+      ({
+        String code,
+        String label,
+        bool representant,
+        Duration start,
+        Duration end,
+        _DialectConfidence confidence,
+      })
+    >
+    drafts = [];
     final Set<String> codes = <String>{};
     final bool hasAdminConfirmedSourcePart = sourceParts.any(
       (item) => _hasConfirmedDialect(item['detectedDialects']),
@@ -589,8 +609,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
     for (final map in sourceParts) {
       final bool isRepresentant = _parseBool(map['representantFlag']);
-      final bool isAdminConfirmedSourcePart =
-          _hasConfirmedDialect(map['detectedDialects']);
+      final bool isAdminConfirmedSourcePart = _hasConfirmedDialect(
+        map['detectedDialects'],
+      );
       if (hasAdminConfirmedSourcePart && !isAdminConfirmedSourcePart) {
         continue;
       }
@@ -610,8 +631,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
       final Duration startOffset = _offsetWithinConcatenated(startDate);
       final Duration endOffset = _offsetWithinConcatenated(endDate);
-      final Duration safeEnd =
-          endOffset < startOffset ? startOffset : endOffset;
+      final Duration safeEnd = endOffset < startOffset
+          ? startOffset
+          : endOffset;
 
       final dynamic rawDialects = map['detectedDialects'];
       if (rawDialects is List && rawDialects.isNotEmpty) {
@@ -661,8 +683,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     final List<Color> colors = await DialectColorCache.getColors(uniqueCodes);
     final Map<String, Color> colorByCode = <String, Color>{};
     for (var i = 0; i < uniqueCodes.length; i++) {
-      colorByCode[uniqueCodes[i]] =
-          i < colors.length ? colors[i] : Colors.grey.shade400;
+      colorByCode[uniqueCodes[i]] = i < colors.length
+          ? colors[i]
+          : Colors.grey.shade400;
     }
 
     final entries = drafts
@@ -694,7 +717,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   }
 
   ({String? code, _DialectConfidence confidence}) _selectDialect(
-      Map<String, dynamic> row) {
+    Map<String, dynamic> row,
+  ) {
     final RecordingDialectSummary summary = summarizeRecordingDialects(
       rows: <DetectedDialectSnapshot>[
         DetectedDialectSnapshot(
@@ -790,10 +814,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
   Iterable<DialectTimeSegment> _dialectTimeSegments() sync* {
     for (final part in parts) {
       if (part == null) continue;
-      yield DialectTimeSegment(
-        start: part.startTime,
-        end: part.endTime,
-      );
+      yield DialectTimeSegment(start: part.startTime, end: part.endTime);
     }
   }
 
@@ -811,10 +832,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       border: Border.all(color: Colors.grey),
       borderRadius: BorderRadius.circular(10),
     );
-    const titleStyle = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 14,
-    );
+    const titleStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 14);
 
     if (_dialectsLoading) {
       return Container(
@@ -823,12 +841,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         decoration: decoration,
         child: Row(
           children: [
-            Expanded(
-              child: Text(
-                t('dialectBadge.title'),
-                style: titleStyle,
-              ),
-            ),
+            Expanded(child: Text(t('dialectBadge.title'), style: titleStyle)),
             const SizedBox(
               width: 18,
               height: 18,
@@ -847,10 +860,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              t('dialectBadge.title'),
-              style: titleStyle,
-            ),
+            Text(t('dialectBadge.title'), style: titleStyle),
             const SizedBox(height: 6),
             Text(
               t('map.dialogs.error.title'),
@@ -869,10 +879,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              t('dialectBadge.title'),
-              style: titleStyle,
-            ),
+            Text(t('dialectBadge.title'), style: titleStyle),
             const SizedBox(height: 6),
             Text(
               t('dialectKeywords.unknown'),
@@ -890,10 +897,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            t('dialectBadge.title'),
-            style: titleStyle,
-          ),
+          Text(t('dialectBadge.title'), style: titleStyle),
           const SizedBox(height: 8),
           for (final entry in _dialectEntries) _buildDialectTile(entry),
         ],
@@ -903,8 +907,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Widget _buildDialectTile(_DialectDisplayEntry entry) {
     final Color baseColor = entry.color;
-    final Color borderColor =
-        entry.isRepresentant ? baseColor : Colors.grey.shade400;
+    final Color borderColor = entry.isRepresentant
+        ? baseColor
+        : Colors.grey.shade400;
     final Color background = baseColor.withOpacity(0.12);
 
     return Container(
@@ -913,7 +918,9 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
       decoration: BoxDecoration(
         color: background,
         border: Border.all(
-            color: borderColor, width: entry.isRepresentant ? 1.5 : 1),
+          color: borderColor,
+          width: entry.isRepresentant ? 1.5 : 1,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -923,10 +930,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
             width: 12,
             height: 12,
             margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
-              color: baseColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: baseColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -945,20 +949,13 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                       ),
                     ),
                     if (entry.isRepresentant)
-                      Icon(
-                        Icons.star_rounded,
-                        size: 16,
-                        color: baseColor,
-                      ),
+                      Icon(Icons.star_rounded, size: 16, color: baseColor),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _formatTimeRange(entry.startOffset, entry.endOffset),
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                 ),
               ],
             ),
@@ -995,7 +992,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
 
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse(
-        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+      "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}",
+    );
 
     logger.i('Reverse geocoding a recording location.');
     try {
@@ -1016,7 +1014,8 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
         }
       } else {
         logger.e(
-            "Reverse geocode failed with status code ${response.statusCode}");
+          "Reverse geocode failed with status code ${response.statusCode}",
+        );
       }
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
@@ -1040,9 +1039,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_recordingTitle),
-        leading: IconButton(
-          icon:
-              Image.asset('assets/icons/backButton.png', width: 30, height: 30),
+        leading: GlassIconButton(
+          nativeSymbol: 'chevron.left',
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          icon: Image.asset(
+            'assets/icons/backButton.png',
+            width: 30,
+            height: 30,
+          ),
           onPressed: () async {
             Navigator.pop(context);
           },
@@ -1061,139 +1065,142 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                       child: Center(child: CircularProgressIndicator()),
                     )
                   : !canUseAudio
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 12.0),
-                          child: Container(
-                            width: double.infinity,
-                            constraints: const BoxConstraints(maxWidth: 420),
-                            padding: const EdgeInsets.all(14.0),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .outline
-                                    .withOpacity(0.25),
-                              ),
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        padding: const EdgeInsets.all(14.0),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.25),
+                          ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.lock_outline, size: 34),
+                            const SizedBox(height: 8),
+                            Text(
+                              t('recordingPage.status.playRestricted'),
+                              textAlign: TextAlign.center,
                             ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.lock_outline, size: 34),
-                                const SizedBox(height: 8),
-                                Text(
-                                  t('recordingPage.status.playRestricted'),
-                                  textAlign: TextAlign.center,
-                                ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _recording.downloaded
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(14.0),
+                          constraints: const BoxConstraints(maxWidth: 420),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.12),
+                                Theme.of(
+                                  context,
+                                ).colorScheme.secondary.withOpacity(0.08),
                               ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.2),
                             ),
                           ),
-                        )
-                      : _recording.downloaded
-                          ? const SizedBox.shrink()
-                          : Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 12.0),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(14.0),
-                                  constraints:
-                                      const BoxConstraints(maxWidth: 420),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.12),
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .secondary
-                                            .withOpacity(0.08),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withOpacity(0.2),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.cloud_download_outlined,
-                                          size: 34),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        t('recordingPage.status.notDownloaded'),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        t('recListItem.noRecording'),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      if (_isDownloading) ...[
-                                        SizedBox(
-                                          width: 220,
-                                          child: LinearProgressIndicator(
-                                            value: _downloadProgress,
-                                            minHeight: 6,
-                                            backgroundColor: Theme.of(context)
-                                                .colorScheme
-                                                .surfaceContainerHighest,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                            '${(_downloadProgress * 100).toStringAsFixed(1)}%'),
-                                        const SizedBox(height: 4),
-                                        TextButton(
-                                          onPressed: () {
-                                            _downloadCancelToken?.cancel(
-                                                'User canceled recording download.');
-                                          },
-                                          child: Text(
-                                              t('recListItem.buttons.cancel')),
-                                        ),
-                                      ] else
-                                        ElevatedButton.icon(
-                                          onPressed: _downloadRecording,
-                                          icon: const Icon(Icons.download),
-                                          label: Text(t(
-                                              'recListItem.buttons.download')),
-                                        ),
-                                    ],
-                                  ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.cloud_download_outlined,
+                                size: 34,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                t('recordingPage.status.notDownloaded'),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              Text(
+                                t('recListItem.noRecording'),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(height: 10),
+                              if (_isDownloading) ...[
+                                SizedBox(
+                                  width: 220,
+                                  child: LinearProgressIndicator(
+                                    value: _downloadProgress,
+                                    minHeight: 6,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${(_downloadProgress * 100).toStringAsFixed(1)}%',
+                                ),
+                                const SizedBox(height: 4),
+                                TextButton(
+                                  onPressed: () {
+                                    _downloadCancelToken?.cancel(
+                                      'User canceled recording download.',
+                                    );
+                                  },
+                                  child: Text(t('recListItem.buttons.cancel')),
+                                ),
+                              ] else
+                                ElevatedButton.icon(
+                                  onPressed: _downloadRecording,
+                                  icon: const Icon(Icons.download),
+                                  label: Text(
+                                    t('recListItem.buttons.download'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: Column(
                   children: [
                     if (_recording.downloaded && canUseAudio)
@@ -1202,47 +1209,49 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.2),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.2),
                           ),
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceVariant
-                              .withOpacity(0.3),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceVariant.withOpacity(0.3),
                         ),
                         child: Column(
                           children: [
-                            Builder(builder: (context) {
-                              final Duration displayPosition =
-                                  _displayPlaybackPosition();
-                              final Duration displayTotal =
-                                  _effectivePlaybackDuration();
-                              return Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _formatPlayerTime(displayPosition),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  Text(
-                                    _formatPlayerTime(displayTotal),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              );
-                            }),
+                            Builder(
+                              builder: (context) {
+                                final Duration displayPosition =
+                                    _displayPlaybackPosition();
+                                final Duration displayTotal =
+                                    _effectivePlaybackDuration();
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      _formatPlayerTime(displayPosition),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatPlayerTime(displayTotal),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                             const SizedBox(height: 8),
                             LinearProgressIndicator(
                               value: _playbackProgress(),
                               minHeight: 6,
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 Theme.of(context).colorScheme.primary,
                               ),
@@ -1252,30 +1261,32 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 IconButton(
-                                    icon: const Icon(Icons.replay_10, size: 28),
-                                    onPressed: () => seekRelative(-10)),
+                                  icon: const Icon(Icons.replay_10, size: 28),
+                                  onPressed: () => seekRelative(-10),
+                                ),
                                 const SizedBox(width: 4),
                                 Container(
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withOpacity(0.15),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withOpacity(0.15),
                                   ),
                                   child: IconButton(
-                                    icon: Icon(isPlaying
-                                        ? Icons.pause_circle_filled
-                                        : Icons.play_circle_filled),
+                                    icon: Icon(
+                                      isPlaying
+                                          ? Icons.pause_circle_filled
+                                          : Icons.play_circle_filled,
+                                    ),
                                     iconSize: 56,
                                     onPressed: togglePlay,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 IconButton(
-                                    icon:
-                                        const Icon(Icons.forward_10, size: 28),
-                                    onPressed: () => seekRelative(10)),
+                                  icon: const Icon(Icons.forward_10, size: 28),
+                                  onPressed: () => seekRelative(10),
+                                ),
                               ],
                             ),
                           ],
@@ -1351,11 +1362,14 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                         child: FlutterMap(
                           mapController: _mapController,
                           options: MapOptions(
-                            interactionOptions:
-                                InteractionOptions(flags: InteractiveFlag.none),
+                            interactionOptions: InteractionOptions(
+                              flags: InteractiveFlag.none,
+                            ),
                             initialCenter: parts.isNotEmpty
-                                ? LatLng(parts[0]!.gpsLatitudeStart,
-                                    parts[0]!.gpsLongitudeStart)
+                                ? LatLng(
+                                    parts[0]!.gpsLatitudeStart,
+                                    parts[0]!.gpsLongitudeStart,
+                                  )
                                 : LatLng(0.0, 0.0),
                             initialZoom: 13.0,
                           ),
@@ -1371,8 +1385,10 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                                   width: 20.0,
                                   height: 20.0,
                                   point: parts.isNotEmpty
-                                      ? LatLng(parts[0]!.gpsLatitudeStart,
-                                          parts[0]!.gpsLongitudeStart)
+                                      ? LatLng(
+                                          parts[0]!.gpsLatitudeStart,
+                                          parts[0]!.gpsLongitudeStart,
+                                        )
                                       : LatLng(0.0, 0.0),
                                   child: const Icon(
                                     Icons.my_location,
@@ -1388,7 +1404,7 @@ class _RecordingFromMapState extends State<RecordingFromMap> {
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),

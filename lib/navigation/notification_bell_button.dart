@@ -17,6 +17,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localization/localization.dart';
@@ -33,10 +34,7 @@ Future<void> _openNotificationScreen(
   final String? userId = await storage.read(key: 'userId');
   if (!context.mounted) return;
   if (isGuestUser || userId == null || userId.isEmpty) {
-    await showGuestUserPopup(
-      context,
-      recorderExitPolicy: recorderExitPolicy,
-    );
+    await showGuestUserPopup(context, recorderExitPolicy: recorderExitPolicy);
     return;
   }
 
@@ -108,13 +106,16 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
 
   @override
   Widget build(BuildContext context) {
-    final Color iconColor =
-        widget.isSelected ? const Color(0xFF116A7B) : Colors.black87;
+    final Color iconColor = widget.isSelected
+        ? const Color(0xFF116A7B)
+        : Colors.black87;
     return ValueListenableBuilder<int>(
       valueListenable: DatabaseNew.unreadNotificationCount,
       builder: (context, unreadCount, _) {
         final bool hasUnread = !widget.isGuestUser && unreadCount > 0;
-        return IconButton(
+        return GlassIconButton(
+          nativeSymbol: widget.isSelected ? 'bell.fill' : 'bell',
+          hasBadge: hasUnread,
           tooltip: t('notifications.title'),
           onPressed: _handlePressed,
           icon: Stack(

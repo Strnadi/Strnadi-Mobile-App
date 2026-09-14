@@ -21,6 +21,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -370,6 +371,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ? TrackingConsentManager.navigatorObservers
           : const <NavigatorObserver>[],
       theme: ThemeData(
+        appBarTheme: glassAppBarTheme,
         scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSwatch().copyWith(
           primary: Colors.blue,

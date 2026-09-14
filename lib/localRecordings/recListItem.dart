@@ -25,6 +25,7 @@ import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/localization/localization.dart';
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:strnadi/api/http_adapter.dart' as http;
@@ -185,11 +186,13 @@ class _RecordingItemState extends State<RecordingItem> {
       if (!mounted) return;
       if (recordingId != null && localParts.isNotEmpty) {
         logger.i(
-            "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${_recording.id}");
+          "[RecordingItem] Recording path is empty. Starting concatenation of recording parts for recording id: ${_recording.id}",
+        );
         await DatabaseNew.concatRecordingParts(recordingId);
         if (!mounted) return;
         logger.i(
-            "[RecordingItem] Concatenation complete for recording id: ${_recording.id}. Fetching updated recording.");
+          "[RecordingItem] Concatenation complete for recording id: ${_recording.id}. Fetching updated recording.",
+        );
         Recording? updatedRecording =
             await DatabaseNew.getRecordingFromDbByIdNoMail(recordingId);
         if (!mounted) return;
@@ -203,7 +206,8 @@ class _RecordingItemState extends State<RecordingItem> {
         });
       } else {
         logger.w(
-            "[RecordingItem] No recording parts found for recording id: ${_recording.id}");
+          "[RecordingItem] No recording parts found for recording id: ${_recording.id}",
+        );
         setState(() {
           loaded = true;
         });
@@ -226,8 +230,8 @@ class _RecordingItemState extends State<RecordingItem> {
 
   _DialectDetailValue? _dialectDetailValueOrNull(String? raw) {
     if (raw == null) return null;
-    final String english =
-        (DialectKeywordTranslator.toEnglish(raw) ?? raw).trim();
+    final String english = (DialectKeywordTranslator.toEnglish(raw) ?? raw)
+        .trim();
     if (english.isEmpty) return null;
     const Set<String> hidden = <String>{
       'Unknown',
@@ -273,7 +277,8 @@ class _RecordingItemState extends State<RecordingItem> {
         final Duration? rawEndOffset = d.filteredPartEndDate == null
             ? null
             : _offsetWithinConcatenated(d.filteredPartEndDate!);
-        final Duration? endOffset = (startOffset != null &&
+        final Duration? endOffset =
+            (startOffset != null &&
                 rawEndOffset != null &&
                 rawEndOffset < startOffset)
             ? startOffset
@@ -294,14 +299,16 @@ class _RecordingItemState extends State<RecordingItem> {
       }
 
       if (entries.isEmpty) {
-        final legacyDialects =
-            await DatabaseNew.getDialectsByRecordingId(recordingId);
+        final legacyDialects = await DatabaseNew.getDialectsByRecordingId(
+          recordingId,
+        );
         if (!mounted) return;
         for (final d in legacyDialects) {
           final Duration startOffset = _offsetWithinConcatenated(d.startDate);
           final Duration rawEndOffset = _offsetWithinConcatenated(d.endDate);
-          final Duration endOffset =
-              rawEndOffset < startOffset ? startOffset : rawEndOffset;
+          final Duration endOffset = rawEndOffset < startOffset
+              ? startOffset
+              : rawEndOffset;
           final entry = _DialectDetailEntry(
             userGuess: _dialectDetailValueOrNull(d.userGuessDialect),
             aiPrediction: null,
@@ -314,8 +321,11 @@ class _RecordingItemState extends State<RecordingItem> {
         }
       }
     } catch (e, stackTrace) {
-      logger.e('Failed to load dialect details for recording $recordingId: $e',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to load dialect details for recording $recordingId: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
     }
 
@@ -350,11 +360,14 @@ class _RecordingItemState extends State<RecordingItem> {
         if (!mounted) return;
         colorMap = <String, Color>{
           for (var i = 0; i < codes.length; i++)
-            codes[i]: i < colors.length ? colors[i] : Colors.grey.shade400
+            codes[i]: i < colors.length ? colors[i] : Colors.grey.shade400,
         };
       } catch (e, stackTrace) {
-        logger.e('Failed to resolve dialect detail colors: $e',
-            error: e, stackTrace: stackTrace);
+        logger.e(
+          'Failed to resolve dialect detail colors: $e',
+          error: e,
+          stackTrace: stackTrace,
+        );
         colorMap = <String, Color>{
           for (final code in codes) code: Colors.grey.shade400,
         };
@@ -380,8 +393,11 @@ class _RecordingItemState extends State<RecordingItem> {
           totalDuration = player.duration ?? Duration.zero;
         });
       } catch (e, stackTrace) {
-        logger.e("Error loading audio file: $e",
-            error: e, stackTrace: stackTrace);
+        logger.e(
+          "Error loading audio file: $e",
+          error: e,
+          stackTrace: stackTrace,
+        );
         Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
@@ -419,29 +435,30 @@ class _RecordingItemState extends State<RecordingItem> {
       parts.any((part) => !part.sent && !part.sending);
 
   bool get _uploadIsActive => recordingUploadIsActive(
-        recordingSending: _recording.sending,
-        recordingLease: _recording.uploadLease,
-        partSendingStates: parts.map((RecordingPart part) => part.sending),
-      );
+    recordingSending: _recording.sending,
+    recordingLease: _recording.uploadLease,
+    partSendingStates: parts.map((RecordingPart part) => part.sending),
+  );
 
   bool get _canStartUpload => canStartRecordingUpload(
-        captureReviewed: _recording.captureReviewed,
-        recordingSent: _recording.sent,
-        uploadIsActive: _uploadIsActive,
-      );
+    captureReviewed: _recording.captureReviewed,
+    recordingSent: _recording.sent,
+    uploadIsActive: _uploadIsActive,
+  );
 
   bool get _canResendUnsentParts => canResendRecordingParts(
-        captureReviewed: _recording.captureReviewed,
-        uploadIsActive: _uploadIsActive,
-        hasIdleUnsentParts: _hasIdleUnsentParts,
-      );
+    captureReviewed: _recording.captureReviewed,
+    uploadIsActive: _uploadIsActive,
+    hasIdleUnsentParts: _hasIdleUnsentParts,
+  );
 
   Future<void> _refreshRecordingState() async {
     final int? recordingId = _recording.id;
     if (recordingId == null) return;
 
-    final Recording? refreshed =
-        await DatabaseNew.getRecordingFromDbById(recordingId);
+    final Recording? refreshed = await DatabaseNew.getRecordingFromDbById(
+      recordingId,
+    );
     if (!mounted || refreshed == null) return;
 
     setState(() {
@@ -475,9 +492,7 @@ class _RecordingItemState extends State<RecordingItem> {
   Future<bool> _hasIncompleteUpload(int recordingId) async {
     try {
       final List<IncompleteRecordingUpload> incompleteUploads =
-          await DatabaseNew.findIncompleteUploads(
-        recordingId: recordingId,
-      );
+          await DatabaseNew.findIncompleteUploads(recordingId: recordingId);
       return incompleteUploads.isNotEmpty;
     } catch (error, stackTrace) {
       logger.e(
@@ -523,9 +538,7 @@ class _RecordingItemState extends State<RecordingItem> {
         await _restoreUploadSchedulingState();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t('recListItem.errors.errorSending')),
-          ),
+          SnackBar(content: Text(t('recListItem.errors.errorSending'))),
         );
       }
     });
@@ -553,9 +566,7 @@ class _RecordingItemState extends State<RecordingItem> {
       Sentry.captureException(error, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t('recListItem.errors.errorSending')),
-          ),
+          SnackBar(content: Text(t('recListItem.errors.errorSending'))),
         );
       }
     } finally {
@@ -586,7 +597,8 @@ class _RecordingItemState extends State<RecordingItem> {
       }
       if (!mounted) return;
       final Duration total = _effectivePlaybackDuration();
-      final bool atEnd = total > Duration.zero &&
+      final bool atEnd =
+          total > Duration.zero &&
           currentPosition >= total - const Duration(milliseconds: 300);
       if (player.playing) {
         await player.pause();
@@ -635,10 +647,7 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Iterable<DialectTimeSegment> _dialectTimeSegments() sync* {
     for (final part in parts) {
-      yield DialectTimeSegment(
-        start: part.startTime,
-        end: part.endTime,
-      );
+      yield DialectTimeSegment(start: part.startTime, end: part.endTime);
     }
   }
 
@@ -685,8 +694,8 @@ class _RecordingItemState extends State<RecordingItem> {
     if (total <= Duration.zero) return;
     if (!await _ensureFileLoaded()) return;
     if (!mounted) return;
-    final int seekMs =
-        (total.inMilliseconds * progress.clamp(0.0, 1.0)).round();
+    final int seekMs = (total.inMilliseconds * progress.clamp(0.0, 1.0))
+        .round();
     await player.seek(Duration(milliseconds: seekMs));
   }
 
@@ -757,8 +766,9 @@ class _RecordingItemState extends State<RecordingItem> {
         },
       );
       if (!mounted) return;
-      Recording? updatedRecording =
-          await DatabaseNew.getRecordingFromDbById(_recording.id!);
+      Recording? updatedRecording = await DatabaseNew.getRecordingFromDbById(
+        _recording.id!,
+      );
       if (!mounted) return;
       if (updatedRecording != null) {
         setState(() {
@@ -778,8 +788,11 @@ class _RecordingItemState extends State<RecordingItem> {
     } catch (e, stackTrace) {
       final bool wasCanceled =
           e is DioException && e.type == DioExceptionType.cancel;
-      logger.e("Error downloading recording: $e",
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        "Error downloading recording: $e",
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!wasCanceled) {
         Sentry.captureException(e, stackTrace: stackTrace);
       }
@@ -827,8 +840,11 @@ class _RecordingItemState extends State<RecordingItem> {
       // Return to the previous screen so the list refreshes.
       Navigator.of(context).pop();
     } catch (e, stackTrace) {
-      logger.e('Error deleting recording: $e',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Error deleting recording: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       Sentry.captureException(e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -926,7 +942,8 @@ class _RecordingItemState extends State<RecordingItem> {
 
   Future<void> reverseGeocode(double lat, double lon) async {
     final url = Uri.parse(
-        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
+      "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}",
+    );
 
     logger.i('Reverse geocoding a recording location.');
     try {
@@ -948,7 +965,8 @@ class _RecordingItemState extends State<RecordingItem> {
         }
       } else {
         logger.e(
-            "Reverse geocode failed with status code ${response.statusCode}");
+          "Reverse geocode failed with status code ${response.statusCode}",
+        );
       }
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
@@ -999,10 +1017,7 @@ class _RecordingItemState extends State<RecordingItem> {
           ),
         ),
         Expanded(
-          child: Text(
-            value.displayLabel,
-            style: const TextStyle(fontSize: 13),
-          ),
+          child: Text(value.displayLabel, style: const TextStyle(fontSize: 13)),
         ),
       ],
     );
@@ -1031,18 +1046,30 @@ class _RecordingItemState extends State<RecordingItem> {
 
     if (entry.userGuess != null) {
       if (lines.isNotEmpty) lines.add(const SizedBox(height: 4));
-      lines.add(_buildDialectDetailLine(
-          t('recListItem.dialectDetails.userGuess'), entry.userGuess!));
+      lines.add(
+        _buildDialectDetailLine(
+          t('recListItem.dialectDetails.userGuess'),
+          entry.userGuess!,
+        ),
+      );
     }
     if (entry.aiPrediction != null) {
       if (lines.isNotEmpty) lines.add(const SizedBox(height: 4));
-      lines.add(_buildDialectDetailLine(
-          t('recListItem.dialectDetails.aiPrediction'), entry.aiPrediction!));
+      lines.add(
+        _buildDialectDetailLine(
+          t('recListItem.dialectDetails.aiPrediction'),
+          entry.aiPrediction!,
+        ),
+      );
     }
     if (entry.adminFinal != null) {
       if (lines.isNotEmpty) lines.add(const SizedBox(height: 4));
-      lines.add(_buildDialectDetailLine(
-          t('recListItem.dialectDetails.adminFinal'), entry.adminFinal!));
+      lines.add(
+        _buildDialectDetailLine(
+          t('recListItem.dialectDetails.adminFinal'),
+          entry.adminFinal!,
+        ),
+      );
     }
 
     if (lines.isEmpty) return const SizedBox.shrink();
@@ -1073,10 +1100,7 @@ class _RecordingItemState extends State<RecordingItem> {
         children: [
           Text(
             t('dialectBadge.title'),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           if (_dialectDetailsLoading) ...[
             const SizedBox(height: 8),
@@ -1107,163 +1131,175 @@ class _RecordingItemState extends State<RecordingItem> {
       );
     }
     return Loader(
-        isLoading: _isLoading,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(_recordingTitle),
-            leading: IconButton(
-              icon: Image.asset('assets/icons/backButton.png',
-                  width: 30, height: 30),
+      isLoading: _isLoading,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_recordingTitle),
+          leading: GlassIconButton(
+            nativeSymbol: 'chevron.left',
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            icon: Image.asset(
+              'assets/icons/backButton.png',
+              width: 30,
+              height: 30,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+            },
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit),
               onPressed: () async {
-                Navigator.pop(context);
+                final Recording? updatedRecording =
+                    await Navigator.push<Recording>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EditRecordingPage(recording: _recording),
+                      ),
+                    );
+                if (!mounted || updatedRecording == null) return;
+                setState(() {
+                  _recording = updatedRecording;
+                });
+                await getParts();
               },
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () async {
-                  final Recording? updatedRecording =
-                      await Navigator.push<Recording>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditRecordingPage(recording: _recording),
-                    ),
-                  );
-                  if (!mounted || updatedRecording == null) return;
-                  setState(() {
-                    _recording = updatedRecording;
-                  });
-                  await getParts();
-                },
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: _fetchRecordings,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _recording.downloaded
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 12.0),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(14.0),
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withOpacity(0.12),
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .secondary
-                                        .withOpacity(0.08),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                border: Border.all(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.2),
-                                ),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchRecordings,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _recording.downloaded
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(14.0),
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.12),
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.secondary.withOpacity(0.08),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.cloud_download_outlined,
-                                      size: 34),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    t('recordingPage.status.notDownloaded'),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.cloud_download_outlined,
+                                  size: 34,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  t('recordingPage.status.notDownloaded'),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    t('recListItem.noRecording'),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  if (_isDownloading) ...[
-                                    SizedBox(
-                                      width: 220,
-                                      child: LinearProgressIndicator(
-                                        value: _downloadProgress,
-                                        minHeight: 6,
-                                        backgroundColor: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          Theme.of(context).colorScheme.primary,
-                                        ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  t('recListItem.noRecording'),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                const SizedBox(height: 10),
+                                if (_isDownloading) ...[
+                                  SizedBox(
+                                    width: 220,
+                                    child: LinearProgressIndicator(
+                                      value: _downloadProgress,
+                                      minHeight: 6,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Theme.of(context).colorScheme.primary,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                        '${(_downloadProgress * 100).toStringAsFixed(1)}%'),
-                                    const SizedBox(height: 4),
-                                    TextButton(
-                                      onPressed: () {
-                                        _downloadCancelToken?.cancel(
-                                            'User canceled recording download.');
-                                      },
-                                      child:
-                                          Text(t('recListItem.buttons.cancel')),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '${(_downloadProgress * 100).toStringAsFixed(1)}%',
+                                  ),
+                                  const SizedBox(height: 4),
+                                  TextButton(
+                                    onPressed: () {
+                                      _downloadCancelToken?.cancel(
+                                        'User canceled recording download.',
+                                      );
+                                    },
+                                    child: Text(
+                                      t('recListItem.buttons.cancel'),
                                     ),
-                                  ] else
-                                    ElevatedButton.icon(
-                                      onPressed: _downloadRecording,
-                                      icon: const Icon(Icons.download),
-                                      label: Text(
-                                          t('recListItem.buttons.download')),
+                                  ),
+                                ] else
+                                  ElevatedButton.icon(
+                                    onPressed: _downloadRecording,
+                                    icon: const Icon(Icons.download),
+                                    label: Text(
+                                      t('recListItem.buttons.download'),
                                     ),
-                                ],
-                              ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Column(
-                      children: [
-                        if (_recording.downloaded)
-                          Container(
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.2),
-                              ),
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceVariant
-                                  .withOpacity(0.3),
+                      ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
+                  child: Column(
+                    children: [
+                      if (_recording.downloaded)
+                        Container(
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.2),
                             ),
-                            child: Column(
-                              children: [
-                                Builder(builder: (context) {
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceVariant.withOpacity(0.3),
+                          ),
+                          child: Column(
+                            children: [
+                              Builder(
+                                builder: (context) {
                                   final Duration displayPosition =
                                       _displayPlaybackPosition();
                                   final Duration displayTotal =
@@ -1275,349 +1311,384 @@ class _RecordingItemState extends State<RecordingItem> {
                                       Text(
                                         _formatPlayerTime(displayPosition),
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w600),
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                       Text(
                                         _formatPlayerTime(displayTotal),
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w600),
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ],
                                   );
-                                }),
-                                const SizedBox(height: 8),
-                                SliderTheme(
-                                  data: SliderTheme.of(context).copyWith(
-                                    trackHeight: 6,
-                                    thumbShape: const RoundSliderThumbShape(
-                                        enabledThumbRadius: 7),
-                                  ),
-                                  child: Slider(
-                                    value: _playbackProgress(),
-                                    min: 0.0,
-                                    max: 1.0,
-                                    onChangeStart:
-                                        _effectivePlaybackDuration() >
-                                                Duration.zero
-                                            ? (value) {
-                                                setState(() {
-                                                  _scrubProgress = value;
-                                                });
-                                              }
-                                            : null,
-                                    onChanged: _effectivePlaybackDuration() >
-                                            Duration.zero
-                                        ? (value) {
-                                            setState(() {
-                                              _scrubProgress = value;
-                                            });
-                                          }
-                                        : null,
-                                    onChangeEnd: _effectivePlaybackDuration() >
-                                            Duration.zero
-                                        ? (value) async {
-                                            setState(() {
-                                              _scrubProgress = value;
-                                            });
-                                            await _seekToProgress(value);
-                                            if (!mounted) return;
-                                            setState(() {
-                                              _scrubProgress = null;
-                                            });
-                                          }
-                                        : null,
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 6,
+                                  thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 7,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                        icon: const Icon(Icons.replay_10,
-                                            size: 28),
-                                        onPressed: () => seekRelative(-10)),
-                                    const SizedBox(width: 4),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.15),
-                                      ),
-                                      child: IconButton(
-                                        icon: Icon(isPlaying
+                                child: Slider(
+                                  value: _playbackProgress(),
+                                  min: 0.0,
+                                  max: 1.0,
+                                  onChangeStart:
+                                      _effectivePlaybackDuration() >
+                                          Duration.zero
+                                      ? (value) {
+                                          setState(() {
+                                            _scrubProgress = value;
+                                          });
+                                        }
+                                      : null,
+                                  onChanged:
+                                      _effectivePlaybackDuration() >
+                                          Duration.zero
+                                      ? (value) {
+                                          setState(() {
+                                            _scrubProgress = value;
+                                          });
+                                        }
+                                      : null,
+                                  onChangeEnd:
+                                      _effectivePlaybackDuration() >
+                                          Duration.zero
+                                      ? (value) async {
+                                          setState(() {
+                                            _scrubProgress = value;
+                                          });
+                                          await _seekToProgress(value);
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _scrubProgress = null;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.replay_10, size: 28),
+                                    onPressed: () => seekRelative(-10),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary.withOpacity(0.15),
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        isPlaying
                                             ? Icons.pause_circle_filled
-                                            : Icons.play_circle_filled),
-                                        iconSize: 56,
-                                        onPressed: togglePlay,
+                                            : Icons.play_circle_filled,
                                       ),
+                                      iconSize: 56,
+                                      onPressed: togglePlay,
                                     ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                        icon: const Icon(Icons.forward_10,
-                                            size: 28),
-                                        onPressed: () => seekRelative(10)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(10.0),
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            _recording.note ?? t('recListItem.notePlaceholder'),
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(3.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10.0),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(t('recListItem.dateTime'))
-                                      ],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.forward_10,
+                                      size: 28,
                                     ),
-                                    Text(
-                                      formatDateTime(_recording.createdAt),
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
+                                    onPressed: () => seekRelative(10),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        if (_dialectDetailsLoading ||
-                            _dialectDetails.isNotEmpty)
-                          _buildDialectDetailsSection(),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(10.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('${t('recListItem.estimatedBirdsCount')}: '),
-                              Text(_recording.estimatedBirdsCount.toString()),
-                            ],
-                          ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10.0),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        Visibility(
-                          visible: _canStartUpload,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.send),
-                              label: Text(t('recListItem.buttons.send')),
-                              onPressed: _isStartingUpload
-                                  ? null
-                                  : () => unawaited(_sendCurrentRecording()),
+                        child: Text(
+                          _recording.note ?? t('recListItem.notePlaceholder'),
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(3.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10.0),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [Text(t('recListItem.dateTime'))],
+                                  ),
+                                  Text(
+                                    formatDateTime(_recording.createdAt),
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        Visibility(
-                          visible: _recording.captureReviewed &&
-                              _recording.sent &&
-                              _hasUnsentParts,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.refresh),
-                              label: Text(
-                                  t('recListItem.buttons.resendUnsentParts')),
-                              onPressed: _canResendUnsentParts
-                                  ? _resendUnsentPartsForCurrentRecording
-                                  : null,
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (_dialectDetailsLoading || _dialectDetails.isNotEmpty)
+                        _buildDialectDetailsSection(),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: ElevatedButton(
-                            onPressed: _uploadIsActive
-                                ? null
-                                : () async {
-                                    final bool isUnsentOrLocalOnly =
-                                        !_recording.sent ||
-                                            _recording.BEId == null;
-                                    if (isUnsentOrLocalOnly) {
-                                      final bool? confirm =
-                                          await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: Text(t(
-                                              'recListItem.dialogs.confirmDelete.title')),
-                                          content: Text(t(
-                                              'recListItem.dialogs.confirmDelete.message')),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx).pop(false),
-                                              child: Text(t(
-                                                  'recListItem.dialogs.confirmDelete.cancel')),
-                                            ),
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx).pop(true),
-                                              child: Text(t(
-                                                  'recListItem.dialogs.confirmDelete.delete')),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (!mounted) return;
-                                      if (confirm != true) return;
-                                    }
-
-                                    await _withLoader(
-                                      _deleteRecordingFromCache,
-                                    );
-                                  },
-                            child: Text(t('recListItem.buttons.deleteCache')),
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('${t('recListItem.estimatedBirdsCount')}: '),
+                            Text(_recording.estimatedBirdsCount.toString()),
+                          ],
                         ),
-                        Padding(
+                      ),
+                      Visibility(
+                        visible: _canStartUpload,
+                        child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: ElevatedButton.icon(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.white,
-                            ),
-                            label: Text(
-                              t('recListItem.buttons.delete'),
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red),
-                            onPressed: _uploadIsActive
+                            icon: const Icon(Icons.send),
+                            label: Text(t('recListItem.buttons.send')),
+                            onPressed: _isStartingUpload
                                 ? null
-                                : () async {
-                                    final confirm = await showDialog<bool>(
+                                : () => unawaited(_sendCurrentRecording()),
+                          ),
+                        ),
+                      ),
+                      Visibility(
+                        visible:
+                            _recording.captureReviewed &&
+                            _recording.sent &&
+                            _hasUnsentParts,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: Text(
+                              t('recListItem.buttons.resendUnsentParts'),
+                            ),
+                            onPressed: _canResendUnsentParts
+                                ? _resendUnsentPartsForCurrentRecording
+                                : null,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ElevatedButton(
+                          onPressed: _uploadIsActive
+                              ? null
+                              : () async {
+                                  final bool isUnsentOrLocalOnly =
+                                      !_recording.sent ||
+                                      _recording.BEId == null;
+                                  if (isUnsentOrLocalOnly) {
+                                    final bool?
+                                    confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
-                                        title: Text(t(
-                                            'recListItem.dialogs.confirmDelete.title')),
-                                        content: Text(t(
-                                            'recListItem.dialogs.confirmDelete.message')),
+                                        title: Text(
+                                          t(
+                                            'recListItem.dialogs.confirmDelete.title',
+                                          ),
+                                        ),
+                                        content: Text(
+                                          t(
+                                            'recListItem.dialogs.confirmDelete.message',
+                                          ),
+                                        ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.of(ctx).pop(false),
-                                            child: Text(t(
-                                                'recListItem.dialogs.confirmDelete.cancel')),
+                                            child: Text(
+                                              t(
+                                                'recListItem.dialogs.confirmDelete.cancel',
+                                              ),
+                                            ),
                                           ),
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.of(ctx).pop(true),
-                                            child: Text(t(
-                                                'recListItem.dialogs.confirmDelete.delete')),
+                                            child: Text(
+                                              t(
+                                                'recListItem.dialogs.confirmDelete.delete',
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
                                     );
                                     if (!mounted) return;
-                                    if (confirm == true) {
-                                      await _withLoader(() async {
-                                        await _deleteRecording();
-                                      });
-                                    }
-                                  },
-                          ),
+                                    if (confirm != true) return;
+                                  }
+
+                                  await _withLoader(_deleteRecordingFromCache);
+                                },
+                          child: Text(t('recListItem.buttons.deleteCache')),
                         ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Column(
-                      children: [
-                        Row(children: [Text(placeTitle)]),
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(10),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.delete, color: Colors.white),
+                          label: Text(
+                            t('recListItem.buttons.delete'),
+                            style: TextStyle(color: Colors.white),
                           ),
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 300,
-                            child: FlutterMap(
-                              mapController: _mapController,
-                              options: MapOptions(
-                                interactionOptions: InteractionOptions(
-                                    flags: InteractiveFlag.none),
-                                initialCenter: _pendingCenter ??
-                                    (parts.isNotEmpty
-                                        ? LatLng(parts[0].gpsLatitudeStart,
-                                            parts[0].gpsLongitudeStart)
-                                        : LatLng(0.0, 0.0)),
-                                initialZoom: 13.0,
-                                onMapReady: () {
-                                  _mapReady = true;
-                                  if (_pendingCenter != null) {
-                                    _mapController.move(_pendingCenter!, 13.0);
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          onPressed: _uploadIsActive
+                              ? null
+                              : () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: Text(
+                                        t(
+                                          'recListItem.dialogs.confirmDelete.title',
+                                        ),
+                                      ),
+                                      content: Text(
+                                        t(
+                                          'recListItem.dialogs.confirmDelete.message',
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(ctx).pop(false),
+                                          child: Text(
+                                            t(
+                                              'recListItem.dialogs.confirmDelete.cancel',
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(ctx).pop(true),
+                                          child: Text(
+                                            t(
+                                              'recListItem.dialogs.confirmDelete.delete',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (!mounted) return;
+                                  if (confirm == true) {
+                                    await _withLoader(() async {
+                                      await _deleteRecording();
+                                    });
                                   }
                                 },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Column(
+                    children: [
+                      Row(children: [Text(placeTitle)]),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 300,
+                          child: FlutterMap(
+                            mapController: _mapController,
+                            options: MapOptions(
+                              interactionOptions: InteractionOptions(
+                                flags: InteractiveFlag.none,
                               ),
-                              children: [
-                                TileLayer(
-                                  urlTemplate:
-                                      'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
-                                  userAgentPackageName: 'cz.delta.strnadi',
-                                ),
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      width: 20.0,
-                                      height: 20.0,
-                                      point: _pendingCenter ??
-                                          (parts.isNotEmpty
-                                              ? LatLng(
-                                                  parts[0].gpsLatitudeStart,
-                                                  parts[0].gpsLongitudeStart)
-                                              : LatLng(0.0, 0.0)),
-                                      child: const Icon(
-                                        Icons.my_location,
-                                        color: Colors.blue,
-                                        size: 30.0,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                              initialCenter:
+                                  _pendingCenter ??
+                                  (parts.isNotEmpty
+                                      ? LatLng(
+                                          parts[0].gpsLatitudeStart,
+                                          parts[0].gpsLongitudeStart,
+                                        )
+                                      : LatLng(0.0, 0.0)),
+                              initialZoom: 13.0,
+                              onMapReady: () {
+                                _mapReady = true;
+                                if (_pendingCenter != null) {
+                                  _mapController.move(_pendingCenter!, 13.0);
+                                }
+                              },
                             ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
+                                userAgentPackageName: 'cz.delta.strnadi',
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    width: 20.0,
+                                    height: 20.0,
+                                    point:
+                                        _pendingCenter ??
+                                        (parts.isNotEmpty
+                                            ? LatLng(
+                                                parts[0].gpsLatitudeStart,
+                                                parts[0].gpsLongitudeStart,
+                                              )
+                                            : LatLng(0.0, 0.0)),
+                                    child: const Icon(
+                                      Icons.my_location,
+                                      color: Colors.blue,
+                                      size: 30.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ));
+        ),
+      ),
+    );
   }
 
   void fetchRecPart(int id) async {

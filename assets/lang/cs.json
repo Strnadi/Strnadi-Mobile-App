@@ -281,6 +281,12 @@
     }
   },
   "bottomBar": {
+    "tabs": {
+      "map": "Mapa",
+      "list": "Nahrávky",
+      "recorder": "Nahrávání",
+      "user": "Profil"
+    },
     "errors": {
       "noInternetMap": "Chybí připojení k internetu. Mapa není dostupná.",
       "guest_user": "Funkce není dostupná pro uživatele bez účtu.",

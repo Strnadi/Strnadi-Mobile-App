@@ -18,6 +18,7 @@ import 'package:strnadi/auth/user_identity.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter/services.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
@@ -67,7 +68,7 @@ class ProfileEditPage extends StatefulWidget {
   final FutureOr<void> Function() refreshUserCallback;
 
   const ProfileEditPage({Key? key, required this.refreshUserCallback})
-      : super(key: key);
+    : super(key: key);
 
   @override
   _ProfileEditPageState createState() => _ProfileEditPageState();
@@ -90,8 +91,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _postCodeController = TextEditingController();
 
   Future<ActivatedAuthSessionSnapshot?> _captureVerifiedSession() async {
-    final ActivatedAuthSessionSnapshot? session =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? session = await activatedAuthSessions
+        .capture();
     final Object? userId = parseUserId(session?.userId ?? '');
     if (session == null ||
         !session.verified ||
@@ -279,8 +280,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(t('recListItem.dialogs.confirmDelete.delete'),
-                style: TextStyle(color: Colors.red)),
+            child: Text(
+              t('recListItem.dialogs.confirmDelete.delete'),
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -341,7 +344,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(t('user.profile.title')),
-        leading: IconButton(
+        leading: GlassIconButton(
+          nativeSymbol: 'chevron.left',
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
@@ -380,33 +385,48 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Text(t("user.profile.title"),
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text(
+                        t("user.profile.title"),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       SizedBox(height: 20),
-                      _buildTextField(t('user.profile.fields.firstName'),
-                          _firstnameController),
-                      _buildTextField(t('user.profile.fields.lastName'),
-                          _lastnameController),
-                      _buildTextField(t('user.profile.fields.nickname'),
-                          _nicknameController),
                       _buildTextField(
-                          t('user.profile.fields.email'), _emailController,
-                          readOnly: true),
+                        t('user.profile.fields.firstName'),
+                        _firstnameController,
+                      ),
                       _buildTextField(
-                          t('user.profile.fields.city'), _cityController),
+                        t('user.profile.fields.lastName'),
+                        _lastnameController,
+                      ),
+                      _buildTextField(
+                        t('user.profile.fields.nickname'),
+                        _nicknameController,
+                      ),
+                      _buildTextField(
+                        t('user.profile.fields.email'),
+                        _emailController,
+                        readOnly: true,
+                      ),
+                      _buildTextField(
+                        t('user.profile.fields.city'),
+                        _cityController,
+                      ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: TextField(
                           decoration: InputDecoration(
                             labelText: t('user.profile.fields.postCode'),
                             border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0)),
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
                           ),
                           controller: _postCodeController,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
+                            FilteringTextInputFormatter.digitsOnly,
                           ],
                         ),
                       ),
@@ -420,13 +440,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const ForgottenPassword()),
+                          builder: (context) => const ForgottenPassword(),
+                        ),
                       );
                     }, // Open password change
                   ),
                   ListTile(
-                    title: Text(t('user.profile.buttons.deleteAccount'),
-                        style: TextStyle(color: Colors.red)),
+                    title: Text(
+                      t('user.profile.buttons.deleteAccount'),
+                      style: TextStyle(color: Colors.red),
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _isDeleting
                         ? null
@@ -438,8 +461,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController txt,
-      {bool readOnly = false}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController txt, {
+    bool readOnly = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextField(
@@ -461,8 +487,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         content: Text(message),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(t('auth.buttons.ok')))
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('auth.buttons.ok')),
+          ),
         ],
       ),
     );
@@ -478,7 +505,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     await GoogleSignInService.signOut();
 
     if (!mounted) return;
-    Navigator.of(context)
-        .pushNamedAndRemoveUntil('/authorizator', (route) => false);
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil('/authorizator', (route) => false);
   }
 }

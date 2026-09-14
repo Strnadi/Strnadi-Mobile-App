@@ -52,20 +52,22 @@ void main() {
   });
 
   group('isMapDialectRequestCurrent', () {
-    test('accepts a request only when every captured generation is current',
-        () {
-      expect(
-        isMapDialectRequestCurrent(
-          dialectRequestId: 4,
-          activeDialectRequestId: 4,
-          recordingsRequestId: 7,
-          activeRecordingsRequestId: 7,
-          dataGeneration: 11,
-          activeDataGeneration: 11,
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'accepts a request only when every captured generation is current',
+      () {
+        expect(
+          isMapDialectRequestCurrent(
+            dialectRequestId: 4,
+            activeDialectRequestId: 4,
+            recordingsRequestId: 7,
+            activeRecordingsRequestId: 7,
+            dataGeneration: 11,
+            activeDataGeneration: 11,
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('rejects an older dialect API response', () {
       expect(
@@ -109,20 +111,22 @@ void main() {
       );
     });
 
-    test('accepts a cache refresh captured from the current recordings data',
-        () {
-      expect(
-        isMapDialectRequestCurrent(
-          dialectRequestId: 4,
-          activeDialectRequestId: 4,
-          recordingsRequestId: 99,
-          activeRecordingsRequestId: 99,
-          dataGeneration: 11,
-          activeDataGeneration: 11,
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'accepts a cache refresh captured from the current recordings data',
+      () {
+        expect(
+          isMapDialectRequestCurrent(
+            dialectRequestId: 4,
+            activeDialectRequestId: 4,
+            recordingsRequestId: 99,
+            activeRecordingsRequestId: 99,
+            dataGeneration: 11,
+            activeDataGeneration: 11,
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 
   group('MapScreenV2 request-safety wiring', () {
@@ -155,44 +159,61 @@ void main() {
       expect(method, isNot(contains('length +=')));
     });
 
-    test('uses the viewport API instead of loading and joining all recordings',
-        () {
-      final int methodStart =
-          source.indexOf('Future<void> getRecordings() async');
-      final int methodEnd =
-          source.indexOf('void _clearRecordingResults()', methodStart);
-      final String method = source.substring(methodStart, methodEnd);
+    test(
+      'uses the viewport API instead of loading and joining all recordings',
+      () {
+        final int methodStart = source.indexOf(
+          'Future<void> getRecordings() async',
+        );
+        final int methodEnd = source.indexOf(
+          'void _clearRecordingResults()',
+          methodStart,
+        );
+        final String method = source.substring(methodStart, methodEnd);
 
-      expect(
+        expect(
           method,
           contains(
-              '_recordingsController.fetchMapClusters(request, host: host)'));
-      expect(method, isNot(contains('_recordingsController.fetchRecordings(')));
-      expect(method, isNot(contains('_filteredPartsApiLoader.fetch(')));
-      expect(method, contains('MapClustersResponse.fromResponseData'));
-      expect(method, contains('if (_isCurrentRecordingsRequest(requestId))'));
-    });
+            '_recordingsController.fetchMapClusters(request, host: host)',
+          ),
+        );
+        expect(
+          method,
+          isNot(contains('_recordingsController.fetchRecordings(')),
+        );
+        expect(method, isNot(contains('_filteredPartsApiLoader.fetch(')));
+        expect(method, contains('MapClustersResponse.fromResponseData'));
+        expect(method, contains('if (_isCurrentRecordingsRequest(requestId))'));
+      },
+    );
 
     test('guards API results before updating dialect caches and selection', () {
-      final int methodStart =
-          source.indexOf('Future<_DialectRefreshResult> _fetchDialects({');
-      final int methodEnd =
-          source.indexOf('List<String> _dialectsForRecordingId', methodStart);
+      final int methodStart = source.indexOf(
+        'Future<_DialectRefreshResult> _fetchDialects({',
+      );
+      final int methodEnd = source.indexOf(
+        'List<String> _dialectsForRecordingId',
+        methodStart,
+      );
       final String method = source.substring(methodStart, methodEnd);
 
-      final int apiAwait =
-          method.indexOf('await _filteredPartsApiLoader.fetch(');
+      final int apiAwait = method.indexOf(
+        'await _filteredPartsApiLoader.fetch(',
+      );
       final int firstCurrentGuard = method.indexOf(
         'if (!_isCurrentDialectRequest(',
         apiAwait,
       );
-      final int cacheMutation =
-          method.indexOf('_cachedFilteredParts = frps;', apiAwait);
+      final int cacheMutation = method.indexOf(
+        '_cachedFilteredParts = frps;',
+        apiAwait,
+      );
       final int finalCurrentGuard = method.lastIndexOf(
         'if (!_isCurrentDialectRequest(',
       );
-      final int selectionMutation =
-          method.indexOf('_dialectsByRecording = byRecording;');
+      final int selectionMutation = method.indexOf(
+        '_dialectsByRecording = byRecording;',
+      );
 
       expect(apiAwait, greaterThanOrEqualTo(0));
       expect(firstCurrentGuard, greaterThan(apiAwait));
@@ -208,15 +229,11 @@ void main() {
     test('uses supersedable loading tokens for both operation types', () {
       expect(
         source,
-        contains(
-          '_mapLoadingTracker.replace(_recordingsLoadingToken)',
-        ),
+        contains('_mapLoadingTracker.replace(_recordingsLoadingToken)'),
       );
       expect(
         source,
-        contains(
-          '_mapLoadingTracker.replace(_dialectRefreshLoadingToken)',
-        ),
+        contains('_mapLoadingTracker.replace(_dialectRefreshLoadingToken)'),
       );
       expect(source, contains('_syncRecordingsLoading();'));
     });
@@ -229,16 +246,21 @@ void main() {
         'List<String> _dialectsForRecordingId',
         dialectMethodStart,
       );
-      final String dialectMethod =
-          source.substring(dialectMethodStart, dialectMethodEnd);
-      final int visibilityMethodStart =
-          source.indexOf('bool _shouldShowRecordingOnMap(');
+      final String dialectMethod = source.substring(
+        dialectMethodStart,
+        dialectMethodEnd,
+      );
+      final int visibilityMethodStart = source.indexOf(
+        'bool _shouldShowRecordingOnMap(',
+      );
       final int visibilityMethodEnd = source.indexOf(
         'Future<void> _rebuildMapMarkers()',
         visibilityMethodStart,
       );
-      final String visibilityMethod =
-          source.substring(visibilityMethodStart, visibilityMethodEnd);
+      final String visibilityMethod = source.substring(
+        visibilityMethodStart,
+        visibilityMethodEnd,
+      );
 
       expect(
         dialectMethod,
@@ -249,18 +271,10 @@ void main() {
       );
       expect(
         dialectMethod,
-        contains(
-          'isVisibleInSelectedMode: isVisibleInSelectedMode,',
-        ),
+        contains('isVisibleInSelectedMode: isVisibleInSelectedMode,'),
       );
-      expect(
-        dialectMethod,
-        contains('hasSubstantiveConfirmedDialect:'),
-      );
-      expect(
-        dialectMethod,
-        contains('hasAuthoritativeNoDialect:'),
-      );
+      expect(dialectMethod, contains('hasSubstantiveConfirmedDialect:'));
+      expect(dialectMethod, contains('hasAuthoritativeNoDialect:'));
       expect(
         dialectMethod,
         contains(
@@ -275,9 +289,7 @@ void main() {
       expect(visibilityMethod, contains('shouldShowMapRecording('));
       expect(
         visibilityMethod,
-        contains(
-          'isVisibleInSelectedMode: entry?.isVisibleInSelectedMode,',
-        ),
+        contains('isVisibleInSelectedMode: entry?.isVisibleInSelectedMode,'),
       );
       expect(
         visibilityMethod,
@@ -285,43 +297,49 @@ void main() {
       );
     });
 
-    test('programmatic map moves refresh the server viewport after camera sync',
-        () {
-      final int moveMethodStart =
-          source.indexOf('void _moveMapToLocation(LatLng location)');
-      final int moveMethodEnd = source.indexOf(
-        'Future<void> _rebuildMapMarkers()',
-        moveMethodStart,
-      );
-      final String moveMethod =
-          source.substring(moveMethodStart, moveMethodEnd);
+    test(
+      'programmatic map moves refresh the server viewport after camera sync',
+      () {
+        final int moveMethodStart = source.indexOf(
+          'void _moveMapToLocation(LatLng location)',
+        );
+        final int moveMethodEnd = source.indexOf(
+          'Future<void> _rebuildMapMarkers()',
+          moveMethodStart,
+        );
+        final String moveMethod = source.substring(
+          moveMethodStart,
+          moveMethodEnd,
+        );
 
-      final int cameraMove =
-          moveMethod.indexOf('_mapController.move(location, _currentZoom);');
-      final int centerUpdate =
-          moveMethod.indexOf('_currentCenter = _mapController.camera.center;');
-      final int zoomUpdate =
-          moveMethod.indexOf('_currentZoom = _mapController.camera.zoom;');
-      final int viewportRefresh =
-          moveMethod.indexOf('_scheduleMapClustersRefresh(immediate: true);');
+        final int cameraMove = moveMethod.indexOf(
+          '_mapController.move(location, _currentZoom);',
+        );
+        final int centerUpdate = moveMethod.indexOf(
+          '_currentCenter = _mapController.camera.center;',
+        );
+        final int zoomUpdate = moveMethod.indexOf(
+          '_currentZoom = _mapController.camera.zoom;',
+        );
+        final int viewportRefresh = moveMethod.indexOf(
+          '_scheduleMapClustersRefresh(immediate: true);',
+        );
 
-      expect(moveMethodStart, greaterThanOrEqualTo(0));
-      expect(cameraMove, greaterThanOrEqualTo(0));
-      expect(centerUpdate, greaterThan(cameraMove));
-      expect(zoomUpdate, greaterThan(centerUpdate));
-      expect(viewportRefresh, greaterThan(zoomUpdate));
-      expect(
-        source,
-        contains(
-          'onLocationSelected: (LatLng location) {\n'
-          '                          _moveMapToLocation(location);',
-        ),
-      );
-      expect(
-        source,
-        contains('_moveMapToLocation(_currentPosition);'),
-      );
-    });
+        expect(moveMethodStart, greaterThanOrEqualTo(0));
+        expect(cameraMove, greaterThanOrEqualTo(0));
+        expect(centerUpdate, greaterThan(cameraMove));
+        expect(zoomUpdate, greaterThan(centerUpdate));
+        expect(viewportRefresh, greaterThan(zoomUpdate));
+        expect(
+          source,
+          contains(
+            'onLocationSelected: (LatLng location) {\n'
+            '                          _moveMapToLocation(location);',
+          ),
+        );
+        expect(source, contains('_moveMapToLocation(_currentPosition);'));
+      },
+    );
 
     test('initial and reset recenter paths have one synchronized owner', () {
       expect(
@@ -332,20 +350,24 @@ void main() {
         ),
       );
 
-      final int locationMethodStart =
-          source.indexOf('Future<void> _getCurrentLocation() async');
-      final int locationMethodEnd =
-          source.indexOf('@override\n  void initState()', locationMethodStart);
-      final String locationMethod =
-          source.substring(locationMethodStart, locationMethodEnd);
+      final int locationMethodStart = source.indexOf(
+        'Future<void> _getCurrentLocation() async',
+      );
+      final int locationMethodEnd = source.indexOf(
+        '@override\n  void initState()',
+        locationMethodStart,
+      );
+      final String locationMethod = source.substring(
+        locationMethodStart,
+        locationMethodEnd,
+      );
       expect(
         '_moveMapToLocation(_currentPosition);'.allMatches(locationMethod),
         hasLength(1),
       );
 
-      final int resetStart = source.indexOf("heroTag: 'reset'");
-      final int resetEnd =
-          source.indexOf('backgroundColor: Colors.white', resetStart);
+      final int resetStart = source.indexOf("tooltip: t('map.buttons.reset')");
+      final int resetEnd = source.indexOf('icon: Image.asset(', resetStart);
       final String resetButton = source.substring(resetStart, resetEnd);
       expect(resetButton, contains('await _getCurrentLocation();'));
       expect(resetButton, isNot(contains('_moveMapToLocation(')));

@@ -26,6 +26,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/api/http_adapter.dart' as http;
@@ -878,7 +879,9 @@ class _RecordingFormState extends State<RecordingForm> {
                   ),
                 ),
               ],
-              leading: IconButton(
+              leading: GlassIconButton(
+                nativeSymbol: 'chevron.left',
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 icon: Image.asset(
                   'assets/icons/backButton.png',
                   width: 30,

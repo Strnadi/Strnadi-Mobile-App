@@ -17,6 +17,7 @@
 import 'dart:io';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
+import 'package:strnadi/components/liquid_glass.dart';
 import 'package:image_picker/image_picker.dart';
 
 typedef SingleImagePicker = Future<XFile?> Function(ImageSource source);
@@ -52,8 +53,9 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
     if (_isPicking) return;
     _setPicking(true);
     try {
-      final XFile? pickedFile = await (widget.pickImage?.call(source) ??
-          _picker.pickImage(source: source));
+      final XFile? pickedFile =
+          await (widget.pickImage?.call(source) ??
+              _picker.pickImage(source: source));
       if (!mounted || pickedFile == null) return;
 
       setState(() {
@@ -104,17 +106,13 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
           children: [
             Text(
               t('postRecordingForm.imageUpload.title'),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             Text(
-              t('postRecordingForm.imageUpload.selectedCount')
-                  .replaceFirst('{count}', _images.length.toString()),
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
+              t(
+                'postRecordingForm.imageUpload.selectedCount',
+              ).replaceFirst('{count}', _images.length.toString()),
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ],
         ),
@@ -127,12 +125,14 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
             Expanded(
               child: ElevatedButton.icon(
                 key: const Key('photo-upload-camera'),
-                onPressed:
-                    _isPicking ? null : () => _pickImage(ImageSource.camera),
+                onPressed: _isPicking
+                    ? null
+                    : () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt, size: 16),
                 label: Text(
-                    t('postRecordingForm.imageUpload.buttons.takePhoto'),
-                    style: TextStyle(fontSize: 14)),
+                  t('postRecordingForm.imageUpload.buttons.takePhoto'),
+                  style: TextStyle(fontSize: 14),
+                ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -147,8 +147,10 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
                 key: const Key('photo-upload-gallery'),
                 onPressed: _isPicking ? null : _pickMultipleImages,
                 icon: const Icon(Icons.photo_library, size: 16),
-                label: Text(t('postRecordingForm.imageUpload.buttons.upload'),
-                    style: TextStyle(fontSize: 14)),
+                label: Text(
+                  t('postRecordingForm.imageUpload.buttons.upload'),
+                  style: TextStyle(fontSize: 14),
+                ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -181,28 +183,18 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: Image.file(
-                        _images[index],
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.file(_images[index], fit: BoxFit.cover),
                     ),
                     Positioned(
-                      top: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () => _removeImage(index),
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 12,
-                          ),
-                        ),
+                      top: 4,
+                      right: 4,
+                      child: GlassIconButton(
+                        nativeSymbol: 'xmark',
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).deleteButtonTooltip,
+                        onPressed: () => _removeImage(index),
+                        icon: const Icon(Icons.close_rounded, size: 20),
                       ),
                     ),
                   ],
@@ -221,10 +213,7 @@ class _MultiPhotoUploadWidgetState extends State<MultiPhotoUploadWidget> {
             ),
             child: Text(
               t('postRecordingForm.imageUpload.placeholders.noImages'),
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
           ),
       ],
