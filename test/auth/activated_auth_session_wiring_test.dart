@@ -3,6 +3,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  final captureSessionCall = RegExp(
+    r'\bawait\s+activatedAuthSessions\s*\.\s*capture\s*\(\s*\)',
+  );
+
   group('activated auth production wiring (source only; no API or DB)', () {
     test('active credential writers use the two-phase session manager', () {
       final Map<String, List<String>> requiredCalls = <String, List<String>>{
@@ -64,9 +68,7 @@ void main() {
           .listSync(recursive: true)
           .whereType<File>()
           .where((file) => file.path.endsWith('.dart'))
-          .where(
-            (file) => !file.path.endsWith('activated_auth_session.dart'),
-          )
+          .where((file) => !file.path.endsWith('activated_auth_session.dart'))
           .toList();
 
       expect(authSources, isNotEmpty);
@@ -87,16 +89,22 @@ void main() {
       final String login = source.substring(loginStart, loginEnd);
 
       final int verify = login.indexOf('verifyJwt(token)');
-      final int classify =
-          login.indexOf('classifyJwtVerificationStatus(', verify);
+      final int classify = login.indexOf(
+        'classifyJwtVerificationStatus(',
+        verify,
+      );
       final int rejected = login.indexOf(
         'verification == JwtVerificationDisposition.rejected',
         classify,
       );
-      final int invalidate =
-          login.indexOf('activatedAuthSessions.invalidate()', rejected);
-      final int resolveOwner =
-          login.indexOf('_userController.getUserIdFromToken()', invalidate);
+      final int invalidate = login.indexOf(
+        'activatedAuthSessions.invalidate()',
+        rejected,
+      );
+      final int resolveOwner = login.indexOf(
+        '_userController.getUserIdFromToken()',
+        invalidate,
+      );
 
       expect(verify, greaterThanOrEqualTo(0));
       expect(classify, greaterThan(verify));
@@ -113,74 +121,62 @@ void main() {
       expect(source, contains('_loginSingleFlight.run(_performLogin)'));
       expect(
         source,
-        contains(
-          'onPressed: _loginSingleFlight.isRunning ? null : login',
-        ),
+        contains('onPressed: _loginSingleFlight.isRunning ? null : login'),
       );
     });
 
     test('upload capture and current checks require the activated marker', () {
-      final String source =
-          File('lib/database/src/database_repository_api.dart')
-              .readAsStringSync();
-      final String service =
-          File('lib/database/recording_upload_service.dart').readAsStringSync();
+      final String source = File(
+        'lib/database/src/database_repository_api.dart',
+      ).readAsStringSync();
+      final String service = File(
+        'lib/database/recording_upload_service.dart',
+      ).readAsStringSync();
 
+      expect(source, contains('captureActivatedRecordingUploadSession('));
       expect(
         source,
-        contains('captureActivatedRecordingUploadSession('),
-      );
-      expect(
-        source,
-        contains(
-          'captureActivatedSession: activatedAuthSessions.capture',
-        ),
+        contains('captureActivatedSession: activatedAuthSessions.capture'),
       );
       expect(source, contains('await activatedAuthSessions.isCurrent('));
       expect(service, contains('logicalSessionId: activated.sessionId'));
-      expect(
-        service,
-        contains('activated == null || !activated.verified'),
-      );
+      expect(service, contains('activated == null || !activated.verified'));
       expect(source, contains('sessionId: session.logicalSessionId'));
       expect(source, contains('verified: true'));
 
-      final int providerStart =
-          source.indexOf('class _SecureStorageRecordingUploadSessions');
-      final int providerEnd =
-          source.indexOf('class _ConfigRecordingUploadPolicy');
+      final int providerStart = source.indexOf(
+        'class _SecureStorageRecordingUploadSessions',
+      );
+      final int providerEnd = source.indexOf(
+        'class _ConfigRecordingUploadPolicy',
+      );
       final String provider = source.substring(providerStart, providerEnd);
       expect(provider, isNot(contains("_storage.read(key: 'token')")));
       expect(provider, isNot(contains("_storage.read(key: 'userId')")));
     });
 
     test('session navigation never trusts the standalone verified key', () {
-      final String navigation =
-          File('lib/navigation/session_navigation.dart').readAsStringSync();
-      final String verificationScreen =
-          File('lib/auth/unverifiedEmail.dart').readAsStringSync();
+      final String navigation = File(
+        'lib/navigation/session_navigation.dart',
+      ).readAsStringSync();
+      final String verificationScreen = File(
+        'lib/auth/unverifiedEmail.dart',
+      ).readAsStringSync();
 
-      expect(navigation, contains('await activatedAuthSessions.capture()'));
+      expect(navigation, matches(captureSessionCall));
       expect(navigation, contains('session?.verified != true'));
       expect(navigation, isNot(contains("read(key: 'verified')")));
-      expect(
-        verificationScreen,
-        contains('await activatedAuthSessions.capture()'),
-      );
-      expect(
-        verificationScreen,
-        isNot(contains("read(key: 'verified')")),
-      );
+      expect(verificationScreen, matches(captureSessionCall));
+      expect(verificationScreen, isNot(contains("read(key: 'verified')")));
     });
 
     test('recording review and scheduling require an activated session', () {
-      final String source =
-          File('lib/PostRecordingForm/RecordingForm.dart').readAsStringSync();
+      final String source = File(
+        'lib/PostRecordingForm/RecordingForm.dart',
+      ).readAsStringSync();
 
       expect(
-        RegExp(r'await activatedAuthSessions\.capture\(\)')
-            .allMatches(source)
-            .length,
+        captureSessionCall.allMatches(source).length,
         greaterThanOrEqualTo(2),
       );
       expect(source, contains('session?.verified != true'));
@@ -191,41 +187,50 @@ void main() {
       expect(source, isNot(contains('JwtDecoder.decode')));
     });
 
-    test('guest adoption is transactionally pinned to one activated session',
-        () {
-      final String source =
-          File('lib/database/src/database_repository.dart').readAsStringSync();
-      final int methodStart =
-          source.indexOf('static Future<void> updateRecordingsMail()');
-      final int methodEnd = source.indexOf(
-        'static Future<Map<String, Object?>> '
-        '_requireCurrentEnvironmentRecordingParent',
-      );
-      final String method = source.substring(methodStart, methodEnd);
+    test(
+      'guest adoption is transactionally pinned to one activated session',
+      () {
+        final String source = File(
+          'lib/database/src/database_repository.dart',
+        ).readAsStringSync();
+        final int methodStart = source.indexOf(
+          'static Future<void> updateRecordingsMail()',
+        );
+        final int methodEnd = source.indexOf(
+          'static Future<Map<String, Object?>> '
+          '_requireCurrentEnvironmentRecordingParent',
+        );
+        final String method = source.substring(methodStart, methodEnd);
 
-      expect(method, contains('sessionProvider.capture()'));
-      expect(method, contains('validateRecordingUploadSession(session)'));
-      expect(method, contains('db.transaction<void>'));
-      expect(
-        RegExp(r'_requireRecordingSessionCurrent\(sessionProvider, session\)')
-            .allMatches(method),
-        hasLength(2),
-      );
-      expect(method, isNot(contains("read(key: 'token')")));
-      expect(method, isNot(contains("read(key: 'userId')")));
-    });
+        expect(method, contains('sessionProvider.capture()'));
+        expect(method, contains('validateRecordingUploadSession(session)'));
+        expect(method, contains('db.transaction<void>'));
+        expect(
+          RegExp(
+            r'_requireRecordingSessionCurrent\(sessionProvider, session\)',
+          ).allMatches(method),
+          hasLength(2),
+        );
+        expect(method, isNot(contains("read(key: 'token')")));
+        expect(method, isNot(contains("read(key: 'userId')")));
+      },
+    );
 
     test('visible recording reads require one activated owner snapshot', () {
-      final String source =
-          File('lib/database/src/database_repository.dart').readAsStringSync();
-      final int listStart =
-          source.indexOf('static Future<List<Recording>> getRecordings()');
+      final String source = File(
+        'lib/database/src/database_repository.dart',
+      ).readAsStringSync();
+      final int listStart = source.indexOf(
+        'static Future<List<Recording>> getRecordings()',
+      );
       final int capturedListStart = source.indexOf(
         'static Future<List<Recording>> _getRecordingsForCapturedSession',
         listStart,
       );
-      final String visibleReads =
-          source.substring(listStart, capturedListStart);
+      final String visibleReads = source.substring(
+        listStart,
+        capturedListStart,
+      );
       final int byIdStart = source.indexOf(
         'static Future<Recording?> getRecordingFromDbById(',
       );
@@ -240,54 +245,54 @@ void main() {
         visibleReads,
         contains('_requireRecordingOwnerSnapshotCurrent(ownerSnapshot)'),
       );
-      expect(
-        visibleReads,
-        contains('(userId IS NULL OR userId = ?)'),
-      );
+      expect(visibleReads, contains('(userId IS NULL OR userId = ?)'));
       expect(visibleReads, isNot(contains('captureReviewed = 1')));
       expect(visibleReads, isNot(contains("read(key: 'token')")));
       expect(visibleReads, isNot(contains('_accountEmailFromToken')));
       expect(byId, contains('_captureRecordingOwnerSnapshot()'));
-      expect(
-        byId,
-        contains('_getVisibleRecordingsForOwnerSnapshot('),
-      );
+      expect(byId, contains('_getVisibleRecordingsForOwnerSnapshot('));
       expect(byId, isNot(contains("read(key: 'token')")));
     });
 
     test('automatic cache pruning is pinned to one activated session', () {
-      final String source =
-          File('lib/database/src/database_repository.dart').readAsStringSync();
-      final int start =
-          source.indexOf('static Future<void> enforceMaxRecordings()');
-      final int end =
-          source.indexOf('static Future<Database> get database', start);
+      final String source = File(
+        'lib/database/src/database_repository.dart',
+      ).readAsStringSync();
+      final int start = source.indexOf(
+        'static Future<void> enforceMaxRecordings()',
+      );
+      final int end = source.indexOf(
+        'static Future<Database> get database',
+        start,
+      );
       final String method = source.substring(start, end);
 
       expect(method, contains('sessionProvider.capture()'));
       expect(method, contains('validateRecordingUploadSession(session)'));
       expect(method, contains('(r.userId IS NULL OR r.userId = ?)'));
       expect(
-        RegExp(r'_requireRecordingSessionCurrent\(sessionProvider, session\)')
-            .allMatches(method)
-            .length,
+        RegExp(
+          r'_requireRecordingSessionCurrent\(sessionProvider, session\)',
+        ).allMatches(method).length,
         greaterThanOrEqualTo(4),
       );
       expect(method, isNot(contains("read(key: 'token')")));
       expect(method, isNot(contains('JwtDecoder.decode')));
     });
 
-    test('all logout paths invalidate first and preserve session generation',
-        () {
-      for (final String path in <String>[
-        'lib/user/userPage.dart',
-        'lib/user/settingsPages/userInfo.dart',
-      ]) {
-        final String source = File(path).readAsStringSync();
-        expect(source, contains('clearAllPreservingGeneration('));
-        expect(source, isNot(contains('await secureStorage.deleteAll();')));
-      }
-    });
+    test(
+      'all logout paths invalidate first and preserve session generation',
+      () {
+        for (final String path in <String>[
+          'lib/user/userPage.dart',
+          'lib/user/settingsPages/userInfo.dart',
+        ]) {
+          final String source = File(path).readAsStringSync();
+          expect(source, contains('clearAllPreservingGeneration('));
+          expect(source, isNot(contains('await secureStorage.deleteAll();')));
+        }
+      },
+    );
 
     test('auth logs do not print credential payloads', () {
       for (final String path in <String>[
