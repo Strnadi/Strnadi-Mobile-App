@@ -1,3 +1,4 @@
+import 'package:strnadi/api/api_logging.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -18,12 +19,12 @@ import 'dart:async';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/auth/email_validator.dart';
 import 'package:strnadi/auth/passReset/resetEmailSent.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.passReset.forgottenPassword');
 
 typedef PasswordResetRequester = Future<int?> Function(String email);
 
@@ -193,10 +194,11 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
     setState(() => _requestInProgress = true);
     try {
       final String normalizedEmail = email.trim();
+      final response = widget.requestPasswordReset == null
+          ? await _authController.requestPasswordReset(normalizedEmail)
+          : null;
       final int? status = widget.requestPasswordReset == null
-          ? (await _authController.requestPasswordReset(
-              normalizedEmail,
-            )).statusCode
+          ? response?.statusCode
           : await widget.requestPasswordReset!(normalizedEmail);
       if (!mounted) return;
 
@@ -209,13 +211,25 @@ class _ForgottenPasswordState extends State<ForgottenPassword> {
           ),
         );
       } else if (status == 401) {
-        logger.w('Password reset rejected ($status).');
+        logger.w(
+          'Password reset rejected ($status).',
+          failure: response == null ? null : apiFailureForResult(response),
+          context: {'statusCode': status},
+        );
         _showMessage(t('signup.passwordReset.request.messages.unregistered'));
       } else if (status == 500) {
-        logger.w('Password reset server error ($status).');
+        logger.w(
+          'Password reset server error ($status).',
+          failure: response == null ? null : apiFailureForResult(response),
+          context: {'statusCode': status},
+        );
         _showMessage(t('signup.passwordReset.request.messages.serverError'));
       } else {
-        logger.i('Failed to send password reset: $status');
+        logger.i(
+          'Failed to send password reset: $status',
+          failure: response == null ? null : apiFailureForResult(response),
+          context: {'statusCode': status},
+        );
         _showMessage(t('signup.passwordReset.request.messages.genericFail'));
       }
     } catch (e, stackTrace) {

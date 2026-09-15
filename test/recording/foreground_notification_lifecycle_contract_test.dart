@@ -10,8 +10,9 @@ void main() {
     late String boundary;
 
     setUpAll(() {
-      manifest =
-          File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      manifest = File(
+        'android/app/src/main/AndroidManifest.xml',
+      ).readAsStringSync();
       bootstrap = File('lib/bootstrap/app_bootstrap.dart').readAsStringSync();
       recorder = File('lib/recording/streamRec.dart').readAsStringSync();
       boundary = File(
@@ -27,8 +28,9 @@ void main() {
     });
 
     test('cold start reconciles a legacy sticky service after plugin init', () {
-      final int initialization =
-          bootstrap.indexOf('FlutterForegroundTask.init(');
+      final int initialization = bootstrap.indexOf(
+        'FlutterForegroundTask.init(',
+      );
       final int reconciliation = bootstrap.indexOf(
         'await reconcileStaleRecordingForegroundService(',
         initialization,
@@ -81,23 +83,26 @@ void main() {
       );
     });
 
-    test('confirmed discard stops the service before deleting or resetting',
-        () {
-      final int discard =
-          recorder.indexOf('Future<void> _discardRecordingResources()');
-      final int nextMethod = recorder.indexOf(
-        'Future<void> _cleanupFailedRecordingStart',
-        discard,
-      );
-      final String body = recorder.substring(discard, nextMethod);
+    test(
+      'confirmed discard stops the service before deleting or resetting',
+      () {
+        final int discard = recorder.indexOf(
+          'Future<void> _discardRecordingResources()',
+        );
+        final int nextMethod = recorder.indexOf(
+          'Future<void> _cleanupFailedRecordingStart',
+          discard,
+        );
+        final String body = recorder.substring(discard, nextMethod);
 
-      final int shutdown = body.indexOf('await _shutdownRecordingRuntime()');
-      final int delete = body.indexOf('await _deleteTemporarySegmentFiles()');
-      final int reset = body.indexOf('_resetDiscardedRecordingState()');
-      expect(shutdown, greaterThanOrEqualTo(0));
-      expect(delete, greaterThan(shutdown));
-      expect(reset, greaterThan(delete));
-    });
+        final int shutdown = body.indexOf('await _shutdownRecordingRuntime()');
+        final int delete = body.indexOf('await _deleteTemporarySegmentFiles()');
+        final int reset = body.indexOf('_resetDiscardedRecordingState()');
+        expect(shutdown, greaterThanOrEqualTo(0));
+        expect(delete, greaterThan(shutdown));
+        expect(reset, greaterThan(delete));
+      },
+    );
 
     test('successful finish still awaits runtime shutdown', () {
       final int finish = recorder.indexOf('Future<void> _stop() async');
@@ -108,14 +113,23 @@ void main() {
       final String body = recorder.substring(finish, nextMethod);
 
       final int durableDraft = body.indexOf(
-        'RecordingDraftHandoffCoordinator.database().persistCapture(',
+        RegExp(
+          r'RecordingDraftHandoffCoordinator\.database\(\)\s*'
+          r'\.persistCapture\(',
+        ),
       );
-      final int requireShutdown =
-          body.indexOf('shouldShutdownRuntime = true', durableDraft);
-      final int navigate =
-          body.indexOf('Navigator.pushReplacement(', requireShutdown);
-      final int shutdown =
-          body.indexOf('await _shutdownRecordingRuntime()', navigate);
+      final int requireShutdown = body.indexOf(
+        'shouldShutdownRuntime = true',
+        durableDraft,
+      );
+      final int navigate = body.indexOf(
+        'Navigator.pushReplacement(',
+        requireShutdown,
+      );
+      final int shutdown = body.indexOf(
+        'await _shutdownRecordingRuntime()',
+        navigate,
+      );
 
       expect(durableDraft, greaterThanOrEqualTo(0));
       expect(requireShutdown, greaterThan(durableDraft));
@@ -132,10 +146,7 @@ void main() {
           "throw StateError('The service still reports itself as running.')",
         ),
       );
-      expect(
-        boundary,
-        contains('RecordingForegroundServiceStopException('),
-      );
+      expect(boundary, contains('RecordingForegroundServiceStopException('));
       expect(
         recorder,
         contains(
@@ -176,10 +187,7 @@ void main() {
         ).readAsStringSync(),
       ].join('\n');
 
-      expect(
-        tests,
-        isNot(contains(<String>['api', 'strnadi'].join('.'))),
-      );
+      expect(tests, isNot(contains(<String>['api', 'strnadi'].join('.'))));
       expect(
         tests,
         isNot(contains(<String>['DatabaseNew', 'database'].join('.'))),
@@ -188,10 +196,7 @@ void main() {
         tests,
         isNot(contains(<String>['package:', 'sqflite', '/'].join())),
       );
-      expect(
-        tests,
-        isNot(contains(<String>['Http', 'Client'].join())),
-      );
+      expect(tests, isNot(contains(<String>['Http', 'Client'].join())));
     });
   });
 }

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/api/controllers/maps_controller.dart';
 import 'package:strnadi/api/models/map_clusters.dart';
 import 'package:strnadi/api/services/map_api_service.dart';
@@ -41,7 +41,7 @@ class _MapScreenV2State extends State<MapScreenV2> {
     readScope: _readScope,
     currentHost: () => Config.host,
   );
-  final _logger = Logger();
+  final _logger = AppLogger(scope: 'map.screens.map_screen');
   StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<MapEvent>? _mapSubscription;
   LatLng _position = initialMapPosition;
@@ -153,8 +153,12 @@ class _MapScreenV2State extends State<MapScreenV2> {
           () => _position = LatLng(location.latitude, location.longitude),
         );
       }
-    } catch (error) {
-      _logger.w('Could not retrieve map location (${error.runtimeType}).');
+    } catch (error, stackTrace) {
+      _logger.w(
+        'Could not retrieve map location (${error.runtimeType}).',
+        error: error,
+        stackTrace: stackTrace,
+      );
     } finally {
       if (mounted) _moveTo(_position);
     }

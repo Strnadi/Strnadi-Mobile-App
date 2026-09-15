@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:async';
 
 import 'package:strnadi/localization/localization.dart';
@@ -21,12 +22,11 @@ import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.unverifiedEmail');
 
 class EmailNotVerified extends StatefulWidget {
   final int userId;
@@ -95,7 +95,10 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
       FlutterSecureStorage secureStorage = FlutterSecureStorage();
       final String? jwt = await secureStorage.read(key: 'token');
       if (jwt == null || jwt.isEmpty) {
-        logger.e('Missing JWT while trying to resend verification email.');
+        logger.e(
+          'Missing JWT while trying to resend verification email.',
+          expected: true,
+        );
         return;
       }
       final response = await _authController.resendVerificationEmail(
@@ -127,11 +130,17 @@ class _EmailNotVerifiedState extends State<EmailNotVerified> {
           ),
         );
       } else {
-        logger.e('Failed to send verification email (${response.statusCode}).');
+        logger.e(
+          'Failed to send verification email (${response.statusCode}).',
+          failure: apiFailureForResult(response),
+        );
       }
     } catch (e, stackTrace) {
-      logger.e(e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+      logger.e(
+        'Sending verification email failed.',
+        stackTrace: stackTrace,
+        error: e,
+      );
     } finally {
       if (mounted) {
         setState(() => _resendInProgress = false);

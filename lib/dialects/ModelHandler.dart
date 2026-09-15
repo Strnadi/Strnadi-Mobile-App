@@ -14,16 +14,15 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import '../database/databaseNew.dart';
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'dart:convert';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/PostRecordingForm/addDialect.dart';
 
 import 'dialect_keyword_translator.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'dialects.ModelHandler');
 const FilteredRecordingsController _filteredRecordingsController =
     FilteredRecordingsController();
 
@@ -51,8 +50,8 @@ class Dialect {
     String? adminDialect,
     required this.startDate,
     required this.endDate,
-  })  : userGuessDialect = DialectKeywordTranslator.toEnglish(userGuessDialect),
-        adminDialect = DialectKeywordTranslator.toEnglish(adminDialect);
+  }) : userGuessDialect = DialectKeywordTranslator.toEnglish(userGuessDialect),
+       adminDialect = DialectKeywordTranslator.toEnglish(adminDialect);
 
   factory Dialect.fromJson(Map<String, dynamic> json) {
     //From DB Json
@@ -70,8 +69,13 @@ class Dialect {
     );
   }
 
-  factory Dialect.fromBEJson(Map<String, dynamic> json, int? recordingId,
-      int? recordingBEID, DateTime startDate, DateTime endDate) {
+  factory Dialect.fromBEJson(
+    Map<String, dynamic> json,
+    int? recordingId,
+    int? recordingBEID,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
     // From BE Json
     return Dialect(
       id: null,
@@ -166,31 +170,40 @@ Future<List<Dialect>> fetchRecordingDialects(int? recordingBEID) async {
     responseStatus = response.statusCode;
     responseData = response.data;
   } catch (e, stackTrace) {
-    logger.e('Failed to load dialects for recording: $recordingBEID :$e',
-        error: e, stackTrace: stackTrace);
-    Sentry.captureException(e, stackTrace: stackTrace);
+    logger.e(
+      'Failed to load dialects for recording: $recordingBEID :$e',
+      error: e,
+      stackTrace: stackTrace,
+    );
+
     return [];
   }
   try {
     if (responseStatus == 200) {
       logger.i('Loaded dialects for recording: $recordingBEID');
-      final dynamic decoded =
-          responseData is String ? json.decode(responseData) : responseData;
+      final dynamic decoded = responseData is String
+          ? json.decode(responseData)
+          : responseData;
       if (decoded is List) {
         return dialectsFromBEJson(decoded);
       }
       logger.w(
-          'Unexpected filtered dialect payload type: ${decoded.runtimeType}');
+        'Unexpected filtered dialect payload type: ${decoded.runtimeType}',
+      );
       return [];
     } else {
       logger.e(
-          'Failed to load $recordingBEID dialects: $responseStatus | $responseData');
+        'Failed to load $recordingBEID dialects: $responseStatus | $responseData',
+      );
       return [];
     }
   } catch (e, stackTrace) {
-    logger.e('Failed to load $recordingBEID dialects: $e',
-        error: e, stackTrace: stackTrace);
-    Sentry.captureException(e, stackTrace: stackTrace);
+    logger.e(
+      'Failed to load $recordingBEID dialects: $e',
+      error: e,
+      stackTrace: stackTrace,
+    );
+
     return [];
   }
 }
@@ -211,18 +224,18 @@ DialectModel ToDialectModel(Dialect dialect) {
   };
   final String englishType =
       DialectKeywordTranslator.toEnglish(dialect.adminDialect) ??
-          dialect.adminDialect ??
-          'Unassessed';
+      dialect.adminDialect ??
+      'Unassessed';
   final String displayLabel = DialectKeywordTranslator.toLocalized(englishType);
 
   return DialectModel(
     label: displayLabel,
-    startTime: Duration(milliseconds: dialect.startDate.millisecondsSinceEpoch)
-        .inSeconds
-        .toDouble(),
-    endTime: Duration(milliseconds: dialect.endDate.millisecondsSinceEpoch)
-        .inSeconds
-        .toDouble(),
+    startTime: Duration(
+      milliseconds: dialect.startDate.millisecondsSinceEpoch,
+    ).inSeconds.toDouble(),
+    endTime: Duration(
+      milliseconds: dialect.endDate.millisecondsSinceEpoch,
+    ).inSeconds.toDouble(),
     type: englishType,
     color: dialectColors[englishType] ?? Colors.white,
   );

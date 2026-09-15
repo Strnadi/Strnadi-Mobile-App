@@ -14,10 +14,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:path_provider/path_provider.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'database.src.database_logger');
 
 Future<String> getPath() async {
   final dir = await getApplicationDocumentsDirectory();

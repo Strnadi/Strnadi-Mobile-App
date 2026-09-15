@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/dialects/dialect_time_resolver.dart';
@@ -50,7 +49,9 @@ class RecordingDetailController extends ChangeNotifier {
 
   final RecordingAudioPlayer _audio;
   final RecordingDetailRepository _repository;
-  final Logger _logger = Logger();
+  final AppLogger _logger = AppLogger(
+    scope: 'map.recording_detail.recording_detail_controller',
+  );
   late final List<StreamSubscription<dynamic>> _subscriptions;
   Recording _recording;
   Recording get recording => _recording;
@@ -358,8 +359,11 @@ class RecordingDetailController extends ChangeNotifier {
   }
 
   void _report(String message, Object error, StackTrace stack) {
-    _logger.w('$message (${error.runtimeType}).');
-    unawaited(Sentry.captureException(error, stackTrace: stack));
+    _logger.e(
+      '$message (${error.runtimeType}).',
+      error: error,
+      stackTrace: stack,
+    );
   }
 
   void _notify() {

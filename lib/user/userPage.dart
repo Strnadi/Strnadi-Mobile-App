@@ -1,3 +1,4 @@
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
@@ -21,7 +22,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
@@ -54,7 +55,7 @@ class _UserPageState extends State<UserPage> {
   String? profileImagePath;
   bool _isConnected = true;
 
-  final logger = Logger();
+  final logger = AppLogger(scope: 'user.userPage');
 
   bool _isLoading = false;
 
@@ -96,8 +97,8 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<ActivatedAuthSessionSnapshot?> _captureVerifiedSession() async {
-    final ActivatedAuthSessionSnapshot? session =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? session = await activatedAuthSessions
+        .capture();
     final Object? userId = parseUserId(session?.userId ?? '');
     if (session == null ||
         !session.verified ||
@@ -116,10 +117,7 @@ class _UserPageState extends State<UserPage> {
       if (!mounted) return;
       _withLoader(() async {
         await checkConnectivity();
-        await Future.wait([
-          getUserData(),
-          getProfilePic(null),
-        ]);
+        await Future.wait([getUserData(), getProfilePic(null)]);
       });
     });
   }
@@ -200,6 +198,7 @@ class _UserPageState extends State<UserPage> {
         logger.w(
           'Profile picture download failed with status '
           '${value.statusCode}.',
+          failure: apiFailureForResult(value),
         );
       }
     } catch (_) {
@@ -243,10 +242,7 @@ class _UserPageState extends State<UserPage> {
         value: data.nickname,
       );
       if (data.role != null) {
-        await secureStorage.write(
-          key: profileRoleStorageKey,
-          value: data.role,
-        );
+        await secureStorage.write(key: profileRoleStorageKey, value: data.role);
       } else {
         await secureStorage.delete(key: profileRoleStorageKey);
       }
@@ -270,8 +266,9 @@ class _UserPageState extends State<UserPage> {
     if (_isLoading) return;
     try {
       await _withLoader(() async {
-        final XFile? pickedFile =
-            await ImagePicker().pickImage(source: ImageSource.gallery);
+        final XFile? pickedFile = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+        );
         if (pickedFile == null) return;
         await _uploadProfilePic(pickedFile.path);
       });
@@ -297,36 +294,36 @@ class _UserPageState extends State<UserPage> {
     final File candidateFile = File(imagePath);
 
     try {
-      final ProfilePhotoPublishOutcome outcome =
-          await _photoPublisher.publishBoundedCandidate(
-        candidateLength: candidateFile.length,
-        readCandidate: candidateFile.readAsBytes,
-        uploadCandidate: (imageBytes) async {
-          final value = await _userController.uploadProfilePhoto(
-            userId: userId,
-            photoBase64: base64Encode(imageBytes),
-            format: profilePhotoFormatFromPath(imagePath),
-            accessToken: session.accessToken,
-            host: host,
+      final ProfilePhotoPublishOutcome outcome = await _photoPublisher
+          .publishBoundedCandidate(
+            candidateLength: candidateFile.length,
+            readCandidate: candidateFile.readAsBytes,
+            uploadCandidate: (imageBytes) async {
+              final value = await _userController.uploadProfilePhoto(
+                userId: userId,
+                photoBase64: base64Encode(imageBytes),
+                format: profilePhotoFormatFromPath(imagePath),
+                accessToken: session.accessToken,
+                host: host,
+              );
+              return value.statusCode;
+            },
+            isSessionCurrent: () async =>
+                await activatedAuthSessions.isCurrent(session) &&
+                Config.host == host,
+            commitScopedCache: (imageBytes) async {
+              final File cachedFile = await DefaultCacheManager().putFile(
+                cacheKey,
+                imageBytes,
+                fileExtension: profilePhotoFormatFromPath(imagePath),
+              );
+              return cachedFile.path;
+            },
+            publishVisiblePath: (String cachedPath) async {
+              if (!mounted) return;
+              setState(() => profileImagePath = cachedPath);
+            },
           );
-          return value.statusCode;
-        },
-        isSessionCurrent: () async =>
-            await activatedAuthSessions.isCurrent(session) &&
-            Config.host == host,
-        commitScopedCache: (imageBytes) async {
-          final File cachedFile = await DefaultCacheManager().putFile(
-            cacheKey,
-            imageBytes,
-            fileExtension: profilePhotoFormatFromPath(imagePath),
-          );
-          return cachedFile.path;
-        },
-        publishVisiblePath: (String cachedPath) async {
-          if (!mounted) return;
-          setState(() => profileImagePath = cachedPath);
-        },
-      );
 
       if (!mounted) return;
       if (outcome == ProfilePhotoPublishOutcome.published) {
@@ -342,52 +339,58 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
-  Future<void> logout(BuildContext context,
-      {bool popUp = true, Future<void> Function()? afterCleanup}) async {
+  Future<void> logout(
+    BuildContext context, {
+    bool popUp = true,
+    Future<void> Function()? afterCleanup,
+  }) async {
     if (popUp) {
       final NavigatorState navigator = Navigator.of(context);
       showDialog(
-          context: context,
-          builder: (dialogContext) {
-            return AlertDialog(
-              title: Text(t('logout.title')),
-              content: Text(t('logout.message')),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(t('logout.cancel')),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    if (_isLoading) return;
-                    Navigator.of(dialogContext).pop();
-                    await _withLoader(() async {
-                      await runOrderedLogoutCleanup(
-                        captureLogoutEvent: () =>
-                            TrackingConsentManager.captureEvent(
-                          'logout',
-                          properties: const {'method': 'manual'},
-                        ),
-                        resetAnalyticsIdentity:
-                            TrackingConsentManager.resetIdentity,
-                        deleteDeviceToken: strnadiFirebase.deleteToken,
-                        clearAuthSession: () =>
-                            activatedAuthSessions.clearAllPreservingGeneration(
-                          secureStorage.deleteAll,
-                        ),
-                        signOutIdentityProvider: GoogleSignInService.signOut,
-                        afterCleanup: afterCleanup,
-                      );
-                      if (!mounted || !navigator.mounted) return;
-                      navigator.pushNamedAndRemoveUntil(
-                          '/authorizator', (route) => false);
-                    });
-                  },
-                  child: Text(t('logout.logout')),
-                ),
-              ],
-            );
-          });
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(t('logout.title')),
+            content: Text(t('logout.message')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(t('logout.cancel')),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (_isLoading) return;
+                  Navigator.of(dialogContext).pop();
+                  await _withLoader(() async {
+                    await runOrderedLogoutCleanup(
+                      captureLogoutEvent: () =>
+                          TrackingConsentManager.captureEvent(
+                            'logout',
+                            properties: const {'method': 'manual'},
+                          ),
+                      resetAnalyticsIdentity:
+                          TrackingConsentManager.resetIdentity,
+                      deleteDeviceToken: strnadiFirebase.deleteToken,
+                      clearAuthSession: () =>
+                          activatedAuthSessions.clearAllPreservingGeneration(
+                            secureStorage.deleteAll,
+                          ),
+                      signOutIdentityProvider: GoogleSignInService.signOut,
+                      afterCleanup: afterCleanup,
+                    );
+                    if (!mounted || !navigator.mounted) return;
+                    navigator.pushNamedAndRemoveUntil(
+                      '/authorizator',
+                      (route) => false,
+                    );
+                  });
+                },
+                child: Text(t('logout.logout')),
+              ),
+            ],
+          );
+        },
+      );
     } else {
       await _withLoader(() async {
         await runOrderedLogoutCleanup(
@@ -397,16 +400,15 @@ class _UserPageState extends State<UserPage> {
           ),
           resetAnalyticsIdentity: TrackingConsentManager.resetIdentity,
           deleteDeviceToken: strnadiFirebase.deleteToken,
-          clearAuthSession: () =>
-              activatedAuthSessions.clearAllPreservingGeneration(
-            secureStorage.deleteAll,
-          ),
+          clearAuthSession: () => activatedAuthSessions
+              .clearAllPreservingGeneration(secureStorage.deleteAll),
           signOutIdentityProvider: GoogleSignInService.signOut,
           afterCleanup: afterCleanup,
         );
         if (!mounted) return;
-        Navigator.of(this.context)
-            .pushNamedAndRemoveUntil('/authorizator', (route) => false);
+        Navigator.of(
+          this.context,
+        ).pushNamedAndRemoveUntil('/authorizator', (route) => false);
       });
     }
   }
@@ -432,38 +434,42 @@ class _UserPageState extends State<UserPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        Builder(builder: (context) {
-                          final String normalizedNick = nickName.trim();
-                          final bool hasNickname = normalizedNick.isNotEmpty &&
-                              normalizedNick != 'null' &&
-                              normalizedNick != 'nickName';
-                          final String displayName = hasNickname
-                              ? normalizedNick
-                              : '$userName $lastName';
+                        Builder(
+                          builder: (context) {
+                            final String normalizedNick = nickName.trim();
+                            final bool hasNickname =
+                                normalizedNick.isNotEmpty &&
+                                normalizedNick != 'null' &&
+                                normalizedNick != 'nickName';
+                            final String displayName = hasNickname
+                                ? normalizedNick
+                                : '$userName $lastName';
 
-                          return Column(
-                            children: [
-                              GestureDetector(
-                                onTap: !_isLoading ? pickProfileImage : null,
-                                child: CircleAvatar(
-                                  radius: 50,
-                                  backgroundImage: profileImagePath != null
-                                      ? FileImage(File(profileImagePath!))
-                                      : const AssetImage(
-                                              './assets/images/default.jpg')
-                                          as ImageProvider,
+                            return Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: !_isLoading ? pickProfileImage : null,
+                                  child: CircleAvatar(
+                                    radius: 50,
+                                    backgroundImage: profileImagePath != null
+                                        ? FileImage(File(profileImagePath!))
+                                        : const AssetImage(
+                                                './assets/images/default.jpg',
+                                              )
+                                              as ImageProvider,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                displayName,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
+                                Text(
+                                  displayName,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          );
-                        }),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -494,8 +500,6 @@ class _UserPageState extends State<UserPage> {
 
   void _showMessage(String s) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(s),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
   }
 }

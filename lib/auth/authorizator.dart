@@ -1,3 +1,4 @@
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/auth/administration/app_administration.dart';
 import 'package:strnadi/auth/user_identity.dart';
 /*
@@ -22,8 +23,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/user_profile_payload.dart';
 //import 'package:strnadi/auth/login.dart';
@@ -44,16 +44,14 @@ import 'package:strnadi/widgets/loader.dart';
 import '../config/config.dart';
 import 'login.dart' show Login;
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.authorizator');
 const AuthController _authController = AuthController();
 const UserController _userController = UserController();
 
 enum AuthType { login, register }
 
 class Authorizator extends StatefulWidget {
-  const Authorizator({
-    Key? key,
-  }) : super(key: key);
+  const Authorizator({Key? key}) : super(key: key);
 
   @override
   State<Authorizator> createState() => _AuthState();
@@ -76,13 +74,17 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
     try {
       final response = await _authController.verifyJwt(token);
 
-      logger.i('JWT verification status: ${response.statusCode}');
+      logger.i(
+        'JWT verification status: ${response.statusCode}',
+        context: {'statusCode': response.statusCode},
+      );
 
       if (response.statusCode == 200) {
         final DateTime? expirationDate = _safeJwtExpiration(token);
         if (expirationDate == null) return AuthStatus.loggedOut;
-        if (expirationDate
-            .isAfter(DateTime.now().add(const Duration(days: 7)))) {
+        if (expirationDate.isAfter(
+          DateTime.now().add(const Duration(days: 7)),
+        )) {
           return AuthStatus.loggedIn;
         }
         // If the token is valid but about to expire, refresh it
@@ -90,8 +92,8 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
           final refreshResponse = await _authController.renewJwt(token);
           if (refreshResponse.statusCode == 200) {
             final String newToken = refreshResponse.data.toString();
-            final AuthSessionTransition transition =
-                await activatedAuthSessions.beginTokenTransition(newToken);
+            final AuthSessionTransition transition = await activatedAuthSessions
+                .beginTokenTransition(newToken);
             final idResponse = await _userController.getUserIdFromToken();
             final int? refreshedUserId = idResponse.statusCode == 200
                 ? int.tryParse(idResponse.data.toString())
@@ -100,6 +102,7 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
               logger.e(
                 'Failed to resolve refreshed token owner; '
                 'status ${idResponse.statusCode}.',
+                failure: apiFailureForResult(idResponse),
               );
               return AuthStatus.loggedOut;
             }
@@ -110,9 +113,11 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
             );
           }
         } catch (e, stackTrace) {
-          Sentry.captureException(e, stackTrace: stackTrace);
-          logger.e('Error refreshing token: $e',
-              error: e, stackTrace: stackTrace);
+          logger.e(
+            'Error refreshing token: $e',
+            error: e,
+            stackTrace: stackTrace,
+          );
           return AuthStatus.loggedOut;
         }
         return AuthStatus.loggedIn;
@@ -121,8 +126,12 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
       } else {
         return AuthStatus.loggedOut;
       }
-    } catch (error) {
-      Sentry.captureException(error);
+    } catch (error, stackTrace) {
+      logger.e(
+        'Session verification failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return AuthStatus.loggedOut;
     }
   }
@@ -132,8 +141,8 @@ Future<AuthStatus> _onlineIsLoggedIn() async {
 Future<AuthStatus> _offlineIsLoggedIn() async {
   final FlutterSecureStorage secureStorage = FlutterSecureStorage();
   final String? token = await secureStorage.read(key: 'token');
-  final ActivatedAuthSessionSnapshot? snapshot =
-      await activatedAuthSessions.capture();
+  final ActivatedAuthSessionSnapshot? snapshot = await activatedAuthSessions
+      .capture();
   if (AppAdministration.enabled && parseUserId(snapshot?.userId) is! String) {
     return AuthStatus.loggedOut;
   }
@@ -198,10 +207,12 @@ class _AuthState extends State<Authorizator> {
 
   void _trackSession(int userId, {required bool verified}) {
     unawaited(TrackingConsentManager.identifyUser(userId.toString()));
-    unawaited(TrackingConsentManager.captureEvent(
-      verified ? 'session_restored' : 'login_requires_verification',
-      properties: const {'method': 'jwt'},
-    ));
+    unawaited(
+      TrackingConsentManager.captureEvent(
+        verified ? 'session_restored' : 'login_requires_verification',
+        properties: const {'method': 'jwt'},
+      ),
+    );
   }
 
   Future<T?> _withLoader<T>(Future<T> Function() action) async {
@@ -253,198 +264,203 @@ class _AuthState extends State<Authorizator> {
     const Color textColor = Color(0xFF2D2B18);
     const Color yellow = Color(0xFFFFD641);
     return Loader(
-        isLoading: _isLoading,
-        child: Scaffold(
-            backgroundColor: Colors.white,
-            body: SafeArea(
-              child: Stack(
-                children: [
-                  Center(
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32.0, vertical: 20.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Spacing from the top
-                            //const SizedBox(height: 0),
-
-                            // Bird image
-                            Image.asset(
-                              'assets/images/ncs_logo_tall_large.png',
-                              // Update path if needed
-                              width: 200,
-                              height: 200,
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // Main title
-                            Text(
-                              t('auth.title'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            // Subtitle
-                            Text(
-                              t('auth.subtitle'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: textColor,
-                              ),
-                            ),
-
-                            const SizedBox(height: 40),
-
-                            // "Založit účet" button (yellow background, no elevation)
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () => _navigateIfAllowed(
-                                    AppAdministration.enabled
-                                        ? const Login()
-                                        : const RegMail()),
-                                style: ElevatedButton.styleFrom(
-                                  elevation: 0,
-                                  // No elevation
-                                  shadowColor: Colors.transparent,
-                                  // Remove shadow
-                                  backgroundColor: yellow,
-                                  foregroundColor: textColor,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  textStyle: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: Text(
-                                  t('auth.buttons.register'),
-                                  style: TextStyle(color: textColor),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // "Přihlásit se" button (outlined)
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: () =>
-                                    _navigateIfAllowed(const Login()),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: textColor,
-                                  side: BorderSide(
-                                      color: Colors.grey[200]!, width: 2),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  textStyle: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: Text(t('auth.buttons.login'),
-                                    style: TextStyle(color: textColor)),
-                              ),
-                            ),
-
-                            // Text to continue as guest
-                            const SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const LiveRec()),
-                                );
-                              },
-                              child: Text(
-                                t('auth.buttons.continue_as_guest'),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-
-                            // Add the terms here
-                            const SizedBox(height: 180),
-
-                            // Add disclaimer and space at the bottom
-                          ],
-                        ),
-                      ),
+      isLoading: _isLoading,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32.0,
+                      vertical: 20.0,
                     ),
-                  ),
-                  Positioned(
-                    bottom: 10, // 5 pixels from bottom
-                    left: 0,
-                    right: 0,
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(
-                          t('auth.disclaimer.consent_prefix'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12, color: Colors.black),
+                        // Spacing from the top
+                        //const SizedBox(height: 0),
+
+                        // Bird image
+                        Image.asset(
+                          'assets/images/ncs_logo_tall_large.png',
+                          // Update path if needed
+                          width: 200,
+                          height: 200,
                         ),
-                        const SizedBox(height: 4),
+
+                        const SizedBox(height: 32),
+
+                        // Main title
+                        Text(
+                          t('auth.title'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // Subtitle
+                        Text(
+                          t('auth.subtitle'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, color: textColor),
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // "Založit účet" button (yellow background, no elevation)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => _navigateIfAllowed(
+                              AppAdministration.enabled
+                                  ? const Login()
+                                  : const RegMail(),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              // No elevation
+                              shadowColor: Colors.transparent,
+                              // Remove shadow
+                              backgroundColor: yellow,
+                              foregroundColor: textColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              textStyle: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              t('auth.buttons.register'),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // "Přihlásit se" button (outlined)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => _navigateIfAllowed(const Login()),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: textColor,
+                              side: BorderSide(
+                                color: Colors.grey[200]!,
+                                width: 2,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              textStyle: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              t('auth.buttons.login'),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                        ),
+
+                        // Text to continue as guest
+                        const SizedBox(height: 16),
                         GestureDetector(
-                          onTap: () => _launchURL(),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LiveRec(),
+                              ),
+                            );
+                          },
                           child: Text(
-                            t('auth.disclaimer.privacy_policy'),
-                            textAlign: TextAlign.center,
+                            t('auth.buttons.continue_as_guest'),
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               color: Colors.blue,
                               decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
+
+                        // Add the terms here
+                        const SizedBox(height: 180),
+
+                        // Add disclaimer and space at the bottom
                       ],
                     ),
                   ),
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: CompactLanguageDropdown(
-                      languages: languages,
-                      selectedLanguage: selectedLanguage ?? languages.first,
-                      onChanged: (Language? newValue) async {
-                        if (newValue == null) return;
-                        await Localization.load(
-                            'assets/lang/${newValue.code}.json');
-                        await Config.setLanguagePreference(
-                          Config.LangFromString(newValue.code),
-                        );
-                        if (!mounted) return;
-                        setState(() => selectedLanguage = newValue);
-                        logger.i('Language changed to ${newValue.code}');
-                      },
-                    ),
-                  )
-                ],
+                ),
               ),
-            )));
+              Positioned(
+                bottom: 10, // 5 pixels from bottom
+                left: 0,
+                right: 0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      t('auth.disclaimer.consent_prefix'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.black),
+                    ),
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () => _launchURL(),
+                      child: Text(
+                        t('auth.disclaimer.privacy_policy'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 8,
+                left: 8,
+                child: CompactLanguageDropdown(
+                  languages: languages,
+                  selectedLanguage: selectedLanguage ?? languages.first,
+                  onChanged: (Language? newValue) async {
+                    if (newValue == null) return;
+                    await Localization.load(
+                      'assets/lang/${newValue.code}.json',
+                    );
+                    await Config.setLanguagePreference(
+                      Config.LangFromString(newValue.code),
+                    );
+                    if (!mounted) return;
+                    setState(() => selectedLanguage = newValue);
+                    logger.i('Language changed to ${newValue.code}');
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> checkLoggedIn() async {
@@ -502,14 +518,16 @@ class _AuthState extends State<Authorizator> {
           final ActivatedAuthSessionSnapshot? currentSession =
               await activatedAuthSessions.capture();
           if (!backendReachable) {
-            final int? offlineUserId =
-                int.tryParse(currentSession?.userId ?? '');
+            final int? offlineUserId = int.tryParse(
+              currentSession?.userId ?? '',
+            );
             if (currentSession == null ||
                 currentSession.accessToken != token ||
                 offlineUserId == null ||
                 offlineUserId <= 0) {
               logger.w(
-                  'Offline login rejected because no activated session exists.');
+                'Offline login rejected because no activated session exists.',
+              );
               return;
             }
             _trackSession(offlineUserId, verified: true);
@@ -520,15 +538,17 @@ class _AuthState extends State<Authorizator> {
           logger.i('Refreshing user profile from the backend.');
           final AuthSessionTransition? transition =
               currentSession?.accessToken == token
-                  ? null
-                  : await activatedAuthSessions.beginTokenTransition(token);
+              ? null
+              : await activatedAuthSessions.beginTokenTransition(token);
           final idResponse = await _userController.getUserIdFromToken();
           final int? userId = idResponse.statusCode == 200
               ? int.tryParse(idResponse.data.toString())
               : null;
           if (userId == null || userId <= 0) {
-            logger
-                .e('Failed to fetch user id; status ${idResponse.statusCode}.');
+            logger.e(
+              'Failed to fetch user id; status ${idResponse.statusCode}.',
+              failure: apiFailureForResult(idResponse),
+            );
             return;
           }
           if (transition == null) {
@@ -546,23 +566,20 @@ class _AuthState extends State<Authorizator> {
           final response = await _userController.getUserById(userId);
           if (response.statusCode != 200) {
             logger.e(
-                'Failed to fetch user profile; status ${response.statusCode}.');
+              'Failed to fetch user profile; status ${response.statusCode}.',
+              failure: apiFailureForResult(response),
+            );
             return;
           }
-          final CachedUserProfile? profile =
-              parseCachedUserProfile(response.data);
+          final CachedUserProfile? profile = parseCachedUserProfile(
+            response.data,
+          );
           if (profile == null) {
             logger.e('Failed to parse user profile payload.');
             return;
           }
-          await secureStorage.write(
-            key: 'firstName',
-            value: profile.firstName,
-          );
-          await secureStorage.write(
-            key: 'lastName',
-            value: profile.lastName,
-          );
+          await secureStorage.write(key: 'firstName', value: profile.firstName);
+          await secureStorage.write(key: 'lastName', value: profile.lastName);
           // Keep legacy aliases during migration so older screens/builds do not
           // overwrite a freshly restored canonical profile.
           await secureStorage.write(key: 'user', value: profile.firstName);
@@ -584,15 +601,17 @@ class _AuthState extends State<Authorizator> {
               await activatedAuthSessions.capture();
           final AuthSessionTransition? transition =
               currentSession?.accessToken == token
-                  ? null
-                  : await activatedAuthSessions.beginTokenTransition(token);
+              ? null
+              : await activatedAuthSessions.beginTokenTransition(token);
           final idResponse = await _userController.getUserIdFromToken();
           final int? userId = idResponse.statusCode == 200
               ? int.tryParse(idResponse.data.toString())
               : null;
           if (userId == null || userId <= 0) {
-            logger
-                .e('Failed to fetch user id; status ${idResponse.statusCode}.');
+            logger.e(
+              'Failed to fetch user id; status ${idResponse.statusCode}.',
+              failure: apiFailureForResult(idResponse),
+            );
             return;
           }
           if (transition == null) {
@@ -622,10 +641,9 @@ class _AuthState extends State<Authorizator> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-                builder: (_) => EmailNotVerified(
-                      userEmail: email,
-                      userId: userId,
-                    )),
+              builder: (_) =>
+                  EmailNotVerified(userEmail: email, userId: userId),
+            ),
           );
         } else {
           logger.i('User is not logged in');
@@ -647,7 +665,7 @@ class _AuthState extends State<Authorizator> {
         error: error,
         stackTrace: stackTrace,
       );
-      await Sentry.captureException(error, stackTrace: stackTrace);
+
       if (mounted) {
         _showMessage(t('login.errors.connection'));
       }
@@ -705,10 +723,11 @@ class _AuthState extends State<Authorizator> {
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (_) => MDRender(
-                mdPath: t('auth.terms.path'),
-                title: t('auth.terms.title'),
-              )),
+        builder: (_) => MDRender(
+          mdPath: t('auth.terms.path'),
+          title: t('auth.terms.title'),
+        ),
+      ),
     );
   }
 }

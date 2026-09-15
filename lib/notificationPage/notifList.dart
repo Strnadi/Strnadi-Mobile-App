@@ -54,8 +54,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       );
       final int recId = rows.isNotEmpty
           ? (rows.first['recordingId'] as int?) ??
-              int.tryParse('${rows.first['recordingId']}') ??
-              -1
+                int.tryParse('${rows.first['recordingId']}') ??
+                -1
           : -1;
       _partIdToRecId[partId] = recId;
       return recId;
@@ -65,7 +65,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<Map<int, List<_PartProgress>>> _groupByRecording(
-      Map<int, double> data) async {
+    Map<int, double> data,
+  ) async {
     final Map<int, List<_PartProgress>> grouped = <int, List<_PartProgress>>{};
     for (final entry in data.entries) {
       final int partId = entry.key;
@@ -141,8 +142,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       child: Padding(
                         padding: EdgeInsets.all(12.0),
                         child: SizedBox(
-                            height: 48,
-                            child: Center(child: CircularProgressIndicator())),
+                          height: 48,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
                       ),
                     );
                   }
@@ -158,10 +160,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       return a.compareTo(b);
                     });
 
-                  debugPrint('[notifList] UploadProgressBus builder: hasData=' +
-                      (snapshot.hasData).toString() +
-                      ', recordings=' +
-                      recIds.length.toString());
+                  logger.d(
+                    '[notifList] UploadProgressBus builder: hasData=' +
+                        (snapshot.hasData).toString() +
+                        ', recordings=' +
+                        recIds.length.toString(),
+                  );
 
                   return Card(
                     margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -187,7 +191,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             Text(
                               t('notifications.no_uploads'),
                               style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             )
                           else
                             // For each recording render a card with its parts as progress bars
@@ -213,24 +219,31 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                     children: [
                                       Row(
                                         children: [
-                                          const Icon(Icons.mic_rounded,
-                                              size: 18),
+                                          const Icon(
+                                            Icons.mic_rounded,
+                                            size: 18,
+                                          ),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: FutureBuilder<String>(
                                               future: recId == -1
-                                                  ? Future.value(t(
-                                                      'notifications.unknown_recording'))
+                                                  ? Future.value(
+                                                      t(
+                                                        'notifications.unknown_recording',
+                                                      ),
+                                                    )
                                                   : _resolveRecordingTitle(
-                                                      recId),
+                                                      recId,
+                                                    ),
                                               builder: (context, snap) {
-                                                final title = snap.data ??
+                                                final title =
+                                                    snap.data ??
                                                     'Recording #$recId';
                                                 return Text(
                                                   title,
                                                   style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                 );
@@ -238,10 +251,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                             ),
                                           ),
                                           if (recId != -1)
-                                            Text('#$recId',
-                                                style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey)),
+                                            Text(
+                                              '#$recId',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
@@ -263,12 +279,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                  'Part #${part.partId} – $pct%',
-                                                  style: const TextStyle(
-                                                      fontSize: 12)),
+                                                'Part #${part.partId} – $pct%',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                               const SizedBox(height: 4),
                                               LinearProgressIndicator(
-                                                value: (part.progress >= 0.0 &&
+                                                value:
+                                                    (part.progress >= 0.0 &&
                                                         part.progress <= 1.0)
                                                     ? part.progress
                                                     : null,
@@ -315,11 +334,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(notification.time,
-                                style: const TextStyle(color: Colors.grey)),
+                            Text(
+                              notification.time,
+                              style: const TextStyle(color: Colors.grey),
+                            ),
                             if (notification.unread)
-                              const Icon(Icons.circle,
-                                  color: Colors.black, size: 10),
+                              const Icon(
+                                Icons.circle,
+                                color: Colors.black,
+                                size: 10,
+                              ),
                           ],
                         ),
                       );

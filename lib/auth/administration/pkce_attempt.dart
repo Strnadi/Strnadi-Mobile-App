@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 
 import 'package:strnadi/config/oauth_configuration.dart';
+import 'package:strnadi/logging/log_failure.dart';
 
 enum OAuthFailureKind {
   cancelled,
@@ -19,9 +20,11 @@ enum OAuthFailureKind {
 
 /// Carries only a fixed category: server responses, codes, tokens and browser
 /// URLs must never leak through an exception's string representation.
-class OAuthFailure implements Exception {
-  const OAuthFailure(this.kind);
+class OAuthFailure implements Exception, DiagnosticException {
+  const OAuthFailure(this.kind, {this.logFailure});
   final OAuthFailureKind kind;
+  @override
+  final AppFailure? logFailure;
   String get translationKey => 'auth.administration.errors.${kind.name}';
   @override
   String toString() => 'OAuthFailure(${kind.name})';
@@ -45,15 +48,17 @@ class PkceAttempt {
       _base64Url(sha256.convert(ascii.encode(verifier)).bytes);
 
   Uri authorizationUri(OAuthConfiguration config) =>
-      config.authorizeEndpoint.replace(queryParameters: {
-        'client_id': OAuthConfiguration.clientId,
-        'redirect_uri': OAuthConfiguration.redirectUri,
-        'response_type': 'code',
-        'code_challenge': challengeFor(verifier),
-        'code_challenge_method': 'S256',
-        'state': state,
-        if (config.scopes.isNotEmpty) 'scope': config.scopes.join(' '),
-      });
+      config.authorizeEndpoint.replace(
+        queryParameters: {
+          'client_id': OAuthConfiguration.clientId,
+          'redirect_uri': OAuthConfiguration.redirectUri,
+          'response_type': 'code',
+          'code_challenge': challengeFor(verifier),
+          'code_challenge_method': 'S256',
+          'state': state,
+          if (config.scopes.isNotEmpty) 'scope': config.scopes.join(' '),
+        },
+      );
 
   void cancel() => _consumed = true;
 

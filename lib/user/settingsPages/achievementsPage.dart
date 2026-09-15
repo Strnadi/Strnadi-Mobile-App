@@ -1,3 +1,4 @@
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/auth/user_identity.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
@@ -20,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/achievements_controller.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/widgets/progressIndicator.dart';
 
 import '../../config/config.dart';
@@ -75,7 +75,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
     List<Achievement> allAchievements,
   ) {
     final userAchievementMap = {
-      for (var achievement in userAchievements) achievement.title: achievement
+      for (var achievement in userAchievements) achievement.title: achievement,
     };
 
     return allAchievements.map((achievement) {
@@ -114,18 +114,22 @@ class _AchievementsPageState extends State<AchievementsPage> {
           defaultVal: true,
         );
       } else {
-        logger.e('Failed to fetch achievements: ${value.statusCode}');
+        logger.e(
+          'Failed to fetch achievements: ${value.statusCode}',
+          failure: apiFailureForResult(value),
+        );
       }
     } catch (e, st) {
       logger.e('Profile picture upload error', error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
     }
 
     return list;
   }
 
-  Future<List<Achievement>> parseAchievements(String jsonString,
-      {bool defaultVal = false}) async {
+  Future<List<Achievement>> parseAchievements(
+    String jsonString, {
+    bool defaultVal = false,
+  }) async {
     var language = (await Config.getLanguagePreference()).toString();
 
     logger.i(language);
@@ -136,17 +140,22 @@ class _AchievementsPageState extends State<AchievementsPage> {
       // Handle if response is a list directly
       if (parsed is List) {
         return parsed
-            .map<Achievement>((json) => Achievement(
-                  title: _getLocalizedContent(
-                          json['contents'], language, 'title') ??
-                      'Unknown',
-                  description: _getLocalizedContent(
-                          json['contents'], language, 'description') ??
-                      '',
-                  imageUrl:
-                      json['imageUrl'] ?? 'https://via.placeholder.com/150',
-                  unlocked: json['unlocked'] ?? defaultVal,
-                ))
+            .map<Achievement>(
+              (json) => Achievement(
+                title:
+                    _getLocalizedContent(json['contents'], language, 'title') ??
+                    'Unknown',
+                description:
+                    _getLocalizedContent(
+                      json['contents'],
+                      language,
+                      'description',
+                    ) ??
+                    '',
+                imageUrl: json['imageUrl'] ?? 'https://via.placeholder.com/150',
+                unlocked: json['unlocked'] ?? defaultVal,
+              ),
+            )
             .toList();
       }
 
@@ -155,13 +164,15 @@ class _AchievementsPageState extends State<AchievementsPage> {
         final data = parsed['data'];
         if (data is List) {
           return data
-              .map<Achievement>((json) => Achievement(
-                    title: json['title'] ?? 'Unknown',
-                    description: json['description'] ?? '',
-                    imageUrl:
-                        json['imageUrl'] ?? 'https://via.placeholder.com/150',
-                    unlocked: json['unlocked'] ?? true,
-                  ))
+              .map<Achievement>(
+                (json) => Achievement(
+                  title: json['title'] ?? 'Unknown',
+                  description: json['description'] ?? '',
+                  imageUrl:
+                      json['imageUrl'] ?? 'https://via.placeholder.com/150',
+                  unlocked: json['unlocked'] ?? true,
+                ),
+              )
               .toList();
         }
       }
@@ -169,7 +180,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
       return [];
     } catch (e, st) {
       logger.e('Error parsing achievements', error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
+
       return [];
     }
   }
@@ -210,9 +221,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
       }
 
       return null;
-    } catch (e) {
-      logger.w('Error getting localized content for field: $fieldName',
-          error: e);
+    } catch (e, stackTrace) {
+      logger.w(
+        'Error getting localized content for field: $fieldName',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -228,11 +242,13 @@ class _AchievementsPageState extends State<AchievementsPage> {
         // Example:
         list = await parseAchievements(_encodeResponseData(value.data));
       } else {
-        logger.e('Failed to fetch achievements: ${value.statusCode}');
+        logger.e(
+          'Failed to fetch achievements: ${value.statusCode}',
+          failure: apiFailureForResult(value),
+        );
       }
     } catch (e, st) {
       logger.e('Profile picture upload error', error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
     }
 
     return list;
@@ -273,17 +289,13 @@ class _AchievementsPageState extends State<AchievementsPage> {
                                 '{total}',
                                 achievements.length.toString(),
                               ),
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 8),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: CustomProgressIndicator(
-                            value: progress,
-                          ),
+                          child: CustomProgressIndicator(value: progress),
                         ),
                       ],
                     ),
@@ -294,18 +306,14 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 0.85,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return AchievementCard(
-                            achievement: achievements[index]);
-                      },
-                      childCount: achievements.length,
-                    ),
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.85,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return AchievementCard(achievement: achievements[index]);
+                    }, childCount: achievements.length),
                   ),
                 ),
               ],
@@ -317,10 +325,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
 class AchievementCard extends StatelessWidget {
   final Achievement achievement;
 
-  const AchievementCard({
-    Key? key,
-    required this.achievement,
-  }) : super(key: key);
+  const AchievementCard({Key? key, required this.achievement})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -394,9 +400,8 @@ class AchievementCard extends StatelessWidget {
                     Text(
                       achievement.title,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color:
-                                achievement.unlocked ? null : Colors.grey[600],
-                          ),
+                        color: achievement.unlocked ? null : Colors.grey[600],
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -404,10 +409,10 @@ class AchievementCard extends StatelessWidget {
                     Text(
                       achievement.description,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: achievement.unlocked
-                                ? Colors.grey[600]
-                                : Colors.grey[500],
-                          ),
+                        color: achievement.unlocked
+                            ? Colors.grey[600]
+                            : Colors.grey[500],
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -452,8 +457,9 @@ class AchievementCard extends StatelessWidget {
                       child: Icon(
                         Icons.emoji_events,
                         size: 64,
-                        color:
-                            achievement.unlocked ? Colors.amber : Colors.grey,
+                        color: achievement.unlocked
+                            ? Colors.amber
+                            : Colors.grey,
                       ),
                     );
                   },

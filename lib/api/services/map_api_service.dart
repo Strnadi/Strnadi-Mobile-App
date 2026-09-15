@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/api/controllers/dialects_controller.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
@@ -8,12 +9,15 @@ import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/Models/userData.dart';
 import 'package:strnadi/dialects/dialect_definition.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
+import 'package:strnadi/logging/log_failure.dart';
 
 class ClusterSnapshotExpired implements Exception {}
 
-class MapApiException implements Exception {
-  const MapApiException(this.error);
+class MapApiException implements Exception, DiagnosticException {
+  const MapApiException(this.error, {this.logFailure});
   final MapClustersApiError error;
+  @override
+  final AppFailure? logFailure;
 
   @override
   String toString() => error.toLogMessage();
@@ -68,6 +72,7 @@ class MapApiService implements MapDataSource {
           statusCode: response.statusCode,
           payload: response.data,
         ),
+        logFailure: apiFailureForResponse(response),
       );
     }
     return MapClustersResponse.fromResponseData(response.data);
@@ -88,7 +93,13 @@ class MapApiService implements MapDataSource {
       throw ClusterSnapshotExpired();
     }
     if (response.statusCode != 200) {
-      throw const FormatException('Cluster items request failed.');
+      throw MapApiException(
+        MapClustersApiError.fromResponse(
+          statusCode: response.statusCode,
+          payload: response.data,
+        ),
+        logFailure: apiFailureForResponse(response),
+      );
     }
     return MapClusterItemsPage.fromResponseData(response.data);
   }
@@ -104,7 +115,13 @@ class MapApiService implements MapDataSource {
       includeParts: true,
     );
     if (response.statusCode != 200) {
-      throw const FormatException('Recording request failed.');
+      throw MapApiException(
+        MapClustersApiError.fromResponse(
+          statusCode: response.statusCode,
+          payload: response.data,
+        ),
+        logFailure: apiFailureForResponse(response),
+      );
     }
     final recording = Recording.fromBEJson(_object(response.data), null);
     UserData? user;
@@ -125,7 +142,13 @@ class MapApiService implements MapDataSource {
   Future<List<String>> fetchLegend({required String host}) async {
     final response = await _dialects.fetchDialectPalette(host: host);
     if (response.statusCode != 200) {
-      throw const FormatException('Dialect legend request failed.');
+      throw MapApiException(
+        MapClustersApiError.fromResponse(
+          statusCode: response.statusCode,
+          payload: response.data,
+        ),
+        logFailure: apiFailureForResponse(response),
+      );
     }
     final payload = response.data is String
         ? jsonDecode(response.data as String)

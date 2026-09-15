@@ -24,18 +24,22 @@ import 'package:strnadi/database/Models/recordingPart.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import '../../navigation/scaffold_with_bottom_bar.dart';
 import '../settingsManager.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/user/environment_dropdown.dart';
 
-final _logger = Logger();
+final _logger = AppLogger(scope: 'user.settingsPages.appSettings');
 
 class SettingsPage extends StatefulWidget {
   SettingsPage({super.key, required this.logout});
-  final Future<void> Function(BuildContext,
-      {bool popUp, Future<void> Function()? afterCleanup}) logout;
+  final Future<void> Function(
+    BuildContext, {
+    bool popUp,
+    Future<void> Function()? afterCleanup,
+  })
+  logout;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -93,8 +97,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ..addAll(loaded);
       });
     } catch (e, stackTrace) {
-      _logger.e('Failed to load cached recordings',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to load cached recordings',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _cachedRecordings.clear();
@@ -114,8 +121,9 @@ class _SettingsPageState extends State<SettingsPage> {
       paths.add(recording.path!);
     }
     if (recording.id != null) {
-      final List<RecordingPart> parts =
-          await DatabaseNew.getPartsByRecordingId(recording.id!);
+      final List<RecordingPart> parts = await DatabaseNew.getPartsByRecordingId(
+        recording.id!,
+      );
       for (final RecordingPart part in parts) {
         if (part.path != null && part.path!.isNotEmpty) {
           paths.add(part.path!);
@@ -154,7 +162,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _deleteCachedRecording(_CachedRecordingItem item) async {
-    final bool confirmed = await showDialog<bool>(
+    final bool confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text(t('user.settings.cacheManager.confirmTitle')),
@@ -180,8 +189,11 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       await _loadCachedRecordings();
     } catch (e, stackTrace) {
-      _logger.e('Failed to delete cached recording ${item.recording.id}',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to delete cached recording ${item.recording.id}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t('recListItem.errors.errorDownloading'))),
@@ -290,7 +302,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   itemBuilder: (context, index) {
                     final item = _cachedRecordings[index];
                     final environment = HostEnvironment.fromPreference(
-                        item.recording.env.split('|').first);
+                      item.recording.env.split('|').first,
+                    );
                     return ListTile(
                       tileColor: Colors.grey.shade100,
                       shape: RoundedRectangleBorder(
@@ -309,7 +322,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             Container(
                               margin: const EdgeInsets.only(right: 8),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.orange.shade100,
                                 borderRadius: BorderRadius.circular(999),
@@ -317,7 +332,9 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: Text(
                                 t(environment.badgeKey),
                                 style: const TextStyle(
-                                    fontSize: 11, fontWeight: FontWeight.w600),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           IconButton(
@@ -393,28 +410,37 @@ class _SettingsPageState extends State<SettingsPage> {
               setState(() => _envChanging = true);
               try {
                 Config.hostForEnvironment(newVal);
-                await widget.logout(context, popUp: false,
-                    afterCleanup: () async {
-                  await Config.setHostEnvironment(newVal);
-                  // Cache refresh is best-effort; an offline preprod must not
-                  // prevent navigation after credentials have been cleared.
-                  try {
-                    await DynamicIcon.refreshAllDialects(clearExisting: true)
-                        .timeout(const Duration(seconds: 5));
-                  } catch (error, stackTrace) {
-                    _logger.w(
+                await widget.logout(
+                  context,
+                  popUp: false,
+                  afterCleanup: () async {
+                    await Config.setHostEnvironment(newVal);
+                    // Cache refresh is best-effort; an offline preprod must not
+                    // prevent navigation after credentials have been cleared.
+                    try {
+                      await DynamicIcon.refreshAllDialects(
+                        clearExisting: true,
+                      ).timeout(const Duration(seconds: 5));
+                    } catch (error, stackTrace) {
+                      _logger.w(
                         'Could not refresh dialects after environment change',
                         error: error,
-                        stackTrace: stackTrace);
-                  }
-                });
+                        stackTrace: stackTrace,
+                      );
+                    }
+                  },
+                );
               } catch (error, stackTrace) {
-                _logger.w('Could not change environment',
-                    error: error, stackTrace: stackTrace);
+                _logger.w(
+                  'Could not change environment',
+                  error: error,
+                  stackTrace: stackTrace,
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text(t('user.settings.environment.failed'))),
+                      content: Text(t('user.settings.environment.failed')),
+                    ),
                   );
                 }
               } finally {
@@ -440,7 +466,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildSwitchTile(
-      String title, bool value, ValueChanged<bool> onChanged) {
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
     return SwitchListTile(
       title: Text(title, style: const TextStyle(fontSize: 16)),
       value: value,

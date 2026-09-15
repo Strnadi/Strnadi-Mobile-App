@@ -15,6 +15,7 @@
  */
 // ignore_for_file: avoid_print
 
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:io' show Platform;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:strnadi/auth/apple_sign_in_cancellation.dart';
@@ -104,12 +105,12 @@ class AppleAuth {
       'familyName': result.familyName,
     };
 
-    final response = await _authController.appleSignIn(
-      body: body,
-      token: jwt,
-    );
+    final response = await _authController.appleSignIn(body: body, token: jwt);
 
-    logger.i('Apple credential exchange status: ${response.statusCode}');
+    logger.i(
+      'Apple credential exchange status: ${response.statusCode}',
+      context: {'statusCode': response.statusCode},
+    );
 
     Map<String, dynamic> resp = {};
     if (response.statusCode == 200) {
@@ -121,7 +122,10 @@ class AppleAuth {
       }
       logger.i('Apple Sign-In successful');
     } else {
-      logger.w('Apple Sign-In failed with status code ${response.statusCode}.');
+      logger.w(
+        'Apple Sign-In failed with status code ${response.statusCode}.',
+        failure: apiFailureForResult(response),
+      );
     }
     resp.addAll({"status": response.statusCode});
     return resp;

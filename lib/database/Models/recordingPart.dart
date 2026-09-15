@@ -20,9 +20,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../exceptions.dart';
 
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'database.Models.recordingPart');
 
 class RecordingPart {
   int? id;
@@ -71,48 +71,52 @@ class RecordingPart {
 
   factory RecordingPart.fromJson(Map<String, Object?> json) {
     return RecordingPart(
-        id: json['id'] as int?,
-        BEId: json['BEId'] as int?,
-        recordingId: json['recordingId'] as int?,
-        backendRecordingId: json['backendRecordingId'] as int?,
-        startTime: DateTime.parse(json['startTime'] as String),
-        endTime: DateTime.parse(json['endTime'] as String),
-        gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
-        gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
-        gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
-        gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
-        square: json['square'] as String?,
-        sent: (json['sent'] as int) == 1,
-        sending: (json['sending'] as int) == 1,
-        uploadAttempted: (json['uploadAttempted'] as int? ?? 0) == 1,
-        uploadKey: json['uploadKey'] as String?,
-        uploadContentSha256: json['uploadContentSha256'] as String?,
-        uploadContentBytes: json['uploadContentBytes'] as int?,
-        path: json['path'] as String?,
-        length: json['length'] as int?);
+      id: json['id'] as int?,
+      BEId: json['BEId'] as int?,
+      recordingId: json['recordingId'] as int?,
+      backendRecordingId: json['backendRecordingId'] as int?,
+      startTime: DateTime.parse(json['startTime'] as String),
+      endTime: DateTime.parse(json['endTime'] as String),
+      gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
+      gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
+      gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
+      gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
+      square: json['square'] as String?,
+      sent: (json['sent'] as int) == 1,
+      sending: (json['sending'] as int) == 1,
+      uploadAttempted: (json['uploadAttempted'] as int? ?? 0) == 1,
+      uploadKey: json['uploadKey'] as String?,
+      uploadContentSha256: json['uploadContentSha256'] as String?,
+      uploadContentBytes: json['uploadContentBytes'] as int?,
+      path: json['path'] as String?,
+      length: json['length'] as int?,
+    );
   }
 
   factory RecordingPart.fromBEJson(
-      Map<String, Object?> json, int backendRecordingId) {
+    Map<String, Object?> json,
+    int backendRecordingId,
+  ) {
     return RecordingPart(
-        BEId: json['id'] as int?,
-        recordingId: null,
-        // will be updated later
-        startTime: DateTime.parse(json['startDate'] as String),
-        endTime: DateTime.parse(json['endDate'] as String),
-        gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
-        gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
-        gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
-        gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
-        dataBase64Temp: json['dataBase64'] as String?,
-        square: json['square'] as String?,
-        sent: true,
-        length: json['length'] as int?)
-      ..backendRecordingId = backendRecordingId;
+      BEId: json['id'] as int?,
+      recordingId: null,
+      // will be updated later
+      startTime: DateTime.parse(json['startDate'] as String),
+      endTime: DateTime.parse(json['endDate'] as String),
+      gpsLatitudeStart: (json['gpsLatitudeStart'] as num).toDouble(),
+      gpsLatitudeEnd: (json['gpsLatitudeEnd'] as num).toDouble(),
+      gpsLongitudeStart: (json['gpsLongitudeStart'] as num).toDouble(),
+      gpsLongitudeEnd: (json['gpsLongitudeEnd'] as num).toDouble(),
+      dataBase64Temp: json['dataBase64'] as String?,
+      square: json['square'] as String?,
+      sent: true,
+      length: json['length'] as int?,
+    )..backendRecordingId = backendRecordingId;
   }
 
   Future<void> save() async {
-    String newPath = (await getApplicationDocumentsDirectory()).path +
+    String newPath =
+        (await getApplicationDocumentsDirectory()).path +
         "/recording_${DateTime.now().millisecondsSinceEpoch}.wav";
     File file = await File(newPath).create();
     await file.writeAsBytes(base64Decode(dataBase64Temp!));
@@ -202,7 +206,7 @@ class RecordingPart {
       'uploadKey': uploadKey,
       'uploadContentSha256': uploadContentSha256,
       'uploadContentBytes': uploadContentBytes,
-      'length': length
+      'length': length,
     };
   }
 
@@ -226,16 +230,16 @@ class RecordingPartUnready {
   //String? dataBase64;
   String? path;
 
-  RecordingPartUnready(
-      {this.id,
-      this.recordingId,
-      this.startTime,
-      this.endTime,
-      this.gpsLatitudeStart,
-      this.gpsLatitudeEnd,
-      this.gpsLongitudeStart,
-      this.gpsLongitudeEnd,
-      this.path
-      //this.dataBase64,
-      });
+  RecordingPartUnready({
+    this.id,
+    this.recordingId,
+    this.startTime,
+    this.endTime,
+    this.gpsLatitudeStart,
+    this.gpsLatitudeEnd,
+    this.gpsLongitudeStart,
+    this.gpsLongitudeEnd,
+    this.path,
+    //this.dataBase64,
+  });
 }

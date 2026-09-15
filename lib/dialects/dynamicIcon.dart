@@ -13,18 +13,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/dialects_controller.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/dialects/dialect_definition.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dialect_keyword_translator.dart';
 
 const DialectsController _dialectsController = DialectsController();
-final Logger logger = Logger();
+final AppLogger logger = AppLogger(scope: 'dialects.dynamicIcon');
 
 class DialectColorCache {
   static const String _legacyPrefsKey = 'dialect_colors_v1';
@@ -47,8 +48,8 @@ class DialectColorCache {
   }) {
     final String normalizedEnvironment =
         environment.trim().toLowerCase().isEmpty
-            ? 'unknown'
-            : environment.trim().toLowerCase();
+        ? 'unknown'
+        : environment.trim().toLowerCase();
     final String normalizedHost = host.trim().toLowerCase().isEmpty
         ? 'unknown'
         : host.trim().toLowerCase();
@@ -110,8 +111,12 @@ class DialectColorCache {
       // The legacy key was shared by production and development. Never allow
       // it to leak colors across environments after upgrading.
       await prefs.remove(_legacyPrefsKey);
-    } catch (error) {
-      logger.w('[DialectColorCache] failed to clear current scope: $error');
+    } catch (error, stackTrace) {
+      logger.w(
+        '[DialectColorCache] failed to clear current scope: $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -121,10 +126,12 @@ class DialectColorCache {
 
     // If cache is empty (first start offline), use defaults wholesale.
     final Map<String, String> source = raw.isEmpty ? _defaults : raw;
-    logger.v('[DialectColorCache] getColors: source=' +
-        (raw.isEmpty ? 'defaults' : 'cache') +
-        ', requested=' +
-        dialects.join(','));
+    logger.t(
+      '[DialectColorCache] getColors: source=' +
+          (raw.isEmpty ? 'defaults' : 'cache') +
+          ', requested=' +
+          dialects.join(','),
+    );
 
     for (final dRaw in dialects) {
       final canonical = DialectKeywordTranslator.toEnglish(dRaw) ?? dRaw.trim();
@@ -146,18 +153,24 @@ class DialectColorCache {
       if (hex == null) continue;
       try {
         colors.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-        logger.v('[DialectColorCache]  • ' +
-            canonical +
-            ' -> ' +
-            hex +
-            ' (' +
-            chosenFrom +
-            ')');
-      } catch (e) {
-        logger.w('[DialectColorCache]  ! failed to parse color for ' +
-            canonical +
-            ': ' +
-            e.toString());
+        logger.t(
+          '[DialectColorCache]  • ' +
+              canonical +
+              ' -> ' +
+              hex +
+              ' (' +
+              chosenFrom +
+              ')',
+        );
+      } catch (e, stackTrace) {
+        logger.w(
+          '[DialectColorCache]  ! failed to parse color for ' +
+              canonical +
+              ': ' +
+              e.toString(),
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
     }
 
@@ -166,10 +179,14 @@ class DialectColorCache {
       if (hex != null) {
         try {
           colors.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-          logger.v('[DialectColorCache]  • (empty) -> ' + hex + ' (fallback)');
-        } catch (e) {
-          logger.w('[DialectColorCache]  ! failed to parse fallback grey: ' +
-              e.toString());
+          logger.t('[DialectColorCache]  • (empty) -> ' + hex + ' (fallback)');
+        } catch (e, stackTrace) {
+          logger.w(
+            '[DialectColorCache]  ! failed to parse fallback grey: ' +
+                e.toString(),
+            error: e,
+            stackTrace: stackTrace,
+          );
         }
       }
     }
@@ -220,7 +237,7 @@ class DynamicIcon extends StatelessWidget {
   final Color? dotColor;
 
   final String?
-      cacheKey; // unique rebuild key to avoid stale reuse across recordings
+  cacheKey; // unique rebuild key to avoid stale reuse across recordings
 
   static int getColorFromHex(String hexColor) {
     hexColor = hexColor.toUpperCase().replaceAll("#", "");
@@ -240,8 +257,11 @@ class DynamicIcon extends StatelessWidget {
     final response = await _dialectsController.fetchDialectPalette(host: host);
 
     if (response.statusCode != 200) {
-      throw Exception(
-          'Failed to fetch dialect colors: HTTP ${response.statusCode}');
+      final error = Exception(
+        'Failed to fetch dialect colors: HTTP ${response.statusCode}',
+      );
+      AppFailureRegistry.attach(error, apiFailureForResult(response));
+      throw error;
     }
 
     final dynamic data = response.data is String
@@ -270,13 +290,15 @@ class DynamicIcon extends StatelessWidget {
         }
         if (hex != null) {
           result[k.toString()] = hex;
-          logger.v('[DialectColorCache] fetched ' +
-              k.toString() +
-              ' -> ' +
-              hex +
-              ' (server)');
+          logger.t(
+            '[DialectColorCache] fetched ' +
+                k.toString() +
+                ' -> ' +
+                hex +
+                ' (server)',
+          );
         } else {
-          logger.v('[DialectColorCache] skipped entry key=' + k.toString());
+          logger.t('[DialectColorCache] skipped entry key=' + k.toString());
         }
       });
     } else if (data is List) {
@@ -286,21 +308,27 @@ class DynamicIcon extends StatelessWidget {
         final hex = _normalizeHex(colorRaw);
         if (hex != null) {
           result[definition.code] = hex;
-          logger.v('[DialectColorCache] fetched ' +
-              definition.code +
-              ' -> ' +
-              hex +
-              ' (server)');
+          logger.t(
+            '[DialectColorCache] fetched ' +
+                definition.code +
+                ' -> ' +
+                hex +
+                ' (server)',
+          );
         } else {
-          logger.v('[DialectColorCache] skipped entry code=' +
-              definition.code +
-              ' color=' +
-              (colorRaw ?? 'null'));
+          logger.t(
+            '[DialectColorCache] skipped entry code=' +
+                definition.code +
+                ' color=' +
+                (colorRaw ?? 'null'),
+          );
         }
       }
     } else {
-      logger.w('Unexpected /recordings/dialects response format: ' +
-          data.runtimeType.toString());
+      logger.w(
+        'Unexpected /recordings/dialects response format: ' +
+            data.runtimeType.toString(),
+      );
     }
 
     return result;
@@ -311,16 +339,21 @@ class DynamicIcon extends StatelessWidget {
     try {
       // Read only from cache for offline usage. Do NOT fetch over network here.
       return await DialectColorCache.getColors(dialects!);
-    } catch (e) {
-      logger.e('Failed to read cached dialect colors: $e');
+    } catch (e, stackTrace) {
+      logger.e(
+        'Failed to read cached dialect colors: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
 
   /// Refresh (update) the cached dialect colors from the server in one call.
   /// Any provided [dialects] are ignored; the server response is authoritative.
-  static Future<void> refreshDialects(
-      [List<String> dialects = const []]) async {
+  static Future<void> refreshDialects([
+    List<String> dialects = const [],
+  ]) async {
     try {
       final String environment = Config.dataEnvironment;
       final String host = Config.host;
@@ -331,18 +364,25 @@ class DynamicIcon extends StatelessWidget {
       final serverMap = await _fetchAllDialectColors(host: host);
       if (serverMap.isEmpty) {
         logger.w(
-            'refreshDialects: server returned empty map; keeping existing cache.');
+          'refreshDialects: server returned empty map; keeping existing cache.',
+        );
         return;
       }
       await DialectColorCache._writeRaw(
         serverMap,
         preferencesKey: preferencesKey,
       );
-      logger.i('[DialectColorCache] refreshDialects: cached ' +
-          serverMap.length.toString() +
-          ' entries from server.');
-    } catch (e) {
-      logger.e('Failed to refresh dialect colors: $e');
+      logger.i(
+        '[DialectColorCache] refreshDialects: cached ' +
+            serverMap.length.toString() +
+            ' entries from server.',
+      );
+    } catch (e, stackTrace) {
+      logger.e(
+        'Failed to refresh dialect colors: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -360,21 +400,29 @@ class DynamicIcon extends StatelessWidget {
     try {
       final response = await _dialectsController.fetchDialectPalette();
       if (response.statusCode != 200) {
-        logger.w('[DynamicIcon] fetchVisibleDialectHintCodesFromServer HTTP ' +
-            response.statusCode.toString());
+        logger.w(
+          '[DynamicIcon] fetchVisibleDialectHintCodesFromServer HTTP ' +
+              response.statusCode.toString(),
+          failure: apiFailureForResult(response),
+        );
         return const [];
       }
       final dynamic body = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
       final out = visibleDialectHintCodes(body);
-      logger.i('[DynamicIcon] fetchVisibleDialectHintCodesFromServer: ' +
-          out.length.toString() +
-          ' codes');
+      logger.i(
+        '[DynamicIcon] fetchVisibleDialectHintCodesFromServer: ' +
+            out.length.toString() +
+            ' codes',
+      );
       return out;
-    } catch (e) {
-      logger.e('[DynamicIcon] fetchVisibleDialectHintCodesFromServer error: ' +
-          e.toString());
+    } catch (e, stackTrace) {
+      logger.e(
+        '[DynamicIcon] fetchVisibleDialectHintCodesFromServer error: ' +
+            e.toString(),
+        stackTrace: stackTrace,
+      );
       return const [];
     }
   }
@@ -389,8 +437,9 @@ class DynamicIcon extends StatelessWidget {
   /// cached values when available; falls back to defaults for missing keys.
   static Future<Map<String, Color>> getLegendDialectColors() async {
     final raw = await DialectColorCache._readRaw();
-    final Map<String, String> source =
-        raw.isEmpty ? DialectColorCache._defaults : raw;
+    final Map<String, String> source = raw.isEmpty
+        ? DialectColorCache._defaults
+        : raw;
 
     final result = <String, Color>{};
     for (final key in DialectColorCache._defaults.keys) {
@@ -409,8 +458,8 @@ class DynamicIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final Future<List<Color>>? colorsFuture =
         (dialects != null && dialects!.isNotEmpty)
-            ? _fetchDialectColors()
-            : null;
+        ? _fetchDialectColors()
+        : null;
 
     return FutureBuilder<List<Color>>(
       key: ValueKey(cacheKey ?? (dialects ?? const <String>[]).join('+')),
@@ -427,32 +476,40 @@ class DynamicIcon extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.hasData &&
               snapshot.data!.isNotEmpty) {
-            logger.v('[DynamicIcon] colors from async cache for ' +
-                (dialects ?? const <String>[]).join(',') +
-                ' -> ' +
-                snapshot.data!.length.toString() +
-                ' color(s)');
+            logger.t(
+              '[DynamicIcon] colors from async cache for ' +
+                  (dialects ?? const <String>[]).join(',') +
+                  ' -> ' +
+                  snapshot.data!.length.toString() +
+                  ' color(s)',
+            );
             return snapshot.data!;
           }
           // Fallback: derive colors synchronously from defaults while waiting
           final ds = (dialects ?? const <String>[]);
-          logger.v('[DynamicIcon] sync fallback colors for ' + ds.join(','));
+          logger.t('[DynamicIcon] sync fallback colors for ' + ds.join(','));
           final cols = <Color>[];
           for (final dRaw in ds) {
             final d = (dRaw).trim();
             if (d.isEmpty) continue;
-            final hex = DialectColorCache._defaults[d] ??
+            final hex =
+                DialectColorCache._defaults[d] ??
                 DialectColorCache._defaults['Unknown'];
             if (hex == null) continue;
             try {
               cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-              logger.v(
-                  '[DynamicIcon]  • ' + d + ' -> ' + hex + ' (defaults/sync)');
-            } catch (e) {
-              logger.w('[DynamicIcon]  ! failed to parse hex for ' +
-                  d +
-                  ': ' +
-                  e.toString());
+              logger.t(
+                '[DynamicIcon]  • ' + d + ' -> ' + hex + ' (defaults/sync)',
+              );
+            } catch (e, stackTrace) {
+              logger.w(
+                '[DynamicIcon]  ! failed to parse hex for ' +
+                    d +
+                    ': ' +
+                    e.toString(),
+                error: e,
+                stackTrace: stackTrace,
+              );
             }
           }
           if (cols.isEmpty) {
@@ -460,12 +517,16 @@ class DynamicIcon extends StatelessWidget {
             if (hex != null) {
               try {
                 cols.add(Color(int.parse(hex.replaceFirst('#', '0xff'))));
-                logger.v(
-                    '[DynamicIcon]  • (empty) -> ' + hex + ' (fallback/sync)');
-              } catch (e) {
+                logger.t(
+                  '[DynamicIcon]  • (empty) -> ' + hex + ' (fallback/sync)',
+                );
+              } catch (e, stackTrace) {
                 logger.w(
-                    '[DynamicIcon]  ! failed to parse sync fallback grey: ' +
-                        e.toString());
+                  '[DynamicIcon]  ! failed to parse sync fallback grey: ' +
+                      e.toString(),
+                  error: e,
+                  stackTrace: stackTrace,
+                );
               }
             }
           }

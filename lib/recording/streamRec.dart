@@ -30,13 +30,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/recording/recording_location_subscription.dart';
 import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/PostRecordingForm/recording_draft_handoff.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/database/draft_persistence_reconciliation.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/locationService.dart';
 import 'package:strnadi/location/location_resolution.dart';
@@ -55,7 +54,7 @@ import '../navigation/guide_shortcut_button.dart';
 import '../navigation/notification_bell_button.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'recording.streamRec');
 
 class RecordingTaskHandler extends TaskHandler {
   @override
@@ -135,10 +134,7 @@ class ElapsedTimer {
 }
 
 class LiveRec extends StatefulWidget {
-  const LiveRec({
-    super.key,
-    this.foregroundService,
-  });
+  const LiveRec({super.key, this.foregroundService});
 
   final RecordingForegroundService? foregroundService;
 
@@ -261,12 +257,14 @@ class _LiveRecState extends State<LiveRec> {
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       _updateRecordState(recordState);
     });
-    _elapsedTimer = ElapsedTimer(onTick: (elapsed) {
-      if (!mounted) return;
-      setState(() {
-        _recordDuration = elapsed;
-      });
-    });
+    _elapsedTimer = ElapsedTimer(
+      onTick: (elapsed) {
+        if (!mounted) return;
+        setState(() {
+          _recordDuration = elapsed;
+        });
+      },
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       bool shown = prefs.getBool('popupShown') ?? false;
@@ -275,23 +273,24 @@ class _LiveRecState extends State<LiveRec> {
       if (!shown && isGuest) {
         showDialog(
           context: context,
-          builder: (context) => GuestUserRules(
-            recorderExitPolicy: changeConfirmation,
-          ),
+          builder: (context) =>
+              GuestUserRules(recorderExitPolicy: changeConfirmation),
         );
         await prefs.setBool('popupShown', true);
       }
     });
   }
 
-  static const MethodChannel _platform =
-      MethodChannel('com.delta.strnadi/audio');
+  static const MethodChannel _platform = MethodChannel(
+    'com.delta.strnadi/audio',
+  );
 
   Future<void> _initAudioSettings() async {
     int resolvedSampleRate = _defaultSampleRate;
     try {
-      final Map<dynamic, dynamic>? settings =
-          await _platform.invokeMethod('getBestAudioSettings');
+      final Map<dynamic, dynamic>? settings = await _platform.invokeMethod(
+        'getBestAudioSettings',
+      );
       final Object? configuredSampleRate = settings?['sampleRate'];
       final int? parsedSampleRate = configuredSampleRate is num
           ? configuredSampleRate.toInt()
@@ -300,8 +299,11 @@ class _LiveRecState extends State<LiveRec> {
         resolvedSampleRate = parsedSampleRate;
       }
     } catch (e, stackTrace) {
-      logger.e('Failed to get audio settings, using defaults: $e',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to get audio settings, using defaults: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     sampleRate = resolvedSampleRate;
@@ -365,19 +367,18 @@ class _LiveRecState extends State<LiveRec> {
           error: e,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(e, stackTrace: stackTrace);
+
         if (mounted) {
-          _showMessage(
-            context,
-            t('streamRec.errors.foregroundServiceCleanup'),
-          );
+          _showMessage(context, t('streamRec.errors.foregroundServiceCleanup'));
         }
       } else if (_segmentFinalizationPending) {
         _reportSegmentFinalizationFailure(e, stackTrace);
       } else {
-        logger.e("Error toggling recording: $e",
-            error: e, stackTrace: stackTrace);
-        Sentry.captureException(e, stackTrace: stackTrace);
+        logger.e(
+          "Error toggling recording: $e",
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
     } finally {
       if (mounted) {
@@ -429,12 +430,9 @@ class _LiveRecState extends State<LiveRec> {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
+
       if (mounted) {
-        _showMessage(
-          context,
-          t('streamRec.errors.foregroundServiceCleanup'),
-        );
+        _showMessage(context, t('streamRec.errors.foregroundServiceCleanup'));
       }
     } finally {
       _completeForegroundServiceEntry();
@@ -474,7 +472,6 @@ class _LiveRecState extends State<LiveRec> {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
 
       // A stale "recording in progress" notification is worse than having no
       // paused notification. Remove the service if its content cannot be made
@@ -483,18 +480,14 @@ class _LiveRecState extends State<LiveRec> {
     }
   }
 
-  Future<void> _shutdownRecordingRuntime({
-    bool stopRecorder = true,
-  }) {
+  Future<void> _shutdownRecordingRuntime({bool stopRecorder = true}) {
     final Future<void>? inFlight = _runtimeShutdownFuture;
     if (inFlight != null) {
       return inFlight;
     }
 
     late final Future<void> shutdown;
-    shutdown = _performRecordingRuntimeShutdown(
-      stopRecorder: stopRecorder,
-    );
+    shutdown = _performRecordingRuntimeShutdown(stopRecorder: stopRecorder);
     _runtimeShutdownFuture = shutdown;
     return shutdown.whenComplete(() {
       if (identical(_runtimeShutdownFuture, shutdown)) {
@@ -536,7 +529,6 @@ class _LiveRecState extends State<LiveRec> {
           error: e,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
 
@@ -570,7 +562,7 @@ class _LiveRecState extends State<LiveRec> {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       Error.throwWithStackTrace(e, stackTrace);
     }
   }
@@ -596,7 +588,6 @@ class _LiveRecState extends State<LiveRec> {
           error: e,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
   }
@@ -792,20 +783,16 @@ class _LiveRecState extends State<LiveRec> {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
-  void _reportSegmentFinalizationFailure(
-    Object error,
-    StackTrace stackTrace,
-  ) {
+  void _reportSegmentFinalizationFailure(Object error, StackTrace stackTrace) {
     logger.e(
       'Error finalizing recorded segment: $error',
       error: error,
       stackTrace: stackTrace,
     );
-    Sentry.captureException(error, stackTrace: stackTrace);
+
     if (mounted) {
       _showMessage(context, t('streamRec.errors.segmentFinalizeError'));
     }
@@ -836,7 +823,8 @@ class _LiveRecState extends State<LiveRec> {
 
   void _rememberSegmentStartLocation(LatLng location) {
     currentPosition = location;
-    final bool isNewPoint = _liveRoute.isEmpty ||
+    final bool isNewPoint =
+        _liveRoute.isEmpty ||
         _liveRoute.last.latitude != location.latitude ||
         _liveRoute.last.longitude != location.longitude;
     if (isNewPoint) {
@@ -848,10 +836,7 @@ class _LiveRecState extends State<LiveRec> {
   Future<void> _stop() async {
     if (_isFinishingRecording || _isProcessingRecording || !mounted) return;
     if (_draftPersistenceMayHaveCommitted) {
-      _showMessage(
-        context,
-        t('streamRec.errors.saveStatusUnknown'),
-      );
+      _showMessage(context, t('streamRec.errors.saveStatusUnknown'));
       return;
     }
     bool shouldShutdownRuntime = false;
@@ -866,9 +851,7 @@ class _LiveRecState extends State<LiveRec> {
       }
       if (_recordState == RecordState.record) {
         try {
-          await _stopActiveSegmentForFinalization(
-            action: 'stopping recording',
-          );
+          await _stopActiveSegmentForFinalization(action: 'stopping recording');
           await _finalizePendingSegment();
         } catch (e, stackTrace) {
           _reportSegmentFinalizationFailure(e, stackTrace);
@@ -895,17 +878,18 @@ class _LiveRecState extends State<LiveRec> {
       final List<String> paths = List<String>.from(segmentPaths);
       String? outputPath = recordedFilePath;
       if (outputPath == null || !await File(outputPath).exists()) {
-        outputPath = await _getPath(
-          excludedPaths: paths,
-        );
+        outputPath = await _getPath(excludedPaths: paths);
         try {
           await concatWavFiles(paths, outputPath);
           recordedFilePath = outputPath;
           logger.i('Final recording saved.');
         } catch (e, stackTrace) {
-          logger.e("Error concatenating files: $e",
-              error: e, stackTrace: stackTrace);
-          Sentry.captureException(e, stackTrace: stackTrace);
+          logger.e(
+            "Error concatenating files: $e",
+            error: e,
+            stackTrace: stackTrace,
+          );
+
           return;
         }
       }
@@ -914,14 +898,14 @@ class _LiveRecState extends State<LiveRec> {
 
       late final RecordingDraftHandoff persistedDraft;
       try {
-        persistedDraft =
-            await RecordingDraftHandoffCoordinator.database().persistCapture(
-          filepath: recordedFilePath!,
-          startTime: overallStartTime!,
-          recordingParts: recordingPartsList,
-          recordingPartDurations: recordingPartsTimeList,
-          environment: Config.dataEnvironment,
-        );
+        persistedDraft = await RecordingDraftHandoffCoordinator.database()
+            .persistCapture(
+              filepath: recordedFilePath!,
+              startTime: overallStartTime!,
+              recordingParts: recordingPartsList,
+              recordingPartDurations: recordingPartsTimeList,
+              environment: Config.dataEnvironment,
+            );
       } catch (error, stackTrace) {
         if (error is RecordingDraftPersistenceException &&
             error.mayHaveCommitted) {
@@ -933,7 +917,7 @@ class _LiveRecState extends State<LiveRec> {
           error: error,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(error, stackTrace: stackTrace);
+
         if (mounted) {
           _showMessage(
             context,
@@ -1074,9 +1058,7 @@ class _LiveRecState extends State<LiveRec> {
     final scaffoldWidget = Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: GuideShortcutButton(
-          recorderExitPolicy: changeConfirmation,
-        ),
+        leading: GuideShortcutButton(recorderExitPolicy: changeConfirmation),
         actions: [
           NotificationBellButton(
             isGuestUser: _isGuestUser,
@@ -1122,8 +1104,8 @@ class _LiveRecState extends State<LiveRec> {
                     label: _recordState == RecordState.stop
                         ? t('streamRec.buttons.startRecording')
                         : _recordState == RecordState.record
-                            ? t('streamRec.buttons.pauseRecording')
-                            : t('streamRec.buttons.resumeRecording'),
+                        ? t('streamRec.buttons.pauseRecording')
+                        : t('streamRec.buttons.resumeRecording'),
                     button: true,
                     child: GestureDetector(
                       onTap: _toggleRecording,
@@ -1145,18 +1127,10 @@ class _LiveRecState extends State<LiveRec> {
                                     size: 40,
                                     color: iconColor,
                                   ),
-                                  Icon(
-                                    Icons.mic,
-                                    size: 20,
-                                    color: iconColor,
-                                  ),
+                                  Icon(Icons.mic, size: 20, color: iconColor),
                                 ],
                               )
-                            : Icon(
-                                iconData,
-                                color: iconColor,
-                                size: 40,
-                              ),
+                            : Icon(iconData, color: iconColor, size: 40),
                       ),
                     ),
                   ),
@@ -1224,12 +1198,15 @@ class _LiveRecState extends State<LiveRec> {
             if (_recordState == RecordState.record ||
                 _recordState == RecordState.pause)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isFinishingRecording ||
+                    onPressed:
+                        _isFinishingRecording ||
                             _isDiscardingRecording ||
                             _isProcessingRecording
                         ? null
@@ -1270,12 +1247,15 @@ class _LiveRecState extends State<LiveRec> {
             if (_recordState == RecordState.record ||
                 _recordState == RecordState.pause)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 3,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isFinishingRecording ||
+                    onPressed:
+                        _isFinishingRecording ||
                             _isDiscardingRecording ||
                             _isProcessingRecording
                         ? null
@@ -1352,7 +1332,8 @@ class _LiveRecState extends State<LiveRec> {
       return true;
     }
 
-    final bool hasRecordingToDiscard = _recordState == RecordState.record ||
+    final bool hasRecordingToDiscard =
+        _recordState == RecordState.record ||
         _recordState == RecordState.pause ||
         recording ||
         segmentPaths.isNotEmpty ||
@@ -1370,7 +1351,8 @@ class _LiveRecState extends State<LiveRec> {
     }
 
     try {
-      final bool discard = await showDialog<bool>(
+      final bool discard =
+          await showDialog<bool>(
             context: context,
             builder: (BuildContext dialogContext) {
               return AlertDialog(
@@ -1400,7 +1382,7 @@ class _LiveRecState extends State<LiveRec> {
             error: error,
             stackTrace: stackTrace,
           );
-          Sentry.captureException(error, stackTrace: stackTrace);
+
           if (mounted) {
             _showMessage(
               context,
@@ -1435,9 +1417,8 @@ class _LiveRecState extends State<LiveRec> {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => LiveRec(
-          foregroundService: _foregroundService,
-        ),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            LiveRec(foregroundService: _foregroundService),
         settings: const RouteSettings(name: '/Recorder'),
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
@@ -1488,8 +1469,11 @@ class _LiveRecState extends State<LiveRec> {
       onFailure: (error, stackTrace) {
         if (!mounted || locationFailureShown) return;
         locationFailureShown = true;
-        logger.w('Recording location updates are unavailable.',
-            error: error, stackTrace: stackTrace);
+        logger.w(
+          'Recording location updates are unavailable.',
+          error: error,
+          stackTrace: stackTrace,
+        );
         _showMessage(context, t('streamRec.errors.locationFetchError'));
       },
     );
@@ -1517,8 +1501,9 @@ class _LiveRecState extends State<LiveRec> {
       _rawPcmCapture = await RawPcmCapture.start(
         reservedFile: reservedFile,
         startStream: () async {
-          final Stream<List<int>> stream =
-              await _audioRecorder.startStream(config);
+          final Stream<List<int>> stream = await _audioRecorder.startStream(
+            config,
+          );
           recorderStarted = true;
           return stream;
         },
@@ -1526,9 +1511,7 @@ class _LiveRecState extends State<LiveRec> {
       segmentPaths.add(filepath);
 
       if (!mounted) {
-        await _cleanupFailedRecordingStart(
-          recorderStarted: recorderStarted,
-        );
+        await _cleanupFailedRecordingStart(recorderStarted: recorderStarted);
         return;
       }
 
@@ -1551,19 +1534,21 @@ class _LiveRecState extends State<LiveRec> {
         _recordState = RecordState.record;
       });
     } catch (e, stackTrace) {
-      await _cleanupFailedRecordingStart(
-        recorderStarted: recorderStarted,
+      await _cleanupFailedRecordingStart(recorderStarted: recorderStarted);
+      logger.e(
+        'Starting audio recording failed.',
+        error: e,
+        stackTrace: stackTrace,
       );
-      logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
   String _formatTime(Duration duration) {
     final minutes = duration.inMinutes.toString().padLeft(2, '0');
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-    final hundredths =
-        ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
+    final hundredths = ((duration.inMilliseconds % 1000) ~/ 10)
+        .toString()
+        .padLeft(2, '0');
     return '$minutes:$seconds,$hundredths';
   }
 
@@ -1614,8 +1599,9 @@ class _LiveRecState extends State<LiveRec> {
       _rawPcmCapture = await RawPcmCapture.start(
         reservedFile: reservedFile,
         startStream: () async {
-          final Stream<List<int>> stream =
-              await _audioRecorder.startStream(config);
+          final Stream<List<int>> stream = await _audioRecorder.startStream(
+            config,
+          );
           recorderStarted = true;
           return stream;
         },

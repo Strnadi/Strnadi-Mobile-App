@@ -22,9 +22,8 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:strnadi/auth/authorizator.dart';
 import 'package:strnadi/auth/passReset/newPassword.dart';
@@ -46,7 +45,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'privacy/tracking_consent.dart';
 
 // Create a global logger instance.
-final logger = Logger();
+final logger = AppLogger();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<_MyAppState> _myAppKey = GlobalKey<_MyAppState>();
@@ -80,8 +79,12 @@ class UploadProgressBridge {
             UploadProgressBus.markDone(partId);
           }
         }
-      } catch (e) {
-        logger.d('[UploadProgressBridge] error: $e');
+      } catch (error, stackTrace) {
+        logger.w(
+          'Upload progress bridge message failed.',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     });
     logger.d('[UploadProgressBridge] started and listening on $portName');
@@ -139,8 +142,6 @@ Future<void> _checkGooglePlayServices(BuildContext context) async {
 }
 
 void main() {
-  // Keep existing diagnostics visible in profile/release builds too.
-  Logger.defaultFilter = () => ProductionFilter();
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
@@ -157,9 +158,7 @@ void main() {
       await _continueBootstrap(trackingAuthorized: trackingAuthorized);
     },
     (error, stack) {
-      if (TrackingConsentManager.isAuthorized) {
-        Sentry.captureException(error, stackTrace: stack);
-      }
+      logger.f('Unhandled application error.', error: error, stackTrace: stack);
     },
   );
 }

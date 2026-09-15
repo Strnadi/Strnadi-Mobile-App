@@ -294,9 +294,12 @@ void main() {
       final int operation = callback.indexOf(
         'operation: (RecordingWorkflowLeaseContext context)',
       );
-      final int load = callback.indexOf(
-        'DatabaseNew.getDialectsByRecordingId(recordingId)',
-      );
+      final int load =
+          RegExp(
+            r'\bDatabaseNew\s*\.\s*getDialectsByRecordingId\s*'
+            r'\(\s*recordingId\s*,?\s*\)',
+          ).firstMatch(callback)?.start ??
+          -1;
       expect(operation, greaterThanOrEqualTo(0));
       expect(load, greaterThan(operation));
     });
@@ -896,10 +899,11 @@ void main() {
       expect(recordingFetch, contains('sessionProvider.capture()'));
       expect(recordingFetch, contains('accessToken: session.accessToken'));
       expect(recordingFetch, contains('host: session.backendHost'));
-      expect(
-        recordingFetch,
-        contains('_requireRecordingSessionCurrent(sessionProvider, session)'),
+      final RegExp sessionCheck = RegExp(
+        r'\b_requireRecordingSessionCurrent\s*'
+        r'\(\s*sessionProvider\s*,\s*session\s*,?\s*\)',
       );
+      expect(recordingFetch, contains(sessionCheck));
       expect(recordingFetch, contains('environment: session.environment'));
       expect(
         recordingFetch,
@@ -909,11 +913,14 @@ void main() {
         recordingFetch,
         contains('_getRecordingsForCapturedSession(session)'),
       );
-      final int requestCall = recordingFetch.indexOf(
-        '_recordingsApi.fetchRecordingsForUser',
-      );
+      final int requestCall =
+          RegExp(
+            r'\b_recordingsApi\s*\.\s*fetchRecordingsForUser\s*\(',
+          ).firstMatch(recordingFetch)?.start ??
+          -1;
+      expect(requestCall, greaterThanOrEqualTo(0));
       final int responseSessionCheck = recordingFetch.indexOf(
-        '_requireRecordingSessionCurrent(sessionProvider, session)',
+        sessionCheck,
         requestCall,
       );
       final int snapshotAssignment = recordingFetch.indexOf(

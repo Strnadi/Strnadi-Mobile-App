@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:strnadi/api/dio_client.dart';
 import 'package:strnadi/api/http_adapter.dart' as adapter_http;
+import 'package:strnadi/api/api_logging.dart';
+import 'package:strnadi/logging/log_failure.dart';
 
 void main() {
   late dio.Dio client;
@@ -25,54 +27,58 @@ void main() {
     adapter.verifyExhausted();
   });
 
-  test('GET converts Dio bytes, headers, and request metadata to http',
-      () async {
-    adapter.enqueue(
-      206,
-      body: utf8.encode('partial response'),
-      headers: <String, List<String>>{
-        'content-type': <String>['text/plain; charset=utf-8'],
-        'x-test': <String>['one', 'two'],
-      },
-      statusMessage: 'Partial Content',
-    );
-    final Uri uri = Uri.parse('https://adapter.example.test/items?page=2');
+  test(
+    'GET converts Dio bytes, headers, and request metadata to http',
+    () async {
+      adapter.enqueue(
+        206,
+        body: utf8.encode('partial response'),
+        headers: <String, List<String>>{
+          'content-type': <String>['text/plain; charset=utf-8'],
+          'x-test': <String>['one', 'two'],
+        },
+        statusMessage: 'Partial Content',
+      );
+      final Uri uri = Uri.parse('https://adapter.example.test/items?page=2');
 
-    final http.Response response = await adapter_http.get(
-      uri,
-      headers: const <String, String>{'x-client': 'test'},
-    );
+      final http.Response response = await adapter_http.get(
+        uri,
+        headers: const <String, String>{'x-client': 'test'},
+      );
 
-    expect(response.statusCode, 206);
-    expect(response.body, 'partial response');
-    expect(response.headers['x-test'], 'one,two');
-    expect(response.reasonPhrase, 'Partial Content');
-    expect(response.request?.method, 'GET');
-    expect(response.request?.url, uri);
-    expect(response.persistentConnection, isTrue);
-    expect(adapter.requests.single.headers['x-client'], 'test');
-    expect(adapter.requests.single.responseType, dio.ResponseType.bytes);
-  });
+      expect(response.statusCode, 206);
+      expect(response.body, 'partial response');
+      expect(response.headers['x-test'], 'one,two');
+      expect(response.reasonPhrase, 'Partial Content');
+      expect(response.request?.method, 'GET');
+      expect(response.request?.url, uri);
+      expect(response.persistentConnection, isTrue);
+      expect(adapter.requests.single.headers['x-client'], 'test');
+      expect(adapter.requests.single.responseType, dio.ResponseType.bytes);
+    },
+  );
 
-  test('HEAD and bodyless DELETE preserve their methods and empty bodies',
-      () async {
-    adapter
-      ..enqueue(204)
-      ..enqueue(204);
-    final Uri uri = Uri.parse('https://adapter.example.test/resource/7');
+  test(
+    'HEAD and bodyless DELETE preserve their methods and empty bodies',
+    () async {
+      adapter
+        ..enqueue(204)
+        ..enqueue(204);
+      final Uri uri = Uri.parse('https://adapter.example.test/resource/7');
 
-    final http.Response headResponse = await adapter_http.head(uri);
-    final http.Response deleteResponse = await adapter_http.delete(uri);
+      final http.Response headResponse = await adapter_http.head(uri);
+      final http.Response deleteResponse = await adapter_http.delete(uri);
 
-    expect(headResponse.bodyBytes, isEmpty);
-    expect(deleteResponse.bodyBytes, isEmpty);
-    expect(
-      adapter.requests.map((dio.RequestOptions request) => request.method),
-      <String>['HEAD', 'DELETE'],
-    );
-    expect(adapter.requests[0].data, isNull);
-    expect(adapter.requests[1].data, isNull);
-  });
+      expect(headResponse.bodyBytes, isEmpty);
+      expect(deleteResponse.bodyBytes, isEmpty);
+      expect(
+        adapter.requests.map((dio.RequestOptions request) => request.method),
+        <String>['HEAD', 'DELETE'],
+      );
+      expect(adapter.requests[0].data, isNull);
+      expect(adapter.requests[1].data, isNull);
+    },
+  );
 
   test('POST preserves strings and string-keyed maps', () async {
     adapter
@@ -87,10 +93,10 @@ void main() {
     );
 
     expect(adapter.requests[0].data, 'plain text');
-    expect(
-      adapter.requests[1].data,
-      <String, dynamic>{'name': 'bird', 'count': 2},
-    );
+    expect(adapter.requests[1].data, <String, dynamic>{
+      'name': 'bird',
+      'count': 2,
+    });
   });
 
   test('PATCH normalizes non-string map keys and generic iterables', () async {
@@ -112,9 +118,9 @@ void main() {
       ..enqueue(200);
     final Uri uri = Uri.parse('https://adapter.example.test/resource/7');
     final List<int> bytes = <int>[0, 1, 255];
-    final dio.FormData formData = dio.FormData.fromMap(
-      <String, dynamic>{'name': 'bird'},
-    );
+    final dio.FormData formData = dio.FormData.fromMap(<String, dynamic>{
+      'name': 'bird',
+    });
 
     await adapter_http.put(uri, body: bytes);
     await adapter_http.put(uri, body: formData);
@@ -162,13 +168,51 @@ void main() {
               'message',
               contains('mock connection refused'),
             )
-            .having(
-              (http.ClientException error) => error.uri,
-              'uri',
-              uri,
-            ),
+            .having((http.ClientException error) => error.uri, 'uri', uri),
       ),
     );
+  });
+
+  test(
+    'HTTP adapter retains API failure reason and occurrence identity',
+    () async {
+      adapter.enqueue(
+        422,
+        body: utf8.encode(
+          '{"reason":"invalid_part","detail":"Part duration is invalid"}',
+        ),
+        headers: {
+          'content-type': ['application/json'],
+        },
+      );
+      final response = await adapter_http.get(
+        Uri.parse('https://adapter.example.test/part'),
+      );
+      expect(response, isA<http.Response>());
+      final failure = apiFailureForResult(response);
+      expect(failure, same((response as DiagnosticException).logFailure));
+      expect(failure.reason, 'invalid_part');
+      expect(failure.api!.statusCode, 422);
+      expect(failure.api!.message, 'Part duration is invalid');
+      expect(failure.expected, isTrue);
+    },
+  );
+
+  test('translated transport errors retain original failure stack', () async {
+    adapter.enqueueError('mock connection refused');
+    try {
+      await adapter_http.get(
+        Uri.parse('https://adapter.example.test/resource'),
+      );
+      fail('Expected ClientException');
+    } on http.ClientException catch (error, stackTrace) {
+      final failure = AppFailureRegistry.lookup(error, stackTrace);
+      expect(failure, isNotNull);
+      expect(failure!.api!.statusCode, isNull);
+      expect(failure.api!.transportType, 'connectionError');
+      expect(failure.expected, isTrue);
+      expect(stackTrace.toString(), contains('http_adapter.dart'));
+    }
   });
 }
 
@@ -261,10 +305,10 @@ class _AdapterOutcome {
   }) : errorMessage = null;
 
   const _AdapterOutcome.error(this.errorMessage)
-      : statusCode = null,
-        body = const <int>[],
-        headers = const <String, List<String>>{},
-        statusMessage = null;
+    : statusCode = null,
+      body = const <int>[],
+      headers = const <String, List<String>>{},
+      statusMessage = null;
 
   final int? statusCode;
   final List<int> body;

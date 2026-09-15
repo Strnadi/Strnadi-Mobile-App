@@ -26,28 +26,34 @@ void main() {
   });
 
   test('production recorder captures PCM through startStream only', () {
-    expect(source, contains('_audioRecorder.startStream(config)'));
     expect(
       source,
-      isNot(
-        matches(
-          RegExp(r'_audioRecorder\.start\(\s*config,\s*path:'),
-        ),
-      ),
+      matches(RegExp(r'_audioRecorder\.startStream\(\s*config\s*,?\s*\)')),
+    );
+    expect(
+      source,
+      isNot(matches(RegExp(r'_audioRecorder\.start\(\s*config,\s*path:'))),
     );
     expect(source, contains('reserveUnusedRawPcmFile('));
     expect(source, contains("audio_\${timestamp}_\$sequence.raw"));
   });
 
   test('physical stop is followed by the raw capture drain barrier', () {
-    final int stopMethod =
-        source.indexOf('Future<void> _stopActiveSegmentForFinalization');
-    final int stopCall =
-        source.indexOf('await _audioRecorder.stop()', stopMethod);
-    final int drainCall =
-        source.indexOf('await _finishActiveRawPcmCapture()', stopCall);
-    final int wavWrite =
-        source.indexOf('await writeFinalizedWavSegment(', drainCall);
+    final int stopMethod = source.indexOf(
+      'Future<void> _stopActiveSegmentForFinalization',
+    );
+    final int stopCall = source.indexOf(
+      'await _audioRecorder.stop()',
+      stopMethod,
+    );
+    final int drainCall = source.indexOf(
+      'await _finishActiveRawPcmCapture()',
+      stopCall,
+    );
+    final int wavWrite = source.indexOf(
+      'await writeFinalizedWavSegment(',
+      drainCall,
+    );
 
     expect(stopMethod, greaterThanOrEqualTo(0));
     expect(stopCall, greaterThan(stopMethod));
@@ -56,16 +62,25 @@ void main() {
   });
 
   test('raw input is deleted only after finalized metadata is committed', () {
-    final int finalizer =
-        source.indexOf('Future<void> _finalizePendingSegment');
-    final int wavWrite =
-        source.indexOf('await writeFinalizedWavSegment(', finalizer);
-    final int pathCommit =
-        source.indexOf('segmentPaths[rawPathIndex] = finalizedPath', wavWrite);
-    final int metadataCommit =
-        source.indexOf('recordingPartsList.add(part)', pathCommit);
-    final int pendingCommit =
-        source.indexOf('_segmentFinalizationPending = false', metadataCommit);
+    final int finalizer = source.indexOf(
+      'Future<void> _finalizePendingSegment',
+    );
+    final int wavWrite = source.indexOf(
+      'await writeFinalizedWavSegment(',
+      finalizer,
+    );
+    final int pathCommit = source.indexOf(
+      'segmentPaths[rawPathIndex] = finalizedPath',
+      wavWrite,
+    );
+    final int metadataCommit = source.indexOf(
+      'recordingPartsList.add(part)',
+      pathCommit,
+    );
+    final int pendingCommit = source.indexOf(
+      '_segmentFinalizationPending = false',
+      metadataCommit,
+    );
     final int rawDelete = source.indexOf(
       'IoSegmentFileOperations().deleteIfExists(rawPath)',
       pendingCommit,
@@ -92,19 +107,24 @@ void main() {
   test('guest state is fail closed and passed to the notification bell', () {
     expect(source, contains('bool _isGuestUser = true;'));
     expect(
-      RegExp(r'NotificationBellButton\(\s*'
-              r'isGuestUser: _isGuestUser,\s*'
-              r'recorderExitPolicy: changeConfirmation,')
-          .hasMatch(source),
+      RegExp(
+        r'NotificationBellButton\(\s*'
+        r'isGuestUser: _isGuestUser,\s*'
+        r'recorderExitPolicy: changeConfirmation,',
+      ).hasMatch(source),
       isTrue,
     );
   });
 
   test('completed capture is durable before the metadata form opens', () {
-    final int concat =
-        source.indexOf('await concatWavFiles(paths, outputPath)');
+    final int concat = source.indexOf(
+      'await concatWavFiles(paths, outputPath)',
+    );
     final int persist = source.indexOf(
-      'RecordingDraftHandoffCoordinator.database().persistCapture(',
+      RegExp(
+        r'RecordingDraftHandoffCoordinator\.database\(\)\s*'
+        r'\.persistCapture\(',
+      ),
       concat,
     );
     final int navigate = source.indexOf('Navigator.pushReplacement(', persist);
@@ -119,9 +139,7 @@ void main() {
     expect(handoff, greaterThan(navigate));
     expect(
       source,
-      contains(
-        "t('postRecordingForm.recordingForm.dialogs.error.saveFailed')",
-      ),
+      contains("t('postRecordingForm.recordingForm.dialogs.error.saveFailed')"),
     );
   });
 
@@ -144,10 +162,7 @@ void main() {
   });
 
   test('an ambiguous draft commit cannot be retried or delete owned audio', () {
-    expect(
-      source,
-      contains('bool _draftPersistenceMayHaveCommitted = false;'),
-    );
+    expect(source, contains('bool _draftPersistenceMayHaveCommitted = false;'));
     expect(
       source,
       contains(
@@ -162,7 +177,10 @@ void main() {
       stop,
     );
     final int persistence = source.indexOf(
-      'RecordingDraftHandoffCoordinator.database().persistCapture(',
+      RegExp(
+        r'RecordingDraftHandoffCoordinator\.database\(\)\s*'
+        r'\.persistCapture\(',
+      ),
       blockedRetry,
     );
     final int exit = source.indexOf('Future<bool> changeConfirmation() async');

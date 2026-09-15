@@ -26,6 +26,9 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/config/config.dart';
+import 'package:strnadi/logging/app_logger.dart';
+import 'package:strnadi/logging/markdown_download_failure.dart';
+import 'package:strnadi/logging/observing_http_client.dart';
 import 'package:strnadi/security/markdown_download_security.dart';
 import 'package:strnadi/security/markdown_link_opener.dart';
 import 'package:strnadi/utils/markdown_html_normalizer.dart';
@@ -42,15 +45,13 @@ const Set<String> _markdownImageExtensions = <String>{
   'heic',
   'heif',
 };
-const Set<String> _markdownWebPageExtensions = <String>{
-  'htm',
-  'html',
-  'md',
-};
+const Set<String> _markdownWebPageExtensions = <String>{'htm', 'html', 'md'};
 
 String? _markdownPathExtension(String path) {
-  final List<String> segments =
-      path.split('/').where((segment) => segment.isNotEmpty).toList();
+  final List<String> segments = path
+      .split('/')
+      .where((segment) => segment.isNotEmpty)
+      .toList();
   if (segments.isEmpty) {
     return null;
   }
@@ -70,6 +71,7 @@ bool _markdownPathLooksLikeFile(String path) {
 
 const int _maximumProtectedMarkdownBytes = 100 * 1024 * 1024;
 final Random _protectedMarkdownRandom = Random.secure();
+final AppLogger _markdownLogger = AppLogger(scope: 'markdown');
 
 Future<String?> _downloadProtectedMarkdownFile(
   Uri uri,
@@ -78,6 +80,13 @@ Future<String?> _downloadProtectedMarkdownFile(
   if (!await activatedAuthSessions.isCurrent(session)) return null;
 
   final HttpClient client = HttpClient();
+  final observation = HttpRequestObservation(
+    method: 'GET',
+    uri: uri,
+    logger: _markdownLogger,
+  );
+  bool receivedResponse = false;
+  bool exceededSizeLimit = false;
   File? outputFile;
   RandomAccessFile? output;
   try {
@@ -89,23 +98,41 @@ Future<String?> _downloadProtectedMarkdownFile(
         'Bearer ${session.accessToken}',
       );
     final HttpClientResponse response = await request.close();
+    receivedResponse = true;
+    final responseStream = observation.observeResponse(
+      response,
+      statusCode: response.statusCode,
+      statusMessage: response.reasonPhrase,
+      treatRedirectsAsFailure: true,
+      headers: <String, String>{
+        for (final name in ['x-correlation-id', 'x-request-id', 'traceparent'])
+          if (response.headers[name]?.firstOrNull case final String value)
+            name: value,
+      },
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      await response.drain<void>();
+      await responseStream.drain<void>();
       return null;
     }
     final int declaredLength = response.contentLength;
     if (declaredLength > _maximumProtectedMarkdownBytes) {
-      await response.drain<void>();
+      _markdownLogger.w(
+        'Protected Markdown download rejected',
+        reason: 'Attachment exceeds the download size limit',
+        expected: true,
+      );
+      await responseStream.drain<void>();
       return null;
     }
     if (!await activatedAuthSessions.isCurrent(session)) {
-      await response.drain<void>();
+      await responseStream.drain<void>();
       return null;
     }
 
     final String extension = _markdownPathExtension(uri.path) ?? 'bin';
-    final String safeExtension =
-        RegExp(r'^[a-z0-9]{1,10}$').hasMatch(extension) ? extension : 'bin';
+    final String safeExtension = RegExp(r'^[a-z0-9]{1,10}$').hasMatch(extension)
+        ? extension
+        : 'bin';
     final Directory temporaryDirectory = await getTemporaryDirectory();
     final String entropy = List<String>.generate(
       16,
@@ -121,9 +148,10 @@ Future<String?> _downloadProtectedMarkdownFile(
     output = await outputFile.open(mode: FileMode.writeOnly);
 
     int received = 0;
-    await for (final List<int> chunk in response) {
+    await for (final List<int> chunk in responseStream) {
       received += chunk.length;
       if (received > _maximumProtectedMarkdownBytes) {
+        exceededSizeLimit = true;
         throw const FileSystemException(
           'Protected Markdown attachment exceeds its size limit.',
         );
@@ -139,18 +167,41 @@ Future<String?> _downloadProtectedMarkdownFile(
       return null;
     }
     return outputFile.path;
-  } catch (_) {
+  } catch (error, stackTrace) {
+    if (receivedResponse) {
+      _markdownLogger.e(
+        'Protected Markdown download failed',
+        reason: exceededSizeLimit
+            ? 'Attachment exceeds the download size limit'
+            : 'Unable to stream or save the protected attachment',
+        error: error,
+        stackTrace: stackTrace,
+        expected: exceededSizeLimit ? true : null,
+      );
+    } else {
+      observation.recordTransportFailure(error, stackTrace);
+    }
     try {
       await output?.close();
-    } catch (_) {
-      // Preserve the primary download or write failure.
+    } catch (error, stackTrace) {
+      _markdownLogger.w(
+        'Protected Markdown file could not be closed',
+        reason: 'Temporary attachment cleanup failed after a download failure',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     try {
       if (outputFile != null && await outputFile.exists()) {
         await outputFile.delete();
       }
-    } catch (_) {
-      // Temporary-file cleanup is best effort.
+    } catch (error, stackTrace) {
+      _markdownLogger.w(
+        'Protected Markdown file could not be removed',
+        reason: 'Temporary attachment cleanup failed after a download failure',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     return null;
   } finally {
@@ -168,8 +219,10 @@ Future<String?> _downloadMarkdownFilePath(List<Uri> candidates) async {
         final ActivatedAuthSessionSnapshot? session =
             await activatedAuthSessions.capture();
         if (session == null || !session.verified) continue;
-        final String? protectedPath =
-            await _downloadProtectedMarkdownFile(candidate, session);
+        final String? protectedPath = await _downloadProtectedMarkdownFile(
+          candidate,
+          session,
+        );
         if (protectedPath != null) return protectedPath;
         continue;
       }
@@ -179,8 +232,13 @@ Future<String?> _downloadMarkdownFilePath(List<Uri> candidates) async {
         key: candidate.toString(),
       );
       return file.path;
-    } catch (_) {
-      // Try the next candidate URI before surfacing a failure.
+    } catch (error, stackTrace) {
+      logMarkdownDownloadFailure(
+        logger: _markdownLogger,
+        candidate: candidate,
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -226,7 +284,13 @@ class _MDRenderState extends State<MDRender> {
     try {
       final data = await rootBundle.loadString(widget.mdPath!);
       _setMarkdownContent(data);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _markdownLogger.e(
+        'Markdown asset could not be loaded',
+        reason: 'Unable to read the bundled Markdown asset',
+        error: e,
+        stackTrace: stackTrace,
+      );
       _setMarkdownContent('Error loading Markdown file: $e');
     }
   }
@@ -239,13 +303,15 @@ class _MDRenderState extends State<MDRender> {
   }
 
   Future<void> _openLink(String href) async {
-    final List<Uri> candidates =
-        _resolveMarkdownUriCandidates(href, preferFilesEndpoint: true);
+    final List<Uri> candidates = _resolveMarkdownUriCandidates(
+      href,
+      preferFilesEndpoint: true,
+    );
     if (candidates.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not resolve link: $href')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not resolve link: $href')));
       return;
     }
 
@@ -260,9 +326,9 @@ class _MDRenderState extends State<MDRender> {
       openRemote: (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
     );
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open link: $href')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open link: $href')));
     }
   }
 
@@ -316,8 +382,9 @@ class _MDRenderState extends State<MDRender> {
     }
 
     final int? articleId = widget.articleId;
-    final String path =
-        uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+    final String path = uri.path.startsWith('/')
+        ? uri.path.substring(1)
+        : uri.path;
     if (path.isEmpty) {
       if (uri.path.startsWith('/')) {
         return <Uri>[
@@ -333,8 +400,10 @@ class _MDRenderState extends State<MDRender> {
       return const <Uri>[];
     }
 
-    final List<String> fileSegments =
-        path.split('/').where((segment) => segment.isNotEmpty).toList();
+    final List<String> fileSegments = path
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .toList();
     if (fileSegments.isEmpty) {
       return const <Uri>[];
     }
@@ -381,11 +450,7 @@ class _MDRenderState extends State<MDRender> {
       ]);
     }
 
-    addCandidate(<String>[
-      'articles',
-      articleId.toString(),
-      ...fileSegments,
-    ]);
+    addCandidate(<String>['articles', articleId.toString(), ...fileSegments]);
 
     return candidates;
   }
@@ -403,8 +468,9 @@ class _MDRenderState extends State<MDRender> {
 
   String? _resolveAssetPath(Uri uri) {
     if (uri.scheme == 'asset') {
-      final String assetPath =
-          uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+      final String assetPath = uri.path.startsWith('/')
+          ? uri.path.substring(1)
+          : uri.path;
       return assetPath.isEmpty ? null : assetPath;
     }
 
@@ -417,8 +483,9 @@ class _MDRenderState extends State<MDRender> {
       return null;
     }
 
-    final String normalizedPath =
-        rawPath.startsWith('/') ? rawPath.substring(1) : rawPath;
+    final String normalizedPath = rawPath.startsWith('/')
+        ? rawPath.substring(1)
+        : rawPath;
     if (normalizedPath.startsWith('assets/')) {
       return normalizedPath;
     }
@@ -459,10 +526,7 @@ class _MDRenderState extends State<MDRender> {
     if (assetPath != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: _MarkdownAudioPlayer(
-          assetPath: assetPath,
-          label: config.title,
-        ),
+        child: _MarkdownAudioPlayer(assetPath: assetPath, label: config.title),
       );
     }
 
@@ -501,8 +565,7 @@ class _MDRenderState extends State<MDRender> {
           width: config.width,
           height: config.height,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) =>
-              _buildMediaError(assetPath, alt ?? title),
+          errorBuilder: (_, _, _) => _buildMediaError(assetPath, alt ?? title),
         ),
       );
     }
@@ -520,7 +583,7 @@ class _MDRenderState extends State<MDRender> {
         width: config.width,
         height: config.height,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
+        errorBuilder: (_, _, _) =>
             _buildMediaError(resolvedUri.toString(), alt ?? title),
       ),
     );
@@ -614,10 +677,7 @@ class _MDRenderState extends State<MDRender> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFF3F8FC),
-            Color(0xFFE7F0F7),
-          ],
+          colors: [Color(0xFFF3F8FC), Color(0xFFE7F0F7)],
         ),
       ),
       child: useSafeArea ? SafeArea(child: inner) : inner,
@@ -661,11 +721,8 @@ class _MDRenderState extends State<MDRender> {
 }
 
 class _MarkdownAudioPlayer extends StatefulWidget {
-  const _MarkdownAudioPlayer({
-    this.assetPath,
-    this.sourceUris,
-    this.label,
-  }) : assert(assetPath != null || sourceUris != null);
+  const _MarkdownAudioPlayer({this.assetPath, this.sourceUris, this.label})
+    : assert(assetPath != null || sourceUris != null);
 
   final String? assetPath;
   final List<Uri>? sourceUris;
@@ -715,7 +772,8 @@ class _MarkdownAudioPlayerState extends State<_MarkdownAudioPlayer> {
         if (!mounted) return;
         setState(() {
           _isPlaying = state.playing;
-          _isLoading = state.processingState == ProcessingState.loading ||
+          _isLoading =
+              state.processingState == ProcessingState.loading ||
               state.processingState == ProcessingState.buffering;
         });
       }),
@@ -729,10 +787,18 @@ class _MarkdownAudioPlayerState extends State<_MarkdownAudioPlayer> {
       if (widget.assetPath != null) {
         await _audioPlayer.setAsset(widget.assetPath!);
       } else {
-        final String? filePath =
-            await _downloadMarkdownFilePath(widget.sourceUris!);
+        final String? filePath = await _downloadMarkdownFilePath(
+          widget.sourceUris!,
+        );
         if (filePath == null) {
-          throw Exception('Unable to download audio file.');
+          // The download layer already recorded the original failure. Keep
+          // expected HTTP rejections from becoming a new application error.
+          if (!mounted) return;
+          setState(() {
+            _errorMessage = 'Unable to load audio.';
+            _isLoading = false;
+          });
+          return;
         }
         await _audioPlayer.setFilePath(filePath);
       }
@@ -741,7 +807,14 @@ class _MarkdownAudioPlayerState extends State<_MarkdownAudioPlayer> {
         _duration = _audioPlayer.duration ?? _duration;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _markdownLogger.e(
+        'Markdown audio could not be loaded',
+        reason:
+            'Unable to initialize playback of the Markdown audio attachment',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Unable to load audio.';
@@ -786,8 +859,9 @@ class _MarkdownAudioPlayerState extends State<_MarkdownAudioPlayer> {
     if (uri == null) {
       return null;
     }
-    final List<String> segments =
-        uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+    final List<String> segments = uri.pathSegments
+        .where((segment) => segment.isNotEmpty)
+        .toList();
     if (segments.isNotEmpty) {
       return segments.last;
     }
@@ -839,10 +913,12 @@ class _MarkdownAudioPlayerState extends State<_MarkdownAudioPlayer> {
       );
     }
 
-    final int maxMilliseconds =
-        _duration.inMilliseconds > 0 ? _duration.inMilliseconds : 1;
-    final int currentMilliseconds =
-        _position.inMilliseconds.clamp(0, maxMilliseconds).toInt();
+    final int maxMilliseconds = _duration.inMilliseconds > 0
+        ? _duration.inMilliseconds
+        : 1;
+    final int currentMilliseconds = _position.inMilliseconds
+        .clamp(0, maxMilliseconds)
+        .toInt();
 
     return Container(
       width: double.infinity,
@@ -918,9 +994,7 @@ bool _isMarkdownAudioPlaceholder(String? alt, String? title) {
   String normalize(String? value) =>
       (value ?? '').toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
 
-  const Set<String> acceptedTokens = <String>{
-    'strnadiaudio',
-  };
+  const Set<String> acceptedTokens = <String>{'strnadiaudio'};
 
   return acceptedTokens.contains(normalize(alt)) ||
       acceptedTokens.contains(normalize(title));

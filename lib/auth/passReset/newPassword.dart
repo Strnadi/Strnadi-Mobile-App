@@ -1,3 +1,4 @@
+import 'package:strnadi/api/api_logging.dart';
 /*
  * Copyright (C) 2025
  * Marian Pecqueur && Jan Drobílek
@@ -21,12 +22,12 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/passReset/password_reset_flow.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'changedPassword.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'auth.passReset.newPassword');
 const AuthController _authController = AuthController();
 
 typedef PasswordResetSubmitter =
@@ -398,12 +399,15 @@ class _RegPasswordState extends State<ChangePassword> {
         return;
       }
 
-      final int? status = widget.submitPasswordReset == null
-          ? (await _authController.setResetPassword(
+      final response = widget.submitPasswordReset == null
+          ? await _authController.setResetPassword(
               email: email,
               token: widget.jwt,
               password: _passwordController.text,
-            )).statusCode
+            )
+          : null;
+      final int? status = widget.submitPasswordReset == null
+          ? response?.statusCode
           : await widget.submitPasswordReset!(
               email: email,
               token: widget.jwt,
@@ -420,7 +424,12 @@ class _RegPasswordState extends State<ChangePassword> {
           ),
         );
       } else {
-        logger.e('Failed to reset password ($status).');
+        logger.e(
+          'Failed to reset password ($status).',
+          failure: response == null ? null : apiFailureForResult(response),
+          expected: status != null && status < 500,
+          context: {'statusCode': status},
+        );
         _showMessage(t('signup.passwordReset.change.errors.failed'));
       }
     } catch (error, stackTrace) {

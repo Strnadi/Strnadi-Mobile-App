@@ -23,13 +23,14 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:strnadi/logging/app_logger.dart';
+import 'package:strnadi/api/api_logging.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'package:strnadi/api/controllers/recording_parts_controller.dart';
@@ -241,7 +242,6 @@ class DatabaseNew {
           error: e,
           stackTrace: st,
         );
-        Sentry.captureException(e, stackTrace: st);
       }
     }
   }
@@ -392,7 +392,7 @@ class DatabaseNew {
       return id;
     } catch (e, stackTrace) {
       logger.e('Failed to insert recording', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       rethrow;
     }
   }
@@ -632,7 +632,7 @@ class DatabaseNew {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       rethrow;
     }
   }
@@ -810,7 +810,7 @@ class DatabaseNew {
             error: error,
             stackTrace: stackTrace,
           );
-          Sentry.captureException(error, stackTrace: stackTrace);
+
           Error.throwWithStackTrace(
             RecordingDraftPersistenceException(
               error,
@@ -839,10 +839,7 @@ class DatabaseNew {
           error: reconciliationError,
           stackTrace: reconciliationStackTrace,
         );
-        Sentry.captureException(
-          reconciliationError,
-          stackTrace: reconciliationStackTrace,
-        );
+
         Error.throwWithStackTrace(
           RecordingDraftPersistenceException(
             reconciliationError,
@@ -1260,8 +1257,11 @@ class DatabaseNew {
       }
       logger.i("✅ Recordings fetched and synced.");
     } catch (e, stackTrace) {
-      logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+      logger.e(
+        'Synchronizing recordings with the backend failed.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -1442,7 +1442,7 @@ class DatabaseNew {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       rethrow;
     }
   }
@@ -1862,7 +1862,6 @@ class DatabaseNew {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
     }
   }
 
@@ -1891,7 +1890,7 @@ class DatabaseNew {
       );
     } catch (e, stackTrace) {
       logger.e('Failed to update recording', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       rethrow;
     }
   }
@@ -1971,7 +1970,7 @@ class DatabaseNew {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       rethrow;
     }
   }
@@ -2279,7 +2278,7 @@ class DatabaseNew {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       return;
     }
 
@@ -2461,12 +2460,11 @@ class DatabaseNew {
           try {
             await _ensureColumn(db, 'recordingParts', 'length', 'INTEGER');
           } catch (e, stackTrace) {
-            logger.w(
+            logger.e(
               'Failed to add length column to recordingParts: $e',
               error: e,
               stackTrace: stackTrace,
             );
-            Sentry.captureException(e, stackTrace: stackTrace);
           }
           await db.setVersion(newVersion);
         }
@@ -2665,12 +2663,11 @@ class DatabaseNew {
       await fetchAndUpdateDurationsFromBackend();
       await updateAllRecordingsDurations(DatabaseNew());
     } catch (e, stackTrace) {
-      logger.w(
+      logger.e(
         'Post-migration duration backfill failed',
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
     } finally {
       _durationBackfillNeeded = false;
     }
@@ -3224,6 +3221,7 @@ class DatabaseNew {
       if (response.statusCode != 200 && response.statusCode != 204) {
         logger.i(
           'Incomplete recordings check skipped with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
         );
         return const BackendIncompleteUploadSnapshot.unavailable();
       }
@@ -3352,7 +3350,7 @@ class DatabaseNew {
             error: e,
             stackTrace: st,
           );
-          Sentry.captureException(e, stackTrace: st);
+
           rethrow;
         }
       }());

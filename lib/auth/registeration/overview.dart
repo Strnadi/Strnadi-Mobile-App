@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
@@ -20,7 +21,7 @@ import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'emailSent.dart';
@@ -61,7 +62,7 @@ class _RegOverviewState extends State<RegOverview> {
 
   static const Color textColor = Color(0xFF2D2B18);
   static const Color yellow = Color(0xFFFFD641);
-  final Logger logger = Logger();
+  final AppLogger logger = AppLogger(scope: 'auth.registeration.overview');
 
   bool _isLoading = false;
   bool _marketingConsent = false;
@@ -124,7 +125,10 @@ class _RegOverviewState extends State<RegOverview> {
         token: widget.jwt,
       );
 
-      logger.i('Sign-up response status: ${response.statusCode}');
+      logger.i(
+        'Sign-up response status: ${response.statusCode}',
+        context: {'statusCode': response.statusCode},
+      );
 
       if ([200, 201, 202].contains(response.statusCode)) {
         final String token = response.data.toString();
@@ -135,6 +139,7 @@ class _RegOverviewState extends State<RegOverview> {
         if (idResponse.statusCode != 200) {
           logger.e(
             'Failed to retrieve user ID after sign-up; status ${idResponse.statusCode}.',
+            failure: apiFailureForResult(idResponse),
           );
           _showMessage(t('login.errors.idGetError'));
           return;
@@ -167,16 +172,26 @@ class _RegOverviewState extends State<RegOverview> {
         }
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
-        logger.w('Sign up failed with status ${response.statusCode}.');
+        logger.w(
+          'Sign up failed with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
+        );
         _showMessage(t('signup.overview.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
         _showMessage(t('signup.overview.errors.error_ocured'));
-        logger.e('Sign up failed with status ${response.statusCode}.');
+        logger.e(
+          'Sign up failed with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
+        );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
       GoogleSignInService.signOut();
-      logger.e("An error occurred: $error");
+      logger.e(
+        'Completing account registration failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _showMessage(t('signup.overview.errors.error_ocured'));
     } finally {}
   }

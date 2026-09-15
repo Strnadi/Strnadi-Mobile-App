@@ -63,7 +63,6 @@ dependencies:
   connectivity_plus: ^7.3.1
   logger: ^2.0.0
   sentry_flutter: ^9.29.0
-  sentry_logging: ^9.29.0
   scidart: any
   fftea: any
   flutter_plot: any

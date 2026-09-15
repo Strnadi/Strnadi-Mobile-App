@@ -13,14 +13,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:convert';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/logging/app_logger.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.google_sign_in_service');
 const AuthController _authController = AuthController();
 
 class GoogleSignInService {
@@ -41,8 +41,12 @@ class GoogleSignInService {
   static String? _extractEmailFromIdToken(String idToken) {
     try {
       return _sanitizeEmail(JwtDecoder.decode(idToken)['email']);
-    } catch (e) {
-      logger.w('Failed to decode Google idToken email: $e');
+    } catch (e, stackTrace) {
+      logger.w(
+        'Failed to decode Google idToken email: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -110,7 +114,10 @@ class GoogleSignInService {
       Map<String, dynamic> product = {"status": response.statusCode};
 
       if (response.statusCode != 200) {
-        logger.w('Google sign in failed with status ${response.statusCode}.');
+        logger.w(
+          'Google sign in failed with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
+        );
         return product;
       }
       final dynamic raw = response.data is String
@@ -123,9 +130,12 @@ class GoogleSignInService {
       logger.i('Google sign in successful');
       return product;
     } catch (e, stackTrace) {
-      logger.e('Error processing Google Auth: $e',
-          error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+      logger.e(
+        'Error processing Google Auth: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       return null;
     }
   }
@@ -164,12 +174,19 @@ class GoogleSignInService {
         final jwt = response.data.toString();
         return jwt;
       } else {
-        throw Exception('Sign in failed with status ${response.statusCode}.');
+        final error = Exception(
+          'Sign in failed with status ${response.statusCode}.',
+        );
+        AppFailureRegistry.attach(error, apiFailureForResult(response));
+        throw error;
       }
     } catch (e, stackTrace) {
       signOut();
-      logger.e('Google sign in failed: ${e.toString()}',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Google sign in failed: ${e.toString()}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -177,7 +194,18 @@ class GoogleSignInService {
   static Future<String> getIdToken() async {
     final GoogleSignInAccount? googleUser = await _interactiveSignIn();
     if (googleUser == null) {
-      throw Exception('Google sign in canceled');
+      final error = Exception('Google sign in canceled');
+      final stackTrace = StackTrace.current;
+      AppFailureRegistry.attach(
+        error,
+        AppFailure(
+          reason: 'Google sign in was cancelled',
+          expected: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+      Error.throwWithStackTrace(error, stackTrace);
     }
     final GoogleSignInAuthentication googleAuth = googleUser.authentication;
     final idToken = googleAuth.idToken;
@@ -190,8 +218,10 @@ class GoogleSignInService {
 
     logger.i('Google sign-up identity contains email: ${email != null}.');
 
-    final response =
-        await _authController.signUpGoogle(idToken: idToken, email: email);
+    final response = await _authController.signUpGoogle(
+      idToken: idToken,
+      email: email,
+    );
 
     if (response.statusCode == 409) {
       GoogleSignInService.signOut();
@@ -199,7 +229,10 @@ class GoogleSignInService {
       return {'status': 409};
     } else if (response.statusCode != 200) {
       GoogleSignInService.signOut();
-      logger.w('Google sign up failed with status ${response.statusCode}.');
+      logger.w(
+        'Google sign up failed with status ${response.statusCode}.',
+        failure: apiFailureForResult(response),
+      );
       return {'status': response.statusCode};
     }
 

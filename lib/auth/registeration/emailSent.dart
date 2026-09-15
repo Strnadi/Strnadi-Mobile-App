@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:async';
 
 import 'package:strnadi/localization/localization.dart';
@@ -22,12 +23,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.registeration.emailSent');
 
 class VerifyEmail extends StatefulWidget {
   final String userEmail;
@@ -92,7 +92,10 @@ class _VerifyEmailState extends State<VerifyEmail> {
       final FlutterSecureStorage secureStorage = FlutterSecureStorage();
       final String? jwt = await secureStorage.read(key: 'token');
       if (jwt == null || jwt.isEmpty) {
-        logger.e('Cannot resend verification email: missing JWT.');
+        logger.e(
+          'Cannot resend verification email: missing JWT.',
+          expected: true,
+        );
         return;
       }
 
@@ -118,7 +121,10 @@ class _VerifyEmailState extends State<VerifyEmail> {
         }
       }
       if (userId <= 0) {
-        logger.e('Cannot resend verification email: missing userId.');
+        logger.e(
+          'Cannot resend verification email: missing userId.',
+          expected: true,
+        );
         return;
       }
       final response = await _authController.resendVerificationEmail(
@@ -146,11 +152,17 @@ class _VerifyEmailState extends State<VerifyEmail> {
           ),
         );
       } else {
-        logger.e('Failed to send verification email (${response.statusCode}).');
+        logger.e(
+          'Failed to send verification email (${response.statusCode}).',
+          failure: apiFailureForResult(response),
+        );
       }
     } catch (e, stackTrace) {
-      logger.e(e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+      logger.e(
+        'Sending verification email failed.',
+        stackTrace: stackTrace,
+        error: e,
+      );
     } finally {
       if (mounted) {
         setState(() => _resendInProgress = false);

@@ -17,7 +17,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:strnadi/api/controllers/health_controller.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -44,7 +44,7 @@ enum LanguagePreference {
   String toString() => this.name;
 }
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'config.config');
 const HealthController _healthController = HealthController();
 
 class Config {
@@ -339,6 +339,7 @@ class Config {
           .timeout(const Duration(seconds: 5));
       logger.i(
         'Checking API health at $uri: status code ${response.statusCode}',
+        context: {'statusCode': response.statusCode},
       );
       if (response.statusCode == 200) {
         return ServerHealth.healthy;
@@ -403,8 +404,12 @@ class Config {
       final jsonString = await rootBundle.loadString(path);
       final decoded = json.decode(jsonString);
       return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
-    } on FlutterError catch (e) {
-      logger.w('Optional config asset $path is not available: ${e.message}');
+    } on FlutterError catch (e, stackTrace) {
+      logger.w(
+        'Optional config asset $path is not available: ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return <String, dynamic>{};
     } on FormatException catch (e, stackTrace) {
       logger.e(

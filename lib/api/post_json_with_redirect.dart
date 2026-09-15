@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:strnadi/exceptions.dart';
+import 'package:strnadi/api/api_logging.dart';
 
 bool _isRedirect(int? statusCode) =>
     statusCode != null && statusCode >= 300 && statusCode < 400;
@@ -30,19 +31,13 @@ Uri resolveSameOriginHttpsRedirect({
 }) {
   _requireHttpsOrigin(initialUri, operation);
   if (location == null || location.trim().isEmpty) {
-    throw UploadException(
-      '$operation redirected without a location.',
-      502,
-    );
+    throw UploadException('$operation redirected without a location.', 502);
   }
   final Uri redirected;
   try {
     redirected = initialUri.resolve(location.trim());
   } on FormatException {
-    throw UploadException(
-      '$operation redirected to an invalid location.',
-      502,
-    );
+    throw UploadException('$operation redirected to an invalid location.', 502);
   }
   if (!_sameOrigin(initialUri, redirected)) {
     throw UploadException(
@@ -68,22 +63,18 @@ Future<Response<dynamic>> postJsonWithSameOriginRedirect({
   _requireHttpsOrigin(uri, 'JSON upload');
 
   Options options() => Options(
-        contentType: Headers.jsonContentType,
-        headers: Map<String, Object?>.from(headers),
-        followRedirects: false,
-        maxRedirects: 0,
-        validateStatus: (int? status) => status != null,
-      );
+    contentType: Headers.jsonContentType,
+    headers: Map<String, Object?>.from(headers),
+    followRedirects: false,
+    maxRedirects: 0,
+    validateStatus: (int? status) => status != null,
+  );
 
   Future<Response<dynamic>> post(Uri target) async {
     final Map<String, Object?> requestBody = Map<String, Object?>.from(body);
     final Options requestOptions = options();
     await beforePost();
-    return dio.postUri(
-      target,
-      data: requestBody,
-      options: requestOptions,
-    );
+    return dio.postUri(target, data: requestBody, options: requestOptions);
   }
 
   Response<dynamic> response = await post(uri);
@@ -95,20 +86,24 @@ Future<Response<dynamic>> postJsonWithSameOriginRedirect({
       'JSON upload received unsupported redirect status '
       '${response.statusCode}.',
       502,
+      logFailure: apiFailureForResponse(
+        response,
+        reason: 'JSON upload received an unsupported redirect',
+      ),
     );
   }
 
-  final Uri redirected = resolveSameOriginHttpsRedirect(
-    initialUri: response.requestOptions.uri,
-    location: response.headers.value('location'),
-    operation: 'JSON upload',
-  );
+  final Uri redirected = _resolveResponseRedirect(response, 'JSON upload');
 
   response = await post(redirected);
   if (_isRedirect(response.statusCode)) {
     throw UploadException(
       'JSON upload redirected more than once.',
       502,
+      logFailure: apiFailureForResponse(
+        response,
+        reason: 'JSON upload redirected more than once',
+      ),
     );
   }
   return response;
@@ -133,20 +128,47 @@ Future<Response<dynamic>> postRebuiltWithSameOriginRedirect({
       '$operation received unsupported redirect status '
       '${response.statusCode}.',
       502,
+      logFailure: apiFailureForResponse(
+        response,
+        reason: '$operation received an unsupported redirect',
+      ),
     );
   }
 
-  final Uri redirected = resolveSameOriginHttpsRedirect(
-    initialUri: response.requestOptions.uri,
-    location: response.headers.value('location'),
-    operation: operation,
-  );
+  final Uri redirected = _resolveResponseRedirect(response, operation);
   response = await post(redirected.toString());
   if (_isRedirect(response.statusCode)) {
     throw UploadException(
       '$operation redirected more than once.',
       502,
+      logFailure: apiFailureForResponse(
+        response,
+        reason: '$operation redirected more than once',
+      ),
     );
   }
   return response;
+}
+
+Uri _resolveResponseRedirect(Response<dynamic> response, String operation) {
+  try {
+    return resolveSameOriginHttpsRedirect(
+      initialUri: response.requestOptions.uri,
+      location: response.headers.value('location'),
+      operation: operation,
+    );
+  } on UploadException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      UploadException(
+        error.message,
+        error.statusCode,
+        logFailure: apiFailureForResponse(
+          response,
+          reason: error.message,
+          stackTrace: stackTrace,
+        ),
+      ),
+      stackTrace,
+    );
+  }
 }

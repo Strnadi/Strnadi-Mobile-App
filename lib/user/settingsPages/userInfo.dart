@@ -25,7 +25,7 @@ import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/passReset/forgottenPassword.dart';
 import 'package:strnadi/user/profile_account_safety.dart';
 import 'package:strnadi/utils/async_single_flight.dart';
@@ -33,7 +33,7 @@ import 'package:strnadi/utils/async_single_flight.dart';
 import '../../auth/google_sign_in_service.dart';
 import '../../firebase/firebase.dart' as strnadiFirebase;
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'user.settingsPages.userInfo');
 
 class User {
   final String nickname;

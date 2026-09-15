@@ -115,7 +115,11 @@ void main() {
     expect(switchStart, greaterThan(cleanupHook));
     expect(
       switchBody,
-      contains('await DynamicIcon.refreshAllDialects(clearExisting: true)'),
+      matches(
+        RegExp(
+          r'await\s+DynamicIcon\.refreshAllDialects\(\s*clearExisting:\s*true\s*,?\s*\)',
+        ),
+      ),
     );
   });
 

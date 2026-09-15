@@ -14,6 +14,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+import 'package:strnadi/logging/app_logger.dart';
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:io';
 
 import 'package:strnadi/api/http_adapter.dart' as http;
@@ -24,8 +26,9 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/update_checker_logic.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const MethodChannel _androidUpdateChannel =
-    MethodChannel('com.delta.strnadi/app_update');
+const MethodChannel _androidUpdateChannel = MethodChannel(
+  'com.delta.strnadi/app_update',
+);
 
 typedef StoreUriLauncher = Future<void> Function(Uri storeUri);
 
@@ -35,8 +38,8 @@ Future<void> checkForUpdate(BuildContext context) async {
       platform: Platform.isIOS
           ? UpdateTargetPlatform.ios
           : Platform.isAndroid
-              ? UpdateTargetPlatform.android
-              : UpdateTargetPlatform.unsupported,
+          ? UpdateTargetPlatform.android
+          : UpdateTargetPlatform.unsupported,
       isMounted: () => context.mounted,
       loadInstalledApp: () async {
         final PackageInfo packageInfo = await PackageInfo.fromPlatform();
@@ -54,8 +57,10 @@ Future<void> checkForUpdate(BuildContext context) async {
         await showUpdateDialog(context, prompt);
       },
     );
-  } catch (e) {
-    debugPrint('Error checking for update: $e');
+  } catch (e, stackTrace) {
+    AppLogger(
+      scope: 'updates',
+    ).e('Update check failed.', error: e, stackTrace: stackTrace);
   }
 }
 
@@ -67,13 +72,16 @@ Future<UpdateRelease?> _lookupAppleRelease(String bundleId) async {
   );
   final response = await http.get(lookupUri);
   if (response.statusCode != 200) {
-    debugPrint('Failed to fetch version info from Apple App Store.');
+    AppLogger(scope: 'updates').w(
+      'Failed to fetch version info from Apple App Store.',
+      failure: apiFailureForResult(response),
+    );
     return null;
   }
 
   final UpdateRelease? release = parseITunesLookupRelease(response.body);
   if (release == null) {
-    debugPrint('No valid release found from iTunes lookup.');
+    AppLogger(scope: 'updates').w('No valid release found from iTunes lookup.');
   }
   return release;
 }
@@ -85,8 +93,9 @@ Future<void> showUpdateDialog(
 }) async {
   final String message = prompt.versionLabel == null
       ? t('updates.available.messageWithoutVersion')
-      : t('updates.available.message')
-          .replaceFirst('{version}', prompt.versionLabel!);
+      : t(
+          'updates.available.message',
+        ).replaceFirst('{version}', prompt.versionLabel!);
 
   await showDialog<void>(
     context: context,
@@ -98,8 +107,12 @@ Future<void> showUpdateDialog(
           onPressed: () async {
             try {
               await (launchStore ?? _launchStoreUri)(prompt.storeUri);
-            } catch (error) {
-              debugPrint('Could not launch ${prompt.storeUri}: $error');
+            } catch (error, stackTrace) {
+              AppLogger(scope: 'updates').e(
+                'Could not open the app store.',
+                error: error,
+                stackTrace: stackTrace,
+              );
             }
 
             if (!dialogContext.mounted) return;
@@ -116,6 +129,9 @@ Future<void> _launchStoreUri(Uri storeUri) async {
   if (await canLaunchUrl(storeUri)) {
     await launchUrl(storeUri, mode: LaunchMode.externalApplication);
   } else {
-    debugPrint('Could not launch $storeUri');
+    AppLogger(scope: 'updates').w(
+      'The app store is unavailable.',
+      reason: 'No application can open the store link.',
+    );
   }
 }
