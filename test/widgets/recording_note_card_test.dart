@@ -18,10 +18,7 @@ void main() {
           body: SingleChildScrollView(
             key: const Key('note-scroll-view'),
             padding: const EdgeInsets.all(8),
-            child: RecordingNoteCard(
-              key: const Key('note-card'),
-              note: note,
-            ),
+            child: RecordingNoteCard(key: const Key('note-card'), note: note),
           ),
         ),
       ),
@@ -29,31 +26,29 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('short note is not forced to the former 100-pixel height',
-      (tester) async {
+  testWidgets('short note is not forced to the former 100-pixel height', (
+    tester,
+  ) async {
     await pumpCard(tester, note: 'Short note');
 
-    expect(tester.getSize(find.byKey(const Key('note-card'))).height,
-        lessThan(100));
+    expect(
+      tester.getSize(find.byKey(const Key('note-card'))).height,
+      lessThan(100),
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('long prose wraps, grows, and scrolls on a narrow screen',
-      (tester) async {
+  testWidgets('long prose wraps, grows, and scrolls on a narrow screen', (
+    tester,
+  ) async {
     final note = List<String>.filled(
       40,
       'A detailed recording note must remain completely readable.',
     ).join(' ');
-    await pumpCard(
-      tester,
-      note: note,
-      surfaceSize: const Size(180, 240),
-    );
+    await pumpCard(tester, note: note, surfaceSize: const Size(180, 240));
 
     final cardSize = tester.getSize(find.byKey(const Key('note-card')));
-    final textSize = tester.getSize(
-      find.byKey(RecordingNoteCard.textKey),
-    );
+    final textSize = tester.getSize(find.byKey(RecordingNoteCard.textKey));
     final scrollable = tester.state<ScrollableState>(
       find.byType(Scrollable).first,
     );
@@ -73,19 +68,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('long unbroken token stays within a very narrow card',
-      (tester) async {
+  testWidgets('long unbroken token stays within a very narrow card', (
+    tester,
+  ) async {
     final token = List<String>.filled(512, 'W').join();
-    await pumpCard(
-      tester,
-      note: token,
-      surfaceSize: const Size(140, 240),
-    );
+    await pumpCard(tester, note: token, surfaceSize: const Size(140, 240));
 
     final cardRect = tester.getRect(find.byKey(const Key('note-card')));
-    final textRect = tester.getRect(
-      find.byKey(RecordingNoteCard.textKey),
-    );
+    final textRect = tester.getRect(find.byKey(RecordingNoteCard.textKey));
 
     expect(textRect.left, greaterThanOrEqualTo(cardRect.left + 10));
     expect(textRect.right, lessThanOrEqualTo(cardRect.right - 10));
@@ -107,14 +97,15 @@ void main() {
     );
   });
 
-  test('map detail uses the wrapping note card instead of a fixed-height row',
-      () {
-    final source = File('lib/map/RecordingPage.dart').readAsStringSync();
+  test(
+    'map detail uses the wrapping note card instead of a fixed-height row',
+    () {
+      final source = File(
+        'lib/map/recording_detail/recording_metadata.dart',
+      ).readAsStringSync();
 
-    expect(source, contains('RecordingNoteCard('));
-    expect(
-      source,
-      isNot(contains("'K tomuto zaznamu neni poznamka'")),
-    );
-  });
+      expect(source, contains('RecordingNoteCard('));
+      expect(source, isNot(contains("'K tomuto zaznamu neni poznamka'")));
+    },
+  );
 }

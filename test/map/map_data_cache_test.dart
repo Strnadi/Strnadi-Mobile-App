@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strnadi/map/filtered_parts_api_loader.dart';
-import 'package:strnadi/map/map_data_cache.dart';
+import 'package:strnadi/api/services/filtered_parts_api_loader.dart';
+import 'package:strnadi/map/data/map_data_cache.dart';
 
 class _MemoryMapDataCacheStore implements MapDataCacheStore {
   final Map<String, String> values = <String, String>{};
@@ -36,10 +36,7 @@ void main() {
         <String, Object?>{'id': 8934, 'parts': <dynamic>[]},
       ];
 
-      expect(
-        await cache.save(payload, const <dynamic>[]),
-        isTrue,
-      );
+      expect(await cache.save(payload, const <dynamic>[]), isTrue);
       final MapDataCacheEntry? restored = await cache.load();
 
       expect(restored, isNotNull);
@@ -60,7 +57,7 @@ void main() {
       );
 
       await production.save(<dynamic>[
-        <String, Object?>{'id': 1}
+        <String, Object?>{'id': 1},
       ], const <dynamic>[]);
 
       expect(await development.load(), isNull);
@@ -73,14 +70,11 @@ void main() {
         store: corruptStore,
       );
       await corruptCache.save(<dynamic>[
-        <String, Object?>{'id': 1}
+        <String, Object?>{'id': 1},
       ], const <dynamic>[]);
       corruptStore.values.updateAll((_, __) => '{not-json');
 
-      expect(
-        await corruptCache.load(),
-        isNull,
-      );
+      expect(await corruptCache.load(), isNull);
 
       final _MemoryMapDataCacheStore smallStore = _MemoryMapDataCacheStore();
       final MapDataCache smallCache = MapDataCache(
@@ -89,12 +83,9 @@ void main() {
         maximumEntryBytes: 80,
       );
       expect(
-        await smallCache.save(
-          <dynamic>[
-            <String, Object?>{'value': 'x' * 100}
-          ],
-          const <dynamic>[],
-        ),
+        await smallCache.save(<dynamic>[
+          <String, Object?>{'value': 'x' * 100},
+        ], const <dynamic>[]),
         isFalse,
       );
       expect(smallStore.values, isEmpty);
@@ -108,38 +99,33 @@ void main() {
         store: store,
       );
 
-      expect(
-        await cache.save(const <dynamic>[], const <dynamic>[]),
-        isFalse,
-      );
+      expect(await cache.save(const <dynamic>[], const <dynamic>[]), isFalse);
     });
 
-    test('serializes overlapping writes and keeps the newest snapshot',
-        () async {
-      final _MemoryMapDataCacheStore store = _MemoryMapDataCacheStore();
-      final MapDataCache cache = MapDataCache(
-        scope: 'prod|api.strnadi.cz',
-        store: store,
-      );
+    test(
+      'serializes overlapping writes and keeps the newest snapshot',
+      () async {
+        final _MemoryMapDataCacheStore store = _MemoryMapDataCacheStore();
+        final MapDataCache cache = MapDataCache(
+          scope: 'prod|api.strnadi.cz',
+          store: store,
+        );
 
-      final Future<bool> first = cache.save(
-        <dynamic>[
-          <String, Object?>{'id': 1}
-        ],
-        const <dynamic>[],
-      );
-      final Future<bool> second = cache.save(
-        <dynamic>[
-          <String, Object?>{'id': 2}
-        ],
-        const <dynamic>[],
-      );
+        final Future<bool> first = cache.save(<dynamic>[
+          <String, Object?>{'id': 1},
+        ], const <dynamic>[]);
+        final Future<bool> second = cache.save(<dynamic>[
+          <String, Object?>{'id': 2},
+        ], const <dynamic>[]);
 
-      expect(await Future.wait(<Future<bool>>[first, second]),
-          everyElement(isTrue));
-      final MapDataCacheEntry? restored = await cache.load();
-      expect(restored!.recordingsPayload.single['id'], 2);
-    });
+        expect(
+          await Future.wait(<Future<bool>>[first, second]),
+          everyElement(isTrue),
+        );
+        final MapDataCacheEntry? restored = await cache.load();
+        expect(restored!.recordingsPayload.single['id'], 2);
+      },
+    );
 
     test('persists only fields required by the map', () async {
       final _MemoryMapDataCacheStore store = _MemoryMapDataCacheStore();
@@ -214,7 +200,8 @@ void main() {
 
   group('FilteredPartsApiLoader.parsePayload', () {
     test('restores filtered parts and their dialects without API or DB', () {
-      final List<dynamic> payload = jsonDecode('''
+      final List<dynamic> payload =
+          jsonDecode('''
         [{
           "id": 12,
           "recordingId": 8934,
@@ -227,10 +214,12 @@ void main() {
             "predictedDialect": "BC"
           }]
         }]
-      ''') as List<dynamic>;
+      ''')
+              as List<dynamic>;
 
-      final FilteredPartsBundle bundle =
-          FilteredPartsApiLoader.parsePayload(payload);
+      final FilteredPartsBundle bundle = FilteredPartsApiLoader.parsePayload(
+        payload,
+      );
 
       expect(bundle.isAvailable, isTrue);
       expect(bundle.frps, hasLength(1));
@@ -242,8 +231,9 @@ void main() {
     });
 
     test('distinguishes an unavailable response from a valid empty one', () {
-      final FilteredPartsBundle empty =
-          FilteredPartsApiLoader.parsePayload(<dynamic>[]);
+      final FilteredPartsBundle empty = FilteredPartsApiLoader.parsePayload(
+        <dynamic>[],
+      );
 
       expect(empty.isAvailable, isTrue);
       expect(empty.frps, isEmpty);

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/dialects/dynamicIcon.dart';
-import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
+import 'package:strnadi/map/data/dialect_marker_selection.dart';
 
 void main() {
   group('dialect color cache scope', () {
@@ -48,8 +48,9 @@ void main() {
       );
     });
 
-    testWidgets('reads colors only from the active environment scope',
-        (WidgetTester tester) async {
+    testWidgets('reads colors only from the active environment scope', (
+      WidgetTester tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       await Config.loadConfig();
       final SharedPreferences preferences =
@@ -76,33 +77,36 @@ void main() {
       );
       await preferences.setString(preprodKey, '{"BC":"#778899"}');
       expect({productionKey, developmentKey, preprodKey}, hasLength(3));
-      expect(await DialectColorCache.getColors(<String>['BC']),
-          <Color>[const Color(0xff778899)]);
+      expect(await DialectColorCache.getColors(<String>['BC']), <Color>[
+        const Color(0xff778899),
+      ]);
 
       await Config.setHostEnvironment(HostEnvironment.prod);
-      expect(
-        await DialectColorCache.getColors(<String>['BC']),
-        <Color>[const Color(0xff112233)],
-      );
+      expect(await DialectColorCache.getColors(<String>['BC']), <Color>[
+        const Color(0xff112233),
+      ]);
 
       await Config.setHostEnvironment(HostEnvironment.dev);
-      expect(
-        await DialectColorCache.getColors(<String>['BC']),
-        <Color>[const Color(0xff445566)],
-      );
+      expect(await DialectColorCache.getColors(<String>['BC']), <Color>[
+        const Color(0xff445566),
+      ]);
 
       await Config.setHostEnvironment(HostEnvironment.prod);
     });
   });
 
   test('environment switch clears and refreshes the new color scope', () {
-    final String settingsSource =
-        File('lib/user/settingsPages/appSettings.dart').readAsStringSync();
-    final int switchStart =
-        settingsSource.indexOf('await Config.setHostEnvironment(newVal);');
+    final String settingsSource = File(
+      'lib/user/settingsPages/appSettings.dart',
+    ).readAsStringSync();
+    final int switchStart = settingsSource.indexOf(
+      'await Config.setHostEnvironment(newVal);',
+    );
     final int logoutStart = settingsSource.indexOf('await widget.logout(');
-    final int cleanupHook =
-        settingsSource.indexOf('afterCleanup:', logoutStart);
+    final int cleanupHook = settingsSource.indexOf(
+      'afterCleanup:',
+      logoutStart,
+    );
     final String switchBody = settingsSource.substring(switchStart);
 
     expect(switchStart, greaterThanOrEqualTo(0));
@@ -111,14 +115,13 @@ void main() {
     expect(switchStart, greaterThan(cleanupHook));
     expect(
       switchBody,
-      contains(
-        'await DynamicIcon.refreshAllDialects(clearExisting: true)',
-      ),
+      contains('await DynamicIcon.refreshAllDialects(clearExisting: true)'),
     );
   });
 
-  testWidgets('sentinel fallback is rendered as a single-color marker',
-      (WidgetTester tester) async {
+  testWidgets('sentinel fallback is rendered as a single-color marker', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     const RecordingDialectSummary emptySummary = RecordingDialectSummary(
       dialects: <String>[],
@@ -138,9 +141,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final Finder marker = find.byKey(
-      const ValueKey<String>('sentinel-marker'),
-    );
+    final Finder marker = find.byKey(const ValueKey<String>('sentinel-marker'));
     expect(marker, findsOneWidget);
     expect(
       find.descendant(of: marker, matching: find.byType(CustomPaint)),

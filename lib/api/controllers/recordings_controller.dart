@@ -2,18 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
 import 'package:strnadi/api/post_json_with_redirect.dart';
 import 'package:strnadi/config/config.dart';
-import 'package:strnadi/map/map_clusters.dart';
+import 'package:strnadi/api/models/map_clusters.dart';
 
 class RecordingsController {
   const RecordingsController();
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    String? host,
-  }) {
+  Uri _uri(String path, {Map<String, dynamic>? queryParameters, String? host}) {
     return Uri(
       scheme: 'https',
       host: host ?? Config.host,
@@ -92,10 +88,7 @@ class RecordingsController {
       _uri(
         '/recordings',
         host: host,
-        queryParameters: {
-          'parts': 'true',
-          'userId': userId,
-        },
+        queryParameters: {'parts': 'true', 'userId': userId},
       ),
       options: Options(
         contentType: Headers.jsonContentType,
@@ -115,11 +108,14 @@ class RecordingsController {
     bool includeSound = false,
   }) {
     return _dio.getUri(
-      _uri('/recordings', queryParameters: <String, Object>{
-        'parts': includeParts,
-        'sound': includeSound,
-        if (userId != null) 'userId': userId,
-      }),
+      _uri(
+        '/recordings',
+        queryParameters: <String, Object>{
+          'parts': includeParts,
+          'sound': includeSound,
+          if (userId != null) 'userId': userId,
+        },
+      ),
       options: Options(contentType: Headers.jsonContentType),
     );
   }
@@ -145,20 +141,27 @@ class RecordingsController {
   }
 
   Future<Response<dynamic>> fetchMapClusterItems(
-      String clusterId, String cursor,
-      {required String host, int pageSize = 5}) {
+    String clusterId,
+    String cursor, {
+    required String host,
+    int pageSize = 5,
+  }) {
     if (pageSize < 1 || pageSize > 50) throw ArgumentError.value(pageSize);
     final uri = Uri(
-        scheme: 'https',
-        host: host,
-        pathSegments: ['recordings', 'map-clusters', clusterId, 'items'],
-        queryParameters: {'cursor': cursor, 'pageSize': '$pageSize'});
-    return _dio.getUri(uri,
-        options: Options(
-            contentType: Headers.jsonContentType,
-            followRedirects: false,
-            maxRedirects: 0,
-            validateStatus: (status) => status != null && status < 500));
+      scheme: 'https',
+      host: host,
+      pathSegments: ['recordings', 'map-clusters', clusterId, 'items'],
+      queryParameters: {'cursor': cursor, 'pageSize': '$pageSize'},
+    );
+    return _dio.getUri(
+      uri,
+      options: Options(
+        contentType: Headers.jsonContentType,
+        followRedirects: false,
+        maxRedirects: 0,
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    );
   }
 
   Future<Response<dynamic>> fetchIncompleteRecordings({
@@ -189,9 +192,7 @@ class RecordingsController {
       _uri(
         '/recordings/$backendRecordingId',
         host: host,
-        queryParameters: {
-          'parts': includeParts ? 'true' : 'false',
-        },
+        queryParameters: {'parts': includeParts ? 'true' : 'false'},
       ),
       options: Options(
         followRedirects: false,
@@ -206,10 +207,10 @@ class RecordingsController {
 
   Future<Response<dynamic>> fetchRecordingPartSummary(int backendRecordingId) {
     return _dio.getUri(
-      _uri('/recordings/$backendRecordingId', queryParameters: {
-        'parts': 'true',
-        'sound': 'false',
-      }),
+      _uri(
+        '/recordings/$backendRecordingId',
+        queryParameters: {'parts': 'true', 'sound': 'false'},
+      ),
       options: Options(
         extra: <String, Object>{
           // This endpoint can be called before auth state is settled.

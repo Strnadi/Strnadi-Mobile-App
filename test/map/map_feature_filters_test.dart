@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:strnadi/map/map_clusters.dart';
-import 'package:strnadi/map/map_feature_filter_controls.dart';
-import 'package:strnadi/map/map_feature_filters.dart';
-import 'package:strnadi/map/recording_author_filter.dart';
+import 'package:strnadi/api/models/map_clusters.dart';
+import 'package:strnadi/api/models/map_feature_filters.dart';
+import 'package:strnadi/map/filters/map_feature_filter_controls.dart';
+import 'package:strnadi/map/filters/map_filter_defaults.dart';
+import 'package:strnadi/map/filters/recording_author_filter.dart';
 
 MapClustersRequest request(
   MapFeatureFilters filters, {
@@ -24,6 +25,7 @@ MapClustersRequest request(
   ownerScope: owner,
   userId: userId,
   featureFilters: filters,
+  clustered: mapFilterDefaults.clustered,
 );
 
 void main() {
@@ -50,13 +52,13 @@ void main() {
   test(
     'map defaults hide others without dialect and guests retain filtering',
     () {
-      final defaults = MapFeatureFilters.defaults;
+      final defaults = mapFilterDefaults.featureFilters;
       expect(defaults.hideOthersWithoutMeaningfulDialect, isTrue);
       expect(defaults.forUser(signedIn: true), defaults);
       final guest = defaults.forUser(signedIn: false);
       expect(guest.onlyMeaningfulDialects, isTrue);
       expect(guest.hideOthersWithoutMeaningfulDialect, isFalse);
-      expect(request(guest).toQueryParameters()['clustered'], isTrue);
+      expect(request(guest).toQueryParameters()['clustered'], isFalse);
     },
   );
 

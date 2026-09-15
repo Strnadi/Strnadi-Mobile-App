@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strnadi/map/mapUtils/dialect_marker_selection.dart';
+import 'package:strnadi/map/data/dialect_marker_selection.dart';
 
 void main() {
   String canonicalize(String? value) => (value ?? '').trim();
@@ -34,34 +34,28 @@ void main() {
       expect(selected.map((part) => part.id), <int>[1, 2]);
     });
 
-    test('substantive confirmation beats a representative processing sentinel',
-        () {
-      final parts = const [
-        _PartSnapshot(id: 1, representant: true),
-        _PartSnapshot(
-          id: 2,
-          representant: false,
-          substantiveConfirmed: true,
-        ),
-      ];
+    test(
+      'substantive confirmation beats a representative processing sentinel',
+      () {
+        final parts = const [
+          _PartSnapshot(id: 1, representant: true),
+          _PartSnapshot(id: 2, representant: false, substantiveConfirmed: true),
+        ];
 
-      final selected = selectDialectSourceParts<_PartSnapshot>(
-        parts: parts,
-        isRepresentant: (part) => part.representant,
-        hasSubstantiveConfirmedDialect: (part) => part.substantiveConfirmed,
-      );
+        final selected = selectDialectSourceParts<_PartSnapshot>(
+          parts: parts,
+          isRepresentant: (part) => part.representant,
+          hasSubstantiveConfirmedDialect: (part) => part.substantiveConfirmed,
+        );
 
-      expect(selected.map((part) => part.id), <int>[2]);
-    });
+        expect(selected.map((part) => part.id), <int>[2]);
+      },
+    );
 
     test('admin No Dialect beats a representative prediction', () {
       final parts = const [
         _PartSnapshot(id: 1, representant: true),
-        _PartSnapshot(
-          id: 2,
-          representant: false,
-          authoritativeNoDialect: true,
-        ),
+        _PartSnapshot(id: 2, representant: false, authoritativeNoDialect: true),
       ];
 
       final selected = selectDialectSourceParts<_PartSnapshot>(
@@ -74,30 +68,28 @@ void main() {
       expect(selected.map((part) => part.id), <int>[2]);
     });
 
-    test('substantive confirmation beats admin No Dialect at the same tier',
-        () {
-      final parts = const [
-        _PartSnapshot(
-          id: 1,
-          representant: true,
-          authoritativeNoDialect: true,
-        ),
-        _PartSnapshot(
-          id: 2,
-          representant: false,
-          substantiveConfirmed: true,
-        ),
-      ];
+    test(
+      'substantive confirmation beats admin No Dialect at the same tier',
+      () {
+        final parts = const [
+          _PartSnapshot(
+            id: 1,
+            representant: true,
+            authoritativeNoDialect: true,
+          ),
+          _PartSnapshot(id: 2, representant: false, substantiveConfirmed: true),
+        ];
 
-      final selected = selectDialectSourceParts<_PartSnapshot>(
-        parts: parts,
-        isRepresentant: (part) => part.representant,
-        hasSubstantiveConfirmedDialect: (part) => part.substantiveConfirmed,
-        hasAuthoritativeNoDialect: (part) => part.authoritativeNoDialect,
-      );
+        final selected = selectDialectSourceParts<_PartSnapshot>(
+          parts: parts,
+          isRepresentant: (part) => part.representant,
+          hasSubstantiveConfirmedDialect: (part) => part.substantiveConfirmed,
+          hasAuthoritativeNoDialect: (part) => part.authoritativeNoDialect,
+        );
 
-      expect(selected.map((part) => part.id), <int>[2]);
-    });
+        expect(selected.map((part) => part.id), <int>[2]);
+      },
+    );
   });
 
   group('limitFailsafeDialects', () {
@@ -216,17 +208,19 @@ void main() {
   });
 
   group('shouldShowMapRecording', () {
-    test('shows an otherwise eligible recording before dialect data arrives',
-        () {
-      expect(
-        shouldShowMapRecording(
-          matchesAge: true,
-          isExplicitlyHidden: false,
-          isVisibleInSelectedMode: null,
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'shows an otherwise eligible recording before dialect data arrives',
+      () {
+        expect(
+          shouldShowMapRecording(
+            matchesAge: true,
+            isExplicitlyHidden: false,
+            isVisibleInSelectedMode: null,
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('hides a recording excluded by the selected dialect mode', () {
       expect(
@@ -280,35 +274,31 @@ void main() {
       expect(summary.selectedTier, SelectedDialectTier.confirmed);
     });
 
-    test('ignores model-only representants when an admin-confirmed one exists',
-        () {
-      final summary = summarizeRecordingDialects(
-        rows: const <DetectedDialectSnapshot>[
-          DetectedDialectSnapshot(
-            confirmed: 'BC',
-            predicted: 'BE',
-            substantiveConfirmedSource: true,
-          ),
-          DetectedDialectSnapshot(
-            predicted: 'XB',
-            guessed: 'BlBh',
-          ),
-        ],
-        mode: DialectSummaryMode.all,
-        canonicalize: canonicalize,
-      );
+    test(
+      'ignores model-only representants when an admin-confirmed one exists',
+      () {
+        final summary = summarizeRecordingDialects(
+          rows: const <DetectedDialectSnapshot>[
+            DetectedDialectSnapshot(
+              confirmed: 'BC',
+              predicted: 'BE',
+              substantiveConfirmedSource: true,
+            ),
+            DetectedDialectSnapshot(predicted: 'XB', guessed: 'BlBh'),
+          ],
+          mode: DialectSummaryMode.all,
+          canonicalize: canonicalize,
+        );
 
-      expect(summary.dialects, <String>['BC']);
-      expect(summary.selectedTier, SelectedDialectTier.confirmed);
-    });
+        expect(summary.dialects, <String>['BC']);
+        expect(summary.selectedTier, SelectedDialectTier.confirmed);
+      },
+    );
 
     test('falls back to predicted dialects before guesses in all mode', () {
       final summary = summarizeRecordingDialects(
         rows: const <DetectedDialectSnapshot>[
-          DetectedDialectSnapshot(
-            predicted: 'BE',
-            guessed: 'XB',
-          ),
+          DetectedDialectSnapshot(predicted: 'BE', guessed: 'XB'),
         ],
         mode: DialectSummaryMode.all,
         canonicalize: canonicalize,
@@ -461,11 +451,7 @@ void main() {
           canonicalize: canonicalize,
         );
 
-        expect(
-          summary.hasAnySelectedDialect,
-          isFalse,
-          reason: sentinel,
-        );
+        expect(summary.hasAnySelectedDialect, isFalse, reason: sentinel);
       }
     });
   });

@@ -2,35 +2,37 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:strnadi/map/mapUtils/recordingParser.dart';
+import 'package:strnadi/map/data/recording_parser.dart';
 
 Map<String, Object?> partJson(int id) => {
-      'id': id,
-      'recordingId': 42,
-      'length': 12,
-      'gpsLatitudeStart': 49.2,
-      'gpsLongitudeStart': 16.6,
-      'gpsLatitudeEnd': 49.3,
-      'gpsLongitudeEnd': 16.7,
-    };
+  'id': id,
+  'recordingId': 42,
+  'length': 12,
+  'gpsLatitudeStart': 49.2,
+  'gpsLongitudeStart': 16.6,
+  'gpsLatitudeEnd': 49.3,
+  'gpsLongitudeEnd': 16.7,
+};
 
 void main() {
   for (final value in [null, '', '   ', 'not-a-date', 123]) {
-    test('unavailable date ($value) keeps the part without inventing a date',
-        () {
-      final part = Part.fromJson({
-        ...partJson(1),
-        'startDate': value,
-        'endDate': value,
-      });
-      expect(part.start, isNull);
-      expect(part.end, isNull);
-      expect(part.id, 1);
-      expect(part.recordingId, 42);
-      expect(part.length, 12);
-      expect(part.gpsLatitudeStart, 49.2);
-      expect(part.gpsLongitudeStart, 16.6);
-    });
+    test(
+      'unavailable date ($value) keeps the part without inventing a date',
+      () {
+        final part = Part.fromJson({
+          ...partJson(1),
+          'startDate': value,
+          'endDate': value,
+        });
+        expect(part.start, isNull);
+        expect(part.end, isNull);
+        expect(part.id, 1);
+        expect(part.recordingId, 42);
+        expect(part.length, 12);
+        expect(part.gpsLatitudeStart, 49.2);
+        expect(part.gpsLongitudeStart, 16.6);
+      },
+    );
   }
 
   test('missing fields remain null and valid dates parse independently', () {

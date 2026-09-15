@@ -28,18 +28,29 @@ void main() {
     });
 
     test('fresh and upgraded schemas contain both fingerprint columns', () {
-      final String repository =
-          File('lib/database/src/database_repository.dart').readAsStringSync();
+      final String repository = File(
+        'lib/database/src/database_repository.dart',
+      ).readAsStringSync();
 
       expect(repository, contains('uploadContentSha256 TEXT'));
       expect(repository, contains('uploadContentBytes INTEGER'));
       expect(
         repository,
-        contains("'recordingParts',\n          'uploadContentSha256'"),
+        matches(
+          RegExp(
+            r"\bawait\s+_ensureColumn\s*\(\s*db\s*,\s*'recordingParts'\s*,"
+            r"\s*'uploadContentSha256'\s*,\s*'TEXT'\s*,?\s*\)",
+          ),
+        ),
       );
       expect(
         repository,
-        contains("'recordingParts',\n          'uploadContentBytes'"),
+        matches(
+          RegExp(
+            r"\bawait\s+_ensureColumn\s*\(\s*db\s*,\s*'recordingParts'\s*,"
+            r"\s*'uploadContentBytes'\s*,\s*'INTEGER'\s*,?\s*\)",
+          ),
+        ),
       );
     });
 
@@ -50,10 +61,7 @@ void main() {
       final int start = adapter.indexOf(
         'Future<void> freezeRecordingPartContent(',
       );
-      final int end = adapter.indexOf(
-        'Future<void> saveRecordingPart(',
-        start,
-      );
+      final int end = adapter.indexOf('Future<void> saveRecordingPart(', start);
       final String method = adapter.substring(start, end);
 
       expect(start, greaterThanOrEqualTo(0));
@@ -68,13 +76,8 @@ void main() {
       final String adapter = File(
         'lib/database/src/database_repository_api.dart',
       ).readAsStringSync();
-      final int start = adapter.indexOf(
-        'class _LocalRecordingUploadFileProbe',
-      );
-      final int end = adapter.indexOf(
-        'Future<bool> _handleDeletedPath',
-        start,
-      );
+      final int start = adapter.indexOf('class _LocalRecordingUploadFileProbe');
+      final int end = adapter.indexOf('Future<bool> _handleDeletedPath', start);
       final String probe = adapter.substring(start, end);
 
       expect(probe, contains('readWavPcmDataRegion('));
@@ -84,46 +87,37 @@ void main() {
       expect(probe, contains('after.modified != before.modified'));
     });
 
-    test('service persists preflight identity and checks again before POST',
-        () {
-      final String service =
-          File('lib/database/recording_upload_service.dart').readAsStringSync();
-      final int preflight = service.indexOf(
-        '_preflightRequiredPartFiles(',
-      );
-      final int parentPost = service.indexOf(
-        '_api.createRecording(',
-        preflight,
-      );
-      final int uploadVerification = service.indexOf(
-        '_verifyPartContentBeforeUpload(',
-        parentPost,
-      );
-      final int partPost = service.indexOf(
-        '_api.uploadRecordingPart(',
-        uploadVerification,
-      );
-
-      expect(preflight, greaterThanOrEqualTo(0));
-      expect(parentPost, greaterThan(preflight));
-      expect(uploadVerification, greaterThan(parentPost));
-      expect(partPost, greaterThan(uploadVerification));
-      expect(
-        service,
-        contains('await _store.freezeRecordingPartContent('),
-      );
-      expect(
-        service,
-        contains('changed after upload preflight'),
-      );
-      expect(
-        service,
-        contains('content changed after its upload request'),
-      );
-    });
-
     test(
-        'production adapter maps only frozen-source changes to validation and '
+      'service persists preflight identity and checks again before POST',
+      () {
+        final String service = File(
+          'lib/database/recording_upload_service.dart',
+        ).readAsStringSync();
+        final int preflight = service.indexOf('_preflightRequiredPartFiles(');
+        final int parentPost = service.indexOf(
+          '_api.createRecording(',
+          preflight,
+        );
+        final int uploadVerification = service.indexOf(
+          '_verifyPartContentBeforeUpload(',
+          parentPost,
+        );
+        final int partPost = service.indexOf(
+          '_api.uploadRecordingPart(',
+          uploadVerification,
+        );
+
+        expect(preflight, greaterThanOrEqualTo(0));
+        expect(parentPost, greaterThan(preflight));
+        expect(uploadVerification, greaterThan(parentPost));
+        expect(partPost, greaterThan(uploadVerification));
+        expect(service, contains('await _store.freezeRecordingPartContent('));
+        expect(service, contains('changed after upload preflight'));
+        expect(service, contains('content changed after its upload request'));
+      },
+    );
+
+    test('production adapter maps only frozen-source changes to validation and '
         'reports ancillary cleanup', () {
       final String adapter = File(
         'lib/database/src/database_repository_api.dart',

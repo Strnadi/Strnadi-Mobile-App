@@ -5,23 +5,30 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('sensitive logging contract (source only; no API or DB)', () {
     test('reset links are redacted before logging', () {
-      final String source =
-          File('lib/deep_link_handler.dart').readAsStringSync();
+      final String source = File(
+        'lib/deep_link_handler.dart',
+      ).readAsStringSync();
 
       expect(source, contains('LogRedactor.redactUri(uri)'));
       expect(source, isNot(contains(r"Received deep link: $uri")));
     });
 
     test('map credentials and recording details are not logged', () {
-      final String list =
-          File('lib/localRecordings/recList.dart').readAsStringSync();
-      final String item =
-          File('lib/localRecordings/recListItem.dart').readAsStringSync();
-      final String form =
-          File('lib/PostRecordingForm/RecordingForm.dart').readAsStringSync();
-      final String map = File('lib/map/RecordingPage.dart').readAsStringSync();
-      final String part =
-          File('lib/database/Models/recordingPart.dart').readAsStringSync();
+      final String list = File(
+        'lib/localRecordings/recList.dart',
+      ).readAsStringSync();
+      final String item = File(
+        'lib/localRecordings/recListItem.dart',
+      ).readAsStringSync();
+      final String form = File(
+        'lib/PostRecordingForm/RecordingForm.dart',
+      ).readAsStringSync();
+      final String map = File(
+        'lib/map/recording_detail/recording_detail_controller.dart',
+      ).readAsStringSync();
+      final String part = File(
+        'lib/database/Models/recordingPart.dart',
+      ).readAsStringSync();
 
       for (final String source in <String>[list, item, form, map]) {
         expect(source, isNot(contains('reverse geocode url:')));
@@ -33,18 +40,15 @@ void main() {
       expect(part, isNot(contains(r'path: ${unready.path}')));
     });
 
-    test('map dialect refresh logs only aggregate results', () {
-      final String source = File('lib/map/mapv2.dart').readAsStringSync();
-
+    test('map request logs exclude feature and recording payloads', () {
+      final source = File(
+        'lib/map/state/map_state_controller.dart',
+      ).readAsStringSync();
       expect(source, isNot(contains('[MapV2] recBE=')));
       expect(source, isNot(contains('example FRP beId/state')));
-      expect(source, isNot(contains('visible markers rebuilt=')));
-      expect(source, contains("'emptyOrUnknown=\$recsWithNoCodes, '"));
-      expect(source, contains("'clamped=\$clampedDialectLists, '"));
-      expect(
-        source,
-        contains("'missingBEId=\$recordingsWithoutBackendId'"),
-      );
+      expect(source, isNot(contains(r'${response.data}')));
+      expect(source, isNot(contains(r'${recording.toJson()}')));
+      expect(source, isNot(contains(r'$_features')));
     });
 
     test('authentication response bodies are never written to logs', () {
@@ -64,20 +68,24 @@ void main() {
     });
 
     test('profile and upload payloads are summarized rather than logged', () {
-      final String profile =
-          File('lib/user/settingsPages/userInfo.dart').readAsStringSync();
-      final String achievements =
-          File('lib/user/settingsPages/achievementsPage.dart')
-              .readAsStringSync();
-      final String background =
-          File('lib/callback_dispatcher.dart').readAsStringSync();
-      final String repository =
-          File('lib/database/src/database_repository.dart').readAsStringSync();
-      final String repositoryApi =
-          File('lib/database/src/database_repository_api.dart')
-              .readAsStringSync();
-      final String recording =
-          File('lib/database/Models/recording.dart').readAsStringSync();
+      final String profile = File(
+        'lib/user/settingsPages/userInfo.dart',
+      ).readAsStringSync();
+      final String achievements = File(
+        'lib/user/settingsPages/achievementsPage.dart',
+      ).readAsStringSync();
+      final String background = File(
+        'lib/callback_dispatcher.dart',
+      ).readAsStringSync();
+      final String repository = File(
+        'lib/database/src/database_repository.dart',
+      ).readAsStringSync();
+      final String repositoryApi = File(
+        'lib/database/src/database_repository_api.dart',
+      ).readAsStringSync();
+      final String recording = File(
+        'lib/database/Models/recording.dart',
+      ).readAsStringSync();
 
       expect(profile, isNot(contains(r'Fetched user: $responseData')));
       expect(profile, isNot(contains('logger.i(jsonEncode(updatedData))')));
@@ -85,18 +93,9 @@ void main() {
       expect(achievements, isNot(contains('logger.i(parsed)')));
       expect(background, isNot(contains(r'Dialect body: $body')));
       expect(repository, isNot(contains(r'dialect: ${dialect.toJson()}')));
-      expect(
-        repositoryApi,
-        isNot(contains('Sending recording with body:')),
-      );
-      expect(
-        recording,
-        isNot(contains('Generated BE JSON for Recording:')),
-      );
-      expect(
-        repository,
-        isNot(contains(r'path: ${recording.path}')),
-      );
+      expect(repositoryApi, isNot(contains('Sending recording with body:')));
+      expect(recording, isNot(contains('Generated BE JSON for Recording:')));
+      expect(repository, isNot(contains(r'path: ${recording.path}')));
     });
   });
 }
