@@ -14,7 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../database/databaseNew.dart';
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'dart:convert';
 import 'package:strnadi/logging/app_logger.dart';
@@ -124,9 +126,16 @@ class Dialect {
       : DialectKeywordTranslator.toLocalized(userGuessDialect!);
 }
 
-List<Dialect> dialectsFromBEJson(List<dynamic> json, {int? recordingId}) {
-  logger.i('Loading dialects from BE JSON');
-  logger.t(json.toString());
+List<Dialect> dialectsFromBEJson(
+  List<dynamic> json, {
+  int? recordingId,
+  AppLogger? diagnosticsLogger,
+}) {
+  final log = diagnosticsLogger ?? logger;
+  log.i(
+    'Loading dialects from backend response.',
+    context: {'recordCount': json.length},
+  );
   final List<Dialect> dialects = [];
 
   for (Map<String, dynamic> recording in json) {
@@ -147,8 +156,10 @@ List<Dialect> dialectsFromBEJson(List<dynamic> json, {int? recordingId}) {
       );
     }
   }
-  logger.i('Loaded dialects from BE JSON');
-  logger.t(dialects);
+  log.i(
+    'Loaded dialects from backend response.',
+    context: {'recordCount': json.length, 'dialectCount': dialects.length},
+  );
   return dialects;
 }
 
@@ -158,20 +169,22 @@ Future<void> insertDialects(List<Dialect> dialects) async {
   }
 }
 
-Future<List<Dialect>> fetchRecordingDialects(int? recordingBEID) async {
-  logger.i('Loading dialects for recording: ${recordingBEID}');
-  dynamic responseData;
-  int? responseStatus;
+Future<List<Dialect>> fetchRecordingDialects(
+  int? recordingBEID, {
+  FilteredRecordingsController controller = _filteredRecordingsController,
+  AppLogger? diagnosticsLogger,
+}) async {
+  final log = diagnosticsLogger ?? logger;
+  log.i('Loading recording dialects.');
+  late final Response<dynamic> response;
   try {
-    final response = await _filteredRecordingsController.fetchFilteredParts(
+    response = await controller.fetchFilteredParts(
       recordingId: recordingBEID,
       verified: false,
     );
-    responseStatus = response.statusCode;
-    responseData = response.data;
   } catch (e, stackTrace) {
-    logger.e(
-      'Failed to load dialects for recording: $recordingBEID :$e',
+    log.e(
+      'Failed to load recording dialects.',
       error: e,
       stackTrace: stackTrace,
     );
@@ -179,27 +192,33 @@ Future<List<Dialect>> fetchRecordingDialects(int? recordingBEID) async {
     return [];
   }
   try {
-    if (responseStatus == 200) {
-      logger.i('Loaded dialects for recording: $recordingBEID');
+    if (response.statusCode == 200) {
+      log.i(
+        'Received recording dialects.',
+        context: {'statusCode': response.statusCode},
+      );
+      final responseData = response.data;
       final dynamic decoded = responseData is String
           ? json.decode(responseData)
           : responseData;
       if (decoded is List) {
-        return dialectsFromBEJson(decoded);
+        return dialectsFromBEJson(decoded, diagnosticsLogger: log);
       }
-      logger.w(
-        'Unexpected filtered dialect payload type: ${decoded.runtimeType}',
+      log.w(
+        'Unexpected filtered dialect payload type.',
+        context: {'payloadType': decoded.runtimeType.toString()},
       );
       return [];
     } else {
-      logger.e(
-        'Failed to load $recordingBEID dialects: $responseStatus | $responseData',
+      log.e(
+        'Failed to load recording dialects.',
+        failure: apiFailureForResponse(response),
       );
       return [];
     }
   } catch (e, stackTrace) {
-    logger.e(
-      'Failed to load $recordingBEID dialects: $e',
+    log.e(
+      'Failed to parse recording dialects.',
       error: e,
       stackTrace: stackTrace,
     );

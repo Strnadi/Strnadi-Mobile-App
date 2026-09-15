@@ -31,6 +31,9 @@ status, duration, backend reason/code/message, and request/correlation IDs.
 Error-body inspection is bounded to 64 KiB and diagnostic fields to 200
 characters. Successful binary responses are not inspected. URLs omit query
 values; full request/response bodies and credentials are not logged.
+For recording/dialect parsing, log structural counts or the payload type. Do
+not interpolate response bodies or model lists into messages, even at trace
+level: console diagnostics must also exclude recording contents.
 
 When translating a response into a domain exception, retain its occurrence:
 
@@ -51,7 +54,12 @@ an expected rejection into an unexpected failure.
 
 - Unexpected application errors and API 5xx responses produce events.
 - Expected 4xx responses, cancellation, and offline/retry outcomes produce
-  breadcrumbs. Other logs are breadcrumbs too.
+  breadcrumbs. API successes and other info/warning/error records are also
+  breadcrumbs.
+- Routine trace/debug records stay in the console. Sentry skips them
+  synchronously before any consent platform reads or pending delivery work;
+  records carrying a failure still pass through. Every forwarded record and
+  outgoing event retains its current consent check, including background tasks.
 - Foreground startup retains the existing consent and sampling configuration.
 - Background callbacks use a task-owned Dart hub, including when Workmanager
   runs them in the main isolate. They never replace or close native Sentry.

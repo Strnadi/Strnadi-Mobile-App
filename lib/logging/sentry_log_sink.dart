@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -44,7 +45,19 @@ class SentryLogSink implements AppLogSink {
   }
 
   @override
-  Future<void> add(AppLogRecord record) async {
+  FutureOr<void> add(AppLogRecord record) {
+    // Widget builds can emit thousands of routine trace/debug records. Keep
+    // those in the console without starting platform reads or pending futures.
+    // Failures remain diagnostic even when the caller chose a low log level.
+    if (record.level == AppLogLevel.off ||
+        (record.failure == null &&
+            record.level.index < AppLogLevel.info.index)) {
+      return null;
+    }
+    return _add(record);
+  }
+
+  Future<void> _add(AppLogRecord record) async {
     if (!await _isAuthorized()) return;
     final data = <String, Object?>{
       ...record.context,

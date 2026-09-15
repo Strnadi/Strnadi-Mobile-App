@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/logging/api_diagnostics.dart';
 import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/logging/sentry_log_sink.dart';
+import 'package:strnadi/logging/telemetry_consent.dart';
 
 class _MemoryTransport extends Transport {
   final List<SentryEvent> events = [];
@@ -21,20 +23,23 @@ class _MemoryTransport extends Transport {
 }
 
 class _QuietSink implements AppLogSink {
+  final List<AppLogRecord> records = [];
+
   @override
-  void add(AppLogRecord record) {}
+  void add(AppLogRecord record) => records.add(record);
 }
 
 void main() {
   late _MemoryTransport transport;
   late Hub hub;
   late SentryLogSink sink;
+  late SentryOptions options;
   late bool authorized;
 
   setUp(() {
     authorized = true;
     transport = _MemoryTransport();
-    final options = SentryOptions()
+    options = SentryOptions()
       ..dsn = 'https://public@example.test/1'
       ..transport = transport
       ..sendClientReports = false;
@@ -198,16 +203,79 @@ void main() {
     },
   );
 
-  test('debug and trace diagnostics become breadcrumbs', () async {
+  test(
+    'trace/debug bursts stay in console without consent reads or pending delivery',
+    () async {
+      var storageReads = 0;
+      var attReads = 0;
+      final consent = TelemetryConsent(
+        isIos: true,
+        readStoredStatus: () async {
+          storageReads++;
+          return authorized ? 'authorized' : 'denied';
+        },
+        readTrackingStatus: () async {
+          attReads++;
+          return TrackingStatus.authorized;
+        },
+      );
+      sink = SentryLogSink(hub: hub, isAuthorized: consent.isAuthorized);
+      sink.configureOptions(options);
+      final console = _QuietSink();
+      final logger = AppLogger(consoleSink: console, telemetrySink: sink);
+      for (var i = 0; i < 1000; i++) {
+        logger.t('Building dialect marker.');
+        logger.d('Resolving marker colors.');
+      }
+      expect(console.records, hasLength(2000));
+      expect(storageReads, 0);
+      expect(attReads, 0);
+      expect(sink.add(console.records.first), isNull);
+      await AppLogger.flush();
+      expect(storageReads, 0);
+      expect(attReads, 0);
+
+      logger.api(
+        ApiDiagnostics.fromResponse(
+          method: 'GET',
+          uri: Uri.parse('https://api.example.test/recordings'),
+          statusCode: 200,
+          durationMs: 15,
+        ),
+      );
+      await AppLogger.flush();
+      logger.e('Unexpected error.', error: StateError('failure'));
+      await AppLogger.flush();
+      // One check for the API record, then one for the error and one before send.
+      expect(storageReads, 3);
+      expect(attReads, 3);
+      final crumbs = transport.events.single.breadcrumbs!;
+      expect(crumbs, hasLength(1));
+      expect(crumbs.single.data!['statusCode'], 200);
+
+      authorized = false;
+      logger.e('Error after revocation.', error: StateError('revoked'));
+      await AppLogger.flush();
+      expect(storageReads, 4);
+      expect(attReads, 3);
+      expect(transport.events, hasLength(1));
+    },
+  );
+
+  test('failure breadcrumbs survive trace/debug filtering', () async {
     final logger = AppLogger(consoleSink: _QuietSink(), telemetrySink: sink);
-    logger.d('Preparing request.');
-    logger.t('Request queued.');
+    logger.d('Preparing request failed.', error: StateError('bad input'));
+    logger.t(
+      'Request was cancelled.',
+      error: StateError('cancelled'),
+      expected: true,
+    );
     await AppLogger.flush();
     logger.e('Unexpected error.', error: StateError('failure'));
     await AppLogger.flush();
     expect(transport.events.single.breadcrumbs!.map((crumb) => crumb.message), [
-      'Preparing request.',
-      'Request queued.',
+      'Preparing request failed.',
+      'Request was cancelled.',
     ]);
   });
 

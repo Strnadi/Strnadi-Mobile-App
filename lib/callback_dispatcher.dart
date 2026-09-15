@@ -303,7 +303,7 @@ Future<void> _sendDialectsForRecording({
           recordingId,
           leaseId,
         );
-        logger.i('Dialect ${dialect.dialect} sent successfully');
+        logger.i('Recording dialect uploaded successfully.');
       }
     },
   );
