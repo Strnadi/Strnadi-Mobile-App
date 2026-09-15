@@ -18,7 +18,6 @@
  */
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/Models/recordingPart.dart';
@@ -27,8 +26,9 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:strnadi/map/layers/map_tile_layers.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/maps_controller.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -40,10 +40,9 @@ import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/localRecordings/recording_send_coordinator.dart';
 import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
 import 'package:strnadi/locationService.dart';
-import 'package:strnadi/utils/location_label.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import 'editRecording.dart';
-import '../config/config.dart'; // Contains MAPY_CZ_API_KEY
+import '../config/config.dart';
 import 'package:strnadi/widgets/loader.dart';
 import 'package:dio/dio.dart';
 
@@ -941,33 +940,10 @@ class _RecordingItemState extends State<RecordingItem> {
   }
 
   Future<void> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse(
-      "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}",
-    );
-
-    logger.i('Reverse geocoding a recording location.');
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${Config.mapsApiKey}',
-      };
-      final response = await http.get(url, headers: headers);
-      if (!mounted) return;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data =
-            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-        final String? label = buildLocationLabel(data);
-        if (label != null) {
-          setState(() {
-            placeTitle = label;
-          });
-        }
-      } else {
-        logger.e(
-          "Reverse geocode failed with status code ${response.statusCode}",
-        );
-      }
+      final label = await const MapsController().reverseGeocode(lat, lon);
+      if (!mounted || label == null) return;
+      setState(() => placeTitle = label);
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
@@ -1650,11 +1626,7 @@ class _RecordingItemState extends State<RecordingItem> {
                               },
                             ),
                             children: [
-                              TileLayer(
-                                urlTemplate:
-                                    'https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${Config.mapsApiKey}',
-                                userAgentPackageName: 'cz.delta.strnadi',
-                              ),
+                              const MapTileLayer(),
                               MarkerLayer(
                                 markers: [
                                   Marker(

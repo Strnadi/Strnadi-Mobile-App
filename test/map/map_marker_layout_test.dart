@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:strnadi/map/map_clusters.dart';
-import 'package:strnadi/map/map_marker_layout.dart';
-import 'package:strnadi/map/map_feature_marker.dart';
+import 'package:strnadi/api/models/map_clusters.dart';
+import 'package:strnadi/map/layers/map_marker_layout.dart';
+import 'package:strnadi/map/layers/map_feature_marker.dart';
 import 'map_feature_fixtures.dart';
 
 void main() {

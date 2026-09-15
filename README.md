@@ -99,7 +99,8 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
    ```
 
 3. **Configure environment values** (for development):
-   - Pass build-time values with `--dart-define-from-file=build.env.json`, or with individual `--dart-define` flags such as `STRNADI_MAPY_CZ_KEY`, `STRNADI_API_HOST`, `STRNADI_DEV_API_HOST`, or `STRNADI_PREPROD_API_HOST`.
+   - Pass build-time values with `--dart-define-from-file=build.env.json`, or with individual `--dart-define` flags such as `STRNADI_API_HOST`, `STRNADI_DEV_API_HOST`, or `STRNADI_PREPROD_API_HOST`.
+   - Map tiles and reverse geocoding use the selected API host through `/map/v1/`; configure the Mapy key on the backend. The app does not need a Mapy key.
    - Do not add secret JSON files to Flutter assets; asset-bundled files are shipped with the app.
    - Do not put Firebase service-account JSON in the app. Send push notifications from a backend service instead.
 

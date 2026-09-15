@@ -13,7 +13,7 @@ void main() {
     'lib/api/controllers/recording_parts_controller.dart',
   ).readAsStringSync();
   final String mapPage = File(
-    'lib/map/RecordingPage.dart',
+    'lib/map/recording_detail/recording_detail_repository.dart',
   ).readAsStringSync();
   final String localListItem = File(
     'lib/localRecordings/recListItem.dart',
@@ -32,30 +32,23 @@ void main() {
       repository,
       isNot(contains('static Future<int?> downloadRecording(')),
     );
-    expect(
-      mapPage,
-      contains('DatabaseNew.downloadRecordingByBackendId('),
-    );
-    expect(
-      localListItem,
-      contains('DatabaseNew.downloadRecordingByLocalId('),
-    );
+    expect(mapPage, contains('DatabaseNew.downloadRecordingByBackendId('));
+    expect(localListItem, contains('DatabaseNew.downloadRecordingByLocalId('));
   });
 
-  test('adapter never reads auth storage or uses mutable global host mid-run',
-      () {
-    expect(downloadAdapter, isNot(contains('FlutterSecureStorage')));
-    expect(downloadAdapter, isNot(contains("read(key: 'token')")));
-    expect(
-      downloadAdapter,
-      contains('accessToken: session.accessToken'),
-    );
-    expect(downloadAdapter, contains('host: session.backendHost'));
-    expect(
-      downloadAdapter,
-      contains('_requireRecordingSessionCurrent(_sessions, session)'),
-    );
-  });
+  test(
+    'adapter never reads auth storage or uses mutable global host mid-run',
+    () {
+      expect(downloadAdapter, isNot(contains('FlutterSecureStorage')));
+      expect(downloadAdapter, isNot(contains("read(key: 'token')")));
+      expect(downloadAdapter, contains('accessToken: session.accessToken'));
+      expect(downloadAdapter, contains('host: session.backendHost'));
+      expect(
+        downloadAdapter,
+        contains('_requireRecordingSessionCurrent(_sessions, session)'),
+      );
+    },
+  );
 
   test('cached success requires a readable local file', () {
     final String service = File(
@@ -82,10 +75,7 @@ void main() {
 
     expect(beforeCommit, isNot(contains("txn.update(")));
     expect(beforeCommit, isNot(contains("'path':")));
-    expect(
-      downloadAdapter,
-      isNot(contains('updateRecordingPartCacheState')),
-    );
+    expect(downloadAdapter, isNot(contains('updateRecordingPartCacheState')));
     expect(downloadAdapter, isNot(contains('updateRecordingCacheState')));
     expect(commit, contains('db.transaction<bool>'));
     expect(commit, contains("txn.update(\n          'recordingParts'"));
@@ -120,19 +110,21 @@ void main() {
     expect(downloadAdapter, contains('partsAbsent'));
   });
 
-  test('download controller requires captured credentials and rejects replay',
-      () {
-    final int start = controller.indexOf(
-      'Future<Response<List<int>>> downloadPartSound',
-    );
-    expect(start, greaterThanOrEqualTo(0));
-    final String download = controller.substring(start);
+  test(
+    'download controller requires captured credentials and rejects replay',
+    () {
+      final int start = controller.indexOf(
+        'Future<Response<List<int>>> downloadPartSound',
+      );
+      expect(start, greaterThanOrEqualTo(0));
+      final String download = controller.substring(start);
 
-    expect(download, contains('required String accessToken'));
-    expect(download, contains('required String host'));
-    expect(download, contains("'Authorization': 'Bearer \$accessToken'"));
-    expect(download, contains('host: host'));
-    expect(download, contains('followRedirects: false'));
-    expect(download, contains('maxRedirects: 0'));
-  });
+      expect(download, contains('required String accessToken'));
+      expect(download, contains('required String host'));
+      expect(download, contains("'Authorization': 'Bearer \$accessToken'"));
+      expect(download, contains('host: host'));
+      expect(download, contains('followRedirects: false'));
+      expect(download, contains('maxRedirects: 0'));
+    },
+  );
 }

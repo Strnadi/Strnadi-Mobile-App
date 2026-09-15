@@ -4,8 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/api/dio_client.dart';
-import 'package:strnadi/map/map_clusters.dart';
-import 'package:strnadi/map/map_feature_filters.dart';
+import 'package:strnadi/api/models/map_clusters.dart';
+import 'package:strnadi/api/models/map_feature_filters.dart';
 import 'package:latlong2/latlong.dart';
 
 void main() {
@@ -42,36 +42,38 @@ void main() {
     );
   });
 
-  test('single-record fetch returns a mocked 404 instead of throwing',
-      () async {
-    adapter = _SingleResponseAdapter(404);
-    dio.httpClientAdapter = adapter;
-    const RecordingsController controller = RecordingsController();
+  test(
+    'single-record fetch returns a mocked 404 instead of throwing',
+    () async {
+      adapter = _SingleResponseAdapter(404);
+      dio.httpClientAdapter = adapter;
+      const RecordingsController controller = RecordingsController();
 
-    final Response<dynamic> response = await controller.fetchRecordingById(
-      202,
-      accessToken: 'captured-token',
-      host: 'api.example.test',
-    );
+      final Response<dynamic> response = await controller.fetchRecordingById(
+        202,
+        accessToken: 'captured-token',
+        host: 'api.example.test',
+      );
 
-    expect(response.statusCode, 404);
-    _expectPinnedRequest(
-      adapter.requests.single,
-      Uri.parse('https://api.example.test/recordings/202?parts=true'),
-      method: 'GET',
-    );
-  });
+      expect(response.statusCode, 404);
+      _expectPinnedRequest(
+        adapter.requests.single,
+        Uri.parse('https://api.example.test/recordings/202?parts=true'),
+        method: 'GET',
+      );
+    },
+  );
 
   test('incomplete scan pins auth and host on a mocked 401', () async {
     adapter = _SingleResponseAdapter(401);
     dio.httpClientAdapter = adapter;
     const RecordingsController controller = RecordingsController();
 
-    final Response<dynamic> response =
-        await controller.fetchIncompleteRecordings(
-      accessToken: 'captured-token',
-      host: 'api.example.test',
-    );
+    final Response<dynamic> response = await controller
+        .fetchIncompleteRecordings(
+          accessToken: 'captured-token',
+          host: 'api.example.test',
+        );
 
     expect(response.statusCode, 401);
     _expectPinnedRequest(
@@ -204,21 +206,33 @@ void main() {
     expect(request.validateStatus(500), isFalse);
   });
   for (final status in [200, 409, 410]) {
-    test('cluster detail encodes opaque IDs and cursor and returns $status',
-        () async {
-      adapter = _SingleResponseAdapter(status);
-      dio.httpClientAdapter = adapter;
-      final response = await const RecordingsController().fetchMapClusterItems(
-          'cluster/a', 'cursor+/?=',
-          host: 'api.example.test');
-      expect(response.statusCode, status);
-      final r = adapter.requests.single;
-      expect(r.uri.pathSegments,
-          ['recordings', 'map-clusters', 'cluster/a', 'items']);
-      expect(r.uri.queryParameters, {'cursor': 'cursor+/?=', 'pageSize': '5'});
-      expect(r.followRedirects, false);
-      expect(r.maxRedirects, 0);
-    });
+    test(
+      'cluster detail encodes opaque IDs and cursor and returns $status',
+      () async {
+        adapter = _SingleResponseAdapter(status);
+        dio.httpClientAdapter = adapter;
+        final response = await const RecordingsController()
+            .fetchMapClusterItems(
+              'cluster/a',
+              'cursor+/?=',
+              host: 'api.example.test',
+            );
+        expect(response.statusCode, status);
+        final r = adapter.requests.single;
+        expect(r.uri.pathSegments, [
+          'recordings',
+          'map-clusters',
+          'cluster/a',
+          'items',
+        ]);
+        expect(r.uri.queryParameters, {
+          'cursor': 'cursor+/?=',
+          'pageSize': '5',
+        });
+        expect(r.followRedirects, false);
+        expect(r.maxRedirects, 0);
+      },
+    );
   }
 }
 

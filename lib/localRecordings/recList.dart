@@ -17,7 +17,6 @@
  * recList.dart
  */
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:strnadi/database/Models/recordingPart.dart';
@@ -25,7 +24,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:strnadi/api/http_adapter.dart' as http;
+import 'package:strnadi/api/controllers/maps_controller.dart';
 import 'package:logger/logger.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import '../dialects/ModelHandler.dart';
@@ -40,13 +39,11 @@ import 'package:strnadi/PostRecordingForm/RecordingForm.dart';
 import 'package:strnadi/PostRecordingForm/recording_draft_handoff.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../config/config.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../navigation/notification_bell_button.dart';
 import '../navigation/scaffold_with_bottom_bar.dart';
 import '../navigation/session_navigation.dart';
-import '../utils/location_label.dart';
 import '../utils/async_single_flight.dart';
 
 final logger = Logger();
@@ -950,31 +947,13 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   }
 
   Future<String?> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse(
-        "https://api.mapy.cz/v1/rgeocode?lat=$lat&lon=$lon&apikey=${Config.mapsApiKey}");
-
-    logger.i('Reverse geocoding a recording location.');
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${Config.mapsApiKey}',
-      };
-      final response = await http.get(url, headers: headers);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final String? label = buildLocationLabel(data);
-        if (label != null) return label;
-      } else {
-        logger.e(
-            "Reverse geocode failed with status code ${response.statusCode}");
-        return null;
-      }
+      return await const MapsController().reverseGeocode(lat, lon);
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
+      return null;
     }
-    return null;
   }
 
   Future<String> getDialectName(int recordingId) async {

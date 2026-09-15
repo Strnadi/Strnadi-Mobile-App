@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:strnadi/map/map_clusters.dart';
-import 'package:strnadi/map/map_cluster_picker.dart';
-import 'package:strnadi/map/map_feature_marker.dart';
+import 'package:strnadi/api/models/map_clusters.dart';
+import 'package:strnadi/map/widgets/map_cluster_picker.dart';
+import 'package:strnadi/map/layers/map_feature_marker.dart';
 import 'map_feature_fixtures.dart';
 
 void main() {

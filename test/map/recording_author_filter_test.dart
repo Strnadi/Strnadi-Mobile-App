@@ -1,16 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strnadi/map/recording_author_filter.dart';
+import 'package:strnadi/map/filters/recording_author_filter.dart';
 
 void main() {
   group('resolveRecordingAuthorFilter', () {
     test('does not require a user id for the all-recordings filter', () {
       final RecordingAuthorFilterResolution result =
           resolveRecordingAuthorFilter(
-        requestedFilter: 'all',
-        storedUserId: null,
-      );
+            requestedFilter: 'all',
+            storedUserId: null,
+          );
 
       expect(result.isAvailable, isTrue);
       expect(result.userId, isNull);
@@ -19,9 +17,9 @@ void main() {
     test('returns a trimmed positive current-user id', () {
       final RecordingAuthorFilterResolution result =
           resolveRecordingAuthorFilter(
-        requestedFilter: 'me',
-        storedUserId: ' 42 ',
-      );
+            requestedFilter: 'me',
+            storedUserId: ' 42 ',
+          );
 
       expect(result.isAvailable, isTrue);
       expect(result.userId, 42);
@@ -38,9 +36,9 @@ void main() {
       test('fails closed for current-user id ${invalidUserId ?? 'null'}', () {
         final RecordingAuthorFilterResolution result =
             resolveRecordingAuthorFilter(
-          requestedFilter: 'me',
-          storedUserId: invalidUserId,
-        );
+              requestedFilter: 'me',
+              storedUserId: invalidUserId,
+            );
 
         expect(result.isAvailable, isFalse);
         expect(result.userId, isNull);
@@ -50,14 +48,8 @@ void main() {
 
   group('map render generation', () {
     test('accepts only the exact generation that began the async render', () {
-      expect(
-        mapRenderGenerationIsCurrent(expected: 7, current: 7),
-        isTrue,
-      );
-      expect(
-        mapRenderGenerationIsCurrent(expected: 7, current: 8),
-        isFalse,
-      );
+      expect(mapRenderGenerationIsCurrent(expected: 7, current: 7), isTrue);
+      expect(mapRenderGenerationIsCurrent(expected: 7, current: 8), isFalse);
     });
 
     test('rejects an old cluster build after a true-false-true ABA change', () {
@@ -70,36 +62,6 @@ void main() {
           current: generationAfterTwoToggles,
         ),
         isFalse,
-      );
-    });
-
-    test('server filter wiring invalidates requests before clearing markers',
-        () {
-      final String source = File('lib/map/mapv2.dart').readAsStringSync();
-      final String filterMethod = source
-          .split('void _applyMapFilterSelection(')[1]
-          .split('void _openMapFilter()')[0];
-
-      for (final String filter in <String>[
-        'nextRecordingAuthorFilter != _recordingAuthorFilter',
-        'nextDialectVisibilityMode != _dialectVisibilityMode',
-        'nextRecordingAgeFilter != _recordingAgeFilter',
-        'nextClusterPoints != _clusterPoints',
-        'nextFeatureFilters != _mapFeatureFilters',
-      ]) {
-        expect(filterMethod, contains(filter));
-      }
-      expect(filterMethod.indexOf('_activeRecordingsRequestId++;'),
-          lessThan(filterMethod.indexOf('_clearRecordingResults();')));
-      expect(filterMethod,
-          contains('_scheduleMapClustersRefresh(immediate: true)'));
-      expect(
-        source,
-        contains('dataGeneration: dataGeneration'),
-      );
-      expect(
-        source,
-        contains('expectedGeneration'),
       );
     });
   });

@@ -22,7 +22,7 @@ import 'package:strnadi/articles/blog_explorer_content.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/localRecordings/recList.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:strnadi/map/mapv2.dart';
+import 'package:strnadi/map/screens/map_screen.dart';
 import 'package:strnadi/navigation/guest_user_popup.dart';
 import 'package:strnadi/navigation/notification_bell_button.dart';
 import 'package:strnadi/navigation/recorder_exit_policy.dart';

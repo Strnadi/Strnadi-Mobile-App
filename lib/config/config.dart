@@ -68,48 +68,54 @@ class Config {
     'STRNADI_DEV_API_HOST',
     defaultValue: '',
   );
-  static const bool _hasDefaultDevHost =
-      bool.hasEnvironment('STRNADI_DEV_API_HOST');
+  static const bool _hasDefaultDevHost = bool.hasEnvironment(
+    'STRNADI_DEV_API_HOST',
+  );
   static const String _defaultPreprodHost = String.fromEnvironment(
     'STRNADI_PREPROD_API_HOST',
     defaultValue: 'preprod-api.strnadi.cz',
   );
-  static const bool _hasDefaultPreprodHost =
-      bool.hasEnvironment('STRNADI_PREPROD_API_HOST');
-  static const String _defaultMapyCzKey = String.fromEnvironment(
-    'STRNADI_MAPY_CZ_KEY',
-    defaultValue: '',
+  static const bool _hasDefaultPreprodHost = bool.hasEnvironment(
+    'STRNADI_PREPROD_API_HOST',
   );
-  static const bool _hasDefaultMapyCzKey =
-      bool.hasEnvironment('STRNADI_MAPY_CZ_KEY');
 
   static const _administrationDefaults = <String, String>{
-    'administrationurl':
-        String.fromEnvironment('STRNADI_ADMINISTRATION_URL', defaultValue: ''),
+    'administrationurl': String.fromEnvironment(
+      'STRNADI_ADMINISTRATION_URL',
+      defaultValue: '',
+    ),
     'projectid': String.fromEnvironment('STRNADI_PROJECT_ID', defaultValue: ''),
     'devadministrationurl': String.fromEnvironment(
-        'STRNADI_DEV_ADMINISTRATION_URL',
-        defaultValue: ''),
-    'devprojectid':
-        String.fromEnvironment('STRNADI_DEV_PROJECT_ID', defaultValue: ''),
+      'STRNADI_DEV_ADMINISTRATION_URL',
+      defaultValue: '',
+    ),
+    'devprojectid': String.fromEnvironment(
+      'STRNADI_DEV_PROJECT_ID',
+      defaultValue: '',
+    ),
     'preprodadministrationurl': String.fromEnvironment(
-        'STRNADI_PREPROD_ADMINISTRATION_URL',
-        defaultValue: 'https://preprod-administration.strnadi.cz/'),
-    'preprodprojectid': String.fromEnvironment('STRNADI_PREPROD_PROJECT_ID',
-        defaultValue: '01a08608-44b7-7aba-8d0c-542148b30bf2'),
+      'STRNADI_PREPROD_ADMINISTRATION_URL',
+      defaultValue: 'https://preprod-administration.strnadi.cz/',
+    ),
+    'preprodprojectid': String.fromEnvironment(
+      'STRNADI_PREPROD_PROJECT_ID',
+      defaultValue: '01a08608-44b7-7aba-8d0c-542148b30bf2',
+    ),
   };
   static const _administrationOverrides = <String, bool>{
     'administrationurl': bool.hasEnvironment('STRNADI_ADMINISTRATION_URL'),
     'projectid': bool.hasEnvironment('STRNADI_PROJECT_ID'),
-    'devadministrationurl':
-        bool.hasEnvironment('STRNADI_DEV_ADMINISTRATION_URL'),
+    'devadministrationurl': bool.hasEnvironment(
+      'STRNADI_DEV_ADMINISTRATION_URL',
+    ),
     'devprojectid': bool.hasEnvironment('STRNADI_DEV_PROJECT_ID'),
-    'preprodadministrationurl':
-        bool.hasEnvironment('STRNADI_PREPROD_ADMINISTRATION_URL'),
+    'preprodadministrationurl': bool.hasEnvironment(
+      'STRNADI_PREPROD_ADMINISTRATION_URL',
+    ),
     'preprodprojectid': bool.hasEnvironment('STRNADI_PREPROD_PROJECT_ID'),
   };
 
-  // Load public config defaults. Sensitive values must come from dart-define.
+  // Load public configuration; server credentials are owned by the backend.
   static Future<void> loadConfig() async {
     final assetConfig = await _loadJsonAsset('assets/config.json');
     _config = <String, dynamic>{
@@ -117,16 +123,9 @@ class Config {
       'host': _defaultHost,
       'preprodhost': _defaultPreprodHost,
       if (_defaultDevHost.isNotEmpty) 'devhost': _defaultDevHost,
-      'mapy.cz-key': _defaultMapyCzKey,
       ...assetConfig,
     };
     _applyDartDefineOverrides(_config!);
-    if (mapsApiKey.isEmpty) {
-      logger.w(
-        'Mapy API key is not configured. Pass STRNADI_MAPY_CZ_KEY with '
-        '--dart-define or --dart-define-from-file=build.env.json.',
-      );
-    }
     await loadDataUsageOption();
     await loadHostEnvironment();
   }
@@ -144,9 +143,6 @@ class Config {
       } else {
         config['devhost'] = _defaultDevHost;
       }
-    }
-    if (_hasDefaultMapyCzKey) {
-      config['mapy.cz-key'] = _defaultMapyCzKey;
     }
     if (_hasDefaultPreprodHost) {
       // Keep an explicitly empty override: resolving preprod must fail closed.
@@ -253,7 +249,8 @@ class Config {
   }
 
   static Future<void> setLanguagePreference(
-      LanguagePreference languageCode) async {
+    LanguagePreference languageCode,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languagePrefKey, languageCode.toString());
   }
@@ -272,20 +269,12 @@ class Config {
   }
 
   static String _resolveInitialLanguageCode() {
-    final deviceCode =
-        ui.PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    final deviceCode = ui.PlatformDispatcher.instance.locale.languageCode
+        .toLowerCase();
     if (_supportedLanguageCodes.contains(deviceCode)) {
       return deviceCode;
     }
     return 'en';
-  }
-
-  // Get API Key
-  static String get mapsApiKey {
-    if (_config == null) {
-      throw Exception("Config not loaded. Call loadConfig() first.");
-    }
-    return _config!["mapy.cz-key"] as String? ?? '';
   }
 
   static String get host => hostForEnvironment(hostEnvironment);
@@ -297,7 +286,8 @@ class Config {
       administrationForEnvironment(hostEnvironment);
 
   static OAuthConfiguration? administrationForEnvironment(
-      HostEnvironment environment) {
+    HostEnvironment environment,
+  ) {
     if (_config == null) {
       throw StateError('Config not loaded. Call loadConfig() first.');
     }
@@ -314,10 +304,11 @@ class Config {
       throw StateError('Invalid Administration configuration.');
     }
     return OAuthConfiguration(
-        environment: environment.name,
-        issuer: Uri.parse(issuer),
-        tenantOrigin: Uri.https(hostForEnvironment(environment)),
-        projectId: project);
+      environment: environment.name,
+      issuer: Uri.parse(issuer),
+      tenantOrigin: Uri.https(hostForEnvironment(environment)),
+      projectId: project,
+    );
   }
 
   /// OAuth data remains separate from legacy integer-owned preprod data.
@@ -346,8 +337,9 @@ class Config {
       final response = await _healthController
           .checkBackendHealth(host: host)
           .timeout(const Duration(seconds: 5));
-      logger
-          .i('Checking API health at $uri: status code ${response.statusCode}');
+      logger.i(
+        'Checking API health at $uri: status code ${response.statusCode}',
+      );
       if (response.statusCode == 200) {
         return ServerHealth.healthy;
       } else if (response.statusCode == 503) {
@@ -356,16 +348,25 @@ class Config {
         return ServerHealth.offline;
       }
     } on SocketException catch (e, stackTrace) {
-      logger.w('SocketException when checking API health: $e',
-          error: e, stackTrace: stackTrace);
+      logger.w(
+        'SocketException when checking API health: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return ServerHealth.offline;
     } on TimeoutException catch (e, stackTrace) {
-      logger.w('Timeout when checking API health: $e',
-          error: e, stackTrace: stackTrace);
+      logger.w(
+        'Timeout when checking API health: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return ServerHealth.offline;
     } catch (e, stackTrace) {
-      logger.e('Unexpected error checking API health: $e',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Unexpected error checking API health: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return ServerHealth.offline;
     }
   }
@@ -406,8 +407,11 @@ class Config {
       logger.w('Optional config asset $path is not available: ${e.message}');
       return <String, dynamic>{};
     } on FormatException catch (e, stackTrace) {
-      logger.e('Invalid JSON in config asset $path',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Invalid JSON in config asset $path',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return <String, dynamic>{};
     }
   }
