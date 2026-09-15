@@ -8,6 +8,7 @@ class ApiDiagnostics {
     required this.method,
     required this.endpoint,
     required this.reason,
+    this.queryParameters = const {},
     this.statusCode,
     this.durationMs,
     this.requestId,
@@ -19,6 +20,7 @@ class ApiDiagnostics {
 
   final String method;
   final String endpoint;
+  final Map<String, List<String>> queryParameters;
   final int? statusCode;
   final int? durationMs;
   final String? requestId;
@@ -63,6 +65,7 @@ class ApiDiagnostics {
     return ApiDiagnostics(
       method: _scalar(method) ?? 'UNKNOWN',
       endpoint: sanitizedEndpoint(uri),
+      queryParameters: _queryParameters(uri),
       statusCode: statusCode,
       durationMs: durationMs,
       requestId: _scalar(requestId),
@@ -86,6 +89,7 @@ class ApiDiagnostics {
   Map<String, Object?> toContext() => <String, Object?>{
     'method': method,
     'endpoint': endpoint,
+    if (queryParameters.isNotEmpty) 'queryParameters': queryParameters,
     if (statusCode != null) 'statusCode': statusCode,
     if (durationMs != null) 'durationMs': durationMs,
     if (requestId != null) 'requestId': requestId,
@@ -95,6 +99,29 @@ class ApiDiagnostics {
     if (traceId != null) 'traceId': traceId,
     if (transportType != null) 'transportType': transportType,
   };
+
+  /// Keep query diagnostics separate so URL sanitization cannot strip them.
+  static Map<String, List<String>> _queryParameters(Uri uri) {
+    if (uri.query.length > maximumBodyBytes) {
+      return const {
+        'omitted': ['Query exceeds diagnostic inspection limit'],
+      };
+    }
+    return Map.unmodifiable({
+      for (final entry in uri.queryParametersAll.entries.take(50))
+        _scalar(entry.key) ?? '[empty key]': List<String>.unmodifiable(
+          LogRedactor.isSensitiveKey(entry.key) ||
+                  const {
+                    'key',
+                    'sig',
+                    'signature',
+                    'cursor',
+                  }.contains(entry.key.toLowerCase())
+              ? [LogRedactor.redacted]
+              : entry.value.take(10).map((value) => _scalar(value) ?? ''),
+        ),
+    });
+  }
 
   static String sanitizedEndpoint(Uri uri) {
     final safe = LogRedactor.endpoint(uri);

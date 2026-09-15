@@ -29,8 +29,10 @@ Unexpected errors logged at warning level remain reportable.
 Shared Dio clients and the observing HTTP client record method, endpoint,
 status, duration, backend reason/code/message, and request/correlation IDs.
 Error-body inspection is bounded to 64 KiB and diagnostic fields to 200
-characters. Successful binary responses are not inspected. URLs omit query
-values; full request/response bodies and credentials are not logged.
+characters. Successful binary responses are not inspected. Query parameters
+(including map cluster viewport and filters) are logged separately from the
+endpoint, with up to 50 keys and 10 values per key. Credentials, signatures and
+opaque cursors are redacted; full request/response bodies are not logged.
 For recording/dialect parsing, log structural counts or the payload type. Do
 not interpolate response bodies or model lists into messages, even at trace
 level: console diagnostics must also exclude recording contents.

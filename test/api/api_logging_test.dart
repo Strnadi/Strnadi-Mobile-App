@@ -44,6 +44,34 @@ void main() {
     expect(record.failure, isNull);
   });
 
+  for (final status in [200, 422, 500]) {
+    test('map cluster HTTP $status logs sanitized query parameters', () async {
+      dio.httpClientAdapter = _Adapter(status: status);
+      await dio.get<dynamic>(
+        'https://example.test/recordings/map-clusters',
+        queryParameters: {
+          'north': 50.25,
+          'south': 49.5,
+          'zoom': 12,
+          'clustered': true,
+          'dialects': ['A', 'B'],
+          'access_token': 'private-credential',
+        },
+      );
+      final context = records.values.single.context;
+      final query = context['queryParameters'] as Map;
+      expect(query['north'], ['50.25']);
+      expect(query['south'], ['49.5']);
+      expect(query['zoom'], ['12']);
+      expect(query['clustered'], ['true']);
+      expect(query.toString(), contains('A'));
+      expect(query.toString(), contains('B'));
+      expect(query['access_token'], '***');
+      expect(context.toString(), isNot(contains('private-credential')));
+      expect(context['statusCode'], status);
+    });
+  }
+
   for (final status in [400, 401, 422, 500]) {
     test(
       'classifies accepted HTTP $status and preserves domain occurrence',

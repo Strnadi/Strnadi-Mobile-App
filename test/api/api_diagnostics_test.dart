@@ -19,6 +19,35 @@ void main() {
     requestId: 'request-1',
   );
 
+  test('bounds query values and redacts decoded credentials', () {
+    final result = ApiDiagnostics.fromResponse(
+      method: 'GET',
+      uri: Uri.https('example.test', '/recordings/map-clusters', {
+        'north': '50.25',
+        'filter': List.filled(20, 'x' * 300),
+        'code': 'oauth-credential',
+        'signature': 'signed-credential',
+        'cursor': 'opaque-cursor',
+      }),
+      statusCode: 200,
+    );
+    expect(result.queryParameters['north'], ['50.25']);
+    expect(result.queryParameters['filter'], hasLength(10));
+    expect(
+      result.queryParameters['filter']!.every((v) => v.length == 200),
+      isTrue,
+    );
+    for (final key in ['code', 'signature', 'cursor']) {
+      expect(result.queryParameters[key], ['***']);
+    }
+    expect(result.toContext().toString(), isNot(contains('credential')));
+    final oversized = ApiDiagnostics.fromResponse(
+      method: 'GET',
+      uri: Uri.https('example.test', '/', {'filter': 'x' * 70000}),
+    );
+    expect(oversized.queryParameters.keys, ['omitted']);
+  });
+
   test(
     'extracts nested error reason and correlation without retaining bodies',
     () {
