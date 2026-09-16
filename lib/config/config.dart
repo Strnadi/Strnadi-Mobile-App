@@ -16,6 +16,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:strnadi/logging/telemetry_session.dart';
 import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:strnadi/logging/app_logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -237,6 +238,7 @@ class Config {
     if (!await prefs.setString(_hostEnvPrefKey, env.toString())) {
       throw StateError('Could not persist the server environment.');
     }
+    if (hostEnvironment != env) TelemetrySession.foreground.reset();
     _hostEnv = env;
     onHostEnvironmentChanged?.call();
   }

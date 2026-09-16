@@ -31,8 +31,9 @@ status, duration, backend reason/code/message, and request/correlation IDs.
 Error-body inspection is bounded to 64 KiB and diagnostic fields to 200
 characters. Successful binary responses are not inspected. Query parameters
 (including map cluster viewport and filters) are logged separately from the
-endpoint, with up to 50 keys and 10 values per key. Credentials, signatures and
-opaque cursors are redacted; full request/response bodies are not logged.
+endpoint, with up to 50 keys and 10 values per key. Credentials, signatures,
+opaque cursors, recording IDs and user IDs are redacted; full request/response
+bodies are not logged.
 For recording/dialect parsing, log structural counts or the payload type. Do
 not interpolate response bodies or model lists into messages, even at trace
 level: console diagnostics must also exclude recording contents.
@@ -81,3 +82,11 @@ background delivery with consent granted; confirm no delivery when denied or
 revoked. Use controlled API 401/422/500 responses and a local failure to verify
 reasons, stacks, one event per unexpected occurrence, and successful background
 retry behavior. Mocked tests do not establish native SDK or OS scheduling behavior.
+
+## Session isolation
+
+Foreground breadcrumbs are partitioned by an in-memory generation that changes
+on login, logout/invalidation and backend environment changes. Events exclude
+breadcrumbs from previous generations, and pending consent work is discarded
+when its generation changes. Credential renewal preserves the logical session.
+Background upload hubs use independent generations, including in a shared isolate.

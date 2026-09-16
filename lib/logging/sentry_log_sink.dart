@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/logging/telemetry_consent.dart';
+import 'package:strnadi/logging/telemetry_session.dart';
 import 'package:strnadi/utils/log_redactor.dart';
 
 const appSentryDsn =
@@ -14,9 +15,11 @@ const appSentryDsn =
 class SentryLogSink implements AppLogSink {
   SentryLogSink({
     Hub? hub,
+    TelemetrySession? session,
     Future<bool> Function()? isAuthorized,
     DateTime Function()? clock,
-  }) : _hub = hub ?? HubAdapter(),
+  }) : _session = session ?? TelemetrySession.foreground,
+       _hub = hub ?? HubAdapter(),
        _isAuthorized = isAuthorized ?? TelemetryConsent.instance.isAuthorized,
        _clock = clock ?? DateTime.now;
 
@@ -28,6 +31,8 @@ class SentryLogSink implements AppLogSink {
   static final Expando<List<_AutomaticOccurrence>> _automaticOccurrences =
       Expando('automatic Sentry occurrences');
   static const _automaticDuplicateWindow = Duration(seconds: 1);
+  static const _sessionKey = 'logging_session_generation';
+  final TelemetrySession _session;
   final Hub _hub;
   final Future<bool> Function() _isAuthorized;
   final DateTime Function() _clock;
@@ -54,11 +59,11 @@ class SentryLogSink implements AppLogSink {
             record.level.index < AppLogLevel.info.index)) {
       return null;
     }
-    return _add(record);
+    return _add(record, _session.generation);
   }
 
-  Future<void> _add(AppLogRecord record) async {
-    if (!await _isAuthorized()) return;
+  Future<void> _add(AppLogRecord record, int generation) async {
+    if (!await _isAuthorized() || generation != _session.generation) return;
     final data = <String, Object?>{
       ...record.context,
       if (record.reason != null) 'reason': record.reason,
@@ -74,6 +79,7 @@ class SentryLogSink implements AppLogSink {
         : record.level.index >= AppLogLevel.error.index;
     if (report && record.level != AppLogLevel.off) {
       final hint = Hint.withMap({
+        _sessionKey: generation,
         _failureHint: ?failure,
         _exceptionTypeHint: record.exceptionType ?? 'ApplicationError',
       });
@@ -95,14 +101,14 @@ class SentryLogSink implements AppLogSink {
         hint: hint,
       );
     }
-    if (record.level != AppLogLevel.off) {
+    if (generation == _session.generation && record.level != AppLogLevel.off) {
       await _hub.addBreadcrumb(
         Breadcrumb(
           timestamp: record.timestamp,
           category: record.scope,
           level: _level(record.level),
           message: LogRedactor.redactText(record.message),
-          data: LogRedactor.redactMap(data),
+          data: {...LogRedactor.redactMap(data), _sessionKey: generation},
         ),
       );
     }
@@ -128,7 +134,12 @@ class SentryLogSink implements AppLogSink {
     Hint hint,
   ) async {
     try {
-      if (!await _isAuthorized()) return null;
+      final generation = _session.generation;
+      if (!await _isAuthorized() ||
+          generation != _session.generation ||
+          (transaction.timestamp?.isBefore(_session.startedAt) ?? false)) {
+        return null;
+      }
       final safe = _sanitizeEvent(transaction, hint);
       safe.contexts.trace?.sampled = transaction.contexts.trace?.sampled;
       transaction
@@ -185,7 +196,14 @@ class SentryLogSink implements AppLogSink {
   }
 
   Future<SentryEvent?> _prepareEvent(SentryEvent event, Hint hint) async {
-    if (!await _isAuthorized()) return null;
+    final generation = _session.generation;
+    final loggedGeneration = hint.get(_sessionKey);
+    if (loggedGeneration != null && loggedGeneration != generation) return null;
+    if (!await _isAuthorized() ||
+        generation != _session.generation ||
+        (event.timestamp?.isBefore(_session.startedAt) ?? false)) {
+      return null;
+    }
     final hintedFailure = hint.get(_failureHint);
     var failure = hintedFailure is AppFailure
         ? hintedFailure
@@ -223,10 +241,20 @@ class SentryLogSink implements AppLogSink {
     return _sanitizeEvent(event, hint);
   }
 
-  static SentryEvent _sanitizeEvent(SentryEvent event, Hint hint) {
+  SentryEvent _sanitizeEvent(SentryEvent event, Hint hint) {
     // Reconstruct from the wire representation so no raw throwable survives.
     // Keep stack frames and mechanisms, but omit request bodies and cookies.
     final json = event.toJson();
+    json['breadcrumbs'] = [
+      for (final breadcrumb in event.breadcrumbs ?? <Breadcrumb>[])
+        if ((breadcrumb.data?[_sessionKey] == _session.generation ||
+            (_session.generation == 0 &&
+                breadcrumb.data?[_sessionKey] == null)))
+          {
+            ...breadcrumb.toJson(),
+            'data': {...?breadcrumb.data}..remove(_sessionKey),
+          },
+    ];
     final exceptionType = hint.get(_exceptionTypeHint);
     final exceptions = json['exception'];
     if (exceptionType is String && exceptions is Map) {
@@ -278,6 +306,17 @@ class SentryLogSink implements AppLogSink {
 
   Breadcrumb? beforeBreadcrumb(Breadcrumb? breadcrumb, Hint hint) {
     try {
+      if (breadcrumb != null) {
+        if (breadcrumb.timestamp.isBefore(_session.startedAt) ||
+            (breadcrumb.data?[_sessionKey] != null &&
+                breadcrumb.data?[_sessionKey] != _session.generation)) {
+          return null;
+        }
+        breadcrumb.data = {
+          ...?breadcrumb.data,
+          _sessionKey: _session.generation,
+        };
+      }
       return breadcrumb == null
           ? null
           : Breadcrumb.fromJson(

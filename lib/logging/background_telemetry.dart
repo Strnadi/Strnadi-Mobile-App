@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/logging/telemetry_session.dart';
 import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/logging/sentry_log_sink.dart';
 import 'package:strnadi/logging/telemetry_consent.dart';
@@ -95,7 +96,11 @@ Future<BackgroundTelemetrySession> _createSession(
     // Reporting remains useful if release metadata cannot be read headlessly.
   }
   final hub = Hub(options);
-  final sink = SentryLogSink(hub: hub, isAuthorized: consent.isAuthorized);
+  final sink = SentryLogSink(
+    hub: hub,
+    session: TelemetrySession(),
+    isAuthorized: consent.isAuthorized,
+  );
   sink.configureOptions(options);
   return BackgroundTelemetrySession(sink: sink, close: hub.close);
 }

@@ -47,7 +47,7 @@ void main() {
   for (final status in [200, 422, 500]) {
     test('map cluster HTTP $status logs sanitized query parameters', () async {
       dio.httpClientAdapter = _Adapter(status: status);
-      await dio.get<dynamic>(
+      final response = await dio.get<dynamic>(
         'https://example.test/recordings/map-clusters',
         queryParameters: {
           'north': 50.25,
@@ -66,7 +66,13 @@ void main() {
       expect(query['clustered'], ['true']);
       expect(query.toString(), contains('A'));
       expect(query.toString(), contains('B'));
+      // AppLogger's final map redaction replaces sensitive keys with a scalar.
+      // ApiDiagnostics itself preserves the list-valued query contract.
       expect(query['access_token'], '***');
+      expect(
+        apiDiagnosticsForResponse(response).queryParameters['access_token'],
+        ['***'],
+      );
       expect(context.toString(), isNot(contains('private-credential')));
       expect(context['statusCode'], status);
     });

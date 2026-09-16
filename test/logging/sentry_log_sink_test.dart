@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:strnadi/logging/telemetry_session.dart';
 import 'dart:convert';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
@@ -35,22 +37,80 @@ void main() {
   late SentryLogSink sink;
   late SentryOptions options;
   late bool authorized;
+  late TelemetrySession session;
 
   setUp(() {
     authorized = true;
+    session = TelemetrySession();
     transport = _MemoryTransport();
     options = SentryOptions()
       ..dsn = 'https://public@example.test/1'
       ..transport = transport
       ..sendClientReports = false;
     hub = Hub(options);
-    sink = SentryLogSink(hub: hub, isAuthorized: () async => authorized);
+    sink = SentryLogSink(
+      hub: hub,
+      session: session,
+      isAuthorized: () async => authorized,
+    );
     options.beforeSend = sink.beforeSend;
     options.beforeBreadcrumb = sink.beforeBreadcrumb;
   });
   tearDown(() async {
     await hub.close();
     AppLogger.configure();
+  });
+
+  test(
+    'session transitions exclude old activity and pending consent work',
+    () async {
+      final logger = AppLogger(consoleSink: _QuietSink(), telemetrySink: sink);
+      logger.i('Account A recording activity');
+      await AppLogger.flush();
+      final consent = Completer<bool>();
+      final delayedSink = SentryLogSink(
+        hub: hub,
+        session: session,
+        isAuthorized: () => consent.future,
+      );
+      final delayedLogger = AppLogger(
+        consoleSink: _QuietSink(),
+        telemetrySink: delayedSink,
+      );
+      delayedLogger.i('Pending account A activity');
+      delayedLogger.e('Pending account A failure');
+      session.reset();
+      consent.complete(true);
+      await AppLogger.flush();
+      logger.i('Account B activity');
+      await AppLogger.flush();
+      logger.e('Account B error');
+      await AppLogger.flush();
+      final wire = jsonEncode(transport.events.single.toJson());
+      expect(wire, contains('Account B activity'));
+      expect(wire, isNot(contains('Account A')));
+      expect(wire, isNot(contains('account A')));
+      session.reset(); // Same boundary used by prod/dev/preprod changes.
+      logger.e('New environment error');
+      await AppLogger.flush();
+      expect(
+        jsonEncode(transport.events.last.toJson()),
+        isNot(contains('Account B')),
+      );
+    },
+  );
+
+  test('foreground boundaries leave task-owned telemetry intact', () async {
+    final logger = AppLogger(consoleSink: _QuietSink(), telemetrySink: sink);
+    logger.i('Task activity');
+    await AppLogger.flush();
+    TelemetrySession.foreground.reset();
+    logger.e('Task error');
+    await AppLogger.flush();
+    expect(
+      jsonEncode(transport.events.single.toJson()),
+      contains('Task activity'),
+    );
   });
 
   test(

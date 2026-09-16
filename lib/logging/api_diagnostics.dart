@@ -116,6 +116,8 @@ class ApiDiagnostics {
                     'sig',
                     'signature',
                     'cursor',
+                    'recordingid',
+                    'userid',
                   }.contains(entry.key.toLowerCase())
               ? [LogRedactor.redacted]
               : entry.value.take(10).map((value) => _scalar(value) ?? ''),

@@ -1,3 +1,4 @@
+import 'package:strnadi/logging/telemetry_session.dart';
 import 'package:strnadi/auth/user_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -76,17 +77,9 @@ class ActivatedAuthSessionSnapshot {
   final bool verified;
 }
 
-enum OfflineActivatedSessionStatus {
-  loggedIn,
-  notVerified,
-  loggedOut,
-}
+enum OfflineActivatedSessionStatus { loggedIn, notVerified, loggedOut }
 
-enum JwtVerificationDisposition {
-  verified,
-  notVerified,
-  rejected,
-}
+enum JwtVerificationDisposition { verified, notVerified, rejected }
 
 /// Maps backend JWT verification responses to the only two activatable states.
 ///
@@ -142,8 +135,9 @@ String _randomOpaqueId(String prefix, int monotonicGeneration) {
   final String entropy = base64Url
       .encode(List<int>.generate(18, (_) => random.nextInt(256)))
       .replaceAll('=', '');
-  final String orderedGeneration =
-      monotonicGeneration.toRadixString(36).padLeft(13, '0');
+  final String orderedGeneration = monotonicGeneration
+      .toRadixString(36)
+      .padLeft(13, '0');
   return '$prefix-$orderedGeneration-$entropy';
 }
 
@@ -160,13 +154,14 @@ class ActivatedAuthSessionManager {
     AuthSessionIdFactory? sessionIdFactory,
     String Function()? transitionIdFactory,
     String Function()? scopeProvider,
-  })  : _store = store,
-        _scopeProvider = scopeProvider,
-        _subjectDecoder = subjectDecoder,
-        _sessionIdFactory = sessionIdFactory ??
-            ((generation) => _randomOpaqueId('s', generation)),
-        _transitionIdFactory =
-            transitionIdFactory ?? (() => _randomOpaqueId('t', 0));
+  }) : _store = store,
+       _scopeProvider = scopeProvider,
+       _subjectDecoder = subjectDecoder,
+       _sessionIdFactory =
+           sessionIdFactory ??
+           ((generation) => _randomOpaqueId('s', generation)),
+       _transitionIdFactory =
+           transitionIdFactory ?? (() => _randomOpaqueId('t', 0));
 
   static const String tokenKey = 'token';
   static const String userIdKey = 'userId';
@@ -201,9 +196,7 @@ class ActivatedAuthSessionManager {
   ///
   /// Invalidation intentionally happens before the new token write. Any torn
   /// transition therefore has no activated marker and no stale user id.
-  Future<AuthSessionTransition> beginTokenTransition(
-    String accessToken,
-  ) {
+  Future<AuthSessionTransition> beginTokenTransition(String accessToken) {
     return _exclusive<AuthSessionTransition>(() async {
       final String token = accessToken.trim();
       if (token.isEmpty) {
@@ -212,6 +205,7 @@ class ActivatedAuthSessionManager {
         );
       }
 
+      TelemetrySession.foreground.reset();
       await _store.delete(activatedMarkerKey);
       await _store.delete(userIdKey);
       await _store.delete(verifiedKey);
@@ -248,11 +242,7 @@ class ActivatedAuthSessionManager {
     required bool verified,
   }) {
     return _exclusive<ActivatedAuthSessionSnapshot>(
-      () => _activateUnlocked(
-        transition,
-        userId,
-        verified: verified,
-      ),
+      () => _activateUnlocked(transition, userId, verified: verified),
     );
   }
 
@@ -283,6 +273,7 @@ class ActivatedAuthSessionManager {
       final String token = storedToken?.trim() ?? '';
       final String? subject = token.isEmpty ? null : _subjectDecoder(token);
 
+      TelemetrySession.foreground.reset();
       await _store.delete(activatedMarkerKey);
       await _store.delete(userIdKey);
       await _store.delete(verifiedKey);
@@ -385,20 +376,21 @@ class ActivatedAuthSessionManager {
   Future<void> replaceCredential(
     ActivatedAuthSessionSnapshot expected,
     String token,
-  ) =>
-      _exclusive(() async {
-        if (!await isCurrent(expected) ||
-            _subjectDecoder(token) != expected.subject) {
-          throw const ActivatedAuthSessionException(
-              'Session changed during renewal.');
-        }
-        if (token == expected.accessToken) return;
-        final marker = jsonDecode((await _store.read(activatedMarkerKey))!)
+  ) => _exclusive(() async {
+    if (!await isCurrent(expected) ||
+        _subjectDecoder(token) != expected.subject) {
+      throw const ActivatedAuthSessionException(
+        'Session changed during renewal.',
+      );
+    }
+    if (token == expected.accessToken) return;
+    final marker =
+        jsonDecode((await _store.read(activatedMarkerKey))!)
             as Map<String, dynamic>;
-        marker['accessToken'] = token;
-        await _store.write(tokenKey, token);
-        await _store.write(activatedMarkerKey, jsonEncode(marker));
-      });
+    marker['accessToken'] = token;
+    await _store.write(tokenKey, token);
+    await _store.write(activatedMarkerKey, jsonEncode(marker));
+  });
 
   Future<ActivatedAuthSessionSnapshot?> _captureUnlocked() async {
     final String? firstMarker = await _store.read(activatedMarkerKey);
@@ -408,8 +400,9 @@ class ActivatedAuthSessionManager {
     final String? userId = await _store.read(userIdKey);
     final String? verified = await _store.read(verifiedKey);
     final String? pendingTransition = await _store.read(pendingTransitionKey);
-    final int? persistedGeneration =
-        int.tryParse(await _store.read(monotonicGenerationKey) ?? '');
+    final int? persistedGeneration = int.tryParse(
+      await _store.read(monotonicGenerationKey) ?? '',
+    );
     final String? secondMarker = await _store.read(activatedMarkerKey);
     if (firstMarker != secondMarker || pendingTransition != null) return null;
 
@@ -479,6 +472,7 @@ class ActivatedAuthSessionManager {
   /// token itself.
   Future<void> invalidate({bool deleteToken = true}) {
     return _exclusive<void>(() async {
+      TelemetrySession.foreground.reset();
       await _store.delete(activatedMarkerKey);
       await _store.delete(userIdKey);
       await _store.delete(verifiedKey);
@@ -491,11 +485,10 @@ class ActivatedAuthSessionManager {
 
   /// Clears application secure storage without allowing logical-session ids to
   /// be reused after logout.
-  Future<void> clearAllPreservingGeneration(
-    Future<void> Function() clearAll,
-  ) {
+  Future<void> clearAllPreservingGeneration(Future<void> Function() clearAll) {
     return _exclusive<void>(() async {
       final String? generation = await _store.read(monotonicGenerationKey);
+      TelemetrySession.foreground.reset();
       await _store.delete(activatedMarkerKey);
       await _store.delete(userIdKey);
       await _store.delete(verifiedKey);
@@ -514,6 +507,6 @@ class ActivatedAuthSessionManager {
 
 final ActivatedAuthSessionManager activatedAuthSessions =
     ActivatedAuthSessionManager(
-  store: const SecureStorageAuthSessionKeyValueStore(),
-  scopeProvider: () => Config.dataEnvironment,
-);
+      store: const SecureStorageAuthSessionKeyValueStore(),
+      scopeProvider: () => Config.dataEnvironment,
+    );
