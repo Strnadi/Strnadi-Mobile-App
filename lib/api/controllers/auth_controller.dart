@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'dart:async';
+import 'package:strnadi/api/api_logging.dart';
+import 'package:strnadi/api/api_logger.dart';
+import 'package:strnadi/logging/log_failure.dart';
 import 'package:strnadi/config/oauth_configuration.dart';
 import 'package:strnadi/auth/administration/pkce_attempt.dart';
 import 'package:dio/dio.dart';
@@ -9,42 +13,46 @@ import 'package:strnadi/config/config.dart';
 abstract class OAuthApi {
   const OAuthApi();
   Future<Map<String, dynamic>> postForm(
-      Uri endpoint, Map<String, String> fields);
+    Uri endpoint,
+    Map<String, String> fields,
+  );
 
   Uri logoutUri(OAuthConfiguration configuration) =>
-      configuration.logoutEndpoint.replace(queryParameters: {
-        'redirect_uri': OAuthConfiguration.redirectUri,
-      });
+      configuration.logoutEndpoint.replace(
+        queryParameters: {'redirect_uri': OAuthConfiguration.redirectUri},
+      );
 
   Future<Map<String, dynamic>> exchangeAuthorizationCode(
-          OAuthConfiguration configuration,
-          {required String code,
-          required String verifier}) =>
-      postForm(configuration.tokenEndpoint, {
-        'grant_type': 'authorization_code',
-        'code': code,
-        'redirect_uri': OAuthConfiguration.redirectUri,
-        'client_id': OAuthConfiguration.clientId,
-        'code_verifier': verifier,
-      });
+    OAuthConfiguration configuration, {
+    required String code,
+    required String verifier,
+  }) => postForm(configuration.tokenEndpoint, {
+    'grant_type': 'authorization_code',
+    'code': code,
+    'redirect_uri': OAuthConfiguration.redirectUri,
+    'client_id': OAuthConfiguration.clientId,
+    'code_verifier': verifier,
+  });
 
   Future<Map<String, dynamic>> refreshAdministrationToken(
-          OAuthConfiguration configuration, String refreshToken) =>
-      postForm(configuration.tokenEndpoint, {
-        'grant_type': 'refresh_token',
-        'refresh_token': refreshToken,
-        'client_id': OAuthConfiguration.clientId,
-      });
+    OAuthConfiguration configuration,
+    String refreshToken,
+  ) => postForm(configuration.tokenEndpoint, {
+    'grant_type': 'refresh_token',
+    'refresh_token': refreshToken,
+    'client_id': OAuthConfiguration.clientId,
+  });
 
   Future<Map<String, dynamic>> exchangeProjectToken(
-          OAuthConfiguration configuration, String administrationToken) =>
-      postForm(configuration.tokenEndpoint, {
-        'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
-        'subject_token': administrationToken,
-        'subject_token_type': 'urn:ietf:params:oauth:token-type:access_token',
-        'client_id': OAuthConfiguration.clientId,
-        'project_id': configuration.projectId,
-      });
+    OAuthConfiguration configuration,
+    String administrationToken,
+  ) => postForm(configuration.tokenEndpoint, {
+    'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
+    'subject_token': administrationToken,
+    'subject_token_type': 'urn:ietf:params:oauth:token-type:access_token',
+    'client_id': OAuthConfiguration.clientId,
+    'project_id': configuration.projectId,
+  });
 }
 
 class AuthController extends OAuthApi {
@@ -52,7 +60,10 @@ class AuthController extends OAuthApi {
 
   @override
   Future<Map<String, dynamic>> postForm(
-      Uri endpoint, Map<String, String> fields) async {
+    Uri endpoint,
+    Map<String, String> fields,
+  ) async {
+    Response<dynamic>? completedResponse;
     try {
       final response = await ApiDioClient.authorization
           .postUri<dynamic>(
@@ -67,9 +78,18 @@ class AuthController extends OAuthApi {
             ),
           )
           .timeout(const Duration(seconds: 30));
+      completedResponse = response;
       if (response.statusCode != 200 &&
           ![400, 401, 403].contains(response.statusCode)) {
-        throw const OAuthFailure(OAuthFailureKind.server);
+        throw OAuthFailure(
+          OAuthFailureKind.server,
+          logFailure: apiFailureForResponse(
+            response,
+            reason: response.statusCode != null && response.statusCode! < 400
+                ? 'OAuth token endpoint returned an unexpected HTTP response'
+                : null,
+          ),
+        );
       }
       if (response.statusCode != 200) {
         String? oauthError;
@@ -84,29 +104,88 @@ class AuthController extends OAuthApi {
         if (oauthError == 'temporarily_unavailable' ||
             oauthError == 'server_error' ||
             (response.statusCode == 400 &&
-                !['invalid_grant', 'invalid_token', 'access_denied']
-                    .contains(oauthError))) {
-          throw const OAuthFailure(OAuthFailureKind.server);
+                ![
+                  'invalid_grant',
+                  'invalid_token',
+                  'access_denied',
+                ].contains(oauthError))) {
+          throw OAuthFailure(
+            OAuthFailureKind.server,
+            logFailure: apiFailureForResponse(response),
+          );
         }
         final kind = fields['grant_type'] == 'refresh_token'
             ? OAuthFailureKind.loginRequired
             : fields['grant_type'] ==
-                    'urn:ietf:params:oauth:grant-type:token-exchange'
-                ? OAuthFailureKind.exchangeDenied
-                : OAuthFailureKind.denied;
-        throw OAuthFailure(kind);
+                  'urn:ietf:params:oauth:grant-type:token-exchange'
+            ? OAuthFailureKind.exchangeDenied
+            : OAuthFailureKind.denied;
+        throw OAuthFailure(kind, logFailure: apiFailureForResponse(response));
       }
       final body = jsonDecode(response.data as String);
       if (body is! Map<String, dynamic>) {
-        throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+        throw const FormatException('OAuth response is not an object.');
       }
       return body;
-    } on OAuthFailure {
+    } on OAuthFailure catch (error, stackTrace) {
+      // HTTP errors are already observed by Dio. A non-error HTTP status can
+      // still violate the token endpoint contract, and the UI only shows its
+      // translated category, so report that protocol failure here.
+      final status = error.logFailure?.api?.statusCode;
+      if (status != null && status < 400) {
+        apiLogger.e(
+          'OAuth token response was rejected.',
+          error: error,
+          stackTrace: stackTrace,
+          failure: error.logFailure,
+        );
+      }
       rethrow;
-    } on FormatException {
-      throw const OAuthFailure(OAuthFailureKind.invalidResponse);
-    } catch (_) {
-      throw const OAuthFailure(OAuthFailureKind.network);
+    } on FormatException catch (error, stackTrace) {
+      final failure = completedResponse == null
+          ? AppFailure(
+              reason: 'OAuth response could not be decoded',
+              error: error,
+              stackTrace: stackTrace,
+            )
+          : apiFailureForResponse(
+              completedResponse,
+              reason: 'OAuth response could not be decoded',
+              stackTrace: stackTrace,
+            );
+      apiLogger.e(
+        'OAuth returned an invalid response.',
+        error: error,
+        stackTrace: stackTrace,
+        failure: failure,
+      );
+      Error.throwWithStackTrace(
+        OAuthFailure(OAuthFailureKind.invalidResponse, logFailure: failure),
+        stackTrace,
+      );
+    } catch (error, stackTrace) {
+      final alreadyObserved =
+          error is DioException && AppFailureRegistry.lookup(error) != null;
+      final failure = error is DioException
+          ? apiFailureForDioError(error, stackTrace: stackTrace)
+          : AppFailure(
+              reason: 'OAuth request did not complete',
+              expected: error is TimeoutException,
+              error: error,
+              stackTrace: stackTrace,
+            );
+      if (!alreadyObserved) {
+        apiLogger.w(
+          'OAuth request failed.',
+          error: error,
+          stackTrace: stackTrace,
+          failure: failure,
+        );
+      }
+      Error.throwWithStackTrace(
+        OAuthFailure(OAuthFailureKind.network, logFailure: failure),
+        stackTrace,
+      );
     }
   }
 
@@ -118,10 +197,7 @@ class AuthController extends OAuthApi {
   }) {
     return _dio.postUri(
       ApiDioClient.uri('/auth/login'),
-      data: <String, String>{
-        'email': email,
-        'password': password,
-      },
+      data: <String, String>{'email': email, 'password': password},
       options: Options(
         contentType: Headers.jsonContentType,
         extra: const <String, Object>{'authRequired': false},
@@ -159,36 +235,35 @@ class AuthController extends OAuthApi {
     if (Config.usesAdministration) {
       return _dio
           .getUri(
-        ApiDioClient.uri('/account/external-logins',
-            host: Config.administrationHost),
-        options: Options(
-            headers: {'Authorization': 'Bearer $accessToken'},
-            followRedirects: false,
-            extra: const {'authRequired': true}),
-      )
+            ApiDioClient.uri(
+              '/account/external-logins',
+              host: Config.administrationHost,
+            ),
+            options: Options(
+              headers: {'Authorization': 'Bearer $accessToken'},
+              followRedirects: false,
+              extra: const {'authRequired': true},
+            ),
+          )
           .then((response) {
-        if (response.statusCode == 200 && response.data is List) {
-          response.data = (response.data as List).contains('Google');
-        }
-        return response;
-      });
+            if (response.statusCode == 200 && response.data is List) {
+              response.data = (response.data as List).contains('Google');
+            }
+            return response;
+          });
     }
     return _dio.getUri(
       ApiDioClient.uri(
         '/auth/has-google-id',
         host: host,
-        queryParameters: <String, Object>{
-          'userId': userId,
-        },
+        queryParameters: <String, Object>{'userId': userId},
       ),
       options: Options(
         contentType: Headers.jsonContentType,
         followRedirects: false,
         maxRedirects: 0,
         validateStatus: (int? status) => status != null && status < 500,
-        headers: <String, String>{
-          'Authorization': 'Bearer $accessToken',
-        },
+        headers: <String, String>{'Authorization': 'Bearer $accessToken'},
         extra: const <String, Object>{'authRequired': true},
       ),
     );
@@ -202,36 +277,35 @@ class AuthController extends OAuthApi {
     if (Config.usesAdministration) {
       return _dio
           .getUri(
-        ApiDioClient.uri('/account/external-logins',
-            host: Config.administrationHost),
-        options: Options(
-            headers: {'Authorization': 'Bearer $accessToken'},
-            followRedirects: false,
-            extra: const {'authRequired': true}),
-      )
+            ApiDioClient.uri(
+              '/account/external-logins',
+              host: Config.administrationHost,
+            ),
+            options: Options(
+              headers: {'Authorization': 'Bearer $accessToken'},
+              followRedirects: false,
+              extra: const {'authRequired': true},
+            ),
+          )
           .then((response) {
-        if (response.statusCode == 200 && response.data is List) {
-          response.data = (response.data as List).contains('Apple');
-        }
-        return response;
-      });
+            if (response.statusCode == 200 && response.data is List) {
+              response.data = (response.data as List).contains('Apple');
+            }
+            return response;
+          });
     }
     return _dio.getUri(
       ApiDioClient.uri(
         '/auth/has-apple-id',
         host: host,
-        queryParameters: <String, Object>{
-          'userId': userId,
-        },
+        queryParameters: <String, Object>{'userId': userId},
       ),
       options: Options(
         contentType: Headers.jsonContentType,
         followRedirects: false,
         maxRedirects: 0,
         validateStatus: (int? status) => status != null && status < 500,
-        headers: <String, String>{
-          'Authorization': 'Bearer $accessToken',
-        },
+        headers: <String, String>{'Authorization': 'Bearer $accessToken'},
         extra: const <String, Object>{'authRequired': true},
       ),
     );
@@ -254,8 +328,10 @@ class AuthController extends OAuthApi {
   Future<Response<dynamic>> requestPasswordReset(String email) {
     if (Config.hostEnvironment == HostEnvironment.preprod) {
       return _dio.postUri(
-        ApiDioClient.uri('/account/forgot-password',
-            host: Config.administrationHost),
+        ApiDioClient.uri(
+          '/account/forgot-password',
+          host: Config.administrationHost,
+        ),
         data: <String, String>{'email': email},
         options: Options(
           contentType: Headers.jsonContentType,
@@ -280,7 +356,8 @@ class AuthController extends OAuthApi {
   }) {
     if (Config.usesAdministration) {
       throw UnsupportedError(
-          'Complete the password reset using the browser link in the email.');
+        'Complete the password reset using the browser link in the email.',
+      );
     }
     return _dio.patchUri(
       ApiDioClient.uri('/auth/$email/reset-password'),
@@ -349,9 +426,7 @@ class AuthController extends OAuthApi {
     );
   }
 
-  Future<Response<dynamic>> loginGoogle({
-    required String idToken,
-  }) {
+  Future<Response<dynamic>> loginGoogle({required String idToken}) {
     return _dio.postUri(
       ApiDioClient.uri('/auth/login-google'),
       data: <String, String>{'idToken': idToken},

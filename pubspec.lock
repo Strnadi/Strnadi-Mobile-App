@@ -1624,14 +1624,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.29.0"
-  sentry_logging:
-    dependency: "direct main"
-    description:
-      name: sentry_logging
-      sha256: "231e099dac12f6e13a476e3fe051541ef0f645a8ef2657b7b1f82d3e531fbcc2"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.29.0"
   shared_preferences:
     dependency: "direct main"
     description:

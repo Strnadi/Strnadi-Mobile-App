@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/api/models/map_clusters.dart';
 import 'package:strnadi/api/services/map_api_service.dart';
 import 'package:strnadi/map/filters/map_filter_defaults.dart';
@@ -89,7 +89,7 @@ void main() {
         return scope;
       },
       currentHost: () => scope.host,
-      logger: Logger(level: Level.off),
+      logger: AppLogger(level: AppLogLevel.off),
     );
   });
   tearDown(() {

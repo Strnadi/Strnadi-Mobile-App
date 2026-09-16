@@ -16,9 +16,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'recording.waw');
 
 abstract interface class SegmentFileOperations {
   Future<int> length(String path);
@@ -373,9 +373,7 @@ Future<Uint8List> _readExactRange(
     length: length,
   );
   if (bytes.length != length) {
-    throw FormatException(
-      'WAV file $path is truncated at byte $start.',
-    );
+    throw FormatException('WAV file $path is truncated at byte $start.');
   }
   return bytes;
 }
@@ -425,8 +423,9 @@ Future<WavPcmDataRegion> readWavPcmDataRegion(
       start: chunkOffset,
       length: 8,
     );
-    final int chunkLength =
-        ByteData.sublistView(chunkHeader).getUint32(4, Endian.little);
+    final int chunkLength = ByteData.sublistView(
+      chunkHeader,
+    ).getUint32(4, Endian.little);
     final int payloadOffset = chunkOffset + 8;
     final int payloadEnd = payloadOffset + chunkLength;
     if (payloadEnd > riffLength) {
@@ -557,10 +556,12 @@ Future<void> concatWavFiles(
   }
 
   final WavPcmDataRegion first = regions.first;
-  final int sampleRate =
-      sampleRateHint == 0 ? first.sampleRate : sampleRateHint;
-  final int bitDepth =
-      bitsPerSampleHint == 0 ? first.bitsPerSample : bitsPerSampleHint;
+  final int sampleRate = sampleRateHint == 0
+      ? first.sampleRate
+      : sampleRateHint;
+  final int bitDepth = bitsPerSampleHint == 0
+      ? first.bitsPerSample
+      : bitsPerSampleHint;
   final int channels = first.channels;
   int totalDataLength = 0;
 

@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 /*
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -21,12 +22,11 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/PostRecordingForm/addDialect.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/user/settingsManager.dart';
@@ -46,12 +46,12 @@ import 'Models/recording.dart';
 import 'Models/recordingPart.dart';
 import 'fileSize.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'database.archive.databaseNew_legacy_2026_02_18');
 
 Future<String> getPath() async {
   final dir = await getApplicationDocumentsDirectory();
   String path = dir.path + 'audio_${DateTime.now().millisecondsSinceEpoch}.wav';
-  logger.i('Generated file path: $path');
+  logger.i('Recording file location updated.');
   return path;
 }
 
@@ -245,7 +245,7 @@ class DatabaseNew {
       } catch (e, st) {
         logger.e('Failed to auto-prune recording id $id',
             error: e, stackTrace: st);
-        Sentry.captureException(e, stackTrace: st);
+
       }
     }
   }
@@ -280,14 +280,13 @@ class DatabaseNew {
             recording.totalSeconds = current.totalSeconds;
           }
           await updateRecording(recording);
-          logger.i(
-              'Recording with BEId ${recording.BEId} updated (id: $id), path: ${recording.path}');
+          logger.i('Recording file location updated.');
           return id;
         }
       }
       String? token = await FlutterSecureStorage().read(key: 'token');
 
-      logger.i("token: $token");
+      logger.i('Recording authentication loaded.', context: {'authenticated': token != null});
 
       if (token == null || token == '') {
         recording.mail = '';
@@ -299,11 +298,11 @@ class DatabaseNew {
       if (token != null && token != '') {
         await enforceMaxRecordings();
       }
-      logger.i('Recording ${recording.id} inserted, path: ${recording.path}');
+      logger.i('Recording file location updated.');
       return id;
     } catch (e, stackTrace) {
       logger.e('Failed to insert recording', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       return -1;
     }
   }
@@ -369,7 +368,7 @@ class DatabaseNew {
     } catch (e, stackTrace) {
       logger.e('Failed to insert recording part',
           error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       return -1;
     }
   }
@@ -457,8 +456,8 @@ class DatabaseNew {
       }
       logger.i("✅ Recordings fetched and synced.");
     } catch (e, stackTrace) {
-      logger.e("An error has occurred: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+      logger.e('Synchronizing recordings with the backend failed.', error: e, stackTrace: stackTrace);
+
     }
   }
 
@@ -535,10 +534,7 @@ class DatabaseNew {
           if (resp.statusCode == 200 || resp.statusCode == 204) {
             logger.i('Recording BEId ${recording.BEId} deleted on backend.');
           } else {
-            logger.w(
-              'Backend deletion failed for BEId ${recording.BEId}. '
-              'Status: ${resp.statusCode} – Body: ${resp.body}',
-            );
+            logger.w('Recording API request failed.', failure: apiFailureForResult(resp));
           }
         } else {
           logger.w(
@@ -598,7 +594,7 @@ class DatabaseNew {
     } catch (e, stackTrace) {
       logger.e('Failed to delete recording id $id',
           error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
     }
   }
 
@@ -637,8 +633,7 @@ class DatabaseNew {
       body: jsonEncode(await recording.toBEJson()),
     );
     if (response.statusCode == 200) {
-      logger.i(
-          'Recording sent successfully. Sending parts. Response: ${response.body}');
+      logger.i('Recording API response received.');
       recording.BEId = jsonDecode(response.body);
       await updateRecording(recording);
 
@@ -655,7 +650,7 @@ class DatabaseNew {
       recording.sending = false;
       await updateRecording(recording);
       throw UploadException(
-          'Failed to send recording to backend', response.statusCode);
+          'Failed to send recording to backend', response.statusCode, logFailure: apiFailureForResult(response));
     }
   }
 
@@ -698,7 +693,7 @@ class DatabaseNew {
     }
     try {
       final Map<String, Object?> body = await recording.toBEJson();
-      logger.i('Sending recording with body: $body');
+      logger.i('Recording API response received.');
       final http.Response response = await http.post(
         Uri.https(Config.host, '/recordings'),
         headers: {
@@ -708,8 +703,7 @@ class DatabaseNew {
         body: jsonEncode(body),
       );
       if (response.statusCode == 200) {
-        logger.i(
-            'Recording sent successfully. Sending parts. Response: ${response.body}');
+        logger.i('Recording API response received.');
         recording.BEId = jsonDecode(response.body);
         await updateRecording(recording);
 
@@ -722,7 +716,7 @@ class DatabaseNew {
             if (e is PathNotFoundException) {
               logger.e('Path not found for recording part id: ${part.id}',
                   error: e, stackTrace: stackTrace);
-              Sentry.captureException(e, stackTrace: stackTrace);
+
               if (await handleDeletedPath(part)) {
                 continue;
               } else {
@@ -749,11 +743,11 @@ class DatabaseNew {
         recording.sending = false;
         await updateRecording(recording);
         throw UploadException(
-            'Failed to send recording to backend', response.statusCode);
+            'Failed to send recording to backend', response.statusCode, logFailure: apiFailureForResult(response));
       }
     } catch (e, stackTrace) {
       logger.e('Error sending recording: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       recording.sending = false;
       await updateRecording(recording);
       rethrow;
@@ -896,7 +890,7 @@ class DatabaseNew {
           body: jsonEncode(jsonBody),
         );
         if (response.statusCode == 200) {
-          logger.i(response.body);
+          logger.i('Recording API response received.');
           int returnedId = jsonDecode(response.body);
           recordingPart.BEId = returnedId;
           recordingPart.sent = true;
@@ -914,12 +908,11 @@ class DatabaseNew {
           recordingPart.sending = false;
           await updateRecordingPart(recordingPart);
           throw UploadException('Failed to upload part id: ${recordingPart.id}',
-              response.statusCode);
+              response.statusCode, logFailure: apiFailureForResult(response));
         }
       } catch (e, stackTrace) {
         // reset sending flag on exception
         //logger.e('Error uploading part: $e' ,error: e, stackTrace: stackTrace);
-        //Sentry.captureException(e, stackTrace: stackTrace);
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
         rethrow;
@@ -928,14 +921,14 @@ class DatabaseNew {
       if (e is PathNotFoundException) {
         logger.e('Path not found for recording part id: ${recordingPart.id}',
             error: e, stackTrace: stackTrace);
-        Sentry.captureException(e, stackTrace: stackTrace);
+
         recordingPart.sending = false;
         await updateRecordingPart(recordingPart);
         rethrow;
       }
       // reset sending flag on exception
       logger.e('Error uploading part: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       recordingPart.sending = false;
       await updateRecordingPart(recordingPart);
       rethrow;
@@ -988,10 +981,8 @@ class DatabaseNew {
 
       dio.interceptors.add(InterceptorsWrapper(
         onRequest: (options, handler) {
-          logger.i(
-              'Dio request Content-Type: \'${options.headers['content-type'] ?? options.contentType}\'');
-          logger.i(
-              'Dio request headers (subset): ${options.headers.map((k, v) => MapEntry(k, k.toLowerCase() == 'authorization' ? '***' : v))}');
+          logger.i('Recording upload request prepared.');
+          logger.i('Recording upload request prepared.');
           handler.next(options);
         },
       ));
@@ -1055,7 +1046,7 @@ class DatabaseNew {
               ? loc
               : Uri.parse(initialUrl).resolve(loc).toString();
           logger.w(
-              'Multipart POST received ${response.statusCode} redirect → $redirectedUrl. Retrying with fresh FormData.');
+              'Multipart POST received ${response.statusCode} redirect → $redirectedUrl. Retrying with fresh FormData.', failure: apiFailureForResult(response));
 
           response = await dio.post(
             redirectedUrl,
@@ -1088,7 +1079,7 @@ class DatabaseNew {
       }
 
       if (response.statusCode == 200) {
-        logger.i(response.data);
+        logger.i('Recording API response received.');
         int returnedId = response.data is int
             ? response.data
             : (response.data is String ? int.parse(response.data) : 0);
@@ -1114,13 +1105,13 @@ class DatabaseNew {
         UploadProgressBus.clear(recordingPart.id ?? -1);
         await updateRecordingPart(recordingPart);
         throw UploadException('Failed to upload part id: ${recordingPart.id}',
-            response.statusCode!);
+            response.statusCode!, logFailure: apiFailureForResult(response));
       }
     } catch (e, stackTrace) {
       if (e is PathNotFoundException) {
         logger.e('Path not found for recording part id: ${recordingPart.id}',
             error: e, stackTrace: stackTrace);
-        Sentry.captureException(e, stackTrace: stackTrace);
+
         recordingPart.sending = false;
         UploadProgressBus.clear(recordingPart.id ?? -1);
         await updateRecordingPart(recordingPart);
@@ -1128,7 +1119,7 @@ class DatabaseNew {
       }
       // reset sending flag on exception
       logger.e('Error uploading part: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       recordingPart.sending = false;
       await updateRecordingPart(recordingPart);
       rethrow;
@@ -1146,7 +1137,7 @@ class DatabaseNew {
           where: 'id = ?', whereArgs: [recording.id]);
     } catch (e, stackTrace) {
       logger.e('Failed to update recording', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
     }
   }
 
@@ -1158,7 +1149,7 @@ class DatabaseNew {
     } catch (e, stackTrace) {
       logger.e('Failed to update recording part',
           error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
     }
   }
 
@@ -1204,8 +1195,7 @@ class DatabaseNew {
     } else {
       throw UploadException(
         'Failed to update recording on backend',
-        response.statusCode,
-      );
+        response.statusCode, logFailure: apiFailureForResult(response));
     }
   }
 
@@ -1291,7 +1281,7 @@ class DatabaseNew {
         logger.i('No recordings found on backend.');
       } else {
         throw FetchException(
-            'Failed to fetch recordings from backend', response.statusCode);
+            'Failed to fetch recordings from backend', response.statusCode, logFailure: apiFailureForResult(response));
       }
     } finally {
       fetching = false;
@@ -1346,12 +1336,12 @@ class DatabaseNew {
           // none for this recording
         } else {
           logger.w(
-              'Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}');
+              'Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}', failure: apiFailureForResult(resp));
         }
       } catch (e, st) {
         logger.e('Error fetching filtered parts for recording ${rec.BEId}: $e',
             error: e, stackTrace: st);
-        Sentry.captureException(e, stackTrace: st);
+
       }
     }
   }
@@ -1428,7 +1418,7 @@ class DatabaseNew {
         return part;
       } else {
         logger
-            .i("req failed with statuscode ${resp.statusCode} -> ${resp.body}");
+            .i('Recording API request failed (${resp.statusCode}).', failure: apiFailureForResult(resp));
       }
     } catch (e) {
       return null;
@@ -1516,7 +1506,7 @@ class DatabaseNew {
         if (response.statusCode != 200 || response.data == null) {
           throw FetchException(
               'Failed to download recording part: /recordings/part/${part.BEId}/sound',
-              response.statusCode ?? 500);
+              response.statusCode ?? 500, logFailure: apiFailureForResult(response));
         }
         // Save part to disk
         final String partFilePath =
@@ -1541,7 +1531,7 @@ class DatabaseNew {
         } else {
           logger.e('Error downloading part BEID: ${part.BEId}: $e',
               error: e, stackTrace: stackTrace);
-          Sentry.captureException(e, stackTrace: stackTrace);
+
           throw FetchException(
               'Error downloading recording part: /recordings/part/${part.BEId}/sound',
               500);
@@ -1601,7 +1591,7 @@ class DatabaseNew {
     } catch (e, stackTrace) {
       logger.e('Failed to concatenate recording parts for id: $recordingId',
           error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       return;
     }
 
@@ -1827,9 +1817,9 @@ class DatabaseNew {
           await db
               .execute('ALTER TABLE recordingParts ADD COLUMN length INTEGER;');
         } catch (e, stackTrace) {
-          logger.w('Failed to add length column to recordingParts: $e',
+          logger.e('Failed to add length column to recordingParts: $e',
               error: e, stackTrace: stackTrace);
-          Sentry.captureException(e, stackTrace: stackTrace);
+
         }
         await db.setVersion(newVersion);
       }
@@ -2080,7 +2070,7 @@ class DatabaseNew {
         } catch (e, st) {
           logger.e('resendUnsentParts: failure in group for recordingId=$recId',
               error: e, stackTrace: st);
-          Sentry.captureException(e, stackTrace: st);
+
         }
       }());
     });
@@ -2092,7 +2082,7 @@ class DatabaseNew {
   static Future<int> insertDialect(Dialect dialect) async {
     final db = await database;
 
-    logger.i('dialect: ${dialect.toJson()}');
+    logger.i('Recording dialect updated.');
     int id = await db.insert("Dialects", dialect.toJson());
     logger.i('Dialect ${dialect.id} inserted.');
     return id;
@@ -2232,8 +2222,7 @@ class DatabaseNew {
             queryParameters: {"parts": "true"}),
         headers: {'Authorization': 'Bearer $jwt'});
     if (response.statusCode != 200) {
-      logger.w(
-          'Could not download recording ${response.body} | ${response.statusCode}');
+      logger.w('Recording API request failed.', failure: apiFailureForResult(response));
     }
     Map<String, dynamic> body = jsonDecode(response.body);
     final List<dynamic> partsArr = (body['parts'] as List?) ?? const [];

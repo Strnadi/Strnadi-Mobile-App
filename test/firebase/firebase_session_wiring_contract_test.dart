@@ -11,8 +11,9 @@ void main() {
 
     setUpAll(() {
       firebase = File('lib/firebase/firebase.dart').readAsStringSync();
-      controller =
-          File('lib/api/controllers/device_controller.dart').readAsStringSync();
+      controller = File(
+        'lib/api/controllers/device_controller.dart',
+      ).readAsStringSync();
       bootstrap = File('lib/bootstrap/app_bootstrap.dart').readAsStringSync();
       mainSource = File('lib/main.dart').readAsStringSync();
     });
@@ -37,63 +38,62 @@ void main() {
     test('all initialization calls are awaited and ordered', () {
       expect(firebase, contains('Future<void> initFirebase()'));
       expect(bootstrap, contains('await initFirebase();'));
-      expect(
-        bootstrap,
-        contains('await initializeNotificationRuntime('),
-      );
+      expect(bootstrap, contains('await initializeNotificationRuntime('));
       expect(
         mainSource,
         contains('await AppBootstrap.initializeNotifications(logger);'),
       );
-      expect(
-        bootstrap,
-        isNot(contains('unawaited(initFirebaseMessaging())')),
-      );
-      expect(
-        bootstrap,
-        isNot(contains('unawaited(initLocalNotifications())')),
-      );
+      expect(bootstrap, isNot(contains('unawaited(initFirebaseMessaging())')));
+      expect(bootstrap, isNot(contains('unawaited(initLocalNotifications())')));
     });
 
     test('device registration has no logged-out or user-id polling loops', () {
       expect(firebase, isNot(contains('while (!(await auth.isLoggedIn()')));
       expect(firebase, isNot(contains('while (userIdS == null)')));
       expect(
-          firebase, isNot(contains('Future.delayed(Duration(seconds: 10))')));
-      expect(firebase, contains('activatedAuthSessions.capture()'));
+        firebase,
+        isNot(contains('Future.delayed(Duration(seconds: 10))')),
+      );
+      expect(
+        firebase,
+        contains(RegExp(r'\bactivatedAuthSessions\s*\.\s*capture\s*\(\s*\)')),
+      );
       expect(firebase, contains('session == null || !session.verified'));
     });
 
-    test('remote calls use captured auth, host, user, session, and environment',
-        () {
-      expect(firebase, contains('DeviceRegistrationScope('));
-      expect(firebase, contains('sessionId: session.sessionId'));
-      expect(firebase, contains('accessToken: session.accessToken'));
-      expect(firebase, contains('environment: Config.dataEnvironment'));
-      expect(firebase, contains('apiHost: Config.host'));
-      expect(firebase, contains("host: scope.apiHost"));
-      expect(firebase, contains("accessToken: scope.accessToken"));
-      expect(firebase, contains("'userId': scope.userId"));
-      expect(controller, contains("'Authorization': 'Bearer \$accessToken'"));
-      expect(controller, contains('followRedirects: false'));
-    });
+    test(
+      'remote calls use captured auth, host, user, session, and environment',
+      () {
+        expect(firebase, contains('DeviceRegistrationScope('));
+        expect(firebase, contains('sessionId: session.sessionId'));
+        expect(firebase, contains('accessToken: session.accessToken'));
+        expect(firebase, contains('environment: Config.dataEnvironment'));
+        expect(firebase, contains('apiHost: Config.host'));
+        expect(firebase, contains("host: scope.apiHost"));
+        expect(firebase, contains("accessToken: scope.accessToken"));
+        expect(firebase, contains("'userId': scope.userId"));
+        expect(controller, contains("'Authorization': 'Bearer \$accessToken'"));
+        expect(controller, contains('followRedirects: false'));
+      },
+    );
 
-    test('token refresh trusts only the scoped binding and shared coordinator',
-        () {
-      expect(firebase, contains("const String _deviceTokenBindingKey"));
-      expect(firebase, contains('DeviceTokenSessionCoordinator('));
-      expect(
-        firebase,
-        contains('currentTokenOverride: newToken'),
-      );
-      expect(
-        firebase,
-        isNot(contains(
-          "String? oldToken = await FlutterSecureStorage().read("
-          "key: 'fcmToken')",
-        )),
-      );
-    });
+    test(
+      'token refresh trusts only the scoped binding and shared coordinator',
+      () {
+        expect(firebase, contains("const String _deviceTokenBindingKey"));
+        expect(firebase, contains('DeviceTokenSessionCoordinator('));
+        expect(firebase, contains('currentTokenOverride: newToken'));
+        expect(
+          firebase,
+          isNot(
+            contains(
+              "String? oldToken = await FlutterSecureStorage().read("
+              "key: 'fcmToken')",
+            ),
+          ),
+        );
+      },
+    );
 
     test('logout cleanup is serialized and uses the binding original host', () {
       expect(firebase, contains('cleanUpCurrentSession('));
@@ -101,7 +101,8 @@ void main() {
       expect(
         firebase,
         contains(
-            'invalidateFirebaseToken: FirebaseMessaging.instance.deleteToken'),
+          'invalidateFirebaseToken: FirebaseMessaging.instance.deleteToken',
+        ),
       );
     });
   });

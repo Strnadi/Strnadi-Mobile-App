@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/localization/localization.dart';
@@ -20,14 +21,14 @@ import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/firebase/firebase.dart' as fb;
 import 'package:strnadi/navigation/session_navigation.dart';
 
 import 'emailSent.dart';
 import 'overview.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.registeration.cityReg');
 const AuthController _authController = AuthController();
 const UserController _userController = UserController();
 
@@ -106,7 +107,10 @@ class _RegLocationState extends State<RegLocation> {
         token: widget.jwt,
       );
 
-      logger.i('Sign-up response status: ${response.statusCode}');
+      logger.i(
+        'Sign-up response status: ${response.statusCode}',
+        context: {'statusCode': response.statusCode},
+      );
 
       if ([200, 201, 202].contains(response.statusCode)) {
         final AuthSessionTransition transition = await activatedAuthSessions
@@ -118,6 +122,7 @@ class _RegLocationState extends State<RegLocation> {
         if (userId == null || userId <= 0) {
           logger.e(
             'Failed to resolve signed-up user id; status ${idResponse.statusCode}.',
+            failure: apiFailureForResult(idResponse),
           );
           _showMessage(t('login.errors.idGetError'));
           return;
@@ -139,16 +144,26 @@ class _RegLocationState extends State<RegLocation> {
         );
       } else if (response.statusCode == 409) {
         GoogleSignInService.signOut();
-        logger.w('Sign up failed with status ${response.statusCode}.');
+        logger.w(
+          'Sign up failed with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
+        );
         _showMessage(t('signup.city.errors.user_exists'));
       } else {
         GoogleSignInService.signOut();
         _showMessage(t('signup.city.errors.error_ocured'));
-        logger.e('Sign up failed with status ${response.statusCode}.');
+        logger.e(
+          'Sign up failed with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
+        );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
       GoogleSignInService.signOut();
-      logger.e("An error occurred: $error");
+      logger.e(
+        'Completing registration with the selected city failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _showMessage(t('signup.city.errors.error_ocured'));
     }
   }

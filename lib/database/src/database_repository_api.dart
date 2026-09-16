@@ -6,7 +6,9 @@ const FilteredRecordingsController _filteredRecordingsApi =
     FilteredRecordingsController();
 
 Future<void> _sendRecording(
-    Recording recording, List<RecordingPart> recordingParts) async {
+  Recording recording,
+  List<RecordingPart> recordingParts,
+) async {
   // Compatibility entry point: all uploads must go through the aggregate
   // service so the durable parent lease, frozen request snapshot,
   // idempotency keys, and captured session are enforced.
@@ -14,7 +16,9 @@ Future<void> _sendRecording(
 }
 
 Future<void> _sendRecordingNew(
-    Recording recording, List<RecordingPart> recordingParts) async {
+  Recording recording,
+  List<RecordingPart> recordingParts,
+) async {
   if (recording.id == null) {
     throw const RecordingUploadValidationException(
       'Recording has no local id.',
@@ -60,6 +64,10 @@ Future<void> _sendRecordingNew(
         throw UploadException(
           result.reason ?? 'Recording upload is already in progress.',
           409,
+          logFailure: AppFailure(
+            reason: 'Recording upload is already in progress.',
+            expected: true,
+          ),
         );
       case RecordingUploadStatus.deferred:
         throw RecordingUploadDeferredException(
@@ -74,20 +82,16 @@ Future<void> _sendRecordingNew(
     }
     if (e is! RecordingUploadDeferredException) {
       logger.e('Error sending recording: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
     }
     rethrow;
   }
 }
 
-void _reportRecordingUploadProgress(
-  int partId,
-  int sent,
-  int total,
-) {
+void _reportRecordingUploadProgress(int partId, int sent, int total) {
   UploadProgressBus.update(partId, sent, total);
-  final SendPort? port =
-      IsolateNameServer.lookupPortByName('upload_progress_port');
+  final SendPort? port = IsolateNameServer.lookupPortByName(
+    'upload_progress_port',
+  );
   port?.send(<Object>['update', partId, sent, total]);
 }
 
@@ -148,10 +152,7 @@ class _SqliteRecordingUploadStore implements RecordingUploadStore {
   }
 
   @override
-  Future<Recording?> loadRecording(
-    int recordingId,
-    String leaseId,
-  ) async {
+  Future<Recording?> loadRecording(int recordingId, String leaseId) async {
     final Database db = await DatabaseNew.database;
     try {
       await _touchLease(db, recordingId, leaseId);
@@ -185,10 +186,7 @@ class _SqliteRecordingUploadStore implements RecordingUploadStore {
   }
 
   @override
-  Future<void> saveRecording(
-    Recording recording,
-    String leaseId,
-  ) async {
+  Future<void> saveRecording(Recording recording, String leaseId) async {
     final int? recordingId = recording.id;
     if (recordingId == null) {
       throw const RecordingUploadValidationException(
@@ -315,16 +313,12 @@ class _SqliteRecordingUploadStore implements RecordingUploadStore {
     final int changed = await db.update(
       'recordingParts',
       part.toJson(),
-      where: 'id = ? AND recordingId = ? AND EXISTS ('
+      where:
+          'id = ? AND recordingId = ? AND EXISTS ('
           'SELECT 1 FROM recordings r '
           'WHERE r.id = ? AND r.uploadLease = ?'
           ')',
-      whereArgs: <Object?>[
-        partId,
-        recordingId,
-        recordingId,
-        leaseId,
-      ],
+      whereArgs: <Object?>[partId, recordingId, recordingId, leaseId],
     );
     if (changed != 1) {
       throw StateError('Recording upload lease is no longer current.');
@@ -348,9 +342,11 @@ class _SqliteRecordingUploadStore implements RecordingUploadStore {
         where: 'recordingId = ?',
         whereArgs: <Object?>[recordingId],
       );
-      final List<RecordingPart> parts =
-          rows.map(RecordingPart.fromJson).toList(growable: false);
-      final bool complete = parts.length == expectedPartsCount &&
+      final List<RecordingPart> parts = rows
+          .map(RecordingPart.fromJson)
+          .toList(growable: false);
+      final bool complete =
+          parts.length == expectedPartsCount &&
           parts.every(
             (RecordingPart part) =>
                 part.sent &&
@@ -409,8 +405,8 @@ class _BackendRecordingUploadApi implements RecordingUploadApi {
 
   static final RecordingPartMultipartUploader _partUploader =
       RecordingPartMultipartUploader(
-    onCleanupError: _reportRecordingUploadStageCleanupError,
-  );
+        onCleanupError: _reportRecordingUploadStageCleanupError,
+      );
 
   @override
   Future<int> createRecording({
@@ -419,8 +415,9 @@ class _BackendRecordingUploadApi implements RecordingUploadApi {
     required String idempotencyKey,
     required Future<void> Function() beforePost,
   }) async {
-    final Map<String, Object?> body =
-        recording.toBEJsonWithDeviceId(recording.uploadDeviceId);
+    final Map<String, Object?> body = recording.toBEJsonWithDeviceId(
+      recording.uploadDeviceId,
+    );
     final Response<dynamic> response = await _recordingsApi.createRecording(
       body,
       accessToken: session.accessToken,
@@ -510,13 +507,18 @@ class _BackendRecordingUploadApi implements RecordingUploadApi {
     throw UploadException(
       'Failed to reconcile recording part.',
       status,
+      logFailure: apiFailureForResponse(response),
     );
   }
 
   void _requireSuccess(Response<dynamic> response, String operation) {
     final int status = response.statusCode ?? 500;
     if (status < 200 || status >= 300) {
-      throw UploadException('Failed to $operation.', status);
+      throw UploadException(
+        'Failed to $operation.',
+        status,
+        logFailure: apiFailureForResponse(response),
+      );
     }
   }
 
@@ -530,17 +532,11 @@ class _BackendRecordingUploadApi implements RecordingUploadApi {
 }
 
 void _reportRecordingUploadStageCleanupError(
-  Object _,
+  Object error,
   StackTrace stackTrace,
 ) {
   const String message = 'Recording upload temporary stage cleanup failed.';
-  logger.w(message);
-  unawaited(
-    Sentry.captureException(
-      StateError(message),
-      stackTrace: stackTrace,
-    ),
-  );
+  logger.e(message, error: error, stackTrace: stackTrace);
 }
 
 class _SecureStorageRecordingUploadSessions
@@ -634,15 +630,14 @@ Future<bool> _handleDeletedPath(RecordingPart recordingPart) async {
     return false;
   }
 
-  final response = await _recordingPartsApi.fetchPart(
-    recordingPart.BEId!,
-  );
+  final response = await _recordingPartsApi.fetchPart(recordingPart.BEId!);
 
   if (response.statusCode != null &&
       response.statusCode! >= 200 &&
       response.statusCode! < 300) {
     logger.i(
-        'Recording part id: ${recordingPart.id} found on backend, marking as sent.');
+      'Recording part id: ${recordingPart.id} found on backend, marking as sent.',
+    );
     final Directory tempDir = await getApplicationDocumentsDirectory();
     final String partFilePath =
         '${tempDir.path}/recording_${recordingPart.backendRecordingId}_${recordingPart.BEId}_${DateTime.now().microsecondsSinceEpoch}.wav';
@@ -669,8 +664,10 @@ Future<void> _sendRecordingPart(RecordingPart recordingPart) async {
   await _sendRecordingPartNew(recordingPart);
 }
 
-Future<void> _sendRecordingPartNew(RecordingPart recordingPart,
-    {UploadProgress? onProgress}) async {
+Future<void> _sendRecordingPartNew(
+  RecordingPart recordingPart, {
+  UploadProgress? onProgress,
+}) async {
   final int? recordingId = recordingPart.recordingId;
   if (recordingId == null || recordingId <= 0) {
     throw const RecordingUploadValidationException(
@@ -678,8 +675,9 @@ Future<void> _sendRecordingPartNew(RecordingPart recordingPart,
     );
   }
 
-  final Recording? recording =
-      await DatabaseNew.getRecordingFromDbById(recordingId);
+  final Recording? recording = await DatabaseNew.getRecordingFromDbById(
+    recordingId,
+  );
   if (recording == null) {
     throw const RecordingUploadValidationException(
       'Direct part upload cannot proceed without its local recording parent.',
@@ -709,7 +707,8 @@ Future<void> _updateRecordingBE(Recording recording) async {
 
   await DatabaseNew.runWithRecordingWorkflowLease<void>(
     recordingId: recordingId,
-    leaseId: 'metadata:$recordingId:${DateTime.now().microsecondsSinceEpoch}:'
+    leaseId:
+        'metadata:$recordingId:${DateTime.now().microsecondsSinceEpoch}:'
         '${Isolate.current.hashCode}',
     operation: (RecordingWorkflowLeaseContext context) async {
       final Recording persisted = context.recording;
@@ -740,6 +739,7 @@ Future<void> _updateRecordingBE(Recording recording) async {
         throw UploadException(
           'Failed to update recording on backend',
           status,
+          logFailure: apiFailureForResponse(response),
         );
       }
       logger.i(
@@ -771,12 +771,12 @@ Future<void> _fetchRecordingsFromBE() async {
     }
     await _requireRecordingSessionCurrent(sessionProvider, session);
 
-    final Response<dynamic> response =
-        await _recordingsApi.fetchRecordingsForUser(
-      session.userId,
-      accessToken: session.accessToken,
-      host: session.backendHost,
-    );
+    final Response<dynamic> response = await _recordingsApi
+        .fetchRecordingsForUser(
+          session.userId,
+          accessToken: session.accessToken,
+          host: session.backendHost,
+        );
     await _requireRecordingSessionCurrent(sessionProvider, session);
 
     if (response.statusCode == 200) {
@@ -784,8 +784,9 @@ Future<void> _fetchRecordingsFromBE() async {
           ? json.decode(response.data as String)
           : response.data;
       final List<dynamic> body = decoded as List<dynamic>;
-      final List<Recording> recordings =
-          List<Recording>.generate(body.length, (i) {
+      final List<Recording> recordings = List<Recording>.generate(body.length, (
+        i,
+      ) {
         return Recording.fromBEJson(
           body[i],
           numericUserId,
@@ -796,8 +797,10 @@ Future<void> _fetchRecordingsFromBE() async {
 
       for (int i = 0; i < body.length; i++) {
         for (int j = 0; j < body[i]['parts'].length; j++) {
-          final RecordingPart part =
-              RecordingPart.fromBEJson(body[i]['parts'][j], body[i]['id']);
+          final RecordingPart part = RecordingPart.fromBEJson(
+            body[i]['parts'][j],
+            body[i]['id'],
+          );
           parts.add(part);
           logger.i('Added part with ID: ${part.id} and BEID: ${part.BEId}');
         }
@@ -815,7 +818,8 @@ Future<void> _fetchRecordingsFromBE() async {
         await _requireRecordingSessionCurrent(sessionProvider, session);
         if (local.sent && !beIds.contains(local.BEId)) {
           if (local.id == null) continue;
-          final bool hasLocalMedia = local.downloaded ||
+          final bool hasLocalMedia =
+              local.downloaded ||
               (local.path != null && local.path!.isNotEmpty);
           if (hasLocalMedia) {
             // Keep cached foreign recordings for Settings cache manager,
@@ -823,11 +827,13 @@ Future<void> _fetchRecordingsFromBE() async {
             local.mail = '';
             await DatabaseNew.updateRecordingOwnerMail(local.id!, '');
             logger.i(
-                'Recording id ${local.id} detached from current user scope (not found in current user backend list).');
+              'Recording id ${local.id} detached from current user scope (not found in current user backend list).',
+            );
           } else {
             await DatabaseNew.deleteRecordingFromCache(local.id!);
             logger.i(
-                'Recording id ${local.id} deleted locally (no longer on backend).');
+              'Recording id ${local.id} deleted locally (no longer on backend).',
+            );
           }
         }
       }
@@ -835,9 +841,11 @@ Future<void> _fetchRecordingsFromBE() async {
       for (final beRec in recordings) {
         await _requireRecordingSessionCurrent(sessionProvider, session);
         try {
-          final Recording local =
-              localRecordings.firstWhere((r) => r.BEId == beRec.BEId);
-          final bool needsUpdate = local.name != beRec.name ||
+          final Recording local = localRecordings.firstWhere(
+            (r) => r.BEId == beRec.BEId,
+          );
+          final bool needsUpdate =
+              local.name != beRec.name ||
               local.note != beRec.note ||
               local.estimatedBirdsCount != beRec.estimatedBirdsCount ||
               local.device != beRec.device ||
@@ -862,16 +870,22 @@ Future<void> _fetchRecordingsFromBE() async {
       DatabaseNew._fetchedRecordingSession = session;
       logger.i('No recordings found on backend.');
     } else {
-      throw FetchException('Failed to fetch recordings from backend',
-          response.statusCode ?? 500);
+      throw FetchException(
+        'Failed to fetch recordings from backend',
+        response.statusCode ?? 500,
+        logFailure: apiFailureForResult(response),
+      );
     }
   } finally {
     DatabaseNew.fetching = false;
   }
 }
 
-Future<void> _fetchFilteredPartsForRecordingsFromBE(List<Recording> recs,
-    {bool verified = false, RecordingUploadSession? capturedSession}) async {
+Future<void> _fetchFilteredPartsForRecordingsFromBE(
+  List<Recording> recs, {
+  bool verified = false,
+  RecordingUploadSession? capturedSession,
+}) async {
   const _SecureStorageRecordingUploadSessions sessionProvider =
       _SecureStorageRecordingUploadSessions();
   final RecordingUploadSession? session =
@@ -901,8 +915,9 @@ Future<void> _fetchFilteredPartsForRecordingsFromBE(List<Recording> recs,
       await _requireRecordingSessionCurrent(sessionProvider, session);
 
       if (resp.statusCode == 200) {
-        final dynamic decoded =
-            resp.data is String ? json.decode(resp.data as String) : resp.data;
+        final dynamic decoded = resp.data is String
+            ? json.decode(resp.data as String)
+            : resp.data;
         final List<dynamic> arr = decoded as List<dynamic>;
         for (final item in arr) {
           if (item is! Map) continue;
@@ -927,15 +942,19 @@ Future<void> _fetchFilteredPartsForRecordingsFromBE(List<Recording> recs,
         // none for this recording
       } else {
         logger.w(
-            'Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}');
+          'Failed to fetch filtered parts for recording ${rec.BEId}: ${resp.statusCode}',
+          failure: apiFailureForResult(resp),
+        );
       }
     } catch (e, st) {
       if (e is RecordingUploadSessionChangedException) {
         rethrow;
       }
-      logger.e('Error fetching filtered parts for recording ${rec.BEId}: $e',
-          error: e, stackTrace: st);
-      Sentry.captureException(e, stackTrace: st);
+      logger.e(
+        'Error fetching filtered parts for recording ${rec.BEId}: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
   await _requireRecordingSessionCurrent(sessionProvider, session);
@@ -946,12 +965,16 @@ Future<RecordingPart?> _getRecordingPartByBEID(int id) async {
     final resp = await _recordingsApi.fetchRecordingPartSummary(id);
     if (resp.statusCode == 200) {
       logger.i('sending req was succesfull');
-      final dynamic data =
-          resp.data is String ? json.decode(resp.data as String) : resp.data;
+      final dynamic data = resp.data is String
+          ? json.decode(resp.data as String)
+          : resp.data;
       return RecordingPart.fromBEJson(data['parts'][0], id);
     }
 
-    logger.i('Recording-part request failed (${resp.statusCode}).');
+    logger.i(
+      'Recording-part request failed (${resp.statusCode}).',
+      failure: apiFailureForResult(resp),
+    );
     return null;
   } catch (_) {
     return null;
@@ -987,11 +1010,15 @@ Future<int?> _fetchRecordingFromBE(int id) async {
   await _requireRecordingSessionCurrent(sessionProvider, session);
 
   if (response.statusCode != 200) {
-    logger.w('Could not download recording $id (${response.statusCode}).');
+    logger.w(
+      'Could not download recording $id (${response.statusCode}).',
+      failure: apiFailureForResult(response),
+    );
     if (response.statusCode == 404) return null;
     throw FetchException(
       'Failed to fetch recording from backend',
       response.statusCode ?? 500,
+      logFailure: apiFailureForResult(response),
     );
   }
 
@@ -999,17 +1026,17 @@ Future<int?> _fetchRecordingFromBE(int id) async {
       ? jsonDecode(response.data as String)
       : response.data;
   final Map<String, dynamic> body = (decoded as Map).cast<String, dynamic>();
-  final int? responseRecordingId = DatabaseNew._readInt(
-    body,
-    const <String>['id'],
-  );
+  final int? responseRecordingId = DatabaseNew._readInt(body, const <String>[
+    'id',
+  ]);
   if (responseRecordingId != id) {
     throw const RecordingUploadValidationException(
       'Fetched recording identity does not match the requested recording.',
     );
   }
-  final Object? responseOwnerId =
-      body['userId'] == null ? null : parseUserId(body['userId']);
+  final Object? responseOwnerId = body['userId'] == null
+      ? null
+      : parseUserId(body['userId']);
   if (body['userId'] != null &&
       (responseOwnerId == null || parseUserId(responseOwnerId) == null)) {
     throw const RecordingUploadValidationException(
@@ -1019,23 +1046,26 @@ Future<int?> _fetchRecordingFromBE(int id) async {
 
   final List<dynamic> partsArr = (body['parts'] as List?) ?? const [];
   final List<RecordingPart> parts = partsArr
-      .map<RecordingPart>((row) => RecordingPart.fromBEJson(
-            (row as Map).cast<String, dynamic>(),
-            id,
-          ))
+      .map<RecordingPart>(
+        (row) =>
+            RecordingPart.fromBEJson((row as Map).cast<String, dynamic>(), id),
+      )
       .toList(growable: false);
 
-  final Recording recording = Recording.fromBEJson(
-    body,
-    responseOwnerId,
-    environment: session.environment,
-  )..mail = recordingBelongsToCapturedAccount(
-      sent: true,
-      ownerUserId: responseOwnerId,
-      capturedUserId: capturedUserId,
-    )
-        ? session.accountEmail
-        : '';
+  final Recording recording =
+      Recording.fromBEJson(
+          body,
+          responseOwnerId,
+          environment: session.environment,
+        )
+        ..mail =
+            recordingBelongsToCapturedAccount(
+              sent: true,
+              ownerUserId: responseOwnerId,
+              capturedUserId: capturedUserId,
+            )
+            ? session.accountEmail
+            : '';
 
   await _requireRecordingSessionCurrent(sessionProvider, session);
   final int localId = await DatabaseNew.insertRecording(

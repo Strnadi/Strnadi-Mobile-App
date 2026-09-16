@@ -16,11 +16,11 @@
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/health_controller.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 
 import '../config/config.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'HealthCheck.serverHealth');
 const HealthController _healthController = HealthController();
 
 class ServerHealth extends StatefulWidget {
@@ -35,15 +35,20 @@ class _ServerHealthState extends State<ServerHealth> {
 
   void checkServerHealth() async {
     try {
-      final response =
-          await _healthController.checkBackendHealth(host: Config.host);
+      final response = await _healthController.checkBackendHealth(
+        host: Config.host,
+      );
       if (mounted && response.statusCode == 200) {
         setState(() {
           _isServerHealthy = true;
         });
       }
-    } catch (e) {
-      logger.e(e);
+    } catch (e, stackTrace) {
+      logger.e(
+        'Checking backend health failed.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 

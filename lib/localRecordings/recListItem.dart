@@ -30,8 +30,7 @@ import 'package:strnadi/map/layers/map_tile_layers.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:strnadi/api/controllers/maps_controller.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:strnadi/dialects/dialect_time_resolver.dart';
@@ -46,7 +45,7 @@ import '../config/config.dart';
 import 'package:strnadi/widgets/loader.dart';
 import 'package:dio/dio.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'localRecordings.recListItem');
 
 class _DialectDetailValue {
   const _DialectDetailValue({
@@ -325,7 +324,6 @@ class _RecordingItemState extends State<RecordingItem> {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
     }
 
     final Set<String> seen = <String>{};
@@ -397,7 +395,6 @@ class _RecordingItemState extends State<RecordingItem> {
           error: e,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(e, stackTrace: stackTrace);
       }
     }
   }
@@ -499,7 +496,7 @@ class _RecordingItemState extends State<RecordingItem> {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
+
       // Preserve the existing behavior: the durable aggregate upload service
       // remains the final authority when this optional preflight is unavailable.
       return false;
@@ -533,7 +530,7 @@ class _RecordingItemState extends State<RecordingItem> {
           error: error,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(error, stackTrace: stackTrace);
+
         await _restoreUploadSchedulingState();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -562,7 +559,7 @@ class _RecordingItemState extends State<RecordingItem> {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(t('recListItem.errors.errorSending'))),
@@ -610,7 +607,6 @@ class _RecordingItemState extends State<RecordingItem> {
       }
     } catch (e, stackTrace) {
       logger.e("Error toggling playback: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -789,12 +785,11 @@ class _RecordingItemState extends State<RecordingItem> {
           e is DioException && e.type == DioExceptionType.cancel;
       logger.e(
         "Error downloading recording: $e",
+        expected: wasCanceled ? true : null,
         error: e,
         stackTrace: stackTrace,
       );
-      if (!wasCanceled) {
-        Sentry.captureException(e, stackTrace: stackTrace);
-      }
+
       if (mounted) {
         setState(() {
           loaded = true;
@@ -844,7 +839,7 @@ class _RecordingItemState extends State<RecordingItem> {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(t('recListItem.errors.errorDownloading'))),
@@ -904,7 +899,6 @@ class _RecordingItemState extends State<RecordingItem> {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
     } finally {
       if (mounted) {
         setState(() {});
@@ -930,7 +924,7 @@ class _RecordingItemState extends State<RecordingItem> {
         error: e,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(t('recListItem.errors.errorDeleting'))),
@@ -946,7 +940,6 @@ class _RecordingItemState extends State<RecordingItem> {
       setState(() => placeTitle = label);
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 

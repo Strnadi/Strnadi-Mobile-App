@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:strnadi/api/api_logging.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -23,19 +24,18 @@ import 'package:strnadi/api/controllers/user_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/email_input_formatter.dart';
 import 'package:strnadi/auth/email_validator.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
 import 'package:strnadi/auth/registeration/passwordReg.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart' as gle;
 import 'package:strnadi/auth/appleAuth.dart' as apple;
 import '../../firebase/firebase.dart' as fb;
 import '../../md_renderer.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.registeration.mail');
 
 class RegMail extends StatefulWidget {
   const RegMail({super.key});
@@ -101,6 +101,7 @@ class _RegMailState extends State<RegMail> {
       } else {
         logger.w(
           'Failed to fetch user name. Status code: ${response.statusCode}',
+          failure: apiFailureForResult(response),
         );
       }
     } catch (error, stackTrace) {
@@ -109,7 +110,6 @@ class _RegMailState extends State<RegMail> {
         error: error,
         stackTrace: stackTrace,
       );
-      await Sentry.captureException(error, stackTrace: stackTrace);
     }
   }
 
@@ -142,7 +142,10 @@ class _RegMailState extends State<RegMail> {
       //_showUserExistsPopup();
       return true;
     } else {
-      logger.w('Failed to check email; status ${response.statusCode}.');
+      logger.w(
+        'Failed to check email; status ${response.statusCode}.',
+        failure: apiFailureForResult(response),
+      );
       return true;
     }
   }
@@ -535,6 +538,9 @@ class _RegMailState extends State<RegMail> {
                                       if (idResponse.statusCode != 200) {
                                         logger.e(
                                           'Failed to retrieve user ID; status ${idResponse.statusCode}.',
+                                          failure: apiFailureForResult(
+                                            idResponse,
+                                          ),
                                         );
                                         _showMessage(
                                           t('login.errors.idGetError'),
@@ -577,10 +583,7 @@ class _RegMailState extends State<RegMail> {
                                       error: error,
                                       stackTrace: stackTrace,
                                     );
-                                    await Sentry.captureException(
-                                      error,
-                                      stackTrace: stackTrace,
-                                    );
+
                                     _showMessage(t('login.errors.loginFailed'));
                                   }
                                   /*
@@ -605,8 +608,8 @@ class _RegMailState extends State<RegMail> {
                         setState(() {
                           _emailErrorMessage = t('signup.mail.errors.google_login_failed');
                         });
-                        logger.e(error);
-                        Sentry.captureException(error);
+                        logger.e(error, error: error);
+
                       });
                       */
                                 });
@@ -750,6 +753,9 @@ class _RegMailState extends State<RegMail> {
                                     if (idResponse.statusCode != 200) {
                                       logger.w(
                                         'Failed to retrieve user ID; status ${idResponse.statusCode}.',
+                                        failure: apiFailureForResult(
+                                          idResponse,
+                                        ),
                                       );
                                       _showMessage(
                                         t('login.errors.idGetError'),
@@ -778,11 +784,11 @@ class _RegMailState extends State<RegMail> {
                                     if (!context.mounted) return;
                                     await navigateToSessionLanding(context);
                                   } catch (e, stackTrace) {
-                                    logger.e('Apple sign in error: $e');
-                                    Sentry.captureException(
-                                      e,
+                                    logger.e(
+                                      'Apple sign in error: $e',
                                       stackTrace: stackTrace,
                                     );
+
                                     _showMessage(
                                       t('auth.apple.error.login_failed'),
                                     );

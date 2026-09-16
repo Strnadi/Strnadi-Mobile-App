@@ -27,14 +27,15 @@ import 'package:strnadi/api/controllers/device_controller.dart';
 import '../firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
+import 'package:strnadi/logging/background_telemetry.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:strnadi/firebase/device_token_lifecycle.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'firebase.firebase');
 const DeviceController _deviceController = DeviceController();
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 const String _deviceTokenBindingKey = 'fcmTokenBinding';
@@ -98,40 +99,46 @@ Future<DeviceInfo> getDeviceInfo() async {
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   DartPluginRegistrant.ensureInitialized();
-  // Initialize Firebase if necessary.
-  await Firebase.initializeApp();
-  await initLocalNotifications();
-  try {
-    await Config.loadHostEnvironment();
-  } catch (error, stackTrace) {
-    // Notification persistence will fail closed while the environment is
-    // unknown, but displaying the push must remain functional.
-    logger.w(
-      'Could not load the notification cache environment.',
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
-  logger.i("Handling a background message: ${message.messageId}");
-  if (message.data.isNotEmpty) {
-    final hasLocalizedKeys = message.data.containsKey('titleEn') ||
-        message.data.containsKey('bodyEn') ||
-        message.data.containsKey('titleDe') ||
-        message.data.containsKey('bodyDe') ||
-        message.data.containsKey('titleCs') ||
-        message.data.containsKey('bodyCs');
-    if (hasLocalizedKeys) {
-      await _showLocalNotificationFromData(message.data);
-    }
-  }
-  // Persist both native-notification and localized data-only messages.
-  await DatabaseNew.insertNotification(message);
+  await runWithBackgroundTelemetry<void>(
+    operation: 'firebase_message',
+    action: () async {
+      // Initialize Firebase if necessary.
+      await Firebase.initializeApp();
+      await initLocalNotifications();
+      try {
+        await Config.loadHostEnvironment();
+      } catch (error, stackTrace) {
+        // Notification persistence will fail closed while the environment is
+        // unknown, but displaying the push must remain functional.
+        logger.w(
+          'Could not load the notification cache environment.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+      logger.i("Handling a background message: ${message.messageId}");
+      if (message.data.isNotEmpty) {
+        final hasLocalizedKeys =
+            message.data.containsKey('titleEn') ||
+            message.data.containsKey('bodyEn') ||
+            message.data.containsKey('titleDe') ||
+            message.data.containsKey('bodyDe') ||
+            message.data.containsKey('titleCs') ||
+            message.data.containsKey('bodyCs');
+        if (hasLocalizedKeys) {
+          await _showLocalNotificationFromData(message.data);
+        }
+      }
+      // Persist both native-notification and localized data-only messages.
+      await DatabaseNew.insertNotification(message);
+    },
+  );
 }
 
 Future<DeviceRegistrationScope?> _captureVerifiedDeviceScope() async {
   try {
-    final ActivatedAuthSessionSnapshot? session =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? session = await activatedAuthSessions
+        .capture();
     if (session == null || !session.verified) return null;
     final Object? userId = parseUserId(session.userId.trim());
     if (userId == null ||
@@ -154,8 +161,8 @@ Future<DeviceRegistrationScope?> _captureVerifiedDeviceScope() async {
 
 Future<bool> _isDeviceScopeCurrent(DeviceRegistrationScope scope) async {
   try {
-    final ActivatedAuthSessionSnapshot? current =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? current = await activatedAuthSessions
+        .capture();
     return current != null &&
         current.verified &&
         current.sessionId == scope.sessionId &&
@@ -173,21 +180,17 @@ Future<bool> _isDeviceScopeCurrent(DeviceRegistrationScope scope) async {
 Future<void> _persistDeviceBinding(DeviceTokenBinding binding) async {
   // The legacy token remains available to older recording payload code. The
   // scoped marker is written last and is the only token trusted for refresh.
-  await _secureStorage.write(
-    key: _legacyDeviceTokenKey,
-    value: binding.token,
-  );
+  await _secureStorage.write(key: _legacyDeviceTokenKey, value: binding.token);
   await _secureStorage.write(
     key: _deviceTokenBindingKey,
     value: binding.encode(),
   );
 }
 
-Future<void> _clearDeviceBindingIfCurrent(
-  DeviceTokenBinding binding,
-) async {
-  final String? encoded =
-      await _secureStorage.read(key: _deviceTokenBindingKey);
+Future<void> _clearDeviceBindingIfCurrent(DeviceTokenBinding binding) async {
+  final String? encoded = await _secureStorage.read(
+    key: _deviceTokenBindingKey,
+  );
   final DeviceTokenBinding? current = DeviceTokenBinding.decode(encoded);
   if (current?.encode() != binding.encode()) return;
 
@@ -200,8 +203,8 @@ Future<void> _clearDeviceBindingIfCurrent(
   }
 }
 
-final DeviceTokenSessionCoordinator _deviceTokenSessions =
-    DeviceTokenSessionCoordinator(
+final DeviceTokenSessionCoordinator
+_deviceTokenSessions = DeviceTokenSessionCoordinator(
   captureScope: _captureVerifiedDeviceScope,
   isScopeCurrent: _isDeviceScopeCurrent,
   readBinding: () => _secureStorage.read(key: _deviceTokenBindingKey),
@@ -213,38 +216,33 @@ final DeviceTokenSessionCoordinator _deviceTokenSessions =
       model: info.deviceModel,
     );
   },
-  registerRemote: (
-    DeviceRegistrationScope scope,
-    String token,
-    DeviceRegistrationMetadata metadata,
-  ) async {
-    final response = await _deviceController.addDevice(
-      <String, dynamic>{
-        'fcmToken': token,
-        'devicePlatform': metadata.platform,
-        'deviceModel': metadata.model,
-        'userId': scope.userId,
+  registerRemote:
+      (
+        DeviceRegistrationScope scope,
+        String token,
+        DeviceRegistrationMetadata metadata,
+      ) async {
+        final response = await _deviceController.addDevice(
+          <String, dynamic>{
+            'fcmToken': token,
+            'devicePlatform': metadata.platform,
+            'deviceModel': metadata.model,
+            'userId': scope.userId,
+          },
+          host: scope.apiHost,
+          accessToken: scope.accessToken,
+        );
+        return response.statusCode;
       },
-      host: scope.apiHost,
-      accessToken: scope.accessToken,
-    );
-    return response.statusCode;
-  },
-  updateRemote: (
-    DeviceRegistrationScope scope,
-    String oldToken,
-    String newToken,
-  ) async {
-    final response = await _deviceController.updateDevice(
-      <String, dynamic>{
-        'newFCMToken': newToken,
-        'oldFCMToken': oldToken,
+  updateRemote:
+      (DeviceRegistrationScope scope, String oldToken, String newToken) async {
+        final response = await _deviceController.updateDevice(
+          <String, dynamic>{'newFCMToken': newToken, 'oldFCMToken': oldToken},
+          host: scope.apiHost,
+          accessToken: scope.accessToken,
+        );
+        return response.statusCode;
       },
-      host: scope.apiHost,
-      accessToken: scope.accessToken,
-    );
-    return response.statusCode;
-  },
   persistBinding: _persistDeviceBinding,
   clearBindingIfCurrent: _clearDeviceBindingIfCurrent,
 );
@@ -269,21 +267,20 @@ void _logTokenSyncResult(DeviceTokenSyncResult result) {
     case DeviceTokenSyncStatus.sessionChangedBeforeRemote:
     case DeviceTokenSyncStatus.sessionChangedAfterRemote:
     case DeviceTokenSyncStatus.suppressedAfterCleanup:
-      logger
-          .i('Firebase token synchronization stopped after a session change.');
+      logger.i(
+        'Firebase token synchronization stopped after a session change.',
+      );
       return;
     case DeviceTokenSyncStatus.remoteRejected:
       logger.w(
         'Backend rejected Firebase token synchronization '
         '(${result.statusCode}).',
+        context: {'statusCode': result.statusCode},
       );
       return;
     case DeviceTokenSyncStatus.remoteFailed:
     case DeviceTokenSyncStatus.persistenceFailed:
-      logger.w(
-        'Firebase token synchronization failed.',
-        error: result.error,
-      );
+      logger.w('Firebase token synchronization failed.', error: result.error);
       return;
   }
 }
@@ -306,35 +303,31 @@ Future<void> updateDevice(String? oldToken, String? newToken) async {
       return;
     case DeviceTokenRefreshAction.register:
     case DeviceTokenRefreshAction.update:
-      final DeviceTokenSyncResult result =
-          await _deviceTokenSessions.synchronize(
-        currentTokenOverride: newToken,
-      );
+      final DeviceTokenSyncResult result = await _deviceTokenSessions
+          .synchronize(currentTokenOverride: newToken);
       _logTokenSyncResult(result);
       return;
   }
 }
 
 Future<void> deleteToken() async {
-  final DeviceSessionCleanupResult result =
-      await _deviceTokenSessions.cleanUpCurrentSession(
-    deleteRemote: (
-      DeviceRegistrationScope scope,
-      DeviceTokenBinding binding,
-    ) async {
-      final response = await _deviceController.deleteDeviceToken(
-        binding.token,
-        host: binding.apiHost,
-        accessToken: scope.accessToken,
+  final DeviceSessionCleanupResult result = await _deviceTokenSessions
+      .cleanUpCurrentSession(
+        deleteRemote:
+            (DeviceRegistrationScope scope, DeviceTokenBinding binding) async {
+              final response = await _deviceController.deleteDeviceToken(
+                binding.token,
+                host: binding.apiHost,
+                accessToken: scope.accessToken,
+              );
+              return response.statusCode;
+            },
+        invalidateFirebaseToken: FirebaseMessaging.instance.deleteToken,
+        clearUnboundLocalToken: () async {
+          await _secureStorage.delete(key: _deviceTokenBindingKey);
+          await _secureStorage.delete(key: _legacyDeviceTokenKey);
+        },
       );
-      return response.statusCode;
-    },
-    invalidateFirebaseToken: FirebaseMessaging.instance.deleteToken,
-    clearUnboundLocalToken: () async {
-      await _secureStorage.delete(key: _deviceTokenBindingKey);
-      await _secureStorage.delete(key: _legacyDeviceTokenKey);
-    },
-  );
 
   if (result.remoteAttempted && !result.remoteDeleted) {
     logger.w('The backend could not confirm Firebase token deletion.');
@@ -373,9 +366,9 @@ Future<void> _displayForegroundMessage(RemoteMessage message) async {
 Future<void> _handleForegroundMessage(RemoteMessage message) async {
   final ForegroundNotificationDeliveryResult result =
       await deliverForegroundNotification(
-    display: () => _displayForegroundMessage(message),
-    persist: () => DatabaseNew.insertNotification(message),
-  );
+        display: () => _displayForegroundMessage(message),
+        persist: () => DatabaseNew.insertNotification(message),
+      );
   if (!result.displayed) {
     logger.w(
       'Foreground notification presentation failed.',

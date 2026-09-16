@@ -131,29 +131,31 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
       orderBy: 'startTime ASC, id ASC',
     );
     await _requireRecordingSessionCurrent(_sessions, session);
-    return rows.map((Map<String, Object?> row) {
-      final int? localId = row['id'] as int?;
-      final int? backendId = row['BEId'] as int?;
-      final int? localRecordingId = row['recordingId'] as int?;
-      final int? backendRecordingId = row['backendRecordingId'] as int?;
-      if (localId == null ||
-          backendId == null ||
-          localRecordingId == null ||
-          backendRecordingId == null) {
-        throw FetchException(
-          'Recording part has no durable download identity.',
-          409,
-        );
-      }
-      return RecordingDownloadPart(
-        localId: localId,
-        backendId: backendId,
-        localRecordingId: localRecordingId,
-        backendRecordingId: backendRecordingId,
-        previousPath: row['path'] as String?,
-        previousByteLength: row['length'] as int?,
-      );
-    }).toList(growable: false);
+    return rows
+        .map((Map<String, Object?> row) {
+          final int? localId = row['id'] as int?;
+          final int? backendId = row['BEId'] as int?;
+          final int? localRecordingId = row['recordingId'] as int?;
+          final int? backendRecordingId = row['backendRecordingId'] as int?;
+          if (localId == null ||
+              backendId == null ||
+              localRecordingId == null ||
+              backendRecordingId == null) {
+            throw FetchException(
+              'Recording part has no durable download identity.',
+              409,
+            );
+          }
+          return RecordingDownloadPart(
+            localId: localId,
+            backendId: backendId,
+            localRecordingId: localRecordingId,
+            backendRecordingId: backendRecordingId,
+            previousPath: row['path'] as String?,
+            previousByteLength: row['length'] as int?,
+          );
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -173,7 +175,8 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
       final List<Map<String, Object?>> parentRows = await txn.query(
         'recordings',
         columns: const <String>['id'],
-        where: 'id = ? AND BEId = ? AND env = ? '
+        where:
+            'id = ? AND BEId = ? AND env = ? '
             'AND userId IS ? AND mail IS ? '
             'AND COALESCE(downloaded, 0) = ? AND path IS ? '
             'AND (uploadLease IS NULL OR TRIM(uploadLease) = ?)',
@@ -195,11 +198,7 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
 
       final List<Map<String, Object?>> currentPartRows = await txn.query(
         'recordingParts',
-        columns: const <String>[
-          'id',
-          'BEId',
-          'backendRecordingId',
-        ],
+        columns: const <String>['id', 'BEId', 'backendRecordingId'],
         where: 'recordingId = ?',
         whereArgs: <Object?>[target.localId],
       );
@@ -227,11 +226,9 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
       for (final RecordingDownloadedPart part in commit.parts) {
         final int changed = await txn.update(
           'recordingParts',
-          <String, Object?>{
-            'path': part.path,
-            'length': part.byteLength,
-          },
-          where: 'id = ? AND BEId = ? AND recordingId = ? '
+          <String, Object?>{'path': part.path, 'length': part.byteLength},
+          where:
+              'id = ? AND BEId = ? AND recordingId = ? '
               'AND backendRecordingId = ? AND COALESCE(sent, 0) = 1',
           whereArgs: <Object?>[
             part.localId,
@@ -249,11 +246,9 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
 
       final int parentChanged = await txn.update(
         'recordings',
-        <String, Object?>{
-          'path': commit.recordingPath,
-          'downloaded': 1,
-        },
-        where: 'id = ? AND BEId = ? AND env = ? '
+        <String, Object?>{'path': commit.recordingPath, 'downloaded': 1},
+        where:
+            'id = ? AND BEId = ? AND env = ? '
             'AND userId IS ? AND mail IS ? '
             'AND COALESCE(downloaded, 0) = ? AND path IS ? '
             'AND (uploadLease IS NULL OR TRIM(uploadLease) = ?)',
@@ -350,10 +345,12 @@ class _DatabaseRecordingDownloadStore implements RecordingDownloadStore {
           row['backendRecordingId'] != target.backendId) {
         return RecordingDownloadCommitState.unknown;
       }
-      partsCommitted = partsCommitted &&
+      partsCommitted =
+          partsCommitted &&
           row['path'] == part.path &&
           row['length'] == part.byteLength;
-      partsAbsent = partsAbsent &&
+      partsAbsent =
+          partsAbsent &&
           row['path'] == part.previousPath &&
           row['length'] == part.previousByteLength;
     }
@@ -385,18 +382,19 @@ class _ControllerRecordingDownloadApi implements RecordingDownloadApi {
     CancelToken? cancelToken,
     RecordingPartDownloadProgress? onProgress,
   }) async {
-    final Response<List<int>> response =
-        await _recordingPartsApi.downloadPartSound(
-      backendPartId,
-      accessToken: session.accessToken,
-      host: session.backendHost,
-      cancelToken: cancelToken,
-      onReceiveProgress: onProgress,
-    );
+    final Response<List<int>> response = await _recordingPartsApi
+        .downloadPartSound(
+          backendPartId,
+          accessToken: session.accessToken,
+          host: session.backendHost,
+          cancelToken: cancelToken,
+          onReceiveProgress: onProgress,
+        );
     if (response.statusCode != 200 || response.data == null) {
       throw FetchException(
         'Failed to download a recording part.',
         response.statusCode ?? 500,
+        logFailure: apiFailureForResult(response),
       );
     }
     return response.data!;
@@ -435,9 +433,11 @@ class _IoRecordingDownloadFiles implements RecordingDownloadFiles {
   }) async {
     final Directory directory = await getApplicationDocumentsDirectory();
     for (int attempt = 0; attempt < 4; attempt++) {
-      final String kind =
-          backendPartId == null ? 'recording-download' : 'recording-part';
-      final String path = '${directory.path}/$kind-'
+      final String kind = backendPartId == null
+          ? 'recording-download'
+          : 'recording-part';
+      final String path =
+          '${directory.path}/$kind-'
           '${_newUploadKey('staged')}'
           '-l$localRecordingId-b$backendRecordingId'
           '${backendPartId == null ? '' : '-p$backendPartId'}.wav';
@@ -458,15 +458,8 @@ class _IoRecordingDownloadFiles implements RecordingDownloadFiles {
   }
 
   @override
-  Future<void> concatenate(
-    List<String> partPaths,
-    String outputPath,
-  ) {
-    return concatWavFiles(
-      partPaths,
-      outputPath,
-      outputAlreadyReserved: true,
-    );
+  Future<void> concatenate(List<String> partPaths, String outputPath) {
+    return concatWavFiles(partPaths, outputPath, outputAlreadyReserved: true);
   }
 
   @override

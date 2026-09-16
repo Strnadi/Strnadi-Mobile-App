@@ -6,9 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/security/secure_storage_recovery.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:sentry_logging/sentry_logging.dart';
+import 'package:strnadi/logging/sentry_log_sink.dart';
+import 'package:strnadi/privacy/tracking_consent.dart';
 import 'package:strnadi/bootstrap/database_bootstrap.dart';
 import 'package:strnadi/callback_dispatcher.dart';
 import 'package:strnadi/config/config.dart';
@@ -49,7 +50,7 @@ class AppBootstrap {
     await initFirebase();
   }
 
-  static Future<void> initializeDatabase(Logger logger) async {
+  static Future<void> initializeDatabase(AppLogger logger) async {
     logger.i('Loading database');
     try {
       await runDatabaseBootstrap(
@@ -71,12 +72,12 @@ class AppBootstrap {
     logger.i('Loaded Database');
   }
 
-  static Future<void> initializeNotifications(Logger logger) async {
+  static Future<void> initializeNotifications(AppLogger logger) async {
     final NotificationRuntimeInitializationResult result =
         await initializeNotificationRuntime(
-      initializeLocalNotifications: initLocalNotifications,
-      initializeMessaging: initFirebaseMessaging,
-    );
+          initializeLocalNotifications: initLocalNotifications,
+          initializeMessaging: initFirebaseMessaging,
+        );
     if (result.localNotificationsError != null) {
       logger.w(
         'Local notification initialization failed.',
@@ -94,30 +95,33 @@ class AppBootstrap {
   static Future<void> runWithTelemetry({
     required bool trackingAuthorized,
     required Future<void> Function() appRunner,
-    required Logger logger,
+    required AppLogger logger,
   }) async {
     if (!trackingAuthorized) {
+      AppLogger.configure(telemetryEnabled: () => false);
       logger.i('Tracking consent denied - starting without Sentry telemetry.');
       await appRunner();
       return;
     }
 
-    await SentryFlutter.init(
-      (options) {
-        options
-          ..dsn =
-              'https://b1b107368f3bf10b865ea99f191b2022@o4508834111291392.ingest.de.sentry.io/4508834113519696'
-          ..addIntegration(LoggingIntegration())
-          // Sentry currently exposes profiling behind an experimental API.
-          // ignore: experimental_member_use
-          ..profilesSampleRate = 1.0
-          ..tracesSampleRate = 1.0
-          ..replay.sessionSampleRate = 1.0
-          ..replay.onErrorSampleRate = 1.0
-          ..environment = kDebugMode ? 'development' : 'production';
-      },
-      appRunner: appRunner,
+    final sink = SentryLogSink();
+    AppLogger.configure(
+      telemetrySink: sink,
+      telemetryEnabled: () => TrackingConsentManager.isAuthorized,
     );
+    await SentryFlutter.init((options) {
+      sink.configureOptions(options);
+      options
+        ..dsn = appSentryDsn
+        ..debug = false
+        // Sentry currently exposes profiling behind an experimental API.
+        // ignore: experimental_member_use
+        ..profilesSampleRate = 1.0
+        ..tracesSampleRate = 1.0
+        ..replay.sessionSampleRate = 1.0
+        ..replay.onErrorSampleRate = 1.0
+        ..environment = kDebugMode ? 'development' : 'production';
+    }, appRunner: appRunner);
   }
 
   static Future<void> ensureConfigLoaded() async {
@@ -127,9 +131,7 @@ class AppBootstrap {
   }
 
   static void _initializeWorkmanager() {
-    Workmanager().initialize(
-      callbackDispatcher,
-    );
+    Workmanager().initialize(callbackDispatcher);
   }
 
   static Future<void> _initializeForegroundTask() async {
@@ -164,11 +166,13 @@ class AppBootstrap {
       await reconcileStaleRecordingForegroundService(
         service: const FlutterRecordingForegroundService(),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       // Foreground-service cleanup must not make the entire app unlaunchable.
       // Recorder entry and task startup both retry the same reconciliation.
-      debugPrint(
-        'Failed to reconcile stale recording foreground service: $error',
+      AppLogger(scope: 'bootstrap').w(
+        'Failed to reconcile stale recording foreground service.',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }

@@ -18,10 +18,10 @@
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/registeration/nameReg.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'auth.registeration.passwordReg');
 
 class RegPassword extends StatefulWidget {
   final String email;
@@ -143,7 +143,9 @@ class _RegPasswordState extends State<RegPassword> {
                       fillColor: Colors.grey[200],
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
@@ -176,19 +178,25 @@ class _RegPasswordState extends State<RegPassword> {
                       hintText: t('signup.password.password_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       suffixIcon: IconButton(
@@ -259,19 +267,25 @@ class _RegPasswordState extends State<RegPassword> {
                       hintText: t('signup.password.password_again_hint'),
                       hintStyle: TextStyle(color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: Colors.red, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(16.0),
                       ),
                       suffixIcon: IconButton(
@@ -369,8 +383,9 @@ class _RegPasswordState extends State<RegPassword> {
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         backgroundColor: _isFormValid ? yellow : Colors.grey,
-                        foregroundColor:
-                            _isFormValid ? textColor : Colors.white,
+                        foregroundColor: _isFormValid
+                            ? textColor
+                            : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         textStyle: TextStyle(
                           fontSize: 16,
@@ -392,8 +407,12 @@ class _RegPasswordState extends State<RegPassword> {
 
       // Bottom segmented progress bar with extra bottom padding
       bottomNavigationBar: Padding(
-        padding:
-            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 48),
+        padding: const EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: 48,
+        ),
         child: Row(
           children: List.generate(5, (index) {
             // Fill first 2 segments to show "2 out of 6" progress

@@ -1,3 +1,4 @@
+import 'package:strnadi/logging/app_logger.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -30,8 +31,10 @@ import 'package:wav/wav.dart';
 // https://en.wikipedia.org/wiki/Spectrogram
 void preprocessAudio(List<String> argv) async {
   if (argv.length != 1) {
-    print('Wrong number of args. Usage:');
-    print('  dart run spectrogram.dart test.wav');
+    AppLogger(scope: 'spectrogram').w(
+      'Audio preprocessing needs one input file.',
+      reason: 'Invalid audio preprocessing arguments.',
+    );
     return;
   }
 
@@ -69,7 +72,7 @@ void preprocessAudio(List<String> argv) async {
       // Stride by half the chunk size, so that the chunks overlap.
       chunkSize ~/ 2,
     );
-  }  // End of processing block; variables (wav, audio, stft) are now out of scope and eligible for GC
+  } // End of processing block; variables (wav, audio, stft) are now out of scope and eligible for GC
 }
 
 // Calculates the RMS volume of the audio. This is a decent approxiation of

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
 import 'package:strnadi/database/Models/detectedDialect.dart';
 import 'package:strnadi/database/Models/filteredRecordingPart.dart';
@@ -30,12 +31,12 @@ class FilteredPartsApiLoader {
   const FilteredPartsApiLoader({
     FilteredRecordingsController controller =
         const FilteredRecordingsController(),
-    Logger? logger,
+    AppLogger? logger,
   }) : _controller = controller,
        _logger = logger;
 
   final FilteredRecordingsController _controller;
-  final Logger? _logger;
+  final AppLogger? _logger;
 
   static FilteredPartsBundle parsePayload(List<dynamic> decoded) {
     final frps = <FilteredRecordingPart>[];
@@ -90,6 +91,7 @@ class FilteredPartsApiLoader {
       if (resp.statusCode != 200) {
         _logger?.w(
           '[MapV2] /recordings/filtered unavailable: ${resp.statusCode}',
+          failure: apiFailureForResponse(resp),
         );
         return FilteredPartsBundle.unavailable;
       }
@@ -108,8 +110,12 @@ class FilteredPartsApiLoader {
         '[MapV2] /recordings/filtered parsed: FRPs=${bundle.frps.length}, DDs=${bundle.dds.length}',
       );
       return bundle;
-    } catch (e) {
-      _logger?.w('[MapV2] /recordings/filtered unavailable: ${e.runtimeType}');
+    } catch (error, stackTrace) {
+      _logger?.w(
+        'Filtered recording parts are unavailable.',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return FilteredPartsBundle.unavailable;
     }
   }

@@ -33,8 +33,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:strnadi/api/controllers/maps_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/recording/streamRec.dart';
 import '../auth/authorizator.dart';
 import '../config/config.dart';
@@ -46,7 +45,7 @@ import 'recording_form_rendering.dart';
 import 'dart:math' as math;
 import 'package:strnadi/dialects/ModelHandler.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'PostRecordingForm.RecordingForm');
 
 class RecordingForm extends StatefulWidget {
   final String filepath;
@@ -358,7 +357,6 @@ class _RecordingFormState extends State<RecordingForm> {
           error: error,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(error, stackTrace: stackTrace);
       }
     }
   }
@@ -408,7 +406,7 @@ class _RecordingFormState extends State<RecordingForm> {
           error: error,
           stackTrace: stackTrace,
         );
-        Sentry.captureException(error, stackTrace: stackTrace);
+
         if (mounted) {
           await _showMessage(
             t('postRecordingForm.recordingForm.dialogs.error.saveFailed'),
@@ -671,7 +669,7 @@ class _RecordingFormState extends State<RecordingForm> {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
+
       if (mounted) {
         _showMessage(
           t('postRecordingForm.recordingForm.dialogs.error.saveFailed'),
@@ -727,7 +725,7 @@ class _RecordingFormState extends State<RecordingForm> {
       );
     } catch (e, stackTrace) {
       logger.e("Error sending recording: $e", error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       if (mounted) {
         _showMessage(
           t('postRecordingForm.recordingForm.dialogs.error.scheduleFailed'),

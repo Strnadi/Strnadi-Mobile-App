@@ -14,10 +14,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/config/config.dart';
 
-final _logger = Logger();
+final _logger = AppLogger(scope: 'firebase.local_notifications');
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();

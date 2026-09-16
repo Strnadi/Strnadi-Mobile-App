@@ -1,5 +1,5 @@
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:flutter/material.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/database/recording_upload_service.dart';
 import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
@@ -16,7 +16,7 @@ class IncompleteUploadPrompt {
     int? recordingId,
     bool oncePerSession = true,
     Future<List<IncompleteRecordingUpload>> Function(int? recordingId)?
-        findIncompleteUploads,
+    findIncompleteUploads,
     void Function(Object error, StackTrace stackTrace)? reportFailure,
   }) async {
     if (_showing) return;
@@ -32,10 +32,12 @@ class IncompleteUploadPrompt {
 
       final List<IncompleteRecordingUpload> visibleIssues = oncePerSession
           ? issues
-              .where((IncompleteRecordingUpload issue) =>
-                  issue.recording.id == null ||
-                  !_promptedRecordingIds.contains(issue.recording.id))
-              .toList(growable: false)
+                .where(
+                  (IncompleteRecordingUpload issue) =>
+                      issue.recording.id == null ||
+                      !_promptedRecordingIds.contains(issue.recording.id),
+                )
+                .toList(growable: false)
           : issues;
       if (visibleIssues.isEmpty) return;
 
@@ -50,9 +52,13 @@ class IncompleteUploadPrompt {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(t(canSend
-                  ? 'recordingUploadCheck.actions.later'
-                  : 'auth.buttons.ok')),
+              child: Text(
+                t(
+                  canSend
+                      ? 'recordingUploadCheck.actions.later'
+                      : 'auth.buttons.ok',
+                ),
+              ),
             ),
             if (canSend)
               TextButton(
@@ -83,7 +89,11 @@ class IncompleteUploadPrompt {
       if (reportFailure != null) {
         reportFailure(error, stackTrace);
       } else {
-        Sentry.captureException(error, stackTrace: stackTrace);
+        AppLogger(scope: 'localRecordings.incomplete_upload_prompt').e(
+          'Incomplete upload inspection failed.',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     } finally {
       _showing = false;
@@ -131,10 +141,10 @@ class IncompleteUploadPrompt {
     final bool canShowExactCounts = issues.every(
       (IncompleteRecordingUpload issue) =>
           backendMissingPartCountsAreDisplayable(
-        hasExactBackendPartCounts: issue.hasExactBackendPartCounts,
-        expectedPartsCount: issue.expectedPartsCount,
-        uploadedPartsCount: issue.uploadedPartsCount,
-      ),
+            hasExactBackendPartCounts: issue.hasExactBackendPartCounts,
+            expectedPartsCount: issue.expectedPartsCount,
+            uploadedPartsCount: issue.uploadedPartsCount,
+          ),
     );
     if (!canShowExactCounts) {
       return _format(
@@ -148,10 +158,12 @@ class IncompleteUploadPrompt {
           sum + issue.missingPartsCount,
     );
     return _format(
-        t('recordingUploadCheck.messages.multiple'), <String, String>{
-      'count': issues.length.toString(),
-      'missing': missing.toString(),
-    });
+      t('recordingUploadCheck.messages.multiple'),
+      <String, String>{
+        'count': issues.length.toString(),
+        'missing': missing.toString(),
+      },
+    );
   }
 
   static Future<void> _sendMissingAudio(
@@ -159,8 +171,10 @@ class IncompleteUploadPrompt {
     List<IncompleteRecordingUpload> issues,
   ) async {
     final List<IncompleteRecordingUpload> resendableIssues = issues
-        .where((IncompleteRecordingUpload issue) =>
-            issue.canResend && issue.recording.id != null)
+        .where(
+          (IncompleteRecordingUpload issue) =>
+              issue.canResend && issue.recording.id != null,
+        )
         .toList(growable: false);
     final int skippedCount = issues.length - resendableIssues.length;
 
@@ -173,16 +187,16 @@ class IncompleteUploadPrompt {
     }
 
     final BestEffortBatchResult<IncompleteRecordingUpload> result =
-        await runBestEffortBatch<IncompleteRecordingUpload>(
-      resendableIssues,
-      (IncompleteRecordingUpload issue) {
-        return issue.resendMissingParts();
-      },
-    );
+        await runBestEffortBatch<IncompleteRecordingUpload>(resendableIssues, (
+          IncompleteRecordingUpload issue,
+        ) {
+          return issue.resendMissingParts();
+        });
     for (final BestEffortBatchFailure<IncompleteRecordingUpload> failure
         in result.failures) {
-      Sentry.captureException(
-        failure.error,
+      AppLogger(scope: 'localRecordings.incomplete_upload_prompt').e(
+        'Resending incomplete recording failed.',
+        error: failure.error,
         stackTrace: failure.stackTrace,
       );
     }
@@ -192,11 +206,11 @@ class IncompleteUploadPrompt {
         content: Text(
           result.succeeded
               ? skippedCount == 0
-                  ? t('recordingUploadCheck.messages.sent')
-                  : _format(
-                      t('recordingUploadCheck.messages.sentWithSkipped'),
-                      <String, String>{'count': skippedCount.toString()},
-                    )
+                    ? t('recordingUploadCheck.messages.sent')
+                    : _format(
+                        t('recordingUploadCheck.messages.sentWithSkipped'),
+                        <String, String>{'count': skippedCount.toString()},
+                      )
               : t('recordingUploadCheck.messages.sendFailed'),
         ),
       ),

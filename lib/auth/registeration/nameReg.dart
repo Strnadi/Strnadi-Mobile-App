@@ -16,12 +16,12 @@
 import 'package:strnadi/localization/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/components/liquid_glass.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/google_sign_in_service.dart';
 
 import 'cityReg.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'auth.registeration.nameReg');
 
 class RegName extends StatefulWidget {
   final String email;
@@ -76,8 +76,8 @@ class _RegNameState extends State<RegName> {
   Future<void> _signOutGoogleSilently() async {
     try {
       await GoogleSignInService.signOut();
-    } catch (e) {
-      logger.w('Google sign out failed: $e');
+    } catch (e, stackTrace) {
+      logger.w('Google sign out failed: $e', error: e, stackTrace: stackTrace);
     }
   }
 

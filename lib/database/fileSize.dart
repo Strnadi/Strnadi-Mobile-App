@@ -16,7 +16,7 @@
 import 'dart:io';
 import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/database/recording_duration_refresh.dart';
 import 'package:strnadi/recording/waw.dart';
 
@@ -24,7 +24,7 @@ import '../config/config.dart';
 import 'Models/recording.dart';
 import 'databaseNew.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'database.fileSize');
 
 /// Calculates the duration of a WAV file in seconds.
 ///
@@ -72,7 +72,9 @@ Future<double?> calculateWavDuration(
 
 /// Updates a recording's duration and saves it to the database
 Future<void> updateRecordingDuration(
-    Recording recording, DatabaseNew db) async {
+  Recording recording,
+  DatabaseNew db,
+) async {
   if (recording.path == null) {
     logger.w('Recording ${recording.id} has no path, skipping duration calc');
     return;
@@ -106,8 +108,11 @@ Future<void> updateAllRecordingsDurations(DatabaseNew db) async {
 
     logger.i('Updated $updated recording durations');
   } catch (e, stackTrace) {
-    logger.e('Error updating all recording durations',
-        error: e, stackTrace: stackTrace);
+    logger.e(
+      'Error updating all recording durations',
+      error: e,
+      stackTrace: stackTrace,
+    );
   }
 }
 
@@ -117,8 +122,8 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
   try {
     logger.i('Fetching recording durations from backend...');
 
-    final ActivatedAuthSessionSnapshot? session =
-        await activatedAuthSessions.capture();
+    final ActivatedAuthSessionSnapshot? session = await activatedAuthSessions
+        .capture();
     if (session == null || !session.verified) {
       logger.w(
         'No activated verified session is available for duration refresh.',
@@ -132,8 +137,8 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
     const RecordingsController controller = RecordingsController();
 
     Future<bool> sessionIsCurrent() async {
-      final ActivatedAuthSessionSnapshot? current =
-          await activatedAuthSessions.capture();
+      final ActivatedAuthSessionSnapshot? current = await activatedAuthSessions
+          .capture();
       return current != null &&
           current.verified &&
           current.accessToken == session.accessToken &&
@@ -144,8 +149,8 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
           Config.host == backendHost;
     }
 
-    final RecordingDurationRefreshResult result =
-        await refreshRecordingDurations(
+    final RecordingDurationRefreshResult
+    result = await refreshRecordingDurations(
       isSessionCurrent: sessionIsCurrent,
       loadTargets: () async {
         final List<Recording> recordings = await DatabaseNew.getRecordings();
@@ -184,10 +189,7 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
           data: response.data,
         );
       },
-      saveDuration: (
-        RecordingDurationTarget target,
-        double duration,
-      ) async {
+      saveDuration: (RecordingDurationTarget target, double duration) async {
         final Recording? recording = recordingsByLocalId[target.localId];
         if (recording == null) {
           throw StateError('Duration target disappeared before persistence.');
@@ -203,7 +205,10 @@ Future<void> fetchAndUpdateDurationsFromBackend() async {
       'session changed: ${result.sessionChanged}.',
     );
   } catch (e, stackTrace) {
-    logger.e('Error fetching durations from backend',
-        error: e, stackTrace: stackTrace);
+    logger.e(
+      'Error fetching durations from backend',
+      error: e,
+      stackTrace: stackTrace,
+    );
   }
 }

@@ -32,10 +32,11 @@ import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:dio/dio.dart';
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
+import 'package:strnadi/logging/background_telemetry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import 'package:strnadi/database/background_recording_upload_task.dart';
 import 'package:strnadi/database/background_upload_health_server.dart';
@@ -51,7 +52,7 @@ import 'package:strnadi/database/background_upload_initialization.dart';
 import 'package:strnadi/firebase/local_notifications.dart';
 import '../dialects/ModelHandler.dart';
 
-final logger = Logger();
+final logger = AppLogger();
 const FilteredRecordingsController _filteredRecordingsController =
     FilteredRecordingsController();
 
@@ -121,17 +122,24 @@ Future<void> registerPlugins() async {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    logger.i('Got background task: $task');
-    return dispatchBackgroundRecordingTask(
-      taskName: task,
-      inputData: inputData,
-      initialize: () async {
-        await registerPlugins();
-        logger.i('Background Flutter binding initialized');
-      },
-      handleRecordingTask: _handleSendRecordingTask,
-      onUnknownTask: (String unknownTask) {
-        logger.w('Unknown task name: $unknownTask');
+    WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
+    return runWithBackgroundTelemetry<bool>(
+      operation: 'recording_upload',
+      action: () async {
+        logger.i('Got background task: $task');
+        return dispatchBackgroundRecordingTask(
+          taskName: task,
+          inputData: inputData,
+          initialize: () async {
+            await registerPlugins();
+            logger.i('Background Flutter binding initialized');
+          },
+          handleRecordingTask: _handleSendRecordingTask,
+          onUnknownTask: (String unknownTask) {
+            logger.w('Unknown task name: $unknownTask');
+          },
+        );
       },
     );
   });
@@ -143,9 +151,11 @@ Future<Recording?> _getRecordingOrFail(int recordingId) async {
     logger.i('Getting recording from DB with id $recordingId');
     return await DatabaseNew.getRecordingFromDbById(recordingId);
   } catch (e, st) {
-    logger.e('BG Failed to get recording from DB: $e',
-        error: e, stackTrace: st);
-    Sentry.captureException(e, stackTrace: st);
+    logger.e(
+      'BG Failed to get recording from DB: $e',
+      error: e,
+      stackTrace: st,
+    );
     rethrow;
   }
 }
@@ -205,8 +215,9 @@ Future<void> _sendDialectsForRecording({
       // edit that wins before acquisition is reflected here; an edit that
       // loses after acquisition is rejected by the repository CAS.
       logger.i('Getting dialects from DB with recording id $recordingId');
-      final List<Dialect> dialects =
-          await DatabaseNew.getDialectsByRecordingId(recordingId);
+      final List<Dialect> dialects = await DatabaseNew.getDialectsByRecordingId(
+        recordingId,
+      );
       logger.i('Got dialects for recording $recordingId: ${dialects.length}');
       if (dialects.isEmpty) {
         logger.i('No dialects found for recording $recordingId');
@@ -241,42 +252,41 @@ Future<void> _sendDialectsForRecording({
           ..['recordingId'] = beRecordingId; // overwrite with BE id
         validateDialectUploadRequest(body);
 
-        logger.t(
-          'Sending dialect ${dialect.id} for recording $recordingId.',
-        );
+        logger.t('Sending dialect ${dialect.id} for recording $recordingId.');
 
         final Response<dynamic> resp =
             await runDialectUploadAttempt<Response<dynamic>>(
-          uploadAttempted: dialect.uploadAttempted,
-          persistAttemptMarker: () {
-            return DatabaseNew.markDialectAttemptedWithWorkflowLease(
-              dialectId,
-              recordingId,
-              leaseId,
+              uploadAttempted: dialect.uploadAttempted,
+              persistAttemptMarker: () {
+                return DatabaseNew.markDialectAttemptedWithWorkflowLease(
+                  dialectId,
+                  recordingId,
+                  leaseId,
+                );
+              },
+              markAttemptedInMemory: () {
+                dialect.uploadAttempted = true;
+              },
+              renew: context.renew,
+              post: (Future<void> Function() beforePost) {
+                return _postDialect(
+                  body: body,
+                  accessToken: session.accessToken,
+                  backendHost: session.backendHost,
+                  idempotencyKey: dialectUploadIdempotencyKey(
+                    recordingUploadKey: recordingUploadKey,
+                    dialectUploadKey: dialectUploadKey,
+                  ),
+                  beforePost: beforePost,
+                );
+              },
             );
-          },
-          markAttemptedInMemory: () {
-            dialect.uploadAttempted = true;
-          },
-          renew: context.renew,
-          post: (Future<void> Function() beforePost) {
-            return _postDialect(
-              body: body,
-              accessToken: session.accessToken,
-              backendHost: session.backendHost,
-              idempotencyKey: dialectUploadIdempotencyKey(
-                recordingUploadKey: recordingUploadKey,
-                dialectUploadKey: dialectUploadKey,
-              ),
-              beforePost: beforePost,
-            );
-          },
-        );
         final int status = resp.statusCode ?? 500;
         if (status < 200 || status >= 300) {
           throw UploadException(
             'Dialect sending failed.',
             status,
+            logFailure: apiFailureForResponse(resp),
           );
         }
 
@@ -293,7 +303,7 @@ Future<void> _sendDialectsForRecording({
           recordingId,
           leaseId,
         );
-        logger.i('Dialect ${dialect.dialect} sent successfully');
+        logger.i('Recording dialect uploaded successfully.');
       }
     },
   );
@@ -327,7 +337,6 @@ Future<void> _notify(String title, String message) async {
       error: error,
       stackTrace: stackTrace,
     );
-    Sentry.captureException(error, stackTrace: stackTrace);
   }
 }
 
@@ -344,26 +353,30 @@ Future<void> _sendBackgroundUploadNotice(
     case BackgroundRecordingUploadNotice.databaseReadFailure:
       return _notify(
         t('notifications.recordingUpload.failure.title'),
-        t('notifications.recordingUpload.failure.databaseRead')
-            .replaceFirst('{recordingId}', recordingId.toString()),
+        t(
+          'notifications.recordingUpload.failure.databaseRead',
+        ).replaceFirst('{recordingId}', recordingId.toString()),
       );
     case BackgroundRecordingUploadNotice.notFound:
       return _notify(
         t('notifications.recordingUpload.notFound.title'),
-        t('notifications.recordingUpload.notFound.message')
-            .replaceFirst('{recordingId}', recordingId.toString()),
+        t(
+          'notifications.recordingUpload.notFound.message',
+        ).replaceFirst('{recordingId}', recordingId.toString()),
       );
     case BackgroundRecordingUploadNotice.uploadSucceeded:
       return _notify(
         t('notifications.recordingUpload.success.title'),
-        t('notifications.recordingUpload.success.message')
-            .replaceFirst('{recordingId}', recordingId.toString()),
+        t(
+          'notifications.recordingUpload.success.message',
+        ).replaceFirst('{recordingId}', recordingId.toString()),
       );
     case BackgroundRecordingUploadNotice.uploadFailed:
       return _notify(
         t('notifications.recordingUpload.failure.title'),
-        t('notifications.recordingUpload.failure.upload')
-            .replaceFirst('{recordingId}', recordingId.toString()),
+        t(
+          'notifications.recordingUpload.failure.upload',
+        ).replaceFirst('{recordingId}', recordingId.toString()),
       );
   }
 }
@@ -379,9 +392,9 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
     uploadRecording: _uploadRecording,
     sendDialects: (int recordingId, int? backendRecordingId) =>
         _sendDialectsForRecording(
-      recordingId: recordingId,
-      beRecordingId: backendRecordingId,
-    ),
+          recordingId: recordingId,
+          beRecordingId: backendRecordingId,
+        ),
     sendNotice: _sendBackgroundUploadNotice,
     startHealth: (int recordingId) async {
       final bool started = _backgroundUploadHealthServer.start(recordingId);
@@ -403,19 +416,14 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
     },
-    onAncillaryFailure: (
-      String operation,
-      Object error,
-      StackTrace stackTrace,
-    ) {
-      logger.w(
-        'Background upload $operation failed: $error',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      Sentry.captureException(error, stackTrace: stackTrace);
-    },
+    onAncillaryFailure:
+        (String operation, Object error, StackTrace stackTrace) {
+          logger.w(
+            'Background upload $operation failed: $error',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        },
   );
 }

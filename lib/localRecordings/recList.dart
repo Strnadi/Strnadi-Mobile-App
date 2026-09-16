@@ -25,11 +25,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:strnadi/api/controllers/maps_controller.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/database/Models/recording.dart';
 import '../dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:strnadi/database/databaseNew.dart';
 import 'package:strnadi/localRecordings/incomplete_upload_prompt.dart';
 import 'package:strnadi/localRecordings/recListItem.dart';
@@ -46,7 +45,7 @@ import '../navigation/scaffold_with_bottom_bar.dart';
 import '../navigation/session_navigation.dart';
 import '../utils/async_single_flight.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'localRecordings.recList');
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -183,8 +182,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         throw StateError('Interrupted recording audio is not readable.');
       }
 
-      final List<RecordingPart> parts =
-          await DatabaseNew.getPartsByRecordingId(recordingId);
+      final List<RecordingPart> parts = await DatabaseNew.getPartsByRecordingId(
+        recordingId,
+      );
       parts.sort(
         (RecordingPart first, RecordingPart second) =>
             first.startTime.compareTo(second.startTime),
@@ -198,9 +198,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
       final RecordingDraftHandoff handoff =
           RecordingDraftHandoff.restorePersisted(
-        recording: recording,
-        recordingParts: parts,
-      );
+            recording: recording,
+            recordingParts: parts,
+          );
       final List<RecordingPartUnready> unreadyParts = parts
           .map(
             (RecordingPart part) => RecordingPartUnready(
@@ -258,7 +258,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t('recList.errors.reviewRecoveryFailed'))),
@@ -273,8 +273,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   }
 
   void FilterDownloaded() {
-    List<Recording> recordings =
-        list.where((element) => element.downloaded).toList();
+    List<Recording> recordings = list
+        .where((element) => element.downloaded)
+        .toList();
     recordings += list.where((element) => !element.sent).toList();
     recordings += list.where((element) => element.sending).toList();
     setState(() {
@@ -296,74 +297,79 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(t('recList.buttons.sortAndFilter'),
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  t('recList.buttons.sortAndFilter'),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(),
             ListTile(
-                leading: const Icon(Icons.sort_by_alpha),
-                title: Text(t('recList.buttons.sortByName')),
-                // Highlight active sort option
-                tileColor: sortOptions == SortBy.name
-                    ? Colors.grey.withOpacity(0.2)
-                    : null,
-                onTap: () {
-                  if (sortOptions == SortBy.name) {
+              leading: const Icon(Icons.sort_by_alpha),
+              title: Text(t('recList.buttons.sortByName')),
+              // Highlight active sort option
+              tileColor: sortOptions == SortBy.name
+                  ? Colors.grey.withOpacity(0.2)
+                  : null,
+              onTap: () {
+                if (sortOptions == SortBy.name) {
+                  isAscending = !isAscending; // Toggle sorting order
+                }
+                setState(() {
+                  sortOptions = SortBy.name;
+                  _applySorting();
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.date_range),
+              title: Text(t('recList.buttons.sortByDate')),
+              tileColor: sortOptions == SortBy.date
+                  ? Colors.grey.withOpacity(0.2)
+                  : null,
+              onTap: () {
+                setState(() {
+                  if (sortOptions == SortBy.date) {
                     isAscending = !isAscending; // Toggle sorting order
                   }
-                  setState(() {
-                    sortOptions = SortBy.name;
-                    _applySorting();
-                  });
-                  Navigator.pop(context);
-                }),
-            ListTile(
-                leading: const Icon(Icons.date_range),
-                title: Text(t('recList.buttons.sortByDate')),
-                tileColor: sortOptions == SortBy.date
-                    ? Colors.grey.withOpacity(0.2)
-                    : null,
-                onTap: () {
-                  setState(() {
-                    if (sortOptions == SortBy.date) {
-                      isAscending = !isAscending; // Toggle sorting order
-                    }
-                    sortOptions = SortBy.date;
-                    _applySorting();
-                  });
-                  Navigator.pop(context);
-                }),
+                  sortOptions = SortBy.date;
+                  _applySorting();
+                });
+                Navigator.pop(context);
+              },
+            ),
             const Divider(),
             ListTile(
-                leading: const Icon(Icons.download),
-                title: Text(t('recList.buttons.filterDownloaded')),
-                tileColor: sortOptions == SortBy.downloaded
-                    ? Colors.grey.withOpacity(0.2)
-                    : null,
-                onTap: () {
-                  FilterDownloaded();
-                  setState(() {
-                    if (sortOptions == SortBy.downloaded) {
-                      isAscending = !isAscending; // Toggle sorting order
-                    }
-                    sortOptions = SortBy.downloaded;
-                  });
-                  Navigator.pop(context);
-                }),
+              leading: const Icon(Icons.download),
+              title: Text(t('recList.buttons.filterDownloaded')),
+              tileColor: sortOptions == SortBy.downloaded
+                  ? Colors.grey.withOpacity(0.2)
+                  : null,
+              onTap: () {
+                FilterDownloaded();
+                setState(() {
+                  if (sortOptions == SortBy.downloaded) {
+                    isAscending = !isAscending; // Toggle sorting order
+                  }
+                  sortOptions = SortBy.downloaded;
+                });
+                Navigator.pop(context);
+              },
+            ),
             const Divider(),
             ListTile(
-                leading: const Icon(Icons.clear),
-                title: Text(t('recList.buttons.clearFilter')),
-                onTap: () {
-                  unawaited(getRecordings());
-                  setState(() {
-                    sortOptions = SortBy.none;
-                    isAscending = true; // Reset to default
-                  });
-                  Navigator.pop(context);
-                }),
+              leading: const Icon(Icons.clear),
+              title: Text(t('recList.buttons.clearFilter')),
+              onTap: () {
+                unawaited(getRecordings());
+                setState(() {
+                  sortOptions = SortBy.none;
+                  isAscending = true; // Reset to default
+                });
+                Navigator.pop(context);
+              },
+            ),
           ],
         ),
       ),
@@ -371,7 +377,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   }
 
   Widget buildCompactRecordingItem(
-      Recording rec, String dateText, VoidCallback openRec) {
+    Recording rec,
+    String dateText,
+    VoidCallback openRec,
+  ) {
     return InkWell(
       onTap: openRec,
       child: Container(
@@ -396,12 +405,15 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                   )
                 : FutureBuilder<String?>(
                     future: () async {
-                      var parts =
-                          await DatabaseNew.getPartsByRecordingId(rec.id!);
+                      var parts = await DatabaseNew.getPartsByRecordingId(
+                        rec.id!,
+                      );
                       if (parts.isEmpty) return rec.id?.toString();
-                      String? text = await reverseGeocode(
-                              parts[0].gpsLatitudeStart,
-                              parts[0].gpsLongitudeStart) ??
+                      String? text =
+                          await reverseGeocode(
+                            parts[0].gpsLatitudeStart,
+                            parts[0].gpsLongitudeStart,
+                          ) ??
                           rec.id?.toString();
                       rec.name = text;
                       return text;
@@ -419,7 +431,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                       return Text(
                         _truncateName(topText, maxLength: 10),
                         style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       );
                     },
                   ),
@@ -432,7 +446,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             FutureBuilder<String>(
               future: getDialectName(rec.id!),
               builder: (context, snapshot) {
-                final txt = (snapshot.connectionState == ConnectionState.done &&
+                final txt =
+                    (snapshot.connectionState == ConnectionState.done &&
                         snapshot.hasData)
                     ? snapshot.data!
                     : t('recList.dialect.loading');
@@ -482,7 +497,10 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                 return Text(
                   status,
                   style: TextStyle(
-                      fontSize: 12, color: color, fontWeight: FontWeight.w600),
+                    fontSize: 12,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
                 );
               },
             ),
@@ -499,9 +517,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
     switch (sortOptions) {
       case SortBy.name:
         sortedList.sort((a, b) {
-          int result = (a.name ?? '')
-              .toLowerCase()
-              .compareTo((b.name ?? '').toLowerCase());
+          int result = (a.name ?? '').toLowerCase().compareTo(
+            (b.name ?? '').toLowerCase(),
+          );
           return isAscending ? result : -result;
         });
         break;
@@ -552,7 +570,8 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
         if (!rec.sent) {
           logger.i(
-              "recording: ${rec.id} sent: ${rec.sent} sending: ${rec.sending}");
+            "recording: ${rec.id} sent: ${rec.sent} sending: ${rec.sending}",
+          );
           try {
             final incompleteUploads = await DatabaseNew.findIncompleteUploads(
               recordingId: rec.id,
@@ -575,9 +594,12 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
             if (!mounted) return;
             logger.i("Sending recording: ${rec.id}");
           } catch (e, stackTrace) {
-            logger.e('Error during send check/resend: $e',
-                error: e, stackTrace: stackTrace);
-            Sentry.captureException(e, stackTrace: stackTrace);
+            logger.e(
+              'Error during send check/resend: $e',
+              error: e,
+              stackTrace: stackTrace,
+            );
+
             rec.sending = false;
             if (mounted) {
               setState(() {});
@@ -598,8 +620,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     List<Recording> records = list.reversed.toList();
-    final bool hasUnsentRecordings =
-        records.any((rec) => rec.captureReviewed && !rec.sent);
+    final bool hasUnsentRecordings = records.any(
+      (rec) => rec.captureReviewed && !rec.sent,
+    );
     // Create a title that shows current filter
     String appBarTitle = t('recList.title');
     if (sortOptions != SortBy.none) {
@@ -639,39 +662,39 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       },
       child: Scaffold(
         appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: Padding(
-              padding: const EdgeInsets.only(left: 16.0),
-              child: Text(
-                appBarTitle,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  fontFamily: 'Bricolage Grotesque',
-                ),
+          automaticallyImplyLeading: false,
+          title: Padding(
+            padding: const EdgeInsets.only(left: 16.0),
+            child: Text(
+              appBarTitle,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontFamily: 'Bricolage Grotesque',
               ),
             ),
-            centerTitle: false,
-            backgroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon:
-                    Icon(compactView ? Icons.view_agenda : Icons.view_headline),
-                tooltip: compactView
-                    ? "Switch to detailed view"
-                    : "Switch to compact view",
-                onPressed: () => setState(() {
-                  compactView = !compactView;
-                }),
-              ),
-              IconButton(
-                icon: const Icon(Icons.sort),
-                color: Colors.black,
-                onPressed: () => _showSortFilterOptions(context),
-                tooltip: t('recList.buttons.sortAndFilter'),
-              ),
-              const NotificationBellButton(),
-            ]),
+          ),
+          centerTitle: false,
+          backgroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: Icon(compactView ? Icons.view_agenda : Icons.view_headline),
+              tooltip: compactView
+                  ? "Switch to detailed view"
+                  : "Switch to compact view",
+              onPressed: () => setState(() {
+                compactView = !compactView;
+              }),
+            ),
+            IconButton(
+              icon: const Icon(Icons.sort),
+              color: Colors.black,
+              onPressed: () => _showSortFilterOptions(context),
+              tooltip: t('recList.buttons.sortAndFilter'),
+            ),
+            const NotificationBellButton(),
+          ],
+        ),
         body: Padding(
           padding: const EdgeInsets.all(10.0),
           child: RefreshIndicator(
@@ -706,8 +729,9 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
                             SizedBox(
                               height: 500,
                               child: Center(
-                                  child: Text(t('recList.emptyListMessage'))),
-                            )
+                                child: Text(t('recList.emptyListMessage')),
+                              ),
+                            ),
                           ],
                         )
                       : ListView.separated(
@@ -720,216 +744,225 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
 
                             if (compactView) {
                               return buildCompactRecordingItem(
-                                  rec, dateText, () => openRecording(rec));
+                                rec,
+                                dateText,
+                                () => openRecording(rec),
+                              );
                             } else {
                               return InkWell(
-                                  onTap: () => openRecording(rec),
-                                  child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color:
-                                                Colors.black.withOpacity(0.05),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
+                                onTap: () => openRecording(rec),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
                                       ),
-                                      child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                rec.name != null
-                                                    ? Text(
-                                                        _truncateName(
-                                                            rec.name!),
-                                                        style: TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      )
-                                                    : FutureBuilder<String?>(
-                                                        future: () async {
-                                                          var parts =
-                                                              await DatabaseNew
-                                                                  .getPartsByRecordingId(
-                                                                      rec.id!);
-                                                          if (parts.isEmpty) {
-                                                            return rec.id
-                                                                ?.toString();
-                                                          }
-                                                          String? text = await reverseGeocode(
-                                                                  parts[0]
-                                                                      .gpsLatitudeStart,
-                                                                  parts[0]
-                                                                      .gpsLongitudeStart) ??
-                                                              rec.id
-                                                                  ?.toString();
-                                                          rec.name = text;
-                                                          return text;
-                                                        }(),
-                                                        builder: (context,
-                                                            snapshot) {
-                                                          String topText;
-                                                          if (snapshot
-                                                                  .connectionState ==
-                                                              ConnectionState
-                                                                  .waiting) {
-                                                            topText = t(
-                                                                'recList.name.loading');
-                                                          } else if (snapshot
-                                                                  .hasError ||
-                                                              snapshot.data ==
-                                                                  null) {
-                                                            topText = rec.id
-                                                                    ?.toString() ??
-                                                                t('recList.name.unknown');
-                                                          } else {
-                                                            topText =
-                                                                snapshot.data!;
-                                                          }
-                                                          return Text(
-                                                            _truncateName(
-                                                                topText),
-                                                            style: TextStyle(
-                                                              fontSize: 16,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                            ),
-                                                          );
-                                                        },
-                                                      ),
-                                                const SizedBox(height: 4),
-                                                FutureBuilder<String>(
-                                                  future:
-                                                      getDialectName(rec.id!),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          rec.name != null
+                                              ? Text(
+                                                  _truncateName(rec.name!),
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                )
+                                              : FutureBuilder<String?>(
+                                                  future: () async {
+                                                    var parts =
+                                                        await DatabaseNew.getPartsByRecordingId(
+                                                          rec.id!,
+                                                        );
+                                                    if (parts.isEmpty) {
+                                                      return rec.id?.toString();
+                                                    }
+                                                    String? text =
+                                                        await reverseGeocode(
+                                                          parts[0]
+                                                              .gpsLatitudeStart,
+                                                          parts[0]
+                                                              .gpsLongitudeStart,
+                                                        ) ??
+                                                        rec.id?.toString();
+                                                    rec.name = text;
+                                                    return text;
+                                                  }(),
                                                   builder: (context, snapshot) {
-                                                    String dialectText;
+                                                    String topText;
                                                     if (snapshot
                                                             .connectionState ==
                                                         ConnectionState
                                                             .waiting) {
-                                                      dialectText = t(
-                                                          'recList.dialect.loading');
+                                                      topText = t(
+                                                        'recList.name.loading',
+                                                      );
                                                     } else if (snapshot
                                                             .hasError ||
                                                         snapshot.data == null) {
-                                                      dialectText = t(
-                                                          'recList.dialect.unknown');
+                                                      topText =
+                                                          rec.id?.toString() ??
+                                                          t(
+                                                            'recList.name.unknown',
+                                                          );
                                                     } else {
-                                                      dialectText =
-                                                          snapshot.data!;
+                                                      topText = snapshot.data!;
                                                     }
                                                     return Text(
-                                                      dialectText,
+                                                      _truncateName(topText),
                                                       style: TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors.grey,
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                            // Right Column
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                FutureBuilder<
-                                                    List<RecordingPart>>(
-                                                  future: Future.value(
-                                                      DatabaseNew
-                                                          .getPartsByRecordingId(
-                                                              rec.id!)),
-                                                  builder: (context, snapshot) {
-                                                    String status;
-                                                    Color color;
-                                                    if (!rec.captureReviewed) {
-                                                      status = t(
-                                                          'recList.status.finishReview');
-                                                      color = Colors.orange;
-                                                    } else if (rec.sending) {
-                                                      status = t(
-                                                          'recList.status.sending');
-                                                      color = Colors.blue;
-                                                    } else if (snapshot
-                                                            .connectionState ==
-                                                        ConnectionState
-                                                            .waiting) {
-                                                      status = t(
-                                                          'recList.status.checkingParts');
-                                                      color = Colors.grey;
-                                                    } else if (snapshot
-                                                        .hasError) {
-                                                      status = rec.sent
-                                                          ? t('recList.status.uploaded')
-                                                          : t('recList.status.waitingForUpload');
-                                                      color = rec.sent
-                                                          ? Colors.green
-                                                          : Colors.orange;
-                                                    } else {
-                                                      final parts =
-                                                          snapshot.data!;
-                                                      if (parts.any(
-                                                          (p) => p.sending)) {
-                                                        status = t(
-                                                            'recList.status.sendingParts');
-                                                        color = Colors.blue;
-                                                      } else if (rec.sent &&
-                                                          parts.any(
-                                                              (p) => !p.sent)) {
-                                                        logger.w(
-                                                          'Recording ${rec.id} '
-                                                          'has ${parts.where((p) => !p.sent).length} '
-                                                          'unsent parts.',
-                                                        );
-                                                        status = t(
-                                                            'recList.status.unsentParts');
-                                                        color = Colors.red;
-                                                      } else {
-                                                        status = rec.sent
-                                                            ? t('recList.status.uploaded')
-                                                            : t('recList.status.waitingForUpload');
-                                                        color = rec.sent
-                                                            ? Colors.green
-                                                            : Colors.orange;
-                                                      }
-                                                    }
-                                                    return Text(
-                                                      status,
-                                                      style: TextStyle(
-                                                        fontSize: 14,
+                                                        fontSize: 16,
                                                         fontWeight:
                                                             FontWeight.w600,
-                                                        color: color,
                                                       ),
                                                     );
                                                   },
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  dateText,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey,
-                                                  ),
+                                          const SizedBox(height: 4),
+                                          FutureBuilder<String>(
+                                            future: getDialectName(rec.id!),
+                                            builder: (context, snapshot) {
+                                              String dialectText;
+                                              if (snapshot.connectionState ==
+                                                  ConnectionState.waiting) {
+                                                dialectText = t(
+                                                  'recList.dialect.loading',
+                                                );
+                                              } else if (snapshot.hasError ||
+                                                  snapshot.data == null) {
+                                                dialectText = t(
+                                                  'recList.dialect.unknown',
+                                                );
+                                              } else {
+                                                dialectText = snapshot.data!;
+                                              }
+                                              return Text(
+                                                dialectText,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey,
                                                 ),
-                                                const Icon(Icons.chevron_right,
-                                                    color: Colors.grey),
-                                              ],
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      // Right Column
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          FutureBuilder<List<RecordingPart>>(
+                                            future: Future.value(
+                                              DatabaseNew.getPartsByRecordingId(
+                                                rec.id!,
+                                              ),
                                             ),
-                                          ])));
+                                            builder: (context, snapshot) {
+                                              String status;
+                                              Color color;
+                                              if (!rec.captureReviewed) {
+                                                status = t(
+                                                  'recList.status.finishReview',
+                                                );
+                                                color = Colors.orange;
+                                              } else if (rec.sending) {
+                                                status = t(
+                                                  'recList.status.sending',
+                                                );
+                                                color = Colors.blue;
+                                              } else if (snapshot
+                                                      .connectionState ==
+                                                  ConnectionState.waiting) {
+                                                status = t(
+                                                  'recList.status.checkingParts',
+                                                );
+                                                color = Colors.grey;
+                                              } else if (snapshot.hasError) {
+                                                status = rec.sent
+                                                    ? t('recList.status.uploaded')
+                                                    : t(
+                                                        'recList.status.waitingForUpload',
+                                                      );
+                                                color = rec.sent
+                                                    ? Colors.green
+                                                    : Colors.orange;
+                                              } else {
+                                                final parts = snapshot.data!;
+                                                if (parts.any(
+                                                  (p) => p.sending,
+                                                )) {
+                                                  status = t(
+                                                    'recList.status.sendingParts',
+                                                  );
+                                                  color = Colors.blue;
+                                                } else if (rec.sent &&
+                                                    parts.any((p) => !p.sent)) {
+                                                  logger.w(
+                                                    'Recording ${rec.id} '
+                                                    'has ${parts.where((p) => !p.sent).length} '
+                                                    'unsent parts.',
+                                                  );
+                                                  status = t(
+                                                    'recList.status.unsentParts',
+                                                  );
+                                                  color = Colors.red;
+                                                } else {
+                                                  status = rec.sent
+                                                      ? t(
+                                                          'recList.status.uploaded',
+                                                        )
+                                                      : t(
+                                                          'recList.status.waitingForUpload',
+                                                        );
+                                                  color = rec.sent
+                                                      ? Colors.green
+                                                      : Colors.orange;
+                                                }
+                                              }
+                                              return Text(
+                                                status,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: color,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            dateText,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.grey,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
                             }
                           },
                         ),
@@ -951,7 +984,7 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
       return await const MapsController().reverseGeocode(lat, lon);
     } catch (e, stackTrace) {
       logger.e('Reverse geocode error: $e', error: e, stackTrace: stackTrace);
-      Sentry.captureException(e, stackTrace: stackTrace);
+
       return null;
     }
   }
@@ -986,8 +1019,11 @@ class _RecordingScreenState extends State<RecordingScreen> with RouteAware {
         localizeDialect: DialectKeywordTranslator.toLocalized,
       );
     } catch (e, stackTrace) {
-      logger.e('Error fetching dialects for recording $recordingId: $e',
-          error: e, stackTrace: stackTrace);
+      logger.e(
+        'Error fetching dialects for recording $recordingId: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return t('recList.dialect.unknown');
     }
   }

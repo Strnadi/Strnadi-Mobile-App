@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/api/models/map_clusters.dart';
 import 'package:strnadi/api/services/map_api_service.dart';
 import 'package:strnadi/dialects/dialect_definition.dart';
@@ -59,18 +59,18 @@ class MapStateController extends ChangeNotifier {
     required MapDataSource api,
     required Future<MapSessionScope> Function() readScope,
     required String Function() currentHost,
-    Logger? logger,
+    AppLogger? logger,
     MapFilterSelection initialFilters = mapFilterDefaults,
   }) : _api = api,
        _readScope = readScope,
        _currentHost = currentHost,
-       _logger = logger ?? Logger(),
+       _logger = logger ?? AppLogger(scope: 'map.state.map_state_controller'),
        _filters = initialFilters;
 
   final MapDataSource _api;
   final Future<MapSessionScope> Function() _readScope;
   final String Function() _currentHost;
-  final Logger _logger;
+  final AppLogger _logger;
   MapFilterSelection _filters;
   MapViewport? _viewport;
   MapSessionScope? _scope;
@@ -207,7 +207,7 @@ class MapStateController extends ChangeNotifier {
       _features = List.unmodifiable(response.features);
       _scope = scope;
       _failed = false;
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (isCurrentRevision(requestId) &&
           host == _currentHost() &&
           (requestedScope == null ||
@@ -217,6 +217,8 @@ class MapStateController extends ChangeNotifier {
           error is MapApiException
               ? error.toString()
               : 'Current map data could not be loaded (${error.runtimeType}).',
+          error: error,
+          stackTrace: stackTrace,
         );
       }
     } finally {
@@ -305,8 +307,12 @@ class MapStateController extends ChangeNotifier {
     try {
       final result = await _api.fetchRecording(recordingId, host: scope.host);
       return await _requestIsCurrent(requestId, scope) ? result : null;
-    } catch (error) {
-      _logger.w('Could not open map recording (${error.runtimeType}).');
+    } catch (error, stackTrace) {
+      _logger.w(
+        'Could not open map recording (${error.runtimeType}).',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

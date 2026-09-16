@@ -4,10 +4,43 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart' as dio;
 import 'package:http/http.dart' as package_http;
 import 'package:strnadi/api/dio_client.dart';
+import 'package:strnadi/api/api_logging.dart';
+import 'package:strnadi/logging/log_failure.dart';
+import 'package:strnadi/utils/log_redactor.dart';
 
 typedef Response = package_http.Response;
 
 typedef ClientException = package_http.ClientException;
+
+/// Preserves the package:http contract and in-process diagnostic provenance.
+class DiagnosticHttpResponse extends package_http.Response
+    implements DiagnosticException {
+  DiagnosticHttpResponse.bytes(
+    super.bodyBytes,
+    super.statusCode, {
+    super.headers,
+    super.request,
+    super.reasonPhrase,
+    super.isRedirect,
+    super.persistentConnection,
+    this.logFailure,
+  }) : super.bytes();
+
+  @override
+  final AppFailure? logFailure;
+}
+
+class DiagnosticClientException extends package_http.ClientException
+    implements DiagnosticException {
+  DiagnosticClientException(
+    super.message,
+    super.uri, {
+    required this.logFailure,
+  });
+
+  @override
+  final AppFailure logFailure;
+}
 
 Future<Response> get(Uri url, {Map<String, String>? headers}) async {
   return _request('GET', url, headers: headers);
@@ -23,8 +56,13 @@ Future<Response> delete(
   Object? body,
   Encoding? encoding,
 }) async {
-  return _request('DELETE', url,
-      headers: headers, body: body, encoding: encoding);
+  return _request(
+    'DELETE',
+    url,
+    headers: headers,
+    body: body,
+    encoding: encoding,
+  );
 }
 
 Future<Response> post(
@@ -33,8 +71,13 @@ Future<Response> post(
   Object? body,
   Encoding? encoding,
 }) async {
-  return _request('POST', url,
-      headers: headers, body: body, encoding: encoding);
+  return _request(
+    'POST',
+    url,
+    headers: headers,
+    body: body,
+    encoding: encoding,
+  );
 }
 
 Future<Response> patch(
@@ -43,8 +86,13 @@ Future<Response> patch(
   Object? body,
   Encoding? encoding,
 }) async {
-  return _request('PATCH', url,
-      headers: headers, body: body, encoding: encoding);
+  return _request(
+    'PATCH',
+    url,
+    headers: headers,
+    body: body,
+    encoding: encoding,
+  );
 }
 
 Future<Response> put(
@@ -78,14 +126,14 @@ Future<Response> _request(
       ),
     );
 
-    return _toHttpResponse(
-      method: method,
-      url: url,
-      response: dioResponse,
+    return _toHttpResponse(method: method, url: url, response: dioResponse);
+  } on dio.DioException catch (error, stackTrace) {
+    final translated = DiagnosticClientException(
+      LogRedactor.redactText(error.message ?? 'Network request failed'),
+      url,
+      logFailure: apiFailureForDioError(error, stackTrace: stackTrace),
     );
-  } on dio.DioException catch (e) {
-    throw package_http.ClientException(
-        e.message ?? 'Network request failed', url);
+    Error.throwWithStackTrace(translated, stackTrace);
   }
 }
 
@@ -97,7 +145,7 @@ Response _toHttpResponse({
   final Uint8List bodyBytes = _normalizeResponseBody(response.data);
   final Map<String, String> headers = _flattenHeaders(response.headers);
 
-  return package_http.Response.bytes(
+  return DiagnosticHttpResponse.bytes(
     bodyBytes,
     response.statusCode ?? 0,
     headers: headers,
@@ -105,6 +153,9 @@ Response _toHttpResponse({
     reasonPhrase: response.statusMessage,
     isRedirect: response.isRedirect,
     persistentConnection: true,
+    logFailure: response.statusCode == null || response.statusCode! >= 400
+        ? apiFailureForResponse(response)
+        : null,
   );
 }
 

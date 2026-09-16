@@ -1,5 +1,6 @@
 import 'package:strnadi/auth/user_identity.dart';
 import 'dart:convert';
+import 'package:strnadi/utils/log_redactor.dart';
 import 'map_feature_filters.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -436,10 +437,9 @@ String? _errorValue(
     for (final String key in keys) {
       final Object? value = source[key];
       if (value is! String && value is! num && value is! bool) continue;
-      final String sanitized = value
-          .toString()
-          .replaceAll(RegExp(r'[\r\n\t]+'), ' ')
-          .trim();
+      final String sanitized = LogRedactor.redactText(
+        value.toString(),
+      ).replaceAll(RegExp(r'[\r\n\t]+'), ' ').trim();
       if (sanitized.isNotEmpty) {
         return sanitized.length <= 200
             ? sanitized

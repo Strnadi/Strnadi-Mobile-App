@@ -14,20 +14,26 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:strnadi/logging/log_failure.dart';
+
 /// Thrown when a recording has unsent parts that need to be resent.
 class UnsentPartsException implements Exception {
   final String message;
-  UnsentPartsException(
-      [this.message = 'Recording has unsent parts to resend.']);
+  UnsentPartsException([
+    this.message = 'Recording has unsent parts to resend.',
+  ]);
   @override
   String toString() => 'UnsentPartsException: $message';
 }
 
-class FetchException implements Exception {
+class FetchException implements Exception, DiagnosticException {
   final String message;
   final int statusCode;
 
-  FetchException(this.message, this.statusCode);
+  FetchException(this.message, this.statusCode, {this.logFailure});
+
+  @override
+  final AppFailure? logFailure;
 
   @override
   String toString() {
@@ -35,11 +41,14 @@ class FetchException implements Exception {
   }
 }
 
-class UploadException implements Exception {
+class UploadException implements Exception, DiagnosticException {
   final String message;
   final int statusCode;
 
-  UploadException(this.message, this.statusCode);
+  UploadException(this.message, this.statusCode, {this.logFailure});
+
+  @override
+  final AppFailure? logFailure;
 
   @override
   String toString() {
@@ -81,7 +90,11 @@ class LocationException implements Exception {
   final bool? falledBack;
 
   LocationException(
-      this.message, this.permission, this.enabled, this.falledBack);
+    this.message,
+    this.permission,
+    this.enabled,
+    this.falledBack,
+  );
   @override
   toString() {
     return 'LocationException: $message, permission: $permission, enabled: $enabled, falledBack: $falledBack';

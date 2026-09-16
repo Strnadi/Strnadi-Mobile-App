@@ -1,3 +1,4 @@
+import 'package:strnadi/api/api_logging.dart';
 import 'package:strnadi/config/config.dart' show Config, HostEnvironment;
 import 'package:strnadi/auth/administration/administration_login.dart';
 /*
@@ -24,8 +25,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'package:strnadi/api/controllers/user_controller.dart';
-import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/auth/user_profile_payload.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/auth/email_input_formatter.dart';
@@ -44,7 +44,7 @@ import 'passReset/forgottenPassword.dart';
 import 'registeration/mail.dart';
 import 'unverifiedEmail.dart';
 
-final logger = Logger();
+final logger = AppLogger(scope: 'auth.login');
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -145,6 +145,7 @@ class _LoginState extends State<Login> {
       } else {
         logger.w(
           'Failed to fetch user name. Status code: ${response.statusCode}',
+          failure: apiFailureForResult(response),
         );
       }
     } catch (error, stackTrace) {
@@ -153,7 +154,6 @@ class _LoginState extends State<Login> {
         error: error,
         stackTrace: stackTrace,
       );
-      await Sentry.captureException(error, stackTrace: stackTrace);
     }
   }
 
@@ -183,7 +183,6 @@ class _LoginState extends State<Login> {
             error: error,
             stackTrace: stackTrace,
           );
-          Sentry.captureException(error, stackTrace: stackTrace);
         },
       ),
     );
@@ -207,11 +206,17 @@ class _LoginState extends State<Login> {
         password: _passwordController.text,
       );
 
-      logger.i('Login response status: ${response.statusCode}');
+      logger.i(
+        'Login response status: ${response.statusCode}',
+        context: {'statusCode': response.statusCode},
+      );
       final String token = response.data.toString();
 
       if (response.statusCode == 200 || response.statusCode == 202) {
-        logger.i("user has logged in with status code ${response.statusCode}");
+        logger.i(
+          "user has logged in with status code ${response.statusCode}",
+          context: {'statusCode': response.statusCode},
+        );
         final AuthSessionTransition transition = await activatedAuthSessions
             .beginTokenTransition(token);
 
@@ -223,6 +228,7 @@ class _LoginState extends State<Login> {
         if (verification == JwtVerificationDisposition.rejected) {
           logger.w(
             'Password JWT verification rejected status ${verifyResponse.statusCode}.',
+            failure: apiFailureForResult(verifyResponse),
           );
           await activatedAuthSessions.invalidate();
           _showMessage(t('login.errors.loginFailed'));
@@ -313,7 +319,10 @@ class _LoginState extends State<Login> {
       } else if (response.statusCode == 401) {
         _showMessage(t('login.errors.invalidCredentials'));
       } else {
-        logger.w('Login failed with status ${response.statusCode}.');
+        logger.w(
+          'Login failed with status ${response.statusCode}.',
+          failure: apiFailureForResult(response),
+        );
         _showMessage(t('login.errors.loginFailed'));
       }
     } catch (error, stackTrace) {
@@ -322,7 +331,7 @@ class _LoginState extends State<Login> {
         error: error,
         stackTrace: stackTrace,
       );
-      Sentry.captureException(error, stackTrace: stackTrace);
+
       _showMessage(t('login.errors.connection'));
     }
   }
@@ -561,6 +570,7 @@ class _LoginState extends State<Login> {
                       if (idResponse.statusCode != 200) {
                         logger.e(
                           'Failed to retrieve user ID; status ${idResponse.statusCode}.',
+                          failure: apiFailureForResult(idResponse),
                         );
                         _showMessage(t('login.errors.idGetError'));
                         return;
@@ -600,7 +610,7 @@ class _LoginState extends State<Login> {
                       error: e,
                       stackTrace: stackTrace,
                     );
-                    await Sentry.captureException(e, stackTrace: stackTrace);
+
                     _showMessage(t('login.errors.loginFailed'));
                     return;
                   } finally {
@@ -733,6 +743,7 @@ class _LoginState extends State<Login> {
                       _hideLoader();
                       logger.w(
                         'Failed to retrieve user ID; status ${idResponse.statusCode}.',
+                        failure: apiFailureForResult(idResponse),
                       );
                       _showMessage(t('login.errors.idGetError'));
                       return;
@@ -771,7 +782,7 @@ class _LoginState extends State<Login> {
                       error: e,
                       stackTrace: stackTrace,
                     );
-                    await Sentry.captureException(e, stackTrace: stackTrace);
+
                     _hideLoader();
                     _showMessage(t('auth.apple.error.login_failed'));
                     return;

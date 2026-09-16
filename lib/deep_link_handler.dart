@@ -17,10 +17,10 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
+import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/utils/log_redactor.dart';
 
-Logger logger = Logger();
+AppLogger logger = AppLogger(scope: 'deep_link_handler');
 
 class DeepLinkHandler {
   static final DeepLinkHandler _instance = DeepLinkHandler._internal();
@@ -81,23 +81,37 @@ class DeepLinkHandler {
   void initialize() {
     // Listen for incoming deep link changes using app_links package.
     // Handle the initial deep link if the app was launched via a Universal Link.
-    _appLinks.getInitialLink().then((Uri? initialUri) async {
-      if (initialUri != null) {
-        await _ensureNavigatorReady();
-        _handleUri(initialUri);
-      }
-    }).catchError((error) {
-      logger.e('Initial deep link could not be handled.');
-    });
+    _appLinks
+        .getInitialLink()
+        .then((Uri? initialUri) async {
+          if (initialUri != null) {
+            await _ensureNavigatorReady();
+            _handleUri(initialUri);
+          }
+        })
+        .catchError((Object error, StackTrace stackTrace) {
+          logger.e(
+            'Initial deep link could not be handled.',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        });
 
-    _sub = _appLinks.uriLinkStream.listen((Uri? uri) async {
-      if (uri != null) {
-        await _ensureNavigatorReady();
-        _handleUri(uri);
-      }
-    }, onError: (error) {
-      logger.e('Incoming deep link could not be handled.');
-    });
+    _sub = _appLinks.uriLinkStream.listen(
+      (Uri? uri) async {
+        if (uri != null) {
+          await _ensureNavigatorReady();
+          _handleUri(uri);
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        logger.e(
+          'Incoming deep link could not be handled.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
   }
 
   void dispose() {

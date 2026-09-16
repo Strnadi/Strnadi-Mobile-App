@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:strnadi/api/controllers/filtered_recordings_controller.dart';
+import 'package:strnadi/api/api_logging.dart';
+import 'package:strnadi/exceptions.dart';
 
 /// Decodes the recording-detail API response before it reaches presentation.
 class RecordingDetailApiService {
@@ -22,7 +24,11 @@ class RecordingDetailApiService {
     );
     if (response.statusCode == 204) return const [];
     if (response.statusCode != 200) {
-      throw Exception('HTTP ${response.statusCode}');
+      throw FetchException(
+        'Recording dialect parts request failed.',
+        response.statusCode ?? 500,
+        logFailure: apiFailureForResponse(response),
+      );
     }
     final dynamic decoded = response.data is String
         ? jsonDecode(response.data as String)
