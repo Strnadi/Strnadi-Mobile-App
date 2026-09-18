@@ -1,3 +1,5 @@
+import 'package:strnadi/projects/project_diagnostics.dart';
+import 'package:strnadi/projects/available_project.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -9,6 +11,12 @@ import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/config/oauth_configuration.dart';
 import 'package:strnadi/api/controllers/auth_controller.dart';
 import 'pkce_attempt.dart';
+
+typedef InitialProjectChooser =
+    Future<AvailableProject> Function(
+      List<AvailableProject> projects,
+      Future<void> Function(AvailableProject) join,
+    );
 
 typedef AuthenticationBrowser = Future<String> Function(Uri authorizeUri);
 
@@ -36,7 +44,7 @@ class AdministrationSession {
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
-  final OAuthConfiguration configuration;
+  OAuthConfiguration configuration;
   final OAuthApi transport;
   final AuthSessionKeyValueStore store;
   final AuthenticationBrowser browser;
@@ -47,6 +55,19 @@ class AdministrationSession {
   bool _closed = false;
   Future<ProjectCredential>? _renewal;
   Future<void> _writes = Future.value();
+  Future<void> _credentialTail = Future.value();
+
+  Future<T> _credentialOperation<T>(Future<T> Function() operation) async {
+    final previous = _credentialTail;
+    final done = Completer<void>();
+    _credentialTail = done.future;
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      done.complete();
+    }
+  }
 
   String get storageKey =>
       'administration.session.v1.${sha256.convert(utf8.encode(configuration.scopeKey))}';
@@ -78,7 +99,14 @@ class AdministrationSession {
     _tokens = tokens;
   });
 
-  Future<ProjectCredential> signIn() async {
+  Future<ProjectCredential> signIn({
+    InitialProjectChooser? chooseFirstProject,
+    Future<AvailableProject> Function(
+      String subject,
+      List<AvailableProject> projects,
+    )?
+    selectProject,
+  }) => ProjectDiagnostics.run(ProjectOperation.authorizeProject, () async {
     if (_closed) throw const OAuthFailure(OAuthFailureKind.staleSession);
     if (_attempt != null || _renewal != null) {
       throw const OAuthFailure(OAuthFailureKind.staleSession);
@@ -111,9 +139,50 @@ class AdministrationSession {
         _requiredString(result, 'refresh_token'),
         null,
       );
+      String? discoveredSubject;
+      if (selectProject != null) {
+        final info = await transport.getAdministration(
+          configuration.issuer.resolve('/connect/user-info'),
+          admin.token,
+        );
+        _check(generation);
+        final subject = _requiredString(
+          Map<String, dynamic>.from(info as Map),
+          'sub',
+        );
+        discoveredSubject = subject;
+        var projects = await _availableProjects(admin.token, subject);
+        _check(generation);
+        if (projects.isEmpty && chooseFirstProject != null) {
+          ProjectDiagnostics.event(ProjectEvent.firstProjectRequired);
+          final catalog = await transport.projectCatalog(
+            configuration,
+            admin.token,
+          );
+          _check(generation);
+          final first = await chooseFirstProject(catalog, (project) async {
+            _check(generation);
+            if (!catalog.any((item) => item.id == project.id)) {
+              throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+            }
+            await _joinProject(admin.token, subject, generation, project);
+          });
+          _check(generation);
+          projects = [first];
+          ProjectDiagnostics.event(ProjectEvent.firstProjectChosen);
+        }
+        _check(generation);
+        final selected = await selectProject(subject, projects);
+        _check(generation);
+        configuration = selected.configuration(configuration);
+      }
       // The account binding is established from the returned project token;
       // an Administration access token can be opaque/encrypted.
       final exchanged = await _exchange(tokens, generation);
+      if (discoveredSubject != null &&
+          exchanged.project!.subject != discoveredSubject) {
+        throw const OAuthFailure(OAuthFailureKind.staleSession);
+      }
       logDebugBrowserToken(
         kind: 'project',
         token: exchanged.project!.accessToken,
@@ -122,12 +191,216 @@ class AdministrationSession {
       return exchanged.project!;
     } on OAuthFailure {
       rethrow;
+    } on StateError catch (error) {
+      if (error.message == 'projects.empty') rethrow;
+      throw const OAuthFailure(OAuthFailureKind.server);
     } catch (_) {
       throw const OAuthFailure(OAuthFailureKind.server);
     } finally {
       attempt.cancel();
       if (identical(_attempt, attempt)) _attempt = null;
     }
+  });
+
+  /// Discovery and recovery must work even after access to the old project
+  /// has been revoked. Refresh Administration independently of project exchange.
+  Future<String> discoveryCredential({required String expectedSubject}) =>
+      _credentialOperation(() => _discoveryCredential(expectedSubject));
+
+  Future<String> _discoveryCredential(String expectedSubject) async {
+    final generation = _generation;
+    _check(generation);
+    var tokens = _tokens;
+    if (tokens == null) {
+      final saved = await store.read(storageKey);
+      _check(generation);
+      if (saved == null) {
+        throw const OAuthFailure(OAuthFailureKind.loginRequired);
+      }
+      tokens = _Tokens.fromJson(jsonDecode(saved), configuration);
+    }
+    if (tokens.project?.subject != expectedSubject) {
+      throw const OAuthFailure(OAuthFailureKind.staleSession);
+    }
+    if (!tokens.adminExpiry.isAfter(_now().add(const Duration(seconds: 30)))) {
+      final refreshToken = tokens.refreshToken;
+      final result = await ProjectDiagnostics.run(
+        ProjectOperation.refreshAdministration,
+        () => transport.refreshAdministrationToken(configuration, refreshToken),
+      );
+      _check(generation);
+      final admin = _parseAdmin(result);
+      tokens = _Tokens(
+        admin.token,
+        admin.expiry,
+        result.containsKey('refresh_token')
+            ? _requiredString(result, 'refresh_token')
+            : tokens.refreshToken,
+        tokens.project,
+      );
+    }
+    await _save(tokens, generation);
+    return tokens.adminToken;
+  }
+
+  Future<List<AvailableProject>> availableProjects(String subject) =>
+      ProjectDiagnostics.run(ProjectOperation.discoverMemberships, () async {
+        final generation = _generation;
+        final token = await discoveryCredential(expectedSubject: subject);
+        final result = await _availableProjects(token, subject);
+        _check(generation);
+        return result;
+      });
+
+  // The server's role-based discovery omits role-free self-joins. These IDs
+  // are discovery hints only: token exchange remains the access authority.
+  String _joinedKey(String subject) {
+    final digest = sha256.convert(
+      utf8.encode(
+        '${configuration.environment}|${configuration.issuer.origin}|$subject',
+      ),
+    );
+    return 'administration.joined.v1.$digest';
+  }
+
+  Future<Set<String>> _joinedIds(String subject) async {
+    final raw = await store.read(_joinedKey(subject));
+    if (raw == null) return {};
+    try {
+      return (jsonDecode(raw) as List).cast<String>().toSet();
+    } catch (error, stackTrace) {
+      ProjectDiagnostics.event(ProjectEvent.invalidRememberedJoins);
+      ProjectDiagnostics.failure(
+        ProjectOperation.discoverMemberships,
+        error,
+        stackTrace,
+      );
+      return {};
+    }
+  }
+
+  Future<List<AvailableProject>> _availableProjects(
+    String token,
+    String subject,
+  ) async {
+    final projects = await transport.availableProjects(
+      configuration,
+      token,
+      subject,
+    );
+    ProjectDiagnostics.event(ProjectEvent.discovered, count: projects.length);
+    final remembered = await _joinedIds(subject);
+    ProjectDiagnostics.event(
+      ProjectEvent.rememberedJoinsLoaded,
+      count: remembered.length,
+    );
+    if (remembered.isEmpty) return projects;
+    final catalog = await transport.projectCatalog(configuration, token);
+    return {
+      for (final p in catalog.where((p) => remembered.contains(p.id))) p.id: p,
+      for (final p in projects) p.id: p,
+    }.values.toList();
+  }
+
+  Future<List<AvailableProject>> projectCatalog(String subject) =>
+      ProjectDiagnostics.run(ProjectOperation.discoverCatalog, () async {
+        final generation = _generation;
+        final token = await discoveryCredential(expectedSubject: subject);
+        final projects = await transport.projectCatalog(configuration, token);
+        _check(generation);
+        ProjectDiagnostics.event(
+          ProjectEvent.catalogLoaded,
+          count: projects.length,
+        );
+        return projects;
+      });
+
+  Future<void> joinProject(String subject, AvailableProject project) =>
+      ProjectDiagnostics.run(ProjectOperation.joinMembership, () async {
+        final generation = _generation;
+        final token = await discoveryCredential(expectedSubject: subject);
+        _check(generation);
+        await _joinProject(token, subject, generation, project);
+      });
+
+  Future<void> _joinProject(
+    String token,
+    String subject,
+    int generation,
+    AvailableProject project,
+  ) async {
+    await transport.joinProject(
+      configuration,
+      token,
+      subject,
+      project,
+      requireCurrent: () => _check(generation),
+    );
+    _check(generation);
+    await _serialize(() async {
+      _check(generation);
+      final joined = (await _joinedIds(subject))..add(project.id);
+      _check(generation);
+      await store.write(_joinedKey(subject), jsonEncode(joined.toList()));
+      _check(generation);
+      ProjectDiagnostics.event(
+        ProjectEvent.joinRemembered,
+        count: joined.length,
+      );
+    });
+  }
+
+  Future<void> validateProjectAccess(String subject) =>
+      ProjectDiagnostics.run(ProjectOperation.validateAccess, () async {
+        await discoveryCredential(expectedSubject: subject);
+        await _credentialOperation(() async {
+          final generation = _generation;
+          _check(generation);
+          final exchanged = await _exchange(_tokens!, generation);
+          await _save(exchanged, generation);
+        });
+      });
+
+  /// Prepare a candidate without closing or replacing the usable old session.
+  Future<AdministrationSession> prepareProject(
+    AvailableProject project,
+    String subject,
+  ) => ProjectDiagnostics.run(ProjectOperation.prepareCredential, () async {
+    final generation = _generation;
+    await discoveryCredential(expectedSubject: subject);
+    _check(generation);
+    final candidate = AdministrationSession(
+      configuration: project.configuration(configuration),
+      transport: transport,
+      store: store,
+      browser: browser,
+      now: _now,
+    );
+    final current = _tokens!;
+    final exchanged = await candidate._exchange(
+      _Tokens(
+        current.adminToken,
+        current.adminExpiry,
+        current.refreshToken,
+        null,
+      ),
+      0,
+    );
+    _check(generation);
+    if (exchanged.project!.subject != subject) {
+      throw const OAuthFailure(OAuthFailureKind.staleSession);
+    }
+    await candidate._save(exchanged, 0);
+    return candidate;
+  });
+
+  /// Stop in-flight work after a successful switch, without revoking the shared
+  /// Administration refresh token or deleting another project's credentials.
+  void retire() {
+    _closed = true;
+    ++_generation;
+    _attempt?.cancel();
+    _attempt = null;
   }
 
   void cancelSignIn() {
@@ -152,7 +425,8 @@ class AdministrationSession {
       return Future.error(const OAuthFailure(OAuthFailureKind.staleSession));
     }
     final existing = _renewal;
-    final operation = existing ?? _loadOrRenew(_generation);
+    final operation =
+        existing ?? _credentialOperation(() => _loadOrRenew(_generation));
     if (existing == null) {
       _renewal = operation;
       operation.then(
@@ -200,11 +474,14 @@ class AdministrationSession {
     if (tokens.project?.expiresAt.isAfter(threshold) == true) {
       return tokens.project!;
     }
+    var exchangingProject = false;
     try {
       if (!tokens.adminExpiry.isAfter(threshold)) {
-        final result = await transport.refreshAdministrationToken(
-          configuration,
-          tokens.refreshToken,
+        final refreshToken = tokens.refreshToken;
+        final result = await ProjectDiagnostics.run(
+          ProjectOperation.refreshAdministration,
+          () =>
+              transport.refreshAdministrationToken(configuration, refreshToken),
         );
         _check(generation);
         final admin = _parseAdmin(result);
@@ -220,12 +497,14 @@ class AdministrationSession {
         // not leave only the now-invalid previous refresh token on disk.
         await _save(tokens, generation);
       }
+      exchangingProject = true;
       tokens = await _exchange(tokens, generation);
       await _save(tokens, generation);
       return tokens.project!;
     } on OAuthFailure catch (error) {
       if (error.kind == OAuthFailureKind.loginRequired ||
-          error.kind == OAuthFailureKind.exchangeDenied) {
+          (error.kind == OAuthFailureKind.exchangeDenied &&
+              !exchangingProject)) {
         await _serialize(() async {
           _check(generation);
           _tokens = null;
@@ -236,31 +515,32 @@ class AdministrationSession {
     }
   }
 
-  Future<_Tokens> _exchange(_Tokens tokens, int generation) async {
-    final result = await transport.exchangeProjectToken(
-      configuration,
-      tokens.adminToken,
-    );
-    _check(generation);
-    _requireBearer(result);
-    final token = _requiredString(result, 'access_token');
-    if (token == tokens.adminToken) {
-      throw _invalidResponse(
-        'Project exchange returned the Administration token unchanged.',
-      );
-    }
-    final credential = _project(token, configuration, _now());
-    if (tokens.project != null &&
-        tokens.project!.subject != credential.subject) {
-      throw const OAuthFailure(OAuthFailureKind.loginRequired);
-    }
-    return _Tokens(
-      tokens.adminToken,
-      tokens.adminExpiry,
-      tokens.refreshToken,
-      credential,
-    );
-  }
+  Future<_Tokens> _exchange(_Tokens tokens, int generation) =>
+      ProjectDiagnostics.run(ProjectOperation.exchangeCredential, () async {
+        final result = await transport.exchangeProjectToken(
+          configuration,
+          tokens.adminToken,
+        );
+        _check(generation);
+        _requireBearer(result);
+        final token = _requiredString(result, 'access_token');
+        if (token == tokens.adminToken) {
+          throw _invalidResponse(
+            'Project exchange returned the Administration token unchanged.',
+          );
+        }
+        final credential = _project(token, configuration, _now());
+        if (tokens.project != null &&
+            tokens.project!.subject != credential.subject) {
+          throw const OAuthFailure(OAuthFailureKind.loginRequired);
+        }
+        return _Tokens(
+          tokens.adminToken,
+          tokens.adminExpiry,
+          tokens.refreshToken,
+          credential,
+        );
+      });
 
   ({String token, DateTime expiry}) _parseAdmin(Map<String, dynamic> result) {
     _requireBearer(result);

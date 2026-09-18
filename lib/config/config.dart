@@ -1,3 +1,5 @@
+import 'package:strnadi/projects/project_diagnostics.dart';
+import 'package:strnadi/projects/available_project.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -129,6 +131,7 @@ class Config {
     _applyDartDefineOverrides(_config!);
     await loadDataUsageOption();
     await loadHostEnvironment();
+    await loadActiveProject();
   }
 
   static void _applyDartDefineOverrides(Map<String, dynamic> config) {
@@ -240,8 +243,43 @@ class Config {
     }
     if (hostEnvironment != env) TelemetrySession.foreground.reset();
     _hostEnv = env;
+    activeProject = null;
     onHostEnvironmentChanged?.call();
   }
+
+  static Future<void> loadActiveProject() => ProjectDiagnostics.run(
+    ProjectOperation.loadRouting,
+    () async {
+      activeProject = null;
+      if (!usesAdministration) return;
+      final base = administrationForEnvironment(hostEnvironment)!;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final raw = prefs.getString(
+        'project.active.${base.environment}|${base.issuer.origin}',
+      );
+      if (raw == null) {
+        ProjectDiagnostics.event(ProjectEvent.routingAbsent);
+        return;
+      }
+      try {
+        final project = AvailableProject.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>,
+        );
+        project.configuration(base);
+        activeProject = project;
+        ProjectDiagnostics.event(ProjectEvent.routingRestored);
+      } catch (error, stackTrace) {
+        ProjectDiagnostics.event(ProjectEvent.routingRejected);
+        ProjectDiagnostics.failure(
+          ProjectOperation.loadRouting,
+          error,
+          stackTrace,
+        );
+        // Invalid routing metadata must never become a credential destination.
+      }
+    },
+  );
 
   /// Sets the user's mobile data preference
   static Future<void> setDataUsageOption(DataUsageOption option) async {
@@ -279,13 +317,25 @@ class Config {
     return 'en';
   }
 
-  static String get host => hostForEnvironment(hostEnvironment);
+  static AvailableProject? activeProject;
+
+  static void useProject(AvailableProject? project) {
+    activeProject = project;
+  }
+
+  static String get host => usesAdministration && activeProject != null
+      ? activeProject!.apiOrigin!.origin
+      : hostForEnvironment(hostEnvironment);
 
   static bool get usesAdministration =>
       hostEnvironment == HostEnvironment.preprod;
 
-  static OAuthConfiguration? get administration =>
-      administrationForEnvironment(hostEnvironment);
+  static OAuthConfiguration? get administration {
+    final base = administrationForEnvironment(hostEnvironment);
+    return usesAdministration && activeProject != null && base != null
+        ? activeProject!.configuration(base)
+        : base;
+  }
 
   static OAuthConfiguration? administrationForEnvironment(
     HostEnvironment environment,

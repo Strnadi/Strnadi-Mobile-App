@@ -1,3 +1,4 @@
+import 'package:strnadi/projects/available_project.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:strnadi/api/api_logging.dart';
@@ -16,6 +17,81 @@ abstract class OAuthApi {
     Uri endpoint,
     Map<String, String> fields,
   );
+
+  Future<dynamic> getAdministration(Uri endpoint, String token) =>
+      throw UnimplementedError('Administration discovery is not implemented');
+
+  Future<dynamic> postAdministration(
+    Uri endpoint,
+    String token,
+    Map<String, dynamic> body,
+  ) => throw UnimplementedError('Administration mutation is not implemented');
+
+  Future<List<AvailableProject>> projectCatalog(
+    OAuthConfiguration configuration,
+    String token,
+  ) async {
+    final body = await getAdministration(
+      configuration.issuer.resolve('/projects'),
+      token,
+    );
+    if (body is! List) throw const FormatException('Invalid projects response');
+    return body
+        .map(
+          (item) =>
+              AvailableProject.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+  }
+
+  Future<void> joinProject(
+    OAuthConfiguration configuration,
+    String token,
+    String subject,
+    AvailableProject project, {
+    void Function()? requireCurrent,
+  }) async {
+    project.configuration(
+      configuration,
+    ); // Validate destination metadata first.
+    final profile = await getAdministration(
+      configuration.issuer.resolve('/account/profile'),
+      token,
+    );
+    if (profile is! Map ||
+        profile['id'] != subject ||
+        profile['email'] is! String ||
+        (profile['email'] as String).trim().isEmpty) {
+      throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+    }
+    requireCurrent?.call();
+    final member = await postAdministration(
+      configuration.issuer.resolve('/projects/${project.id}/members'),
+      token,
+      {'email': profile['email']},
+    );
+    if (member is! Map || member['userId'] != subject) {
+      throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+    }
+  }
+
+  Future<List<AvailableProject>> availableProjects(
+    OAuthConfiguration configuration,
+    String token,
+    String subject,
+  ) async {
+    final body = await getAdministration(
+      configuration.issuer.resolve('/users/$subject/projects'),
+      token,
+    );
+    if (body is! List) throw const FormatException('Invalid projects response');
+    return body
+        .map(
+          (item) =>
+              AvailableProject.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+  }
 
   Uri logoutUri(OAuthConfiguration configuration) =>
       configuration.logoutEndpoint.replace(
@@ -57,6 +133,58 @@ abstract class OAuthApi {
 
 class AuthController extends OAuthApi {
   const AuthController();
+
+  @override
+  Future<dynamic> getAdministration(Uri endpoint, String token) async {
+    final response = await ApiDioClient.authorization.getUri<dynamic>(
+      endpoint,
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        followRedirects: false,
+        maxRedirects: 0,
+        extra: const {'authRequired': false},
+      ),
+    );
+    if (response.statusCode != 200) {
+      throw OAuthFailure(
+        response.statusCode == 401 || response.statusCode == 403
+            ? OAuthFailureKind.exchangeDenied
+            : OAuthFailureKind.server,
+      );
+    }
+    return response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
+  }
+
+  @override
+  Future<dynamic> postAdministration(
+    Uri endpoint,
+    String token,
+    Map<String, dynamic> body,
+  ) async {
+    final response = await ApiDioClient.authorization.postUri<dynamic>(
+      endpoint,
+      data: body,
+      options: Options(
+        contentType: Headers.jsonContentType,
+        headers: {'Authorization': 'Bearer $token'},
+        followRedirects: false,
+        maxRedirects: 0,
+        extra: const {'authRequired': false},
+      ),
+    );
+    if (response.statusCode != 201) {
+      throw OAuthFailure(
+        response.statusCode == 401 || response.statusCode == 403
+            ? OAuthFailureKind.exchangeDenied
+            : OAuthFailureKind.server,
+      );
+    }
+    return response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
+  }
 
   @override
   Future<Map<String, dynamic>> postForm(

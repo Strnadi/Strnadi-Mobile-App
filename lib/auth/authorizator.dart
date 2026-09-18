@@ -61,12 +61,9 @@ enum AuthStatus { loggedIn, loggedOut, notVerified }
 
 Future<AuthStatus> _onlineIsLoggedIn() async {
   if (AppAdministration.enabled) {
-    try {
-      await AppAdministration.token();
-      return AuthStatus.loggedIn;
-    } catch (_) {
-      return AuthStatus.loggedOut;
-    }
+    return await AppAdministration.restoreLogin()
+        ? AuthStatus.loggedIn
+        : AuthStatus.loggedOut;
   }
   final secureStorage = FlutterSecureStorage();
   final token = await secureStorage.read(key: 'token');
@@ -467,6 +464,10 @@ class _AuthState extends State<Authorizator> {
     if (AppAdministration.enabled) {
       if (await isLoggedIn() == AuthStatus.loggedIn && mounted) {
         await navigateToSessionLanding(context);
+      } else if (mounted && AppAdministration.projectNotice != null) {
+        final notice = AppAdministration.projectNotice!;
+        AppAdministration.projectNotice = null;
+        _showAlert(t('projects.title'), t(notice));
       }
       return;
     }

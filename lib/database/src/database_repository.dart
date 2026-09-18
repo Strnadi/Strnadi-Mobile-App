@@ -2828,6 +2828,20 @@ class DatabaseNew {
     await refreshUnreadNotificationCount();
   }
 
+  /// Existence only, for retaining queued jobs hidden by the active owner scope.
+  /// Never returns another account/project's recording contents.
+  static Future<bool> queuedRecordingExists(int recordingId) async {
+    final db = await database;
+    final rows = await db.query(
+      'recordings',
+      columns: const ['id'],
+      where: 'id = ?',
+      whereArgs: [recordingId],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   static Future<Recording?> getRecordingFromDbById(int recordingId) async {
     final RecordingOwnerSnapshot ownerSnapshot =
         await _captureRecordingOwnerSnapshot();

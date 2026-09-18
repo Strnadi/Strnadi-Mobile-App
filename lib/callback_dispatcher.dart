@@ -386,6 +386,7 @@ Future<bool> _handleSendRecordingTask(Map<String, dynamic>? inputData) async {
   return handleBackgroundRecordingUploadTask<Recording>(
     rawRecordingId: inputData?['recordingId'],
     loadRecording: _getRecordingOrFail,
+    recordingExists: DatabaseNew.queuedRecordingExists,
     reconcileInterruptedUploads: DatabaseNew.checkSendingRecordings,
     recordingIsSending: (Recording recording) => recording.sending,
     backendRecordingId: (Recording recording) => recording.BEId,

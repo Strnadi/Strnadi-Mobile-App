@@ -12,34 +12,25 @@ enum BackgroundRecordingUploadNotice {
 typedef BackgroundRecordingLoader<T> = Future<T?> Function(int recordingId);
 typedef BackgroundRecordingReconciler = Future<void> Function();
 typedef BackgroundRecordingUploader<T> = Future<void> Function(T recording);
-typedef BackgroundRecordingDialectSender = Future<void> Function(
-  int recordingId,
-  int? backendRecordingId,
-);
-typedef BackgroundRecordingNoticeSender = Future<void> Function(
-  BackgroundRecordingUploadNotice notice,
-  int? recordingId,
-);
-typedef BackgroundRecordingHealthStarter = Future<bool> Function(
-  int recordingId,
-);
-typedef BackgroundRecordingHealthStopper = Future<void> Function(
-  int recordingId,
-);
+typedef BackgroundRecordingDialectSender =
+    Future<void> Function(int recordingId, int? backendRecordingId);
+typedef BackgroundRecordingNoticeSender =
+    Future<void> Function(
+      BackgroundRecordingUploadNotice notice,
+      int? recordingId,
+    );
+typedef BackgroundRecordingHealthStarter =
+    Future<bool> Function(int recordingId);
+typedef BackgroundRecordingHealthStopper =
+    Future<void> Function(int recordingId);
 typedef BackgroundRecordingRetryClassifier = bool Function(Object error);
-typedef BackgroundRecordingTaskFailure = void Function(
-  Object error,
-  StackTrace stackTrace,
-);
-typedef BackgroundRecordingAncillaryFailure = void Function(
-  String operation,
-  Object error,
-  StackTrace stackTrace,
-);
+typedef BackgroundRecordingTaskFailure =
+    void Function(Object error, StackTrace stackTrace);
+typedef BackgroundRecordingAncillaryFailure =
+    void Function(String operation, Object error, StackTrace stackTrace);
 typedef BackgroundRecordingTaskInitializer = Future<void> Function();
-typedef BackgroundRecordingTaskHandler = Future<bool> Function(
-  Map<String, dynamic>? inputData,
-);
+typedef BackgroundRecordingTaskHandler =
+    Future<bool> Function(Map<String, dynamic>? inputData);
 typedef BackgroundUnknownTaskReporter = void Function(String taskName);
 
 /// Routes a Workmanager callback through testable initialization and task
@@ -68,6 +59,7 @@ Future<bool> dispatchBackgroundRecordingTask({
 Future<bool> handleBackgroundRecordingUploadTask<T>({
   required Object? rawRecordingId,
   required BackgroundRecordingLoader<T> loadRecording,
+  Future<bool> Function(int recordingId)? recordingExists,
   required BackgroundRecordingReconciler reconcileInterruptedUploads,
   required bool Function(T recording) recordingIsSending,
   required int? Function(T recording) backendRecordingId,
@@ -88,11 +80,7 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
       await sendNotice(notice, recordingId);
     } catch (error, stackTrace) {
       try {
-        onAncillaryFailure?.call(
-          'notification',
-          error,
-          stackTrace,
-        );
+        onAncillaryFailure?.call('notification', error, stackTrace);
       } catch (_) {
         // Failure reporting is ancillary too.
       }
@@ -116,6 +104,13 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
     return false;
   }
   if (recording == null) {
+    // A scoped lookup can hide an existing recording after a project/account
+    // switch. Retain its queued job until its original owner is active again.
+    try {
+      if (await recordingExists?.call(recordingId) == true) return false;
+    } catch (_) {
+      return false;
+    }
     await notify(BackgroundRecordingUploadNotice.notFound, recordingId);
     return true;
   }
@@ -125,9 +120,7 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
     await reconcileInterruptedUploads();
     recording = await loadRecording(recordingId);
     if (recording == null) {
-      throw StateError(
-        'Recording disappeared during upload reconciliation.',
-      );
+      throw StateError('Recording disappeared during upload reconciliation.');
     }
     if (recordingIsSending(recording)) {
       throw StateError('Recording upload is already active.');
@@ -137,11 +130,7 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
       healthStarted = await startHealth(recordingId);
     } catch (error, stackTrace) {
       try {
-        onAncillaryFailure?.call(
-          'health registration',
-          error,
-          stackTrace,
-        );
+        onAncillaryFailure?.call('health registration', error, stackTrace);
       } catch (_) {
         // Failure reporting is ancillary too.
       }
@@ -149,10 +138,7 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
 
     await uploadRecording(recording);
     await sendDialects(recordingId, backendRecordingId(recording));
-    await notify(
-      BackgroundRecordingUploadNotice.uploadSucceeded,
-      recordingId,
-    );
+    await notify(BackgroundRecordingUploadNotice.uploadSucceeded, recordingId);
     return true;
   } catch (error, stackTrace) {
     if (error is RecordingUploadDeferredException) {
@@ -165,10 +151,7 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
     } catch (_) {
       // Failure reporting must not alter Workmanager retry classification.
     }
-    await notify(
-      BackgroundRecordingUploadNotice.uploadFailed,
-      recordingId,
-    );
+    await notify(BackgroundRecordingUploadNotice.uploadFailed, recordingId);
     return !isRetryable(error);
   } finally {
     if (healthStarted) {
@@ -176,11 +159,7 @@ Future<bool> handleBackgroundRecordingUploadTask<T>({
         await stopHealth(recordingId);
       } catch (error, stackTrace) {
         try {
-          onAncillaryFailure?.call(
-            'health shutdown',
-            error,
-            stackTrace,
-          );
+          onAncillaryFailure?.call('health shutdown', error, stackTrace);
         } catch (_) {
           // Failure reporting is ancillary too.
         }
