@@ -44,39 +44,26 @@ dependencies:
 
   firebase_core: ^4.2.1
   firebase_messaging: ^16.0.4
-  ffi: ^2.0.0
-  audioplayers: ^6.1.0
   record: ^7.1.1
   path_provider: any
   flutter_map: ^8.2.2
-  latlong2: ^0.9.1
+  latlong2: ^0.10.1
   permission_handler: any
   geolocator: ^14.0.1
-  audio_waveforms: ^2.0.2
-  file_picker: any
   http: ^1.0.0
   # v10 migrates Android data written by v9; v11 removes that migration.
   flutter_secure_storage: ^10.3.2
   device_info_plus: ^13.2.0
-  intl: ^0.20.2
   sqflite: any
   connectivity_plus: ^7.3.1
   logger: ^2.0.0
   sentry_flutter: ^9.29.0
-  scidart: any
   fftea: any
-  flutter_plot: any
   just_audio: ^0.10.5
   wav: any
-  webview_flutter: ^4.10.0
-  flutter_map_location_marker: ^10.1.0
-  flutter_map_marker_cluster: any
   shared_preferences: ^2.0.8
   flutter_spinbox: any
-  image_picker: ^1.2.0  # Check for the latest version_
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  image_picker: ^1.2.0
   google_api_availability: ^5.0.1
   flutter_local_notifications: ^22.3.0
   flutter_cache_manager: ^3.4.1
@@ -88,15 +75,12 @@ dependencies:
   app_links: ^7.2.1
   app_tracking_transparency: ^2.0.4
   google_sign_in: ^7.2.0
-  firebase_auth: ^6.1.2
   wakelock_plus: ^1.2.11
   flutter_markdown: ^0.7.6+2
   flutter_foreground_task: ^11.0.3
   posthog_flutter: ^5.9.0
   sign_in_with_apple: ^8.2.0
-  google_maps_flutter: any
   dio: ^5.9.0
-  dio_http2_adapter: ^2.6.0
   crypto: ^3.0.7
   flutter_web_auth_2: ^5.1.0
 

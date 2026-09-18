@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:strnadi/recording/recording_foreground_service.dart';
+import 'package:strnadi/recording/platform/recording_foreground_service.dart';
 
 void main() {
   group('recording foreground service lifecycle (fake platform only)', () {
@@ -27,9 +27,9 @@ void main() {
     test('a transient stop exception is retried', () async {
       final _FakeRecordingForegroundService service =
           _FakeRecordingForegroundService(
-        running: true,
-        stopFailures: <Object>[StateError('transient platform failure')],
-      );
+            running: true,
+            stopFailures: <Object>[StateError('transient platform failure')],
+          );
 
       await stopRecordingForegroundService(service: service);
 
@@ -40,9 +40,9 @@ void main() {
     test('a false success is detected and retried', () async {
       final _FakeRecordingForegroundService service =
           _FakeRecordingForegroundService(
-        running: true,
-        stopsThatLeaveServiceRunning: 1,
-      );
+            running: true,
+            stopsThatLeaveServiceRunning: 1,
+          );
 
       await stopRecordingForegroundService(service: service);
 
@@ -54,12 +54,9 @@ void main() {
       final StateError finalFailure = StateError('still owned by Android');
       final _FakeRecordingForegroundService service =
           _FakeRecordingForegroundService(
-        running: true,
-        stopFailures: <Object>[
-          StateError('first failure'),
-          finalFailure,
-        ],
-      );
+            running: true,
+            stopFailures: <Object>[StateError('first failure'), finalFailure],
+          );
 
       await expectLater(
         stopRecordingForegroundService(service: service),
@@ -74,33 +71,34 @@ void main() {
       expect(service.running, isTrue);
     });
 
-    test('cold-start reconciliation uses the same verified stop path',
-        () async {
-      final _FakeRecordingForegroundService service =
-          _FakeRecordingForegroundService(running: true);
+    test(
+      'cold-start reconciliation uses the same verified stop path',
+      () async {
+        final _FakeRecordingForegroundService service =
+            _FakeRecordingForegroundService(running: true);
 
-      await reconcileStaleRecordingForegroundService(service: service);
+        await reconcileStaleRecordingForegroundService(service: service);
 
-      expect(service.stopCalls, 1);
-      expect(service.running, isFalse);
-    });
+        expect(service.stopCalls, 1);
+        expect(service.running, isFalse);
+      },
+    );
 
-    test('a non-positive attempt bound is rejected without platform access',
-        () async {
-      final _FakeRecordingForegroundService service =
-          _FakeRecordingForegroundService(running: true);
+    test(
+      'a non-positive attempt bound is rejected without platform access',
+      () async {
+        final _FakeRecordingForegroundService service =
+            _FakeRecordingForegroundService(running: true);
 
-      await expectLater(
-        stopRecordingForegroundService(
-          service: service,
-          maxAttempts: 0,
-        ),
-        throwsArgumentError,
-      );
+        await expectLater(
+          stopRecordingForegroundService(service: service, maxAttempts: 0),
+          throwsArgumentError,
+        );
 
-      expect(service.runningChecks, 0);
-      expect(service.stopCalls, 0);
-    });
+        expect(service.runningChecks, 0);
+        expect(service.stopCalls, 0);
+      },
+    );
   });
 }
 

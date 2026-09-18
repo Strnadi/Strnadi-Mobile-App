@@ -12,13 +12,10 @@ class ArticlesController {
   ];
 
   Uri _uri(String path, {Map<String, dynamic>? queryParameters}) {
-    return Uri(
-      scheme: 'https',
+    return ApiDioClient.uri(
+      path,
       host: Config.host,
-      path: path,
-      queryParameters: queryParameters?.map(
-        (key, value) => MapEntry(key, value?.toString()),
-      ),
+      queryParameters: queryParameters,
     );
   }
 
@@ -26,9 +23,7 @@ class ArticlesController {
     return _dio.getUri(
       _uri('/articles'),
       options: Options(
-        headers: const <String, String>{
-          'accept': 'application/json',
-        },
+        headers: const <String, String>{'accept': 'application/json'},
       ),
     );
   }
@@ -44,9 +39,7 @@ class ArticlesController {
         },
       ),
       options: Options(
-        headers: const <String, String>{
-          'accept': 'application/json',
-        },
+        headers: const <String, String>{'accept': 'application/json'},
       ),
     );
   }
@@ -58,9 +51,7 @@ class ArticlesController {
     return _dio.getUri(
       _uri('/articles/$articleId/$languageTag.md'),
       options: Options(
-        headers: const <String, String>{
-          'accept': 'application/json',
-        },
+        headers: const <String, String>{'accept': 'application/json'},
         responseType: ResponseType.bytes,
       ),
     );

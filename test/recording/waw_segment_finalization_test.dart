@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/database/fileSize.dart';
-import 'package:strnadi/recording/waw.dart';
+import 'package:strnadi/recording/audio/wav/wav.dart';
 
 class _FakeSegmentFileOperations implements SegmentFileOperations {
   _FakeSegmentFileOperations({
@@ -13,8 +13,8 @@ class _FakeSegmentFileOperations implements SegmentFileOperations {
     this.streamBytesToOmit = const <String, int>{},
     this.failDeletes = const <String>{},
   }) : files = files.map(
-          (path, bytes) => MapEntry(path, Uint8List.fromList(bytes)),
-        );
+         (path, bytes) => MapEntry(path, Uint8List.fromList(bytes)),
+       );
 
   final Map<String, Uint8List> files;
   final int readChunkSize;
@@ -105,8 +105,9 @@ class _FakeSegmentFileOperations implements SegmentFileOperations {
     if (start >= bytes.length) {
       return Uint8List(0);
     }
-    final int end =
-        start + length < bytes.length ? start + length : bytes.length;
+    final int end = start + length < bytes.length
+        ? start + length
+        : bytes.length;
     return Uint8List.fromList(bytes.sublist(start, end));
   }
 
@@ -141,108 +142,98 @@ void main() {
       );
 
       expect(
-        await calculateWavDuration(
-          'duration.wav',
-          fileOperations: files,
-        ),
+        await calculateWavDuration('duration.wav', fileOperations: files),
         1,
       );
     });
 
     test(
-        'handles RIFF metadata chunks instead of scanning eight bytes at a time',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'metadata.wav': _wavWithMetadata(
-            <int>[1, 2, 3, 4],
-            sampleRate: 2,
-          ),
-        },
-      );
+      'handles RIFF metadata chunks instead of scanning eight bytes at a time',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            'metadata.wav': _wavWithMetadata(<int>[1, 2, 3, 4], sampleRate: 2),
+          },
+        );
 
-      expect(
-        await calculateWavDuration(
-          'metadata.wav',
-          fileOperations: files,
-        ),
-        1,
-      );
-    });
+        expect(
+          await calculateWavDuration('metadata.wav', fileOperations: files),
+          1,
+        );
+      },
+    );
 
     test('returns null for inconsistent or truncated PCM metadata', () async {
-      final Uint8List corrupt = _wav(
-        <int>[1, 2, 3, 4],
-        sampleRate: 2,
-      );
+      final Uint8List corrupt = _wav(<int>[1, 2, 3, 4], sampleRate: 2);
       ByteData.sublistView(corrupt).setUint32(28, 999, Endian.little);
       final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
         files: <String, List<int>>{'corrupt.wav': corrupt},
       );
 
       expect(
-        await calculateWavDuration(
-          'corrupt.wav',
-          fileOperations: files,
-        ),
+        await calculateWavDuration('corrupt.wav', fileOperations: files),
         isNull,
       );
     });
   });
 
   group('writeFinalizedWavSegment', () {
-    test('writes a valid distinct WAV and leaves raw input for caller commit',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'raw.pcm': <int>[1, 2, 3, 4],
-        },
-      );
+    test(
+      'writes a valid distinct WAV and leaves raw input for caller commit',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            'raw.pcm': <int>[1, 2, 3, 4],
+          },
+        );
 
-      await writeFinalizedWavSegment(
-        rawInputPath: 'raw.pcm',
-        outputPath: 'final.wav',
-        sampleRate: 48000,
-        bitRate: 768000,
-        fileOperations: files,
-      );
-
-      expect(files.files['raw.pcm'], <int>[1, 2, 3, 4]);
-      final Uint8List finalized = files.files['final.wav']!;
-      expect(finalized.length, 48);
-      expect(String.fromCharCodes(finalized.sublist(0, 4)), 'RIFF');
-      expect(String.fromCharCodes(finalized.sublist(8, 12)), 'WAVE');
-      expect(String.fromCharCodes(finalized.sublist(36, 40)), 'data');
-      expect(finalized.sublist(44), <int>[1, 2, 3, 4]);
-      expect(files.deletedPaths, isEmpty);
-      expect(files.largestStreamedReadChunk, lessThanOrEqualTo(2));
-      expect(files.rangeReadLengths, isEmpty);
-    });
-
-    test('removes partial output and preserves raw input when writing fails',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'raw.pcm': <int>[9, 8, 7, 6],
-        },
-        failAfterWriteChunks: 2,
-      );
-
-      await expectLater(
-        writeFinalizedWavSegment(
+        await writeFinalizedWavSegment(
           rawInputPath: 'raw.pcm',
-          outputPath: 'partial.wav',
+          outputPath: 'final.wav',
           sampleRate: 48000,
           bitRate: 768000,
           fileOperations: files,
-        ),
-        throwsA(isA<StateError>()),
-      );
+        );
 
-      expect(files.files['raw.pcm'], <int>[9, 8, 7, 6]);
-      expect(files.files.containsKey('partial.wav'), isFalse);
-      expect(files.deletedPaths, <String>['partial.wav']);
-    });
+        expect(files.files['raw.pcm'], <int>[1, 2, 3, 4]);
+        final Uint8List finalized = files.files['final.wav']!;
+        expect(finalized.length, 48);
+        expect(String.fromCharCodes(finalized.sublist(0, 4)), 'RIFF');
+        expect(String.fromCharCodes(finalized.sublist(8, 12)), 'WAVE');
+        expect(String.fromCharCodes(finalized.sublist(36, 40)), 'data');
+        expect(finalized.sublist(44), <int>[1, 2, 3, 4]);
+        expect(files.deletedPaths, isEmpty);
+        expect(files.largestStreamedReadChunk, lessThanOrEqualTo(2));
+        expect(files.rangeReadLengths, isEmpty);
+      },
+    );
+
+    test(
+      'removes partial output and preserves raw input when writing fails',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            'raw.pcm': <int>[9, 8, 7, 6],
+          },
+          failAfterWriteChunks: 2,
+        );
+
+        await expectLater(
+          writeFinalizedWavSegment(
+            rawInputPath: 'raw.pcm',
+            outputPath: 'partial.wav',
+            sampleRate: 48000,
+            bitRate: 768000,
+            fileOperations: files,
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(files.files['raw.pcm'], <int>[9, 8, 7, 6]);
+        expect(files.files.containsKey('partial.wav'), isFalse);
+        expect(files.deletedPaths, <String>['partial.wav']);
+      },
+    );
 
     test('rejects destructive in-place finalization', () async {
       final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
@@ -313,37 +304,39 @@ void main() {
       expect(files.deletedPaths, isEmpty);
     });
 
-    test('preserves the write error and raw data if partial cleanup fails',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'raw.pcm': <int>[1, 2, 3, 4],
-        },
-        failAfterWriteChunks: 2,
-        failDeletes: <String>{'partial.wav'},
-      );
+    test(
+      'preserves the write error and raw data if partial cleanup fails',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            'raw.pcm': <int>[1, 2, 3, 4],
+          },
+          failAfterWriteChunks: 2,
+          failDeletes: <String>{'partial.wav'},
+        );
 
-      await expectLater(
-        writeFinalizedWavSegment(
-          rawInputPath: 'raw.pcm',
-          outputPath: 'partial.wav',
-          sampleRate: 48000,
-          bitRate: 768000,
-          fileOperations: files,
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            'simulated write failure',
+        await expectLater(
+          writeFinalizedWavSegment(
+            rawInputPath: 'raw.pcm',
+            outputPath: 'partial.wav',
+            sampleRate: 48000,
+            bitRate: 768000,
+            fileOperations: files,
           ),
-        ),
-      );
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              'simulated write failure',
+            ),
+          ),
+        );
 
-      expect(files.files['raw.pcm'], <int>[1, 2, 3, 4]);
-      expect(files.files['partial.wav'], isNotEmpty);
-      expect(files.deletedPaths, <String>['partial.wav']);
-    });
+        expect(files.files['raw.pcm'], <int>[1, 2, 3, 4]);
+        expect(files.files['partial.wav'], isNotEmpty);
+        expect(files.deletedPaths, <String>['partial.wav']);
+      },
+    );
   });
 
   group('concatWavFiles', () {
@@ -353,11 +346,7 @@ void main() {
       );
 
       await expectLater(
-        concatWavFiles(
-          const <String>[],
-          'combined.wav',
-          fileOperations: files,
-        ),
+        concatWavFiles(const <String>[], 'combined.wav', fileOperations: files),
         throwsArgumentError,
       );
 
@@ -366,39 +355,32 @@ void main() {
       expect(files.files.containsKey('combined.wav'), isFalse);
     });
 
-    test('streams compatible segment data into one WAV with bounded reads',
-        () async {
-      final Uint8List first = _wav(<int>[1, 2, 3, 4]);
-      final Uint8List second = _wav(<int>[5, 6, 7, 8, 9, 10]);
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'first.wav': first,
-          'second.wav': second,
-        },
-        readChunkSize: 2,
-      );
+    test(
+      'streams compatible segment data into one WAV with bounded reads',
+      () async {
+        final Uint8List first = _wav(<int>[1, 2, 3, 4]);
+        final Uint8List second = _wav(<int>[5, 6, 7, 8, 9, 10]);
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{'first.wav': first, 'second.wav': second},
+          readChunkSize: 2,
+        );
 
-      await concatWavFiles(
-        <String>['first.wav', 'second.wav'],
-        'combined.wav',
-        fileOperations: files,
-      );
+        await concatWavFiles(
+          <String>['first.wav', 'second.wav'],
+          'combined.wav',
+          fileOperations: files,
+        );
 
-      final Uint8List combined = files.files['combined.wav']!;
-      expect(String.fromCharCodes(combined.sublist(0, 4)), 'RIFF');
-      expect(String.fromCharCodes(combined.sublist(36, 40)), 'data');
-      expect(
-        ByteData.sublistView(combined).getUint32(40, Endian.little),
-        10,
-      );
-      expect(
-        combined.sublist(44),
-        <int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      );
-      expect(files.rangeReadLengths, isNotEmpty);
-      expect(files.rangeReadLengths.every((length) => length <= 16), isTrue);
-      expect(files.largestStreamedReadChunk, lessThanOrEqualTo(2));
-    });
+        final Uint8List combined = files.files['combined.wav']!;
+        expect(String.fromCharCodes(combined.sublist(0, 4)), 'RIFF');
+        expect(String.fromCharCodes(combined.sublist(36, 40)), 'data');
+        expect(ByteData.sublistView(combined).getUint32(40, Endian.little), 10);
+        expect(combined.sublist(44), <int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        expect(files.rangeReadLengths, isNotEmpty);
+        expect(files.rangeReadLengths.every((length) => length <= 16), isTrue);
+        expect(files.largestStreamedReadChunk, lessThanOrEqualTo(2));
+      },
+    );
 
     test('writes into an exclusively pre-reserved download output', () async {
       final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
@@ -420,58 +402,57 @@ void main() {
       expect(files.files['reserved.wav']!.sublist(44), <int>[1, 2, 3, 4]);
     });
 
-    test('skips metadata chunks and copies only the declared audio payload',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'metadata.wav': _wavWithMetadata(<int>[4, 3, 2, 1]),
-        },
-      );
+    test(
+      'skips metadata chunks and copies only the declared audio payload',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            'metadata.wav': _wavWithMetadata(<int>[4, 3, 2, 1]),
+          },
+        );
 
-      await concatWavFiles(
-        <String>['metadata.wav'],
-        'combined.wav',
-        fileOperations: files,
-      );
+        await concatWavFiles(
+          <String>['metadata.wav'],
+          'combined.wav',
+          fileOperations: files,
+        );
 
-      expect(
-        files.files['combined.wav']!.sublist(44),
-        <int>[4, 3, 2, 1],
-      );
-      expect(files.rangeReadLengths.every((length) => length <= 16), isTrue);
-    });
+        expect(files.files['combined.wav']!.sublist(44), <int>[4, 3, 2, 1]);
+        expect(files.rangeReadLengths.every((length) => length <= 16), isTrue);
+      },
+    );
 
-    test('pads an odd-length PCM payload without inflating its data size',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          '8-bit.wav': _wav(<int>[7], bitDepth: 8),
-        },
-      );
+    test(
+      'pads an odd-length PCM payload without inflating its data size',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            '8-bit.wav': _wav(<int>[7], bitDepth: 8),
+          },
+        );
 
-      await concatWavFiles(
-        <String>['8-bit.wav'],
-        'combined.wav',
-        fileOperations: files,
-      );
+        await concatWavFiles(
+          <String>['8-bit.wav'],
+          'combined.wav',
+          fileOperations: files,
+        );
 
-      final Uint8List combined = files.files['combined.wav']!;
-      final ByteData header = ByteData.sublistView(combined);
-      expect(header.getUint32(4, Endian.little), combined.length - 8);
-      expect(header.getUint32(40, Endian.little), 1);
-      expect(combined.sublist(44), <int>[7, 0]);
-    });
+        final Uint8List combined = files.files['combined.wav']!;
+        final ByteData header = ByteData.sublistView(combined);
+        expect(header.getUint32(4, Endian.little), combined.length - 8);
+        expect(header.getUint32(40, Endian.little), 1);
+        expect(combined.sublist(44), <int>[7, 0]);
+      },
+    );
 
     test('rejects an odd-sized source chunk with no RIFF padding', () async {
       final Uint8List padded = _wav(<int>[7], bitDepth: 8);
       final Uint8List missingPadding = Uint8List.fromList(
         padded.sublist(0, padded.length - 1),
       );
-      ByteData.sublistView(missingPadding).setUint32(
-        4,
-        missingPadding.length - 8,
-        Endian.little,
-      );
+      ByteData.sublistView(
+        missingPadding,
+      ).setUint32(4, missingPadding.length - 8, Endian.little);
       final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
         files: <String, List<int>>{'missing-padding.wav': missingPadding},
       );
@@ -489,26 +470,28 @@ void main() {
       expect(files.writeCalls, 0);
     });
 
-    test('rejects an aggregate path that aliases an input before writing',
-        () async {
-      final Uint8List input = _wav(<int>[1, 2]);
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{'segment.wav': input},
-      );
+    test(
+      'rejects an aggregate path that aliases an input before writing',
+      () async {
+        final Uint8List input = _wav(<int>[1, 2]);
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{'segment.wav': input},
+        );
 
-      await expectLater(
-        concatWavFiles(
-          <String>['segment.wav'],
-          'segment.wav',
-          fileOperations: files,
-        ),
-        throwsArgumentError,
-      );
+        await expectLater(
+          concatWavFiles(
+            <String>['segment.wav'],
+            'segment.wav',
+            fileOperations: files,
+          ),
+          throwsArgumentError,
+        );
 
-      expect(files.files['segment.wav'], input);
-      expect(files.writeCalls, 0);
-      expect(files.deletedPaths, isEmpty);
-    });
+        expect(files.files['segment.wav'], input);
+        expect(files.writeCalls, 0);
+        expect(files.deletedPaths, isEmpty);
+      },
+    );
 
     test('rejects a filesystem alias before opening the aggregate', () async {
       final Uint8List input = _wav(<int>[1, 2]);
@@ -534,54 +517,55 @@ void main() {
       expect(files.deletedPaths, isEmpty);
     });
 
-    test('removes a partial aggregate and preserves every input on failure',
-        () async {
-      final Uint8List first = _wav(<int>[1, 2, 3, 4]);
-      final Uint8List second = _wav(<int>[5, 6, 7, 8]);
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          'first.wav': first,
-          'second.wav': second,
-        },
-        failAfterWriteChunks: 3,
-      );
+    test(
+      'removes a partial aggregate and preserves every input on failure',
+      () async {
+        final Uint8List first = _wav(<int>[1, 2, 3, 4]);
+        final Uint8List second = _wav(<int>[5, 6, 7, 8]);
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{'first.wav': first, 'second.wav': second},
+          failAfterWriteChunks: 3,
+        );
 
-      await expectLater(
-        concatWavFiles(
-          <String>['first.wav', 'second.wav'],
-          'partial.wav',
-          fileOperations: files,
-        ),
-        throwsA(isA<StateError>()),
-      );
+        await expectLater(
+          concatWavFiles(
+            <String>['first.wav', 'second.wav'],
+            'partial.wav',
+            fileOperations: files,
+          ),
+          throwsA(isA<StateError>()),
+        );
 
-      expect(files.files['first.wav'], first);
-      expect(files.files['second.wav'], second);
-      expect(files.files.containsKey('partial.wav'), isFalse);
-      expect(files.deletedPaths, <String>['partial.wav']);
-    });
+        expect(files.files['first.wav'], first);
+        expect(files.files['second.wav'], second);
+        expect(files.files.containsKey('partial.wav'), isFalse);
+        expect(files.deletedPaths, <String>['partial.wav']);
+      },
+    );
 
-    test('removes partial output when a source shrinks during streaming',
-        () async {
-      final Uint8List input = _wav(<int>[1, 2, 3, 4]);
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{'segment.wav': input},
-        streamBytesToOmit: <String, int>{'segment.wav': 1},
-      );
+    test(
+      'removes partial output when a source shrinks during streaming',
+      () async {
+        final Uint8List input = _wav(<int>[1, 2, 3, 4]);
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{'segment.wav': input},
+          streamBytesToOmit: <String, int>{'segment.wav': 1},
+        );
 
-      await expectLater(
-        concatWavFiles(
-          <String>['segment.wav'],
-          'partial.wav',
-          fileOperations: files,
-        ),
-        throwsA(isA<FormatException>()),
-      );
+        await expectLater(
+          concatWavFiles(
+            <String>['segment.wav'],
+            'partial.wav',
+            fileOperations: files,
+          ),
+          throwsA(isA<FormatException>()),
+        );
 
-      expect(files.files['segment.wav'], input);
-      expect(files.files.containsKey('partial.wav'), isFalse);
-      expect(files.deletedPaths, <String>['partial.wav']);
-    });
+        expect(files.files['segment.wav'], input);
+        expect(files.files.containsKey('partial.wav'), isFalse);
+        expect(files.deletedPaths, <String>['partial.wav']);
+      },
+    );
 
     test('rejects a truncated source before reserving an output', () async {
       final Uint8List complete = _wav(<int>[1, 2, 3, 4]);
@@ -626,27 +610,29 @@ void main() {
       expect(files.files.containsKey('combined.wav'), isFalse);
     });
 
-    test('rejects incompatible segment formats without creating output',
-        () async {
-      final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
-        files: <String, List<int>>{
-          '48k.wav': _wav(<int>[1, 2], sampleRate: 48000),
-          '44k.wav': _wav(<int>[3, 4], sampleRate: 44100),
-        },
-      );
+    test(
+      'rejects incompatible segment formats without creating output',
+      () async {
+        final _FakeSegmentFileOperations files = _FakeSegmentFileOperations(
+          files: <String, List<int>>{
+            '48k.wav': _wav(<int>[1, 2], sampleRate: 48000),
+            '44k.wav': _wav(<int>[3, 4], sampleRate: 44100),
+          },
+        );
 
-      await expectLater(
-        concatWavFiles(
-          <String>['48k.wav', '44k.wav'],
-          'combined.wav',
-          fileOperations: files,
-        ),
-        throwsA(isA<FormatException>()),
-      );
+        await expectLater(
+          concatWavFiles(
+            <String>['48k.wav', '44k.wav'],
+            'combined.wav',
+            fileOperations: files,
+          ),
+          throwsA(isA<FormatException>()),
+        );
 
-      expect(files.files.containsKey('combined.wav'), isFalse);
-      expect(files.writeCalls, 0);
-    });
+        expect(files.files.containsKey('combined.wav'), isFalse);
+        expect(files.writeCalls, 0);
+      },
+    );
   });
 
   group('createWavHeader bounds', () {
@@ -659,12 +645,7 @@ void main() {
 
     test('rejects block alignment that does not fit uint16', () {
       expect(
-        () => createWavHeader(
-          131070,
-          1,
-          1 * 0xffff * 16,
-          channels: 0xffff,
-        ),
+        () => createWavHeader(131070, 1, 1 * 0xffff * 16, channels: 0xffff),
         throwsRangeError,
       );
     });
@@ -678,11 +659,7 @@ void main() {
   });
 }
 
-Uint8List _wav(
-  List<int> payload, {
-  int sampleRate = 48000,
-  int bitDepth = 16,
-}) {
+Uint8List _wav(List<int> payload, {int sampleRate = 48000, int bitDepth = 16}) {
   final Uint8List header = createWavHeader(
     payload.length,
     sampleRate,
@@ -723,11 +700,9 @@ Uint8List _wavWithMetadata(
   final Uint8List riffHeader = Uint8List(12)
     ..setRange(0, 4, 'RIFF'.codeUnits)
     ..setRange(8, 12, 'WAVE'.codeUnits);
-  ByteData.sublistView(riffHeader).setUint32(
-    4,
-    bodyBytes.length + 4,
-    Endian.little,
-  );
+  ByteData.sublistView(
+    riffHeader,
+  ).setUint32(4, bodyBytes.length + 4, Endian.little);
   return Uint8List.fromList(<int>[...riffHeader, ...bodyBytes]);
 }
 

@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import '../support/recording_sources.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -31,8 +32,9 @@ void main() {
   });
 
   test('RecordingForm does not subscribe to device location', () {
-    final String source =
-        File('lib/PostRecordingForm/RecordingForm.dart').readAsStringSync();
+    final String source = File(
+      'lib/PostRecordingForm/RecordingForm.dart',
+    ).readAsStringSync();
 
     expect(source, isNot(contains('LocationService')));
     expect(source, isNot(contains('locationService.positionStream')));
@@ -41,13 +43,9 @@ void main() {
   });
 
   test('recorder listener remains the owner of route location updates', () {
-    final String source =
-        File('lib/recording/streamRec.dart').readAsStringSync();
+    final String source = readRecordingSources();
 
-    expect(
-      source,
-      contains('_locationSub = subscribeToRecordingLocation('),
-    );
+    expect(source, contains('_locationSub = subscribeToRecordingLocation('));
     expect(source, contains('await _locationSub?.cancel()'));
     expect(source, isNot(contains('_locService.init()')));
   });

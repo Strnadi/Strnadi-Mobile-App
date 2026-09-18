@@ -18,7 +18,7 @@ import 'package:strnadi/api/controllers/recordings_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/database/recording_duration_refresh.dart';
-import 'package:strnadi/recording/waw.dart';
+import 'package:strnadi/recording/audio/wav/wav.dart';
 
 import '../config/config.dart';
 import 'Models/recording.dart';

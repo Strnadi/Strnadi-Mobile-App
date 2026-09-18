@@ -14,24 +14,30 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'dart:io';
+import '../support/recording_sources.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:strnadi/recording/recording_permission.dart';
+import 'package:strnadi/recording/location/recording_permission.dart';
 
 void main() {
-  test('pause is wired before permission checks so revocation cannot block it',
-      () {
-    final source = File('lib/recording/streamRec.dart').readAsStringSync();
-    final start = source.indexOf('Future<void> _toggleRecording()');
-    final pause = source.indexOf('await _pause();', start);
-    expect(pause, greaterThan(start));
-    expect(pause,
-        lessThan(source.indexOf('Permission.microphone.request()', start)));
-    expect(
-        pause, lessThan(source.indexOf('Geolocator.checkPermission()', start)));
-  });
+  test(
+    'pause is wired before permission checks so revocation cannot block it',
+    () {
+      final source = readRecordingSources();
+      final start = source.indexOf('Future<void> _toggleRecording()');
+      final pause = source.indexOf('await _pause();', start);
+      expect(pause, greaterThan(start));
+      expect(
+        pause,
+        lessThan(source.indexOf('Permission.microphone.request()', start)),
+      );
+      expect(
+        pause,
+        lessThan(source.indexOf('Geolocator.checkPermission()', start)),
+      );
+    },
+  );
 
   test('recording accepts only usable foreground location permissions', () {
     expect(
@@ -56,20 +62,18 @@ void main() {
     }
   });
 
-  test('permission request fails once instead of looping on denied forever',
-      () {
-    final String source =
-        File('lib/recording/streamRec.dart').readAsStringSync();
-    final int start = source.indexOf('Future<bool> getLocationPermission');
-    final int stateClass = source.indexOf('class _LiveRecState', start);
-    final String permissionFlow = source.substring(start, stateClass);
+  test(
+    'permission request fails once instead of looping on denied forever',
+    () {
+      final String source = readRecordingSources();
+      final int start = source.indexOf('Future<bool> getLocationPermission');
+      final int stateClass = source.length;
+      final String permissionFlow = source.substring(start, stateClass);
 
-    expect(start, greaterThanOrEqualTo(0));
-    expect(stateClass, greaterThan(start));
-    expect(permissionFlow, isNot(contains('while (')));
-    expect(
-      permissionFlow,
-      contains('return false;'),
-    );
-  });
+      expect(start, greaterThanOrEqualTo(0));
+      expect(stateClass, greaterThan(start));
+      expect(permissionFlow, isNot(contains('while (')));
+      expect(permissionFlow, contains('return false;'));
+    },
+  );
 }

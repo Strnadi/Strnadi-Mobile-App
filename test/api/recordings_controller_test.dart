@@ -42,6 +42,36 @@ void main() {
     );
   });
 
+  test('preprod cluster items use v1 and encode opaque cluster IDs', () async {
+    adapter = _SingleResponseAdapter(200);
+    dio.httpClientAdapter = adapter;
+    await const RecordingsController().fetchMapClusterItems(
+      'cluster/with/slashes',
+      'opaque-cursor',
+      host: 'https://preprod-api.example.test/v1',
+    );
+    final uri = adapter.requests.single.uri;
+    expect(uri.pathSegments, [
+      'v1',
+      'recordings',
+      'map-clusters',
+      'cluster/with/slashes',
+      'items',
+    ]);
+    expect(uri.queryParameters['cursor'], 'opaque-cursor');
+  });
+
+  test('preprod recording requests use the versioned route', () async {
+    adapter = _SingleResponseAdapter(200);
+    dio.httpClientAdapter = adapter;
+    await const RecordingsController().fetchRecordingById(
+      202,
+      host: 'https://preprod-api.example.test/v1',
+      accessToken: 'captured-token',
+    );
+    expect(adapter.requests.single.uri.path, '/v1/recordings/202');
+  });
+
   test(
     'single-record fetch returns a mocked 404 instead of throwing',
     () async {

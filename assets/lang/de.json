@@ -682,6 +682,9 @@
     }
   },
   "streamRec": {
+    "activity": {
+      "elapsedTime": "Aufnahmedauer"
+    },
     "dialogs": {
       "info": {
         "title": "Information",
@@ -709,6 +712,7 @@
       "recordingPaused": "Aufnahme pausiert"
     },
     "buttons": {
+      "finishAndSaveRecording": "Aufnahme beenden und Speicherformular öffnen",
       "startRecording": "Aufnahme starten",
       "pauseRecording": "Aufnahme pausieren",
       "resumeRecording": "Fortsetzen",
@@ -722,6 +726,16 @@
     },
     "timer": {
       "format": "{minutes}:{seconds},{hundredths}"
+    },
+    "activityFailure": {
+      "finish": "Aufnahme konnte nicht beendet werden. In Strnadi erneut versuchen.",
+      "location": "Standort nicht verfügbar. Zum Fortsetzen Strnadi öffnen.",
+      "locationPermission": "Standortzugriff fehlt. Strnadi öffnen.",
+      "microphonePermission": "Mikrofonzugriff fehlt. Strnadi öffnen.",
+      "microphone": "iOS konnte das Mikrofon nicht neu starten. Strnadi öffnen.",
+      "busy": "Die Aufnahme wird noch verarbeitet. Gleich erneut versuchen.",
+      "unavailable": "Aufnahmesteuerung nicht verfügbar. Strnadi öffnen.",
+      "unknown": "Aufnahmebefehl fehlgeschlagen. Strnadi öffnen."
     }
   },
   "user": {

@@ -682,6 +682,9 @@
     }
   },
   "streamRec": {
+    "activity": {
+      "elapsedTime": "Délka nahrávky"
+    },
     "dialogs": {
       "info": {
         "title": "Informace",
@@ -709,6 +712,7 @@
       "recordingPaused": "Nahrávání pozastaveno"
     },
     "buttons": {
+      "finishAndSaveRecording": "Dokončit nahrávání a otevřít formulář uložení",
       "startRecording": "Zahájit nahrávání",
       "pauseRecording": "Pozastavit nahrávání",
       "resumeRecording": "Pokračovat v nahrávání",
@@ -722,6 +726,16 @@
     },
     "timer": {
       "format": "{minutes}:{seconds},{hundredths}"
+    },
+    "activityFailure": {
+      "finish": "Nahrávání se nepodařilo dokončit. Zkuste to ve Strnadi.",
+      "location": "Poloha není dostupná. Pokračujte ve Strnadi.",
+      "locationPermission": "Chybí přístup k poloze. Otevřete Strnadi.",
+      "microphonePermission": "Chybí přístup k mikrofonu. Otevřete Strnadi.",
+      "microphone": "iOS nemohl znovu spustit mikrofon. Otevřete Strnadi.",
+      "busy": "Nahrávání se ještě zpracovává. Zkuste to za chvíli.",
+      "unavailable": "Ovládání nahrávání není dostupné. Otevřete Strnadi.",
+      "unknown": "Příkaz nahrávání selhal. Otevřete Strnadi."
     }
   },
   "user": {

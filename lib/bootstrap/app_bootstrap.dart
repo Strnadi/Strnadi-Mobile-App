@@ -19,7 +19,7 @@ import 'package:strnadi/firebase/firebase.dart';
 import 'package:strnadi/firebase/firebase_runtime_initialization.dart';
 import 'package:strnadi/firebase/local_notifications.dart';
 import 'package:strnadi/localization/localization.dart';
-import 'package:strnadi/recording/recording_foreground_service.dart';
+import 'package:strnadi/recording/platform/recording_foreground_service.dart';
 import 'package:workmanager/workmanager.dart';
 
 class AppBootstrap {

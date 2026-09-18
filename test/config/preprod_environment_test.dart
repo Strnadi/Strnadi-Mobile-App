@@ -26,7 +26,8 @@ void main() {
     messenger.setMockMessageHandler('flutter/assets', (message) async {
       expect(utf8.decode(message!.buffer.asUint8List()), 'assets/config.json');
       return ByteData.sublistView(
-          Uint8List.fromList(utf8.encode(jsonEncode(config))));
+        Uint8List.fromList(utf8.encode(jsonEncode(config))),
+      );
     });
     await Config.loadConfig();
   }
@@ -52,31 +53,66 @@ void main() {
   });
 
   test(
-      'Administration uses the existing asset configuration and scope resolver',
-      () async {
-    if (!validDefine) return;
-    await loadAssetConfig({
-      'preprodadministrationurl': 'https://admin-preview.example.test/',
-      'preprodprojectid': '01a08608-44b7-7aba-8d0c-542148b30bf2',
-    });
-    await Config.setHostEnvironment(HostEnvironment.preprod);
-    expect(Config.administrationOrigin.toString(),
-        'https://admin-preview.example.test/');
-    expect(Config.administration!.tenantOrigin.host, Config.host);
-    expect(
-        Config.dataEnvironment, contains('https://admin-preview.example.test'));
-  });
+    'Administration uses the existing asset configuration and scope resolver',
+    () async {
+      if (!validDefine) return;
+      await loadAssetConfig({
+        'preprodadministrationurl': 'https://admin-preview.example.test/',
+        'preprodprojectid': '01a08608-44b7-7aba-8d0c-542148b30bf2',
+      });
+      await Config.setHostEnvironment(HostEnvironment.preprod);
+      expect(
+        Config.administrationOrigin.toString(),
+        'https://admin-preview.example.test/',
+      );
+      expect(Config.administration!.tenantOrigin.host, Config.host);
+      expect(
+        Config.dataEnvironment,
+        contains('https://admin-preview.example.test'),
+      );
+    },
+  );
 
   test(
-      'invalid Administration asset configuration cannot change the environment',
-      () async {
-    if (!validDefine) return;
-    await loadAssetConfig(
-        {'preprodadministrationurl': 'http://invalid.example/'});
-    await expectLater(Config.setHostEnvironment(HostEnvironment.preprod),
-        throwsArgumentError);
-    expect(Config.hostEnvironment, HostEnvironment.prod);
-  });
+    'invalid Administration asset configuration cannot change the environment',
+    () async {
+      if (!validDefine) return;
+      await loadAssetConfig({
+        'preprodadministrationurl': 'http://invalid.example/',
+      });
+      await expectLater(
+        Config.setHostEnvironment(HostEnvironment.preprod),
+        throwsArgumentError,
+      );
+      expect(Config.hostEnvironment, HostEnvironment.prod);
+    },
+  );
+
+  test(
+    'full preprod URL preserves prefix while OAuth uses its origin',
+    () async {
+      if (hasDefine) return;
+      await loadAssetConfig({
+        'preprodhost': 'https://preprod-api.example.test:8443/custom/v1/',
+      });
+      await Config.setHostEnvironment(HostEnvironment.preprod);
+      expect(
+        ApiDioClient.uri('/recordings').toString(),
+        'https://preprod-api.example.test:8443/custom/v1/recordings',
+      );
+      expect(
+        Config.administration!.tenantOrigin.toString(),
+        'https://preprod-api.example.test:8443',
+      );
+      expect(
+        ApiDioClient.uri(
+          '/account/profile',
+          host: Config.administrationHost,
+        ).path,
+        '/account/profile',
+      );
+    },
+  );
 
   test('new installation remains production', () async {
     expect(Config.hostEnvironment, HostEnvironment.prod);
@@ -92,7 +128,9 @@ void main() {
       'preprodprojectid': '',
     });
     await expectLater(
-        Config.setHostEnvironment(HostEnvironment.preprod), throwsStateError);
+      Config.setHostEnvironment(HostEnvironment.preprod),
+      throwsStateError,
+    );
     expect(Config.hostEnvironment, HostEnvironment.prod);
   });
 
@@ -141,8 +179,10 @@ void main() {
   });
 
   test('prod and dev overrides keep their existing behavior', () async {
-    await loadAssetConfig(
-        {'host': 'prod.example.test', 'devhost': 'dev.example.test'});
+    await loadAssetConfig({
+      'host': 'prod.example.test',
+      'devhost': 'dev.example.test',
+    });
     expect(Config.host, 'prod.example.test');
     await Config.setHostEnvironment(HostEnvironment.dev);
     expect(Config.host, 'dev.example.test');
@@ -153,7 +193,9 @@ void main() {
   test('preprod defaults and asset/define precedence', () async {
     if (!validDefine) {
       await expectLater(
-          Config.setHostEnvironment(HostEnvironment.preprod), throwsStateError);
+        Config.setHostEnvironment(HostEnvironment.preprod),
+        throwsStateError,
+      );
       expect(Config.hostEnvironment, HostEnvironment.prod);
       return;
     }
@@ -169,31 +211,33 @@ void main() {
     var notified = false;
     Config.onHostEnvironmentChanged = () => notified = true;
     await expectLater(
-        Config.setHostEnvironment(HostEnvironment.preprod), throwsStateError);
+      Config.setHostEnvironment(HostEnvironment.preprod),
+      throwsStateError,
+    );
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('host_environment'), 'HostEnvironment.prod');
     expect(notified, isFalse);
   });
 
   test(
-      'switch persists before notification and survives background initialization',
-      () async {
-    if (!validDefine) return;
-    final prefs = await SharedPreferences.getInstance();
-    var notifications = 0;
-    Config.onHostEnvironmentChanged = () {
-      notifications++;
-      expect(prefs.getString('host_environment'), 'HostEnvironment.preprod');
-      expect(Config.hostEnvironment, HostEnvironment.preprod);
-    };
-    await Config.setHostEnvironment(HostEnvironment.preprod);
-    expect(notifications, 1);
-    // Force stale in-memory state, then initialize the real dispatch path from
-    // mocked persisted preferences, as a newly launched worker would do.
-    await prefs.setString('host_environment', 'HostEnvironment.prod');
-    await Config.loadHostEnvironment();
-    await prefs.setString('host_environment', 'HostEnvironment.preprod');
-    expect(
+    'switch persists before notification and survives background initialization',
+    () async {
+      if (!validDefine) return;
+      final prefs = await SharedPreferences.getInstance();
+      var notifications = 0;
+      Config.onHostEnvironmentChanged = () {
+        notifications++;
+        expect(prefs.getString('host_environment'), 'HostEnvironment.preprod');
+        expect(Config.hostEnvironment, HostEnvironment.preprod);
+      };
+      await Config.setHostEnvironment(HostEnvironment.preprod);
+      expect(notifications, 1);
+      // Force stale in-memory state, then initialize the real dispatch path from
+      // mocked persisted preferences, as a newly launched worker would do.
+      await prefs.setString('host_environment', 'HostEnvironment.prod');
+      await Config.loadHostEnvironment();
+      await prefs.setString('host_environment', 'HostEnvironment.preprod');
+      expect(
         await dispatchBackgroundRecordingTask(
           taskName: recordingBackgroundTaskName,
           inputData: {'recordingId': 42},
@@ -204,32 +248,39 @@ void main() {
             return true;
           },
         ),
-        isTrue);
-  });
+        isTrue,
+      );
+    },
+  );
 
-  test('real controller and health check use HTTPS preprod via fake transport',
-      () async {
-    if (!validDefine) return;
-    await Config.setHostEnvironment(HostEnvironment.preprod);
-    final dio = ApiDioClient.instance;
-    final previous = dio.httpClientAdapter;
-    final adapter = _RecordingAdapter();
-    dio.httpClientAdapter = adapter;
-    addTearDown(() => dio.httpClientAdapter = previous);
-    await const ArticlesController().fetchArticles();
-    expect(await Config.checkServerHealth(), ServerHealth.healthy);
-    expect(adapter.requests.map((r) => r.uri.host),
-        everyElement(hasDefine ? defineHost : defaultHost));
-    expect(adapter.requests.map((r) => r.uri.scheme), everyElement('https'));
-    expect(adapter.requests.map((r) => r.uri.path),
-        ['/articles', '/utils/health']);
-  });
+  test(
+    'real controller and health check use HTTPS preprod via fake transport',
+    () async {
+      if (!validDefine) return;
+      await Config.setHostEnvironment(HostEnvironment.preprod);
+      final dio = ApiDioClient.instance;
+      final previous = dio.httpClientAdapter;
+      final adapter = _RecordingAdapter();
+      dio.httpClientAdapter = adapter;
+      addTearDown(() => dio.httpClientAdapter = previous);
+      await const ArticlesController().fetchArticles();
+      expect(await Config.checkServerHealth(), ServerHealth.healthy);
+      expect(
+        adapter.requests.map((r) => r.uri.host),
+        everyElement(hasDefine ? defineHost : defaultHost),
+      );
+      expect(adapter.requests.map((r) => r.uri.scheme), everyElement('https'));
+      expect(adapter.requests.map((r) => r.uri.path), [
+        '/articles',
+        '/utils/health',
+      ]);
+    },
+  );
 
   for (final invalid in [
     null,
     '',
     ' ',
-    'https://preprod-api.strnadi.cz',
     'host/path',
     'host:443',
     'host?query',
@@ -239,15 +290,16 @@ void main() {
     42,
     'api.strnadi.cz',
     'API.STRNADI.CZ',
-    'prod.example.test'
+    'prod.example.test',
   ]) {
     test('preprod rejects $invalid without production fallback', () {
       expect(
-          () => resolveApiHost(HostEnvironment.preprod, {
-                'host': 'prod.example.test',
-                'preprodhost': invalid,
-              }),
-          throwsStateError);
+        () => resolveApiHost(HostEnvironment.preprod, {
+          'host': 'prod.example.test',
+          'preprodhost': invalid,
+        }),
+        throwsStateError,
+      );
     });
   }
 }
@@ -255,12 +307,19 @@ void main() {
 class _RecordingAdapter implements HttpClientAdapter {
   final requests = <RequestOptions>[];
   @override
-  Future<ResponseBody> fetch(RequestOptions options,
-      Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
     requests.add(options);
-    return ResponseBody.fromString('[]', 200, headers: {
-      Headers.contentTypeHeader: ['application/json'],
-    });
+    return ResponseBody.fromString(
+      '[]',
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
   }
 
   @override

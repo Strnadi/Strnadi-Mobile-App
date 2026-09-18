@@ -6,5 +6,4 @@ StreamSubscription<T> subscribeToRecordingLocation<T>({
   required Stream<T> positions,
   required void Function(T) onPosition,
   required void Function(Object, StackTrace) onFailure,
-}) =>
-    positions.listen(onPosition, onError: onFailure);
+}) => positions.listen(onPosition, onError: onFailure);

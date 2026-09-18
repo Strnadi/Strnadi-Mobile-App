@@ -2,26 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
 import 'package:strnadi/api/immutable_upload_file.dart';
 import 'package:strnadi/api/post_json_with_redirect.dart';
-import 'package:strnadi/config/config.dart';
 
 class RecordingPartsController {
   const RecordingPartsController();
 
   Dio get _dio => ApiDioClient.instance;
 
-  Uri _uri(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    String? host,
-  }) {
-    return Uri(
-      scheme: 'https',
-      host: host ?? Config.host,
-      path: path,
-      queryParameters: queryParameters?.map(
-        (key, value) => MapEntry(key, value?.toString()),
-      ),
-    );
+  Uri _uri(String path, {Map<String, dynamic>? queryParameters, String? host}) {
+    return ApiDioClient.uri(path, host: host, queryParameters: queryParameters);
   }
 
   Future<Response<dynamic>> uploadRecordingPartJson(Map<String, Object?> body) {
@@ -89,10 +77,7 @@ class RecordingPartsController {
     String? host,
   }) {
     return _dio.getUri(
-      _uri(
-        '/recordings/part/$backendPartId/sound',
-        host: host,
-      ),
+      _uri('/recordings/part/$backendPartId/sound', host: host),
       options: Options(
         responseType: ResponseType.bytes,
         // This legacy sound download can carry a captured token. Never let
@@ -115,15 +100,10 @@ class RecordingPartsController {
     ProgressCallback? onReceiveProgress,
   }) {
     return _dio.get<List<int>>(
-      _uri(
-        '/recordings/part/$backendPartId/sound',
-        host: host,
-      ).toString(),
+      _uri('/recordings/part/$backendPartId/sound', host: host).toString(),
       options: Options(
         responseType: ResponseType.bytes,
-        headers: <String, Object?>{
-          'Authorization': 'Bearer $accessToken',
-        },
+        headers: <String, Object?>{'Authorization': 'Bearer $accessToken'},
         followRedirects: false,
         maxRedirects: 0,
         validateStatus: (status) => status != null && status < 500,

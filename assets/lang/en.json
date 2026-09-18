@@ -685,6 +685,9 @@
     }
   },
   "streamRec": {
+    "activity": {
+      "elapsedTime": "Recording duration"
+    },
     "dialogs": {
       "info": {
         "title": "Information",
@@ -712,6 +715,7 @@
       "recordingPaused": "Recording paused"
     },
     "buttons": {
+      "finishAndSaveRecording": "Finish recording and open save form",
       "startRecording": "Start recording",
       "pauseRecording": "Pause recording",
       "resumeRecording": "Resume recording",
@@ -725,6 +729,16 @@
     },
     "timer": {
       "format": "{minutes}:{seconds},{hundredths}"
+    },
+    "activityFailure": {
+      "finish": "Could not finish recording. Open Strnadi to retry.",
+      "location": "Location unavailable. Open Strnadi to resume.",
+      "locationPermission": "Location access is missing. Open Strnadi.",
+      "microphonePermission": "Microphone access is missing. Open Strnadi.",
+      "microphone": "iOS could not restart the microphone. Open Strnadi.",
+      "busy": "Recording is still processing. Try again shortly.",
+      "unavailable": "Recording controls are unavailable. Open Strnadi.",
+      "unknown": "Recording command failed. Open Strnadi."
     }
   },
   "user": {

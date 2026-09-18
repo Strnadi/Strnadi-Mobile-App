@@ -1,14 +1,13 @@
+import 'package:strnadi/config/host_environment.dart';
+
 Uri? configuredBackendHttpsOrigin(String configuredHost) {
-  final Uri? origin = Uri.tryParse('https://${configuredHost.trim()}');
-  if (origin == null ||
-      origin.host.isEmpty ||
-      origin.path.isNotEmpty && origin.path != '/' ||
-      origin.hasQuery ||
-      origin.hasFragment ||
-      origin.userInfo.isNotEmpty) {
+  try {
+    final value = configuredHost.trim();
+    final uri = apiBaseUri(value.contains('://') ? value : 'https://$value');
+    return uri.scheme == 'https' ? Uri.parse(uri.origin) : null;
+  } on StateError {
     return null;
   }
-  return origin;
 }
 
 bool targetsConfiguredBackendHost(Uri candidate, String configuredHost) {
@@ -17,10 +16,7 @@ bool targetsConfiguredBackendHost(Uri candidate, String configuredHost) {
       candidate.host.toLowerCase() == origin.host.toLowerCase();
 }
 
-bool isApprovedProtectedMarkdownOrigin(
-  Uri candidate,
-  String configuredHost,
-) {
+bool isApprovedProtectedMarkdownOrigin(Uri candidate, String configuredHost) {
   final Uri? origin = configuredBackendHttpsOrigin(configuredHost);
   if (origin == null) return false;
 

@@ -34,7 +34,7 @@ import 'package:strnadi/api/controllers/maps_controller.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:strnadi/logging/app_logger.dart';
-import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/recording/screens/recording_screen.dart';
 import '../auth/authorizator.dart';
 import '../config/config.dart';
 import 'package:strnadi/database/databaseNew.dart';

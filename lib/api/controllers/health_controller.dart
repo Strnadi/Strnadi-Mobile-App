@@ -7,16 +7,10 @@ class HealthController {
   Dio get _dio => ApiDioClient.instance;
 
   Future<Response<dynamic>> checkBackendHealth({required String host}) {
-    final uri = Uri(
-      scheme: 'https',
-      host: host,
-      path: '/utils/health',
-    );
+    final uri = ApiDioClient.uri('/utils/health', host: host);
     return _dio.headUri(
       uri,
-      options: Options(
-        extra: const <String, Object>{'authRequired': false},
-      ),
+      options: Options(extra: const <String, Object>{'authRequired': false}),
     );
   }
 }

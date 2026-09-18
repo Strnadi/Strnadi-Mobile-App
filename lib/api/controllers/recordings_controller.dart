@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:strnadi/api/dio_client.dart';
 import 'package:strnadi/api/post_json_with_redirect.dart';
-import 'package:strnadi/config/config.dart';
 import 'package:strnadi/api/models/map_clusters.dart';
 
 class RecordingsController {
@@ -10,14 +9,7 @@ class RecordingsController {
   Dio get _dio => ApiDioClient.instance;
 
   Uri _uri(String path, {Map<String, dynamic>? queryParameters, String? host}) {
-    return Uri(
-      scheme: 'https',
-      host: host ?? Config.host,
-      path: path,
-      queryParameters: queryParameters?.map(
-        (key, value) => MapEntry(key, value?.toString()),
-      ),
-    );
+    return ApiDioClient.uri(path, host: host, queryParameters: queryParameters);
   }
 
   Future<Response<dynamic>> createRecording(
@@ -147,10 +139,9 @@ class RecordingsController {
     int pageSize = 5,
   }) {
     if (pageSize < 1 || pageSize > 50) throw ArgumentError.value(pageSize);
-    final uri = Uri(
-      scheme: 'https',
-      host: host,
-      pathSegments: ['recordings', 'map-clusters', clusterId, 'items'],
+    final base = _uri('/recordings/map-clusters', host: host);
+    final uri = base.replace(
+      pathSegments: [...base.pathSegments, clusterId, 'items'],
       queryParameters: {'cursor': cursor, 'pageSize': '$pageSize'},
     );
     return _dio.getUri(

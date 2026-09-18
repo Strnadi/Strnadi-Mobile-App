@@ -52,7 +52,7 @@ class AppleAuthResult {
 /// callback you configured on developer.apple.com.
 ///
 /// * The `redirectUri` **must** be exactly the same value you set
-///   in the “Services ID” (e.g. `https://${Config.host}/auth/apple`).
+///   in the “Services ID” (e.g. `https://api.strnadi.cz/auth/apple`).
 /// * The `clientId` must be your full Services ID (e.g.
 ///   `com.your.bundleid.service`).
 class AppleAuth {
@@ -69,7 +69,7 @@ class AppleAuth {
         ],
         webAuthenticationOptions: WebAuthenticationOptions(
           clientId: 'web.delta.strnadi',
-          redirectUri: Uri.parse('https://${Config.host}/auth/apple/callback'),
+          redirectUri: apiEndpointUri(Config.host, '/auth/apple/callback'),
         ),
       ),
     );

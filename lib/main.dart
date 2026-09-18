@@ -1,6 +1,3 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:strnadi/auth/activated_auth_session.dart';
-import 'package:strnadi/database/pending_recording_uploads.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -16,6 +13,10 @@ import 'package:strnadi/database/pending_recording_uploads.dart';
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/database/pending_recording_uploads.dart';
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';

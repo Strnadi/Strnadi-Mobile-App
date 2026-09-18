@@ -16,7 +16,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:record/record.dart';
-import 'package:strnadi/recording/recording_state_reducer.dart';
+import 'package:strnadi/recording/session/recording_state_reducer.dart';
 
 void main() {
   test('late physical STOP cannot overwrite the logical paused workflow', () {
@@ -42,49 +42,54 @@ void main() {
     expect(state, RecordState.pause);
   });
 
-  test('late RECORD cannot offer pause again after its metadata was finalized',
-      () {
-    var state = RecordState.pause;
-    for (final event in [
-      RecordState.record,
-      RecordState.stop,
-      RecordState.record
-    ]) {
-      state = reduceRecorderState(
-        currentState: state,
-        physicalState: event,
-        logicalPauseOwnsState: true,
-      );
-      expect(state, RecordState.pause);
-    }
-    expect(
+  test(
+    'late RECORD cannot offer pause again after its metadata was finalized',
+    () {
+      var state = RecordState.pause;
+      for (final event in [
+        RecordState.record,
+        RecordState.stop,
+        RecordState.record,
+      ]) {
+        state = reduceRecorderState(
+          currentState: state,
+          physicalState: event,
+          logicalPauseOwnsState: true,
+        );
+        expect(state, RecordState.pause);
+      }
+      expect(
         reduceRecorderState(
           currentState: state,
           physicalState: RecordState.record,
           logicalPauseOwnsState: false,
         ),
-        RecordState.record);
-  });
+        RecordState.record,
+      );
+    },
+  );
 
-  test('physical record and pause advance after the app releases ownership',
-      () {
-    expect(
-      reduceRecorderState(
-        currentState: RecordState.pause,
-        physicalState: RecordState.record,
-        logicalPauseOwnsState: false,
-      ),
-      RecordState.record,
-    );
-    expect(
-      reduceRecorderState(
-        currentState: RecordState.record,
-        physicalState: RecordState.pause,
-        logicalPauseOwnsState: false,
-      ),
-      RecordState.pause,
-    );
-  });
+  test(
+    'physical record and pause advance after the app releases ownership',
+    () {
+      expect(
+        reduceRecorderState(
+          currentState: RecordState.pause,
+          physicalState: RecordState.record,
+          logicalPauseOwnsState: false,
+        ),
+        RecordState.record,
+      );
+      expect(
+        reduceRecorderState(
+          currentState: RecordState.record,
+          physicalState: RecordState.pause,
+          logicalPauseOwnsState: false,
+        ),
+        RecordState.pause,
+      );
+    },
+  );
 
   test('STOP is accepted when no logical pause is active', () {
     expect(

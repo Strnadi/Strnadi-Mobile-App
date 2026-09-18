@@ -308,7 +308,9 @@ class Config {
     return OAuthConfiguration(
       environment: environment.name,
       issuer: Uri.parse(issuer),
-      tenantOrigin: Uri.https(hostForEnvironment(environment)),
+      tenantOrigin: Uri.parse(
+        apiBaseUri(hostForEnvironment(environment)).origin,
+      ),
       projectId: project,
     );
   }
@@ -320,8 +322,9 @@ class Config {
     return 'preprod|${configuration.issuer.origin}|${configuration.tenantOrigin.origin}|${configuration.projectId}';
   }
 
-  static Uri get administrationOrigin =>
-      usesAdministration ? administration!.issuer : Uri.https(host);
+  static Uri get administrationOrigin => usesAdministration
+      ? administration!.issuer
+      : Uri.parse(apiBaseUri(host).origin);
 
   static String get administrationHost => administrationOrigin.host;
 
@@ -334,7 +337,7 @@ class Config {
 
   /// Checks the server health via a HEAD request to {host}/utils/health
   static Future<ServerHealth> checkServerHealth() async {
-    final uri = Uri.parse('https://${host}/utils/health');
+    final uri = apiEndpointUri(host, '/utils/health');
     try {
       final response = await _healthController
           .checkBackendHealth(host: host)

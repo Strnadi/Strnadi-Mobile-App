@@ -401,27 +401,16 @@ jobs:
           bundler-cache: true
           cache-version: ${{ vars.RUBY_BUNDLER_CACHE_VERSION || '1' }}
 
-      - name: Cache CocoaPods
-        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/CocoaPods
-            ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock', 'ios/Podfile', 'pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
       - name: Restore Xcode DerivedData cache
         id: xcode_deriveddata_cache
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         uses: actions/cache/restore@v4
         with:
           path: build/ios/DerivedData
-          key: ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}
+          key: ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-${{ hashFiles('ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-
-            ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-
+            ${{ runner.os }}-xcode-deriveddata-${{ hashFiles('ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}-
             ${{ runner.os }}-xcode-deriveddata-
 
       - name: Restore build environment file
@@ -438,19 +427,9 @@ jobs:
           IOS_APPSTORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROVISIONING_PROFILE_BASE64 }}
         run: bash .github/scripts/restore-ios-signing.sh
 
-      - name: Verify CocoaPods
-        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
-        working-directory: ios
-        run: bundle exec pod --version
-
       - name: Install Flutter dependencies
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
         run: flutter pub get
-
-      - name: Install iOS Pods
-        if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
-        working-directory: ios
-        run: bundle exec pod install
 
       - name: Deploy iOS build to closed_beta TestFlight group
         if: ${{ env.DEPLOYMENT_STAGE == 'internal' || env.DEPLOYMENT_STAGE == 'release_candidate' }}
@@ -473,7 +452,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: build/ios/DerivedData
-          key: ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-${{ hashFiles('ios/Podfile.lock', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}
+          key: ${{ runner.os }}-${{ steps.xcode_info.outputs.cache_key }}-xcode-deriveddata-${{ hashFiles('ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'ios/Runner.xcodeproj/project.pbxproj', 'ios/Runner.xcworkspace/contents.xcworkspacedata', 'pubspec.lock') }}
 
       - name: Distribute iOS build to open_beta TestFlight group
         if: ${{ env.DEPLOYMENT_STAGE == 'external_beta' }}

@@ -1,0 +1,328 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "streamRec.buttons.pauseRecording": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pozastavit nahrávání"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme pausieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause recording"
+          }
+        }
+      }
+    },
+    "streamRec.buttons.resumeRecording": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pokračovat v nahrávání"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsetzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume recording"
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.location": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location unavailable. Open Strnadi to resume."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poloha není dostupná. Pokračujte ve Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standort nicht verfügbar. Zum Fortsetzen Strnadi öffnen."
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.locationPermission": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location access is missing. Open Strnadi."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chybí přístup k poloze. Otevřete Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standortzugriff fehlt. Strnadi öffnen."
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.microphonePermission": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone access is missing. Open Strnadi."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chybí přístup k mikrofonu. Otevřete Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonzugriff fehlt. Strnadi öffnen."
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.microphone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS could not restart the microphone. Open Strnadi."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS nemohl znovu spustit mikrofon. Otevřete Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS konnte das Mikrofon nicht neu starten. Strnadi öffnen."
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.busy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording is still processing. Try again shortly."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nahrávání se ještě zpracovává. Zkuste to za chvíli."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Aufnahme wird noch verarbeitet. Gleich erneut versuchen."
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording controls are unavailable. Open Strnadi."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ovládání nahrávání není dostupné. Otevřete Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmesteuerung nicht verfügbar. Strnadi öffnen."
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.unknown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording command failed. Open Strnadi."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Příkaz nahrávání selhal. Otevřete Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmebefehl fehlgeschlagen. Strnadi öffnen."
+          }
+        }
+      }
+    },
+    "streamRec.buttons.finishAndSaveRecording": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish recording and open save form"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončit nahrávání a otevřít formulář uložení"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme beenden und Speicherformular öffnen"
+          }
+        }
+      }
+    },
+    "streamRec.activity.elapsedTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording duration"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Délka nahrávky"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmedauer"
+          }
+        }
+      }
+    },
+    "streamRec.activityFailure.finish": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not finish recording. Open Strnadi to retry."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nahrávání se nepodařilo dokončit. Zkuste to ve Strnadi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme konnte nicht beendet werden. In Strnadi erneut versuchen."
+          }
+        }
+      }
+    },
+    "streamRec.status.paused": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording paused – tap to resume"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nahrávání pozastaveno – klepněte pro obnovení"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme pausiert – tippen zum Fortsetzen"
+          }
+        }
+      }
+    },
+    "streamRec.status.recording": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording…"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nahrává se…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird aufgenommen …"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.3"
+}

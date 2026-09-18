@@ -25,6 +25,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
+import 'package:strnadi/api/debug_auth_logging.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/logging/app_logger.dart';
 import 'package:strnadi/logging/markdown_download_failure.dart';
@@ -97,6 +98,11 @@ Future<String?> _downloadProtectedMarkdownFile(
         HttpHeaders.authorizationHeader,
         'Bearer ${session.accessToken}',
       );
+    logDebugAuthorization(
+      method: request.method,
+      uri: uri,
+      authorization: request.headers.value(HttpHeaders.authorizationHeader),
+    );
     final HttpClientResponse response = await request.close();
     receivedResponse = true;
     final responseStream = observation.observeResponse(
@@ -371,10 +377,7 @@ class _MDRenderState extends State<MDRender> {
 
     if (uri.path.startsWith('/articles/')) {
       return <Uri>[
-        Uri(
-          scheme: 'https',
-          host: Config.host,
-          path: uri.path,
+        apiEndpointUri(Config.host, uri.path).replace(
           query: uri.hasQuery ? uri.query : null,
           fragment: uri.fragment.isEmpty ? null : uri.fragment,
         ),
@@ -388,10 +391,7 @@ class _MDRenderState extends State<MDRender> {
     if (path.isEmpty) {
       if (uri.path.startsWith('/')) {
         return <Uri>[
-          Uri(
-            scheme: 'https',
-            host: Config.host,
-            path: uri.path,
+          apiEndpointUri(Config.host, uri.path).replace(
             query: uri.hasQuery ? uri.query : null,
             fragment: uri.fragment.isEmpty ? null : uri.fragment,
           ),
@@ -411,10 +411,13 @@ class _MDRenderState extends State<MDRender> {
     if (articleId == null) {
       if (uri.path.startsWith('/')) {
         return <Uri>[
-          Uri(
-            scheme: 'https',
-            host: Config.host,
-            pathSegments: fileSegments,
+          apiBaseUri(Config.host).replace(
+            pathSegments: [
+              ...apiBaseUri(
+                Config.host,
+              ).pathSegments.where((s) => s.isNotEmpty),
+              ...fileSegments,
+            ],
             query: uri.hasQuery ? uri.query : null,
             fragment: uri.fragment.isEmpty ? null : uri.fragment,
           ),
@@ -426,10 +429,11 @@ class _MDRenderState extends State<MDRender> {
     final List<Uri> candidates = <Uri>[];
 
     void addCandidate(List<String> pathSegments) {
-      final Uri candidate = Uri(
-        scheme: 'https',
-        host: Config.host,
-        pathSegments: pathSegments,
+      final Uri candidate = apiBaseUri(Config.host).replace(
+        pathSegments: [
+          ...apiBaseUri(Config.host).pathSegments.where((s) => s.isNotEmpty),
+          ...pathSegments,
+        ],
         query: uri.hasQuery ? uri.query : null,
         fragment: uri.fragment.isEmpty ? null : uri.fragment,
       );

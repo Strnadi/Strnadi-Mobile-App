@@ -42,10 +42,7 @@ class ReservedRawPcmFile {
   final String path;
   final RawPcmWriter writer;
 
-  const ReservedRawPcmFile({
-    required this.path,
-    required this.writer,
-  });
+  const ReservedRawPcmFile({required this.path, required this.writer});
 }
 
 class IoRawPcmFileAllocator implements RawPcmFileAllocator {
@@ -65,8 +62,9 @@ class IoRawPcmFileAllocator implements RawPcmFileAllocator {
 
     // The file has already been created exclusively. Append mode preserves
     // that reservation and avoids a second create/truncate operation.
-    final RandomAccessFile handle =
-        await file.open(mode: FileMode.writeOnlyAppend);
+    final RandomAccessFile handle = await file.open(
+      mode: FileMode.writeOnlyAppend,
+    );
     return _IoRawPcmWriter(handle);
   }
 }
@@ -206,8 +204,8 @@ class RawPcmCapture {
     required this.path,
     required RawPcmWriter writer,
     required Stream<List<int>> stream,
-  })  : _writer = writer,
-        _iterator = StreamIterator<List<int>>(stream) {
+  }) : _writer = writer,
+       _iterator = StreamIterator<List<int>>(stream) {
     _consumeFuture = _consume();
   }
 
@@ -307,9 +305,7 @@ class RawPcmCapture {
   /// Cancels the source and drains any write that was already in progress.
   ///
   /// An aborted capture can never be finalized as a valid segment.
-  Future<void> abort({
-    Duration timeout = defaultRawPcmAbortTimeout,
-  }) async {
+  Future<void> abort({Duration timeout = defaultRawPcmAbortTimeout}) async {
     if (timeout <= Duration.zero) {
       throw ArgumentError.value(
         timeout,

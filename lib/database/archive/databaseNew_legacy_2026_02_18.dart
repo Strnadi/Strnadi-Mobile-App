@@ -34,7 +34,7 @@ import 'package:strnadi/deviceInfo/deviceInfo.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:strnadi/exceptions.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
-import 'package:strnadi/recording/waw.dart';
+import 'package:strnadi/recording/audio/wav/wav.dart';
 import 'package:strnadi/dialects/ModelHandler.dart';
 import 'package:strnadi/dialects/dialect_keyword_translator.dart';
 import 'package:dio/dio.dart';

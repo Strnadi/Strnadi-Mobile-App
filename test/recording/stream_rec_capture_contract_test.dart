@@ -14,7 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'dart:io';
+import '../support/recording_sources.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,7 +22,7 @@ void main() {
   late String source;
 
   setUpAll(() {
-    source = File('lib/recording/streamRec.dart').readAsStringSync();
+    source = readRecordingSources();
   });
 
   test('production recorder captures PCM through startStream only', () {
@@ -109,8 +109,8 @@ void main() {
     expect(
       RegExp(
         r'NotificationBellButton\(\s*'
-        r'isGuestUser: _isGuestUser,\s*'
-        r'recorderExitPolicy: changeConfirmation,',
+        r'isGuestUser: isGuestUser,\s*'
+        r'recorderExitPolicy: confirmExit,',
       ).hasMatch(source),
       isTrue,
     );

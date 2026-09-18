@@ -6,6 +6,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strnadi/api/controllers/maps_controller.dart';
 
 void main() {
+  test('deployed preprod tiles use the versioned Tenant route', () {
+    const controller = MapsController();
+    expect(
+      controller.tileUrlTemplate(host: 'https://preprod-api.example.test/v1'),
+      'https://preprod-api.example.test/v1/map/v1/maptiles/outdoor/256/{z}/{x}/{y}',
+    );
+    expect(
+      controller.tileUrlTemplate(host: 'api.example.test'),
+      'https://api.example.test/map/v1/maptiles/outdoor/256/{z}/{x}/{y}',
+    );
+  });
+
   test('every map style uses the requested API host without a client key', () {
     const controller = MapsController();
     for (final style in MapTileStyle.values) {

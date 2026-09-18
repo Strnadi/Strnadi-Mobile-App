@@ -15,6 +15,7 @@
  */
 import 'dart:async';
 import 'package:app_links/app_links.dart';
+import 'package:strnadi/recording/platform/recording_live_activity.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/logging/app_logger.dart';
@@ -37,6 +38,22 @@ class DeepLinkHandler {
   }
 
   void _handleUri(Uri uri) {
+    if (uri.scheme == 'com.delta.strnadi' && uri.host == 'recording') {
+      unawaited(
+        RecordingLiveActivity.handleFinishLink(uri).catchError((
+          Object error,
+          StackTrace stackTrace,
+        ) {
+          logger.e(
+            'Could not finish recording from Live Activity.',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return true;
+        }),
+      );
+      return;
+    }
     logger.i('Received deep link: ${LogRedactor.redactUri(uri)}');
     switch (uri.path) {
       case '/ucet/obnova-hesla':

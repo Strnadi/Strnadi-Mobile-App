@@ -14,6 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import '../support/recording_sources.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -47,20 +48,20 @@ void main() {
   });
 
   test('recorder supplies guest state and one policy to every shortcut', () {
-    final source = File('lib/recording/streamRec.dart').readAsStringSync();
+    final source = readRecordingSources();
 
     expect(
       RegExp(
         r'NotificationBellButton\(\s*'
-        r'isGuestUser: _isGuestUser,\s*'
-        r'recorderExitPolicy: changeConfirmation,',
+        r'isGuestUser: isGuestUser,\s*'
+        r'recorderExitPolicy: confirmExit,',
       ).hasMatch(source),
       isTrue,
     );
     expect(
       RegExp(
         r'GuideShortcutButton\(\s*'
-        r'recorderExitPolicy: changeConfirmation\s*,?\s*\)',
+        r'recorderExitPolicy: confirmExit\s*,?\s*\)',
       ).hasMatch(source),
       isTrue,
     );
@@ -75,7 +76,7 @@ void main() {
       RegExp(
         r'ReusableBottomAppBar\(\s*'
         r'currentPage: BottomBarItem\.recorder,\s*'
-        r'changeConfirmation: changeConfirmation,',
+        r'changeConfirmation: confirmExit,',
       ).hasMatch(source),
       isTrue,
     );

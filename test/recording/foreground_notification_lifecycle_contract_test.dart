@@ -1,3 +1,4 @@
+import '../support/recording_sources.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -14,9 +15,9 @@ void main() {
         'android/app/src/main/AndroidManifest.xml',
       ).readAsStringSync();
       bootstrap = File('lib/bootstrap/app_bootstrap.dart').readAsStringSync();
-      recorder = File('lib/recording/streamRec.dart').readAsStringSync();
+      recorder = readRecordingSources();
       boundary = File(
-        'lib/recording/recording_foreground_service.dart',
+        'lib/recording/platform/recording_foreground_service.dart',
       ).readAsStringSync();
     });
 
@@ -123,7 +124,7 @@ void main() {
         durableDraft,
       );
       final int navigate = body.indexOf(
-        'Navigator.pushReplacement(',
+        '_openRecordingForm(persistedDraft)',
         requireShutdown,
       );
       final int shutdown = body.indexOf(
@@ -171,7 +172,7 @@ void main() {
       expect(
         recorder,
         contains(
-          'widget.foregroundService ?? '
+          'foregroundService ?? '
           'const FlutterRecordingForegroundService()',
         ),
       );

@@ -7,11 +7,7 @@ class DeviceController {
   Dio get _dio => ApiDioClient.instance;
 
   Uri _uri(String host, String path) {
-    return Uri(
-      scheme: 'https',
-      host: host,
-      path: path,
-    );
+    return ApiDioClient.uri(path, host: host);
   }
 
   Options _authorizedOptions(String accessToken) {
@@ -19,9 +15,7 @@ class DeviceController {
       contentType: Headers.jsonContentType,
       followRedirects: false,
       maxRedirects: 0,
-      headers: <String, Object>{
-        'Authorization': 'Bearer $accessToken',
-      },
+      headers: <String, Object>{'Authorization': 'Bearer $accessToken'},
       extra: const <String, Object>{'authRequired': false},
     );
   }

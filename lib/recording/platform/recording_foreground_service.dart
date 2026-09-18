@@ -32,13 +32,13 @@ final class FlutterRecordingForegroundService
   }) async {
     final ServiceRequestResult result =
         await FlutterForegroundTask.startService(
-      notificationTitle: notificationTitle,
-      notificationText: notificationText,
-      callback: callback,
-      serviceTypes: const <ForegroundServiceTypes>[
-        ForegroundServiceTypes.microphone,
-      ],
-    );
+          notificationTitle: notificationTitle,
+          notificationText: notificationText,
+          callback: callback,
+          serviceTypes: const <ForegroundServiceTypes>[
+            ForegroundServiceTypes.microphone,
+          ],
+        );
     _throwIfFailed(result, operation: 'start');
   }
 
@@ -49,9 +49,9 @@ final class FlutterRecordingForegroundService
   }) async {
     final ServiceRequestResult result =
         await FlutterForegroundTask.updateService(
-      notificationTitle: notificationTitle,
-      notificationText: notificationText,
-    );
+          notificationTitle: notificationTitle,
+          notificationText: notificationText,
+        );
     _throwIfFailed(result, operation: 'update');
   }
 
@@ -135,9 +135,10 @@ Future<void> stopRecordingForegroundService({
 
   final RecordingForegroundServiceStopException failure =
       RecordingForegroundServiceStopException(
-    attempts: maxAttempts,
-    cause: lastError ?? StateError('Unknown foreground service stop failure.'),
-  );
+        attempts: maxAttempts,
+        cause:
+            lastError ?? StateError('Unknown foreground service stop failure.'),
+      );
   if (lastStackTrace != null) {
     Error.throwWithStackTrace(failure, lastStackTrace);
   }

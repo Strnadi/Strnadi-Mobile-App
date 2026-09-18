@@ -61,15 +61,15 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
 - **Dart** SDK >=3.3.0 <4.0.0
 
 ### Key Dependencies
-- **Recording**: `record`, `audioplayers`, `just_audio`, `audio_waveforms`
-- **Maps**: `flutter_map`, `latlong2`, `geolocator`, `flutter_map_location_marker`
+- **Recording**: `record`, `just_audio`
+- **Maps**: `flutter_map`, `latlong2`, `geolocator`
 - **Database**: `sqflite`, `flutter_secure_storage`
-- **Authentication**: `firebase_auth`, `google_sign_in`, `sign_in_with_apple`
+- **Authentication**: `flutter_web_auth_2`, `google_sign_in`, `sign_in_with_apple`
 - **Backend Communication**: `http`, `jwt_decoder`
 - **Background Processing**: `workmanager`, `flutter_foreground_task`
 - **Error Tracking**: `sentry_flutter`
 - **Analytics**: `posthog_flutter`
-- **UI Components**: `flutter_markdown`, `webview_flutter`, `image_picker`
+- **UI Components**: `flutter_markdown`, `image_picker`
 
 ### Backend Integration
 - Custom REST API backend
@@ -100,6 +100,7 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
 
 3. **Configure environment values** (for development):
    - Pass build-time values with `--dart-define-from-file=build.env.json`, or with individual `--dart-define` flags such as `STRNADI_API_HOST`, `STRNADI_DEV_API_HOST`, or `STRNADI_PREPROD_API_HOST`.
+   - These API settings (and asset keys `host`, `devhost`, `preprodhost`) accept a complete base URL, including scheme, port, and path, for example `https://preprod-api.strnadi.cz/v1`. Endpoint paths are appended to that URL; the app never adds an API version prefix. Legacy bare hostnames still use HTTPS. Rebuild after changing build-time values.
    - Map tiles and reverse geocoding use the selected API host through `/map/v1/`; configure the Mapy key on the backend. The app does not need a Mapy key.
    - Do not add secret JSON files to Flutter assets; asset-bundled files are shipped with the app.
    - Do not put Firebase service-account JSON in the app. Send push notifications from a backend service instead.
@@ -112,12 +113,12 @@ For more information, visit [strnadi.cz](https://www.strnadi.cz)
 ### Preprod environment (2.1.0)
 
 - Production remains the default. Admin/tester accounts can select **Preprod** in Settings → Developer settings → Server environment. Switching signs out on the old backend before activating the new one. Non-production sessions can return to production through the same selector.
-- Preprod defaults to `https://preprod-api.strnadi.cz`. Its public `preprodhost` asset default can be overridden with `STRNADI_PREPROD_API_HOST` (a hostname only, without `https://`, port, or path). An explicitly empty/invalid value or a production hostname is rejected, never silently routed to production.
+- Preprod defaults to `https://preprod-api.strnadi.cz`. Its public `preprodhost` asset default can be overridden with `STRNADI_PREPROD_API_HOST` (a complete API base URL, including any required path such as `/v1`). An explicitly empty/invalid value or a production hostname is rejected, never silently routed to production.
 - The selection survives restart, including background uploads. Existing `prod`/`dev` recording scopes stay unchanged; preprod recordings use the separate `preprod` scope. A switch does not move queued recordings between environments.
 - Both existing Android and iOS Fastlane builds already pass `build.env.json` to Flutter. No new flavor, bundle ID, store track, or Firebase project is introduced. Setting a preprod **host** does not make it the default selected environment.
 
 ```sh
-flutter run --dart-define-from-file=build.env.json --dart-define=STRNADI_PREPROD_API_HOST=preprod-api.strnadi.cz
+flutter run --dart-define-from-file=build.env.json --dart-define=STRNADI_PREPROD_API_HOST=https://preprod-api.strnadi.cz/v1
 flutter build appbundle --release --dart-define-from-file=build.env.json
 flutter build ios --release --dart-define-from-file=build.env.json
 ```
@@ -133,8 +134,19 @@ flutter build appbundle --release
 
 #### iOS
 ```sh
-flutter build ios --release
+flutter build ios --release --dart-define-from-file=build.env.json
 ```
+
+All iOS plugins use Swift Package Manager; CocoaPods and `pod install` are no longer required. Run Flutter commands from the repository root so Flutter generates the plugin package and Xcode resolves its dependencies. For native development, open `ios/Runner.xcworkspace` after running a Flutter build.
+
+`permission_handler_apple` enables microphone and other permission handlers from `ios/Runner/Info.plist` when building through Flutter. For builds launched directly from Xcode.app, configure its plist discovery before opening Xcode:
+
+```sh
+launchctl setenv PERMISSION_HANDLER_INFO_PLIST "$PWD/ios/Runner/Info.plist"
+```
+
+Run this from the repository root, restart Xcode, and reset its package caches if permissions were previously resolved without the plist. Update this path if you move the checkout. The former Podfile permission macro and Pod-only signing overrides are no longer needed.
+
 
 The project includes GitHub Actions workflows for automated builds and TestFlight deployment.
 

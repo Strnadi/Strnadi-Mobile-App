@@ -5,6 +5,7 @@ import 'package:strnadi/api/api_logger.dart';
 import 'package:strnadi/config/config.dart';
 import 'package:strnadi/auth/administration/app_administration.dart';
 import 'package:strnadi/api/api_logging.dart';
+import 'package:strnadi/api/debug_auth_logging.dart';
 
 class ApiDioClient {
   ApiDioClient._();
@@ -24,12 +25,10 @@ class ApiDioClient {
         queryParameters: query,
       );
     }
-    return Uri(
-      scheme: 'https',
-      host: host ?? Config.host,
-      path: path,
-      queryParameters: query,
-    );
+    return apiEndpointUri(
+      host ?? Config.host,
+      path,
+    ).replace(queryParameters: query);
   }
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
@@ -92,7 +91,7 @@ class ApiDioClient {
           bool isBackendRequest = false;
           try {
             isBackendRequest =
-                options.uri.origin == Uri.https(Config.host).origin;
+                options.uri.origin == apiBaseUri(Config.host).origin;
           } catch (_) {
             isBackendRequest = false;
           }
@@ -147,7 +146,11 @@ class ApiDioClient {
               return;
             }
           }
-          final bool isAuthEndpoint = options.uri.path.startsWith('/auth');
+          final bool isAuthEndpoint =
+              isBackendRequest &&
+              options.uri.path.startsWith(
+                apiEndpointUri(Config.host, '/auth').path,
+              );
           final bool shouldAttachToken =
               authRequired &&
               isBackendRequest &&
@@ -162,6 +165,15 @@ class ApiDioClient {
             }
           }
 
+          logDebugAuthorization(
+            method: options.method,
+            uri: options.uri,
+            authorization: options.headers.entries
+                .where((entry) => entry.key.toLowerCase() == 'authorization')
+                .firstOrNull
+                ?.value
+                ?.toString(),
+          );
           handler.next(options);
         },
         onResponse: (response, handler) async {

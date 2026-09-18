@@ -60,7 +60,7 @@ import 'package:strnadi/firebase/notification_cache_isolation.dart';
 import 'package:strnadi/firebase/notification_persistence.dart';
 import 'package:strnadi/localRecordings/upload_integration_helpers.dart';
 import 'package:strnadi/notificationPage/notifList.dart';
-import 'package:strnadi/recording/waw.dart';
+import 'package:strnadi/recording/audio/wav/wav.dart';
 import 'package:strnadi/user/settingsManager.dart';
 import 'package:workmanager/workmanager.dart';
 

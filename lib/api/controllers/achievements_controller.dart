@@ -8,13 +8,10 @@ class AchievementsController {
   Dio get _dio => ApiDioClient.instance;
 
   Uri _uri(String path, {Map<String, dynamic>? queryParameters}) {
-    return Uri(
-      scheme: 'https',
+    return ApiDioClient.uri(
+      path,
       host: Config.host,
-      path: path,
-      queryParameters: queryParameters?.map(
-        (key, value) => MapEntry(key, value?.toString()),
-      ),
+      queryParameters: queryParameters,
     );
   }
 
@@ -27,9 +24,10 @@ class AchievementsController {
 
   Future<Response<dynamic>> fetchForUser(Object userId) {
     return _dio.getUri(
-      _uri('/achievements', queryParameters: <String, Object>{
-        'userId': userId,
-      }),
+      _uri(
+        '/achievements',
+        queryParameters: <String, Object>{'userId': userId},
+      ),
       options: Options(contentType: Headers.jsonContentType),
     );
   }

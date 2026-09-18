@@ -35,7 +35,7 @@ import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/md_renderer.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
 import 'package:strnadi/privacy/tracking_consent.dart';
-import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/recording/screens/recording_screen.dart';
 import 'package:strnadi/widgets/FlagDropdown.dart';
 import 'package:strnadi/widgets/loader.dart';
 

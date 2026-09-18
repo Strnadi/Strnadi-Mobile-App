@@ -27,7 +27,7 @@ import 'package:strnadi/navigation/guest_user_popup.dart';
 import 'package:strnadi/navigation/notification_bell_button.dart';
 import 'package:strnadi/navigation/recorder_exit_policy.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
-import 'package:strnadi/recording/streamRec.dart';
+import 'package:strnadi/recording/screens/recording_screen.dart';
 import 'package:strnadi/user/userPage.dart';
 
 enum BottomBarItem { map, list, recorder, notification, blog, user }

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:strnadi/api/debug_auth_logging.dart';
 import 'package:strnadi/auth/activated_auth_session.dart';
 
 import 'package:strnadi/config/oauth_configuration.dart';
@@ -70,11 +72,11 @@ class AdministrationSession {
   }
 
   Future<void> _save(_Tokens tokens, int generation) => _serialize(() async {
-        _check(generation);
-        await store.write(storageKey, jsonEncode(tokens.toJson()));
-        _check(generation);
-        _tokens = tokens;
-      });
+    _check(generation);
+    await store.write(storageKey, jsonEncode(tokens.toJson()));
+    _check(generation);
+    _tokens = tokens;
+  });
 
   Future<ProjectCredential> signIn() async {
     if (_closed) throw const OAuthFailure(OAuthFailureKind.staleSession);
@@ -95,15 +97,27 @@ class AdministrationSession {
       final callback = await browser(attempt.authorizationUri(configuration));
       _check(generation);
       final code = attempt.consumeCallback(callback);
-      final result = await transport.exchangeAuthorizationCode(configuration,
-          code: code, verifier: attempt.verifier);
+      final result = await transport.exchangeAuthorizationCode(
+        configuration,
+        code: code,
+        verifier: attempt.verifier,
+      );
       _check(generation);
       final admin = _parseAdmin(result);
-      final tokens = _Tokens(admin.token, admin.expiry,
-          _requiredString(result, 'refresh_token'), null);
+      logDebugBrowserToken(kind: 'Administration', token: admin.token);
+      final tokens = _Tokens(
+        admin.token,
+        admin.expiry,
+        _requiredString(result, 'refresh_token'),
+        null,
+      );
       // The account binding is established from the returned project token;
       // an Administration access token can be opaque/encrypted.
       final exchanged = await _exchange(tokens, generation);
+      logDebugBrowserToken(
+        kind: 'project',
+        token: exchanged.project!.accessToken,
+      );
       await _save(exchanged, generation);
       return exchanged.project!;
     } on OAuthFailure {
@@ -141,11 +155,14 @@ class AdministrationSession {
     final operation = existing ?? _loadOrRenew(_generation);
     if (existing == null) {
       _renewal = operation;
-      operation.then((_) {
-        if (identical(_renewal, operation)) _renewal = null;
-      }, onError: (Object _, StackTrace __) {
-        if (identical(_renewal, operation)) _renewal = null;
-      });
+      operation.then(
+        (_) {
+          if (identical(_renewal, operation)) _renewal = null;
+        },
+        onError: (Object _, StackTrace __) {
+          if (identical(_renewal, operation)) _renewal = null;
+        },
+      );
     }
     return operation.then((credential) {
       requireCurrent(credential);
@@ -156,8 +173,9 @@ class AdministrationSession {
     });
   }
 
-  Future<String> administrationCredential(
-      {required String expectedSubject}) async {
+  Future<String> administrationCredential({
+    required String expectedSubject,
+  }) async {
     await projectCredential(expectedSubject: expectedSubject);
     return _tokens!.adminToken;
   }
@@ -185,7 +203,9 @@ class AdministrationSession {
     try {
       if (!tokens.adminExpiry.isAfter(threshold)) {
         final result = await transport.refreshAdministrationToken(
-            configuration, tokens.refreshToken);
+          configuration,
+          tokens.refreshToken,
+        );
         _check(generation);
         final admin = _parseAdmin(result);
         tokens = _Tokens(
@@ -217,13 +237,17 @@ class AdministrationSession {
   }
 
   Future<_Tokens> _exchange(_Tokens tokens, int generation) async {
-    final result =
-        await transport.exchangeProjectToken(configuration, tokens.adminToken);
+    final result = await transport.exchangeProjectToken(
+      configuration,
+      tokens.adminToken,
+    );
     _check(generation);
     _requireBearer(result);
     final token = _requiredString(result, 'access_token');
     if (token == tokens.adminToken) {
-      throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+      throw _invalidResponse(
+        'Project exchange returned the Administration token unchanged.',
+      );
     }
     final credential = _project(token, configuration, _now());
     if (tokens.project != null &&
@@ -231,14 +255,20 @@ class AdministrationSession {
       throw const OAuthFailure(OAuthFailureKind.loginRequired);
     }
     return _Tokens(
-        tokens.adminToken, tokens.adminExpiry, tokens.refreshToken, credential);
+      tokens.adminToken,
+      tokens.adminExpiry,
+      tokens.refreshToken,
+      credential,
+    );
   }
 
   ({String token, DateTime expiry}) _parseAdmin(Map<String, dynamic> result) {
     _requireBearer(result);
     final expiresIn = result['expires_in'];
     if (expiresIn is! int || expiresIn <= 0 || expiresIn > 31536000) {
-      throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+      throw _invalidResponse(
+        'Administration expires_in must be an integer between 1 and 31536000.',
+      );
     }
     return (
       token: _requiredString(result, 'access_token'),
@@ -276,10 +306,15 @@ class AdministrationSession {
   }
 }
 
+OAuthFailure _invalidResponse(String reason) {
+  if (kDebugMode) debugPrint('[Auth] Invalid OAuth response: $reason');
+  return const OAuthFailure(OAuthFailureKind.invalidResponse);
+}
+
 String _requiredString(Map<String, dynamic> result, String key) {
   final value = result[key];
   if (value is! String || value.trim().isEmpty) {
-    throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+    throw _invalidResponse('Missing or empty string field: $key.');
   }
   return value;
 }
@@ -287,16 +322,21 @@ String _requiredString(Map<String, dynamic> result, String key) {
 void _requireBearer(Map<String, dynamic> result) {
   if (result['token_type'] is! String ||
       (result['token_type'] as String).toLowerCase() != 'bearer') {
-    throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+    throw _invalidResponse('token_type is missing or is not Bearer.');
   }
 }
 
 ProjectCredential _project(
-    String token, OAuthConfiguration config, DateTime now) {
+  String token,
+  OAuthConfiguration config,
+  DateTime now,
+) {
   try {
     final parts = token.split('.');
     if (parts.length != 3 || parts.any((part) => part.isEmpty)) {
-      throw const FormatException();
+      throw _invalidResponse(
+        'Project token must have three non-empty JWT segments.',
+      );
     }
     final claims =
         jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))))
@@ -304,29 +344,47 @@ ProjectCredential _project(
     final subject = _requiredString(claims, 'sub');
     final audience = claims['aud'];
     final expected = 'project:${config.projectId}';
-    final validAudience = audience == expected ||
+    final validAudience =
+        audience == expected ||
         (audience is List &&
-            audience.length == 1 &&
-            audience.single == expected);
+            audience.every((value) => value is String) &&
+            audience.contains(expected));
     final exp = claims['exp'];
-    if (!validAudience ||
-        claims['iss'] != config.issuer.toString() ||
-        exp is! int ||
-        exp <= 0 ||
-        exp > 8640000000000) {
-      throw const FormatException();
+    if (!validAudience) {
+      throw _invalidResponse(
+        'Project audience does not match the configured project.',
+      );
+    }
+    if (claims['iss'] != config.issuer.toString()) {
+      throw _invalidResponse(
+        'Project issuer does not exactly match the configured issuer (including trailing slash).',
+      );
+    }
+    if (exp is! int || exp <= 0 || exp > 8640000000000) {
+      throw _invalidResponse(
+        'Project exp must be a positive integer Unix timestamp in seconds.',
+      );
     }
     final expiry = DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true);
-    if (!expiry.isAfter(now)) throw const FormatException();
+    if (!expiry.isAfter(now)) {
+      throw _invalidResponse(
+        'Project token is expired according to the device clock.',
+      );
+    }
     // This is an outbound routing check, not signature verification. Tenant.Api
     // must cryptographically validate issuer, signature, audience and expiry.
     return ProjectCredential(
-        accessToken: token,
-        subject: subject,
-        expiresAt: expiry,
-        scopeKey: config.scopeKey);
+      accessToken: token,
+      subject: subject,
+      expiresAt: expiry,
+      scopeKey: config.scopeKey,
+    );
+  } on OAuthFailure {
+    rethrow;
   } catch (_) {
-    throw const OAuthFailure(OAuthFailureKind.invalidResponse);
+    throw _invalidResponse(
+      'Project JWT payload cannot be decoded as a JSON object.',
+    );
   }
 }
 
@@ -338,19 +396,22 @@ class _Tokens {
   final ProjectCredential? project;
 
   Map<String, dynamic> toJson() => {
-        'adminToken': adminToken,
-        'adminExpiry': adminExpiry.toIso8601String(),
-        'refreshToken': refreshToken,
-        'projectToken': project?.accessToken,
-        'scope': project?.scopeKey,
-        'subject': project?.subject,
-      };
+    'adminToken': adminToken,
+    'adminExpiry': adminExpiry.toIso8601String(),
+    'refreshToken': refreshToken,
+    'projectToken': project?.accessToken,
+    'scope': project?.scopeKey,
+    'subject': project?.subject,
+  };
 
   factory _Tokens.fromJson(dynamic json, OAuthConfiguration config) {
     final data = json as Map<String, dynamic>;
     // Expired project credentials still bind refresh to the original account.
-    final project = _project(_requiredString(data, 'projectToken'), config,
-        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true));
+    final project = _project(
+      _requiredString(data, 'projectToken'),
+      config,
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
     if (data['scope'] != config.scopeKey ||
         data['subject'] != project.subject) {
       throw const OAuthFailure(OAuthFailureKind.loginRequired);
@@ -359,9 +420,10 @@ class _Tokens {
       throw const OAuthFailure(OAuthFailureKind.loginRequired);
     }
     return _Tokens(
-        _requiredString(data, 'adminToken'),
-        DateTime.parse(_requiredString(data, 'adminExpiry')),
-        _requiredString(data, 'refreshToken'),
-        project);
+      _requiredString(data, 'adminToken'),
+      DateTime.parse(_requiredString(data, 'adminExpiry')),
+      _requiredString(data, 'refreshToken'),
+      project,
+    );
   }
 }
