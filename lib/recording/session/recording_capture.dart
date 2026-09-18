@@ -17,7 +17,8 @@ part of 'recording_controller.dart';
 
 extension _RecordingCapture on RecordingController {
   Future<void> _toggleRecording() async {
-    if (_isProcessingRecording ||
+    if (ProjectSwitchGuard.switching ||
+        _isProcessingRecording ||
         _isFinishingRecording ||
         _isDiscardingRecording) {
       return;

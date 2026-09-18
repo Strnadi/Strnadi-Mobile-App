@@ -1,3 +1,4 @@
+import 'package:strnadi/projects/project_switch_guard.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -156,6 +157,17 @@ class RecordingController extends ChangeNotifier {
   bool _isGuestUser = true;
 
   void initialize() {
+    ProjectSwitchGuard.register(
+      this,
+      () =>
+          recording ||
+          _recordState != RecordState.stop ||
+          _isProcessingRecording ||
+          _isFinishingRecording ||
+          _isDiscardingRecording ||
+          overallStartTime != null ||
+          _segmentFinalizationPending,
+    );
     _foregroundService =
         foregroundService ?? const FlutterRecordingForegroundService();
     _foregroundServiceEntryCompleter = Completer<void>();
@@ -268,6 +280,7 @@ class RecordingController extends ChangeNotifier {
 
   @override
   void dispose() {
+    ProjectSwitchGuard.unregister(this);
     _disposed = true;
     _liveActivity.setActionHandler(null);
     if (!_foregroundServiceEntryStarted) {

@@ -1,3 +1,6 @@
+import 'package:strnadi/auth/administration/app_administration.dart';
+import 'package:strnadi/config/config.dart';
+import 'package:strnadi/projects/project_selector.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -24,12 +27,18 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 class MenuScreen extends StatelessWidget {
   final Function() refreshUserCallback;
-  final Future<void> Function(BuildContext,
-      {bool popUp, Future<void> Function()? afterCleanup}) logout;
+  final Future<void> Function(
+    BuildContext, {
+    bool popUp,
+    Future<void> Function()? afterCleanup,
+  })
+  logout;
 
-  MenuScreen(
-      {Key? key, required this.refreshUserCallback, required this.logout})
-      : super(key: key);
+  MenuScreen({
+    Key? key,
+    required this.refreshUserCallback,
+    required this.logout,
+  }) : super(key: key);
 
   final List<String> menuItems = [
     t('user.menu.items.personalInfo'),
@@ -49,9 +58,24 @@ class MenuScreen extends StatelessWidget {
           height: height,
           width: double.infinity,
           child: ListView.separated(
-            itemCount: menuItems.length,
+            itemCount: menuItems.length + (AppAdministration.enabled ? 1 : 0),
             separatorBuilder: (context, index) => Divider(),
             itemBuilder: (context, index) {
+              if (index == menuItems.length) {
+                return ListTile(
+                  title: Text(t('projects.title')),
+                  subtitle: Text(
+                    Config.activeProject?.name ?? t('projects.current'),
+                  ),
+                  trailing: const Icon(Icons.swap_horiz),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProjectSelector(),
+                    ),
+                  ),
+                );
+              }
               return ListTile(
                 title: Text(menuItems[index]),
                 trailing: Icon(Icons.arrow_forward_ios),
@@ -69,22 +93,27 @@ class MenuScreen extends StatelessWidget {
   void Executor(int index, BuildContext context) async {
     if (index == 0) {
       Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => ProfileEditPage(
-                    refreshUserCallback: refreshUserCallback,
-                  )));
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              ProfileEditPage(refreshUserCallback: refreshUserCallback),
+        ),
+      );
     } else if (index == 1) {
       Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => SettingsPage(logout: logout)));
+        context,
+        MaterialPageRoute(builder: (context) => SettingsPage(logout: logout)),
+      );
     } else if (index == 2) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (context) => Connectedplatforms()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => Connectedplatforms()),
+      );
     } else if (index == 3) {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => AchievementsPage()));
+        context,
+        MaterialPageRoute(builder: (context) => AchievementsPage()),
+      );
     } else if (index == 4) {
       _showAboutDialog(context);
     } else {

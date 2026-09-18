@@ -975,5 +975,27 @@
       "ok": "Ok",
       "login": "Login"
     }
+  },
+  "projects": {
+    "browse": "Browse projects",
+    "otherProjects": "Other projects",
+    "noOtherProjects": "No other projects are available.",
+    "join": "Join",
+    "joined": "Project joined. Select it above to switch.",
+    "joinFailed": "Could not join the project. Please try again.",
+    "catalogFailed": "Could not load the project catalog. Please try again.",
+    "fallback": "Access to the previous project is no longer available. Another accessible project has been selected.",
+    "title": "Project",
+    "current": "Current project",
+    "active": "Active project",
+    "select": "Switch to this project",
+    "loading": "Loading projects…",
+    "empty": "No available projects. Contact your project administrator.",
+    "unavailable": "Project API is unavailable.",
+    "loadFailed": "Could not load projects. Please try again.",
+    "switchFailed": "Could not switch projects. Your previous project is still selected. Try again.",
+    "recordingBlocked": "Finish or discard your recording before switching projects. Paused recordings also need to be finished.",
+    "revoked": "Access to this project is no longer available. Reload the project list to continue.",
+    "retry": "Retry"
   }
 }

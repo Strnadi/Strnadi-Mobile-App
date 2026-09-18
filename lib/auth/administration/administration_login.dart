@@ -1,3 +1,5 @@
+import 'package:strnadi/projects/project_selector.dart';
+import 'package:strnadi/projects/available_project.dart';
 import 'package:flutter/material.dart';
 import 'package:strnadi/localization/localization.dart';
 import 'package:strnadi/navigation/session_navigation.dart';
@@ -38,13 +40,59 @@ class _AdministrationLoginState extends State<AdministrationLogin> {
       _error = null;
     });
     try {
-      await (widget.signIn ?? AppAdministration.signIn)();
+      if (widget.signIn != null) {
+        await widget.signIn!();
+      } else {
+        await AppAdministration.signIn(
+          chooseProject: (projects) async {
+            if (!mounted) throw const OAuthFailure(OAuthFailureKind.cancelled);
+            AvailableProject? choice;
+            final selected = await Navigator.of(context).push<AvailableProject>(
+              MaterialPageRoute(
+                builder: (selectorContext) => ProjectSelector(
+                  activeId: '',
+                  allowBrowsing: false,
+                  load: () async => projects,
+                  select: (project) async => choice = project,
+                  onSelected: () => Navigator.of(selectorContext).pop(choice),
+                ),
+              ),
+            );
+            if (selected == null) {
+              throw const OAuthFailure(OAuthFailureKind.cancelled);
+            }
+            return selected;
+          },
+          chooseFirstProject: (projects, join) async {
+            if (!mounted) throw const OAuthFailure(OAuthFailureKind.cancelled);
+            final selected = await Navigator.of(context).push<AvailableProject>(
+              MaterialPageRoute(
+                builder: (selectorContext) => ProjectSelector(
+                  activeId: '',
+                  load: () async => [],
+                  loadCatalog: () async => projects,
+                  browseInitially: true,
+                  join: join,
+                  onJoined: (project) =>
+                      Navigator.of(selectorContext).pop(project),
+                ),
+              ),
+            );
+            if (selected == null) {
+              throw const OAuthFailure(OAuthFailureKind.cancelled);
+            }
+            return selected;
+          },
+        );
+      }
       if (mounted) await navigateToSessionLanding(context);
     } catch (error) {
       if (mounted) {
         setState(
           () => _error = error is OAuthFailure
               ? error.translationKey
+              : error is StateError && error.message == 'projects.empty'
+              ? 'projects.empty'
               : 'auth.administration.errors.server',
         );
       }

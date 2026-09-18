@@ -1,3 +1,5 @@
+import 'package:strnadi/auth/administration/app_administration.dart';
+import 'package:strnadi/localization/localization.dart';
 /*
  * Copyright (C) 2025 Marian Pecqueur && Jan Drobílek
  * This program is free software: you can redistribute it and/or modify
@@ -33,6 +35,15 @@ class _LiveRecState extends State<LiveRec> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notice = AppAdministration.projectNotice;
+      if (mounted && notice != null) {
+        AppAdministration.projectNotice = null;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t(notice))));
+      }
+    });
     _controller = RecordingController(
       contextProvider: () => context,
       foregroundService: widget.foregroundService,
