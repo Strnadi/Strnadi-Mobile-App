@@ -972,5 +972,27 @@
       "ok": "OK",
       "login": "Anmelden"
     }
+  },
+  "projects": {
+    "browse": "Projekte durchsuchen",
+    "otherProjects": "Weitere Projekte",
+    "noOtherProjects": "Keine weiteren Projekte verfügbar.",
+    "join": "Beitreten",
+    "joined": "Sie sind dem Projekt beigetreten. Wählen Sie es oben aus, um zu wechseln.",
+    "joinFailed": "Projektbeitritt fehlgeschlagen. Bitte erneut versuchen.",
+    "catalogFailed": "Der Projektkatalog konnte nicht geladen werden. Bitte erneut versuchen.",
+    "fallback": "Der Zugriff auf das bisherige Projekt ist nicht mehr verfügbar. Ein anderes verfügbares Projekt wurde ausgewählt.",
+    "title": "Projekt",
+    "current": "Aktuelles Projekt",
+    "active": "Aktives Projekt",
+    "select": "Zu diesem Projekt wechseln",
+    "loading": "Projekte werden geladen…",
+    "empty": "Keine Projekte verfügbar. Wenden Sie sich an die Projektverwaltung.",
+    "unavailable": "Die Projekt-API ist nicht verfügbar.",
+    "loadFailed": "Projekte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "switchFailed": "Projektwechsel fehlgeschlagen. Das bisherige Projekt bleibt ausgewählt. Bitte erneut versuchen.",
+    "recordingBlocked": "Beenden oder verwerfen Sie die Aufnahme vor dem Projektwechsel. Dies gilt auch für pausierte Aufnahmen.",
+    "revoked": "Der Zugriff auf dieses Projekt ist nicht mehr verfügbar. Laden Sie die Projektliste erneut.",
+    "retry": "Erneut versuchen"
   }
 }

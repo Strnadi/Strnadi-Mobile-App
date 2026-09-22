@@ -972,5 +972,27 @@
       "ok": "OK",
       "login": "Přihlásit se"
     }
+  },
+  "projects": {
+    "browse": "Procházet projekty",
+    "otherProjects": "Další projekty",
+    "noOtherProjects": "Nejsou dostupné žádné další projekty.",
+    "join": "Připojit se",
+    "joined": "Připojili jste se k projektu. Pro přepnutí ho vyberte výše.",
+    "joinFailed": "K projektu se nepodařilo připojit. Zkuste to znovu.",
+    "catalogFailed": "Seznam projektů se nepodařilo načíst. Zkuste to znovu.",
+    "fallback": "Přístup k předchozímu projektu už není dostupný. Byl vybrán jiný dostupný projekt.",
+    "title": "Projekt",
+    "current": "Aktuální projekt",
+    "active": "Aktivní projekt",
+    "select": "Přepnout na tento projekt",
+    "loading": "Načítání projektů…",
+    "empty": "Nemáte dostupné projekty. Kontaktujte správce projektu.",
+    "unavailable": "API projektu není dostupné.",
+    "loadFailed": "Projekty se nepodařilo načíst. Zkuste to znovu.",
+    "switchFailed": "Projekt se nepodařilo přepnout. Předchozí projekt zůstává vybraný. Zkuste to znovu.",
+    "recordingBlocked": "Před přepnutím projektu dokončete nebo zahoďte nahrávku. To platí i pro pozastavené nahrávání.",
+    "revoked": "Přístup k tomuto projektu už není dostupný. Pokračujte načtením seznamu projektů.",
+    "retry": "Zkusit znovu"
   }
 }

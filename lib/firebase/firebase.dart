@@ -311,6 +311,19 @@ Future<void> updateDevice(String? oldToken, String? newToken) async {
 }
 
 Future<void> deleteToken() async {
+  await _deleteToken();
+}
+
+/// Rotate the token before changing tenants so the old backend cannot keep
+/// delivering to a token that will be registered in the new project.
+Future<void> detachProjectNotifications() async {
+  final result = await _deleteToken();
+  if (!result.firebaseTokenInvalidated || !result.bindingCleared) {
+    throw StateError('projects.switchFailed');
+  }
+}
+
+Future<DeviceSessionCleanupResult> _deleteToken() async {
   final DeviceSessionCleanupResult result = await _deviceTokenSessions
       .cleanUpCurrentSession(
         deleteRemote:
@@ -341,6 +354,7 @@ Future<void> deleteToken() async {
   if (result.fullyCleaned) {
     logger.i('Firebase device token cleanup completed.');
   }
+  return result;
 }
 
 Future<void> refreshToken() async {

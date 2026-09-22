@@ -12,38 +12,38 @@ void main() {
     });
 
     test(
-        'deferred upload retains the retry without a failure or success notice',
-        () async {
-      harness.uploadError =
-          RecordingUploadDeferredException('Network policy disallows upload');
-      final recording = harness.recording;
-      final result = await harness.run();
-      expect(result, isFalse);
-      expect(harness.recording, same(recording));
-      expect(harness.recording!.uploaded, isFalse);
-      expect(harness.dialectCalls, 0);
-      expect(harness.taskFailures, isEmpty);
-      expect(harness.notices, isEmpty);
-      expect(harness.healthStops, 1);
+      'deferred upload retains the retry without a failure or success notice',
+      () async {
+        harness.uploadError = RecordingUploadDeferredException(
+          'Network policy disallows upload',
+        );
+        final recording = harness.recording;
+        final result = await harness.run();
+        expect(result, isFalse);
+        expect(harness.recording, same(recording));
+        expect(harness.recording!.uploaded, isFalse);
+        expect(harness.dialectCalls, 0);
+        expect(harness.taskFailures, isEmpty);
+        expect(harness.notices, isEmpty);
+        expect(harness.healthStops, 1);
 
-      harness.uploadError = null;
-      expect(await harness.run(), isTrue);
-      expect(harness.recording!.uploaded, isTrue);
-      expect(
-          harness.notices, [BackgroundRecordingUploadNotice.uploadSucceeded]);
-    });
+        harness.uploadError = null;
+        expect(await harness.run(), isTrue);
+        expect(harness.recording!.uploaded, isTrue);
+        expect(harness.notices, [
+          BackgroundRecordingUploadNotice.uploadSucceeded,
+        ]);
+      },
+    );
 
     test('invalid input is permanent and never reads the database', () async {
       final bool result = await harness.run(rawRecordingId: 'not-an-id');
 
       expect(result, isTrue);
       expect(harness.loadCalls, 0);
-      expect(
-        harness.notices,
-        <BackgroundRecordingUploadNotice>[
-          BackgroundRecordingUploadNotice.missingId,
-        ],
-      );
+      expect(harness.notices, <BackgroundRecordingUploadNotice>[
+        BackgroundRecordingUploadNotice.missingId,
+      ]);
       expect(harness.uploadCalls, 0);
     });
 
@@ -54,13 +54,35 @@ void main() {
 
       expect(result, isFalse);
       expect(harness.loadCalls, 1);
-      expect(
-        harness.notices,
-        <BackgroundRecordingUploadNotice>[
-          BackgroundRecordingUploadNotice.databaseReadFailure,
-        ],
-      );
+      expect(harness.notices, <BackgroundRecordingUploadNotice>[
+        BackgroundRecordingUploadNotice.databaseReadFailure,
+      ]);
       expect(harness.reconcileCalls, 0);
+    });
+
+    test(
+      'project-hidden recording keeps its queued job and resumes after switching back',
+      () async {
+        final original = harness.recording;
+        harness.recording = null;
+        harness.existsOutsideScope = true;
+        expect(await harness.run(), false);
+        expect(harness.uploadCalls, 0);
+        expect(harness.reconcileCalls, 0);
+        expect(harness.notices, isEmpty);
+        harness.recording = original;
+        expect(await harness.run(), true);
+        expect(harness.recording, same(original));
+        expect(harness.recording!.uploaded, true);
+      },
+    );
+
+    test('failed existence check retains queued job', () async {
+      harness.recording = null;
+      harness.existenceError = StateError('mock database unavailable');
+      expect(await harness.run(), false);
+      expect(harness.notices, isEmpty);
+      expect(harness.uploadCalls, 0);
     });
 
     test('missing mocked DB row is permanent', () async {
@@ -70,12 +92,9 @@ void main() {
 
       expect(result, isTrue);
       expect(harness.loadCalls, 1);
-      expect(
-        harness.notices,
-        <BackgroundRecordingUploadNotice>[
-          BackgroundRecordingUploadNotice.notFound,
-        ],
-      );
+      expect(harness.notices, <BackgroundRecordingUploadNotice>[
+        BackgroundRecordingUploadNotice.notFound,
+      ]);
       expect(harness.uploadCalls, 0);
     });
 
@@ -102,16 +121,18 @@ void main() {
       expect(harness.uploadCalls, 0);
     });
 
-    test('busy recording requests a retry and starts no health server',
-        () async {
-      harness.recording!.sending = true;
+    test(
+      'busy recording requests a retry and starts no health server',
+      () async {
+        harness.recording!.sending = true;
 
-      final bool result = await harness.run();
+        final bool result = await harness.run();
 
-      expect(result, isFalse);
-      expect(harness.healthStarts, 0);
-      expect(harness.uploadCalls, 0);
-    });
+        expect(result, isFalse);
+        expect(harness.healthStarts, 0);
+        expect(harness.uploadCalls, 0);
+      },
+    );
 
     for (final Object error in <Object>[
       UploadException('unauthorized', 401),
@@ -150,37 +171,43 @@ void main() {
       });
     }
 
-    test('retryable dialect failure retries without losing uploaded state',
-        () async {
-      harness.dialectError = UploadException('server', 500);
+    test(
+      'retryable dialect failure retries without losing uploaded state',
+      () async {
+        harness.dialectError = UploadException('server', 500);
 
-      final bool result = await harness.run();
+        final bool result = await harness.run();
 
-      expect(result, isFalse);
-      expect(harness.uploadCalls, 1);
-      expect(harness.dialectCalls, 1);
-      expect(harness.recording!.uploaded, isTrue);
-      expect(harness.healthStops, 1);
-    });
+        expect(result, isFalse);
+        expect(harness.uploadCalls, 1);
+        expect(harness.dialectCalls, 1);
+        expect(harness.recording!.uploaded, isTrue);
+        expect(harness.healthStops, 1);
+      },
+    );
 
-    test('success notification failure cannot retry a completed upload',
-        () async {
-      harness.noticeError =
-          const _Failure('mock notification plugin unavailable');
+    test(
+      'success notification failure cannot retry a completed upload',
+      () async {
+        harness.noticeError = const _Failure(
+          'mock notification plugin unavailable',
+        );
 
-      final bool result = await harness.run();
+        final bool result = await harness.run();
 
-      expect(result, isTrue);
-      expect(harness.uploadCalls, 1);
-      expect(harness.dialectCalls, 1);
-      expect(harness.ancillaryFailures, contains('notification'));
-      expect(harness.healthStops, 1);
-    });
+        expect(result, isTrue);
+        expect(harness.uploadCalls, 1);
+        expect(harness.dialectCalls, 1);
+        expect(harness.ancillaryFailures, contains('notification'));
+        expect(harness.healthStops, 1);
+      },
+    );
 
     test('failure notification cannot replace retry classification', () async {
       harness.uploadError = UploadException('server', 500);
-      harness.noticeError =
-          const _Failure('mock notification plugin unavailable');
+      harness.noticeError = const _Failure(
+        'mock notification plugin unavailable',
+      );
 
       final bool result = await harness.run();
 
@@ -210,56 +237,59 @@ void main() {
       expect(harness.ancillaryFailures, contains('health shutdown'));
     });
 
-    test('an already-owned health server is not stopped by this worker',
-        () async {
-      harness.healthStartedResult = false;
+    test(
+      'an already-owned health server is not stopped by this worker',
+      () async {
+        harness.healthStartedResult = false;
 
-      final bool result = await harness.run();
+        final bool result = await harness.run();
 
-      expect(result, isTrue);
-      expect(harness.healthStarts, 1);
-      expect(harness.healthStops, 0);
-      expect(harness.uploadCalls, 1);
-      expect(harness.dialectCalls, 1);
-    });
+        expect(result, isTrue);
+        expect(harness.healthStarts, 1);
+        expect(harness.healthStops, 0);
+        expect(harness.uploadCalls, 1);
+        expect(harness.dialectCalls, 1);
+      },
+    );
 
-    test('task failure reporting cannot replace retry classification',
-        () async {
-      final UploadException failure = UploadException('mock timeout', 503);
-      harness
-        ..uploadError = failure
-        ..throwTaskFailureReporter = true;
+    test(
+      'task failure reporting cannot replace retry classification',
+      () async {
+        final UploadException failure = UploadException('mock timeout', 503);
+        harness
+          ..uploadError = failure
+          ..throwTaskFailureReporter = true;
 
-      final bool result = await harness.run();
+        final bool result = await harness.run();
 
-      expect(result, isFalse);
-      expect(harness.taskFailures, <Object>[failure]);
-      expect(
-        harness.notices.last,
-        BackgroundRecordingUploadNotice.uploadFailed,
-      );
-    });
+        expect(result, isFalse);
+        expect(harness.taskFailures, <Object>[failure]);
+        expect(
+          harness.notices.last,
+          BackgroundRecordingUploadNotice.uploadFailed,
+        );
+      },
+    );
 
-    test('broken ancillary reporting cannot alter a completed upload',
-        () async {
-      harness
-        ..noticeError = const _Failure('mock notification unavailable')
-        ..throwAncillaryReporter = true;
+    test(
+      'broken ancillary reporting cannot alter a completed upload',
+      () async {
+        harness
+          ..noticeError = const _Failure('mock notification unavailable')
+          ..throwAncillaryReporter = true;
 
-      final bool result = await harness.run();
+        final bool result = await harness.run();
 
-      expect(result, isTrue);
-      expect(harness.ancillaryFailures, <String>['notification']);
-      expect(harness.healthStops, 1);
-    });
+        expect(result, isTrue);
+        expect(harness.ancillaryFailures, <String>['notification']);
+        expect(harness.healthStops, 1);
+      },
+    );
   });
 }
 
 class _FakeRecording {
-  _FakeRecording({
-    required this.id,
-    required this.backendId,
-  });
+  _FakeRecording({required this.id, required this.backendId});
 
   final int id;
   int? backendId;
@@ -268,6 +298,8 @@ class _FakeRecording {
 }
 
 class _Harness {
+  bool existsOutsideScope = false;
+  Object? existenceError;
   _FakeRecording? recording = _FakeRecording(id: 42, backendId: null);
   Object? loadError;
   Object? reconcileError;
@@ -295,6 +327,10 @@ class _Harness {
   Future<bool> run({Object? rawRecordingId = 42}) {
     return handleBackgroundRecordingUploadTask<_FakeRecording>(
       rawRecordingId: rawRecordingId,
+      recordingExists: (_) async {
+        if (existenceError != null) throw existenceError!;
+        return existsOutsideScope;
+      },
       loadRecording: (int id) async {
         loadCalls++;
         if (loadError != null) throw loadError!;
@@ -320,10 +356,7 @@ class _Harness {
         expect(backendId, 900);
         if (dialectError != null) throw dialectError!;
       },
-      sendNotice: (
-        BackgroundRecordingUploadNotice notice,
-        int? id,
-      ) async {
+      sendNotice: (BackgroundRecordingUploadNotice notice, int? id) async {
         notices.add(notice);
         if (noticeError != null) throw noticeError!;
       },
@@ -359,16 +392,13 @@ class _Harness {
           throw const _Failure('mock task reporter unavailable');
         }
       },
-      onAncillaryFailure: (
-        String operation,
-        Object error,
-        StackTrace stackTrace,
-      ) {
-        ancillaryFailures.add(operation);
-        if (throwAncillaryReporter) {
-          throw const _Failure('mock ancillary reporter unavailable');
-        }
-      },
+      onAncillaryFailure:
+          (String operation, Object error, StackTrace stackTrace) {
+            ancillaryFailures.add(operation);
+            if (throwAncillaryReporter) {
+              throw const _Failure('mock ancillary reporter unavailable');
+            }
+          },
     );
   }
 }
