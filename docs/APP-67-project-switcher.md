@@ -128,3 +128,15 @@ remembered. One usable project continues automatically. Cancelling the selector
 cancels login without activating a project. Session restoration retains its
 existing remembered-selection behavior. The login picker only lists memberships;
 the settings selector continues to offer project browsing and joining.
+
+Review follow-up: project switches clean up the old tenant device registration
+and invalidate the Firebase token before changing the active project. Failed
+token invalidation or binding cleanup aborts the switch. Commit and rollback
+both synchronize notifications for their resulting logical session; logout
+during cleanup cannot register a candidate. Registration failures are logged
+and can be retried by the existing Firebase synchronization flow. Verify push
+delivery on-device across A → B, rollback, and logout during a switch.
+
+Restoration tries each discovered fallback after an access rejection, including
+stale remembered memberships. Network, server, and session-change failures stop
+restoration instead of being mistaken for rejected project access.

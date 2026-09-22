@@ -59,6 +59,8 @@ class Transport extends OAuthApi {
   }
 
   bool denyExchange = false;
+  final deniedProjects = <String>{};
+  OAuthFailure? exchangeFailure;
   Completer<void>? discoveryWait;
   OAuthFailure? discoveryFailure;
   @override
@@ -92,7 +94,11 @@ class Transport extends OAuthApi {
   ) async {
     expect(endpoint, configuration.tokenEndpoint);
     calls.add(fields);
-    if (denyExchange && fields['project_id'] != null) {
+    if (fields['project_id'] != null && exchangeFailure != null) {
+      throw exchangeFailure!;
+    }
+    if ((denyExchange && fields['project_id'] != null) ||
+        deniedProjects.contains(fields['project_id'])) {
       throw const OAuthFailure(OAuthFailureKind.exchangeDenied);
     }
     return fields['grant_type']!.contains('token-exchange')
@@ -153,6 +159,8 @@ void main() {
   final projectLogs = ProjectLogSink();
 
   setUp(() async {
+    AppAdministration.detachNotificationsForTesting = () async {};
+    AppAdministration.syncNotificationsForTesting = () async {};
     values.clear();
     projectLogs.records.clear();
     AppLogger.configure(telemetrySink: projectLogs);
@@ -198,6 +206,8 @@ void main() {
   });
   tearDown(() async {
     await AppAdministration.close();
+    AppAdministration.detachNotificationsForTesting = null;
+    AppAdministration.syncNotificationsForTesting = null;
     AppLogger.configure();
     ApiDioClient.instance.httpClientAdapter = original;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -720,6 +730,191 @@ void main() {
       expect(AppAdministration.projectNotice, 'projects.fallback');
     },
   );
+
+  test(
+    'restoration skips rejected candidates and selects a later project',
+    () async {
+      await AppAdministration.signIn();
+      final transport = session.transport as Transport;
+      final third = AvailableProject(
+        id: '019a1234-1234-7123-8123-123456789abe',
+        name: 'Accessible',
+        apiDomain: 'https://third.example',
+      );
+      transport.projects = [otherProject.toJson(), third.toJson()];
+      transport.deniedProjects.add(otherId);
+      await AppAdministration.restoreProject();
+      expect(Config.activeProject!.id, third.id);
+      expect(AppAdministration.projectNotice, 'projects.fallback');
+      expect(
+        transport.calls
+            .where((c) => c['project_id'] != null)
+            .map((c) => c['project_id'])
+            .toList(),
+        [session.configuration.projectId, otherId, third.id],
+      );
+    },
+  );
+
+  test(
+    'restoration tries all rejected candidates without changing the session',
+    () async {
+      await AppAdministration.signIn();
+      final before = await activatedAuthSessions.capture();
+      final transport = session.transport as Transport;
+      transport.projects = [
+        otherProject.toJson(),
+        {
+          'id': '019a1234-1234-7123-8123-123456789abe',
+          'name': 'Third',
+          'apiDomain': 'https://third.example',
+        },
+      ];
+      transport.denyExchange = true;
+      var cleanups = 0;
+      AppAdministration.detachNotificationsForTesting = () async {
+        cleanups++;
+      };
+      await expectLater(AppAdministration.restoreProject(), throwsStateError);
+      expect(await activatedAuthSessions.isCurrent(before!), isTrue);
+      expect(cleanups, 0);
+      expect(transport.calls.where((c) => c['project_id'] != null).length, 3);
+    },
+  );
+
+  for (final rollback in [false, true]) {
+    test(
+      'project switch rebinds notifications after ${rollback ? "rollback" : "commit"}',
+      () async {
+        await AppAdministration.signIn();
+        final before = (await activatedAuthSessions.capture())!;
+        final oldHost = Config.host;
+        (session.transport as Transport).projects = [otherProject.toJson()];
+        final steps = <String>[];
+        String? registeredHost;
+        String? registeredToken;
+        ActivatedAuthSessionSnapshot? registeredSession;
+        AppAdministration.detachNotificationsForTesting = () async {
+          steps.add('detach');
+          expect(Config.host, oldHost);
+          expect(await activatedAuthSessions.isCurrent(before), isTrue);
+        };
+        AppAdministration.syncNotificationsForTesting = () async {
+          steps.add('sync');
+          registeredHost = Config.host;
+          registeredSession = await activatedAuthSessions.capture();
+          registeredToken = await AppAdministration.token();
+        };
+        failActivationOnce = rollback;
+        if (rollback) {
+          await expectLater(
+            AppAdministration.switchProject(otherProject),
+            throwsA(isA<PlatformException>()),
+          );
+        } else {
+          await AppAdministration.switchProject(otherProject);
+        }
+        expect(steps, ['detach', 'sync']);
+        expect(
+          registeredHost,
+          rollback ? oldHost : otherProject.apiOrigin!.origin,
+        );
+        expect(registeredSession!.sessionId, isNot(before.sessionId));
+        expect(registeredSession!.userId, before.userId);
+        expect(registeredToken, registeredSession!.accessToken);
+      },
+    );
+  }
+
+  test(
+    'logout during notification cleanup cannot register the candidate',
+    () async {
+      await AppAdministration.signIn();
+      (session.transport as Transport).projects = [otherProject.toJson()];
+      var registrations = 0;
+      AppAdministration.detachNotificationsForTesting = () async {
+        await AppAdministration.close();
+        await activatedAuthSessions.invalidate();
+      };
+      AppAdministration.syncNotificationsForTesting = () async {
+        registrations++;
+      };
+      await expectLater(
+        AppAdministration.switchProject(otherProject),
+        throwsA(isA<OAuthFailure>()),
+      );
+      expect(registrations, 0);
+      expect(await activatedAuthSessions.capture(), isNull);
+    },
+  );
+
+  test(
+    'failed notification cleanup aborts switching and restores the old binding',
+    () async {
+      await AppAdministration.signIn();
+      final oldHost = Config.host;
+      (session.transport as Transport).projects = [otherProject.toJson()];
+      var registrations = 0;
+      AppAdministration.detachNotificationsForTesting = () async {
+        throw StateError('projects.switchFailed');
+      };
+      AppAdministration.syncNotificationsForTesting = () async {
+        registrations++;
+        expect(Config.host, oldHost);
+      };
+      await expectLater(
+        AppAdministration.switchProject(otherProject),
+        throwsStateError,
+      );
+      expect(Config.host, oldHost);
+      expect(registrations, 1);
+    },
+  );
+
+  test(
+    'restoration stops on exchange network errors instead of trying another project',
+    () async {
+      await AppAdministration.signIn();
+      final transport = session.transport as Transport;
+      transport.projects = [
+        otherProject.toJson(),
+        {
+          'id': '019a1234-1234-7123-8123-123456789abe',
+          'name': 'Third',
+          'apiDomain': 'https://third.example',
+        },
+      ];
+      transport.exchangeFailure = const OAuthFailure(OAuthFailureKind.network);
+      await expectLater(
+        AppAdministration.restoreProject(),
+        throwsA(
+          isA<OAuthFailure>().having(
+            (e) => e.kind,
+            'kind',
+            OAuthFailureKind.network,
+          ),
+        ),
+      );
+      expect(transport.calls.where((c) => c['project_id'] != null).length, 2);
+    },
+  );
+
+  test('registration failure does not roll back a committed project', () async {
+    await AppAdministration.signIn();
+    (session.transport as Transport).projects = [otherProject.toJson()];
+    AppAdministration.syncNotificationsForTesting = () async {
+      throw StateError('offline');
+    };
+    await AppAdministration.switchProject(otherProject);
+    expect(Config.activeProject!.id, otherId);
+    expect(await AppAdministration.token(), isNotEmpty);
+    expect(
+      projectLogs.records.where(
+        (r) => r.context['operation'] == 'syncNotifications',
+      ),
+      isNotEmpty,
+    );
+  });
 
   test('no projects fails closed without deleting the old session', () async {
     await AppAdministration.signIn();

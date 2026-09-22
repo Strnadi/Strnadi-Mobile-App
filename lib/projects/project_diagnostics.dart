@@ -9,6 +9,7 @@ enum ProjectOperation {
   catalog,
   join,
   switchProject,
+  syncNotifications,
   restore,
   signIn,
   authorizeProject,

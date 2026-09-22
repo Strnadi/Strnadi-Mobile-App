@@ -1,3 +1,4 @@
+import 'package:strnadi/firebase/firebase.dart' as firebase;
 import 'package:strnadi/projects/project_diagnostics.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +22,11 @@ class AppAdministration {
   static int _generation = 0;
   static bool _committingProject = false;
   static String? projectNotice;
+
+  @visibleForTesting
+  static Future<void> Function()? detachNotificationsForTesting;
+  @visibleForTesting
+  static Future<void> Function()? syncNotificationsForTesting;
 
   static String _activeKey() {
     final config = Config.administration!;
@@ -125,7 +131,19 @@ class AppAdministration {
     final oldRole = await profileStore.read('role');
     ProjectDiagnostics.event(ProjectEvent.commitStarted);
     _committingProject = true;
+    var notificationCleanupStarted = false;
     try {
+      notificationCleanupStarted = true;
+      await (detachNotificationsForTesting ??
+          firebase.detachProjectNotifications)();
+      if (generation != _generation ||
+          !identical(owner, session) ||
+          !await activatedAuthSessions.isCurrent(before)) {
+        throw const OAuthFailure(OAuthFailureKind.staleSession);
+      }
+      if (ProjectSwitchGuard.recording) {
+        throw StateError('projects.recordingBlocked');
+      }
       await profileStore.delete('role');
       if (!await prefs.setString(activeKey, jsonEncode(target.toJson())) ||
           !await prefs.setString(selectedKey, target.id)) {
@@ -197,6 +215,20 @@ class AppAdministration {
       rethrow;
     } finally {
       _committingProject = false;
+      if (notificationCleanupStarted && generation == _generation) {
+        // Both commit and rollback create a new logical session. Cleanup
+        // suppresses refreshes for the retired one; register only the winner.
+        try {
+          await (syncNotificationsForTesting ?? firebase.refreshToken)();
+        } catch (error, stackTrace) {
+          ProjectDiagnostics.failure(
+            ProjectOperation.syncNotifications,
+            error,
+            stackTrace,
+            afterSessionChange: true,
+          );
+        }
+      }
     }
   }
 
@@ -254,18 +286,26 @@ class AppAdministration {
             ProjectDiagnostics.event(ProjectEvent.accessRevoked);
           }
         }
-        final fallback = projects
-            .where(
-              (p) =>
-                  p.id != selected?.id &&
-                  p.apiOrigin != null &&
-                  p.apiOrigin!.origin != current.issuer.origin,
-            )
-            .firstOrNull;
-        if (fallback == null) throw StateError('projects.empty');
-        ProjectDiagnostics.event(ProjectEvent.fallbackSelected);
-        await switchProject(fallback);
-        projectNotice = 'projects.fallback';
+        final fallbacks = projects.where(
+          (p) =>
+              p.id != selected?.id &&
+              p.apiOrigin != null &&
+              p.apiOrigin!.origin != current.issuer.origin,
+        );
+        for (final fallback in fallbacks) {
+          try {
+            await switchProject(fallback);
+            ProjectDiagnostics.event(ProjectEvent.fallbackSelected);
+            projectNotice = 'projects.fallback';
+            return;
+          } on OAuthFailure catch (error) {
+            if (error.kind != OAuthFailureKind.exchangeDenied) rethrow;
+            ProjectDiagnostics.event(ProjectEvent.accessRevoked);
+          } on StateError catch (error) {
+            if (error.message != 'projects.revoked') rethrow;
+          }
+        }
+        throw StateError('projects.empty');
       });
 
   @visibleForTesting
