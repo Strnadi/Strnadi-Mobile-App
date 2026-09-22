@@ -1,3 +1,4 @@
+import 'package:strnadi/api/models/administration_profile.dart';
 import 'package:strnadi/projects/project_diagnostics.dart';
 import 'package:strnadi/projects/available_project.dart';
 import 'dart:async';
@@ -362,6 +363,21 @@ class AdministrationSession {
       });
 
   /// Prepare a candidate without closing or replacing the usable old session.
+  Future<Map<String, dynamic>> projectProfile(String subject) =>
+      ProjectDiagnostics.run(ProjectOperation.loadProfile, () async {
+        final generation = _generation;
+        final credential = await projectCredential(expectedSubject: subject);
+        _check(generation);
+        final payload = await transport.getAdministration(
+          configuration.issuer
+              .resolve('/account/profile')
+              .replace(queryParameters: {'projectId': configuration.projectId}),
+          credential.accessToken,
+        );
+        _check(generation);
+        return normalizeAdministrationProfile(payload, expectedUserId: subject);
+      });
+
   Future<AdministrationSession> prepareProject(
     AvailableProject project,
     String subject,

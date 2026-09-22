@@ -113,6 +113,8 @@ class AppAdministration {
     final credential = await candidate.projectCredential(
       expectedSubject: before.userId,
     );
+    final profile = await candidate.projectProfile(before.userId);
+    final role = profile['role'] as String?;
     if (generation != _generation ||
         !identical(owner, session) ||
         !await activatedAuthSessions.isCurrent(before)) {
@@ -159,6 +161,10 @@ class AppAdministration {
       if (generation != _generation) {
         throw const OAuthFailure(OAuthFailureKind.staleSession);
       }
+      if (role != null) await profileStore.write('role', role);
+      if (generation != _generation) {
+        throw const OAuthFailure(OAuthFailureKind.staleSession);
+      }
       await activatedAuthSessions.activate(
         transition,
         before.userId,
@@ -184,7 +190,11 @@ class AppAdministration {
         );
         Config.useProject(previousProject);
         _session = owner;
-        if (oldRole != null) await profileStore.write('role', oldRole);
+        if (oldRole != null) {
+          await profileStore.write('role', oldRole);
+        } else {
+          await profileStore.delete('role');
+        }
         if (oldActive == null) {
           await prefs.remove(activeKey);
         } else {

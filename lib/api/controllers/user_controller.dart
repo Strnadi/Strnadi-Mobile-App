@@ -42,7 +42,12 @@ class UserController {
     }
     final environment = Config.dataEnvironment;
     final response = await _dio.requestUri<dynamic>(
-      ApiDioClient.uri('/account/profile', host: Config.administrationHost),
+      ApiDioClient.uri(
+        '/account/profile',
+        host: Config.administrationHost,
+      ).replace(
+        queryParameters: {'projectId': Config.administration!.projectId},
+      ),
       data: body == null ? null : administrationProfilePatch(body),
       options: _authenticatedOptions(accessToken: snapshot.accessToken)
         ..method = body == null ? 'GET' : 'PATCH',
@@ -52,8 +57,10 @@ class UserController {
       throw StateError('Account changed while loading the profile.');
     }
     if (response.statusCode == 200) {
-      response.data = normalizeAdministrationProfile(response.data,
-          expectedUserId: snapshot.userId);
+      response.data = normalizeAdministrationProfile(
+        response.data,
+        expectedUserId: snapshot.userId,
+      );
     }
     return response;
   }
@@ -64,8 +71,11 @@ class UserController {
     String? host,
   }) {
     if (Config.usesAdministration) {
-      return _ownAdministrationProfile(userId,
-          accessToken: accessToken, host: host);
+      return _ownAdministrationProfile(
+        userId,
+        accessToken: accessToken,
+        host: host,
+      );
     }
     return _dio.getUri(
       ApiDioClient.uri('/users/$userId', host: host),
@@ -80,8 +90,12 @@ class UserController {
     String? host,
   }) {
     if (Config.usesAdministration) {
-      return _ownAdministrationProfile(userId,
-          accessToken: accessToken, host: host, body: body);
+      return _ownAdministrationProfile(
+        userId,
+        accessToken: accessToken,
+        host: host,
+        body: body,
+      );
     }
     return _dio.patchUri(
       ApiDioClient.uri('/users/$userId', host: host),
@@ -97,8 +111,9 @@ class UserController {
   }) {
     return _dio.deleteUri(
       ApiDioClient.uri(
-          Config.usesAdministration ? '/account' : '/users/$userId',
-          host: Config.usesAdministration ? Config.administrationHost : host),
+        Config.usesAdministration ? '/account' : '/users/$userId',
+        host: Config.usesAdministration ? Config.administrationHost : host,
+      ),
       options: _authenticatedOptions(accessToken: accessToken),
     );
   }
@@ -117,10 +132,11 @@ class UserController {
   }) {
     return _dio.getUri(
       ApiDioClient.uri(
-          Config.usesAdministration
-              ? '/users/$userId/profile-photo'
-              : '/users/$userId/get-profile-photo',
-          host: Config.usesAdministration ? Config.administrationHost : host),
+        Config.usesAdministration
+            ? '/users/$userId/profile-photo'
+            : '/users/$userId/get-profile-photo',
+        host: Config.usesAdministration ? Config.administrationHost : host,
+      ),
       options: _authenticatedOptions(
         accessToken: accessToken,
         responseType: ResponseType.json,
@@ -137,14 +153,12 @@ class UserController {
   }) {
     return _dio.postUri(
       ApiDioClient.uri(
-          Config.usesAdministration
-              ? '/account/profile-photo'
-              : '/users/$userId/upload-profile-photo',
-          host: Config.usesAdministration ? Config.administrationHost : host),
-      data: <String, dynamic>{
-        'photoBase64': photoBase64,
-        'format': format,
-      },
+        Config.usesAdministration
+            ? '/account/profile-photo'
+            : '/users/$userId/upload-profile-photo',
+        host: Config.usesAdministration ? Config.administrationHost : host,
+      ),
+      data: <String, dynamic>{'photoBase64': photoBase64, 'format': format},
       options: _authenticatedOptions(
         accessToken: accessToken,
         responseType: ResponseType.json,
@@ -161,9 +175,10 @@ class UserController {
 
   Future<Response<dynamic>> checkEmailExists(String email) {
     return _dio.getUri(
-      ApiDioClient.uri('/users/exists', queryParameters: <String, String>{
-        'email': email,
-      }),
+      ApiDioClient.uri(
+        '/users/exists',
+        queryParameters: <String, String>{'email': email},
+      ),
       options: Options(
         contentType: Headers.jsonContentType,
         extra: const <String, Object>{'authRequired': false},

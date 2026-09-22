@@ -140,3 +140,12 @@ delivery on-device across A → B, rollback, and logout during a switch.
 Restoration tries each discovered fallback after an access rejection, including
 stale remembered memberships. Network, server, and session-change failures stop
 restoration instead of being mistaken for rejected project access.
+
+Project activation fetches `/account/profile?projectId=<target>` using the
+candidate project credential and validates the returned account identity. The
+normalized role is cached before activation completes; absent roles clear the
+previous project's permissions. Profile failure leaves the old project intact,
+and rollback restores its role (including an absent role). Regular profile
+reads and edits also send the selected project ID. Device QA: switch into an
+admin project and open another user's recording directly from the map before
+visiting the profile page; repeat into a project without an elevated role.

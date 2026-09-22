@@ -10,6 +10,7 @@ enum ProjectOperation {
   join,
   switchProject,
   syncNotifications,
+  loadProfile,
   restore,
   signIn,
   authorizeProject,

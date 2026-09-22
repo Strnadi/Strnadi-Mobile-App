@@ -43,6 +43,9 @@ class Transport extends OAuthApi {
   bool denyJoin = false;
   bool wrongProfile = false;
   Completer<void>? profileWait;
+  final profileProjects = <String>[];
+  List<String> projectRoles = ['admin'];
+  bool denyProfile = false;
   @override
   Future<dynamic> postAdministration(
     Uri endpoint,
@@ -68,10 +71,26 @@ class Transport extends OAuthApi {
     if (endpoint.path == '/connect/user-info') return {'sub': userId};
     if (endpoint.path == '/projects') return catalog;
     if (endpoint.path == '/account/profile') {
+      final projectId = endpoint.queryParameters['projectId'];
+      if (projectId != null) {
+        profileProjects.add(projectId);
+        final claims =
+            jsonDecode(
+                  utf8.decode(
+                    base64Url.decode(base64Url.normalize(token.split('.')[1])),
+                  ),
+                )
+                as Map;
+        expect(claims['aud'], 'project:$projectId');
+      }
       await profileWait?.future;
+      if (denyProfile) throw const OAuthFailure(OAuthFailureKind.server);
       return {
         'id': wrongProfile ? 'another-user' : userId,
         'email': 'self@example.test',
+        'firstName': 'Test',
+        'lastName': 'User',
+        'roles': projectRoles,
       };
     }
     expect(endpoint.path, '/users/$userId/projects');
@@ -916,6 +935,95 @@ void main() {
     );
   });
 
+  for (final roles in [
+    <String>['admin'],
+    <String>[],
+  ]) {
+    test(
+      'switch caches target roles $roles before completing activation',
+      () async {
+        await AppAdministration.signIn();
+        values['role'] = 'tester';
+        final transport = session.transport as Transport;
+        transport.projects = [otherProject.toJson()];
+        transport.projectRoles = roles;
+        String? roleAtRegistration;
+        AppAdministration.syncNotificationsForTesting = () async {
+          roleAtRegistration = values['role'];
+        };
+        await AppAdministration.switchProject(otherProject);
+        expect(transport.profileProjects, [otherId]);
+        expect(values['role'], roles.isEmpty ? isNull : 'admin');
+        expect(roleAtRegistration, values['role']);
+      },
+    );
+  }
+
+  for (final oldRole in [null, 'tester']) {
+    test('failed activation restores previous role $oldRole', () async {
+      await AppAdministration.signIn();
+      if (oldRole != null) values['role'] = oldRole;
+      (session.transport as Transport).projects = [otherProject.toJson()];
+      failActivationOnce = true;
+      await expectLater(
+        AppAdministration.switchProject(otherProject),
+        throwsA(isA<PlatformException>()),
+      );
+      expect(values['role'], oldRole);
+    });
+  }
+
+  test('failed profile loading preserves the old project and role', () async {
+    await AppAdministration.signIn();
+    final before = (await activatedAuthSessions.capture())!;
+    values['role'] = 'tester';
+    final transport = session.transport as Transport;
+    transport.projects = [otherProject.toJson()];
+    transport.denyProfile = true;
+    await expectLater(
+      AppAdministration.switchProject(otherProject),
+      throwsA(isA<OAuthFailure>()),
+    );
+    expect(await activatedAuthSessions.isCurrent(before), isTrue);
+    expect(values['role'], 'tester');
+  });
+
+  test('another account profile cannot supply the target role', () async {
+    await AppAdministration.signIn();
+    final before = (await activatedAuthSessions.capture())!;
+    values['role'] = 'tester';
+    final transport = session.transport as Transport;
+    transport.projects = [otherProject.toJson()];
+    transport.wrongProfile = true;
+    await expectLater(
+      AppAdministration.switchProject(otherProject),
+      throwsFormatException,
+    );
+    expect(await activatedAuthSessions.isCurrent(before), isTrue);
+    expect(values['role'], 'tester');
+  });
+
+  test(
+    'logout while loading candidate profile cannot cache its role',
+    () async {
+      await AppAdministration.signIn();
+      final transport = session.transport as Transport;
+      transport.projects = [otherProject.toJson()];
+      transport.profileWait = Completer<void>();
+      final switching = AppAdministration.switchProject(otherProject);
+      final expectation = expectLater(switching, throwsA(isA<OAuthFailure>()));
+      while (transport.profileProjects.isEmpty) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      await AppAdministration.close();
+      await activatedAuthSessions.invalidate();
+      transport.profileWait!.complete();
+      await expectation;
+      expect(values['role'], isNull);
+      expect(await activatedAuthSessions.capture(), isNull);
+    },
+  );
+
   test('no projects fails closed without deleting the old session', () async {
     await AppAdministration.signIn();
     final before = await activatedAuthSessions.capture();
@@ -1045,6 +1153,10 @@ void main() {
       expect(response.data['role'], 'tester');
       final request = adapter.requests.single;
       expect(request.uri.path, '/account/profile');
+      expect(
+        request.uri.queryParameters['projectId'],
+        Config.administration!.projectId,
+      );
       expect(request.uri.host, 'preprod-administration.strnadi.cz');
       expect(
         request.headers['Authorization'],
